@@ -1,0 +1,9 @@
+.DS_Store
+.utm-build/
+bin/
+dist/
+coverage.out
+*.pcap
+*.pcapng
+*.log
+/unifi-stubd

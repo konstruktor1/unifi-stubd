@@ -1,0 +1,14 @@
+{
+  "controller_url": "http://192.168.1.10:8080/inform",
+  "profile": "us16p150",
+  "mac": "auto",
+  "ip": "192.168.1.50",
+  "hostname": "auto",
+  "model": "US16P150",
+  "model_display": "UniFi Switch 16 POE-150W",
+  "ports": 16,
+  "link_speed": 0,
+  "uplink_speed": "auto",
+  "version": "6.6.0",
+  "interval_seconds": 10
+}
