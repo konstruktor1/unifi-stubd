@@ -63,6 +63,14 @@ type Port struct {
 	RXBytes int64
 	// TXBytes is the transmit byte counter.
 	TXBytes int64
+	// RXPackets is the receive packet counter.
+	RXPackets int64
+	// TXPackets is the transmit packet counter.
+	TXPackets int64
+	// RXErrors is the receive error counter.
+	RXErrors int64
+	// TXErrors is the transmit error counter.
+	TXErrors int64
 	// MACs contains learned MAC entries for this port.
 	MACs []MacTableEntry
 }
@@ -234,14 +242,16 @@ func groupedSwitchPorts(count int, options PortOptions) []Port {
 
 func generatedPort(index, speed int, media string, uplink bool) Port {
 	port := Port{
-		Index:   index,
-		Name:    portName(index),
-		Media:   media,
-		Uplink:  uplink,
-		Up:      true,
-		Speed:   speed,
-		RXBytes: int64(1000 * index),
-		TXBytes: int64(900 * index),
+		Index:     index,
+		Name:      portName(index),
+		Media:     media,
+		Uplink:    uplink,
+		Up:        true,
+		Speed:     speed,
+		RXBytes:   int64(1000 * index),
+		TXBytes:   int64(900 * index),
+		RXPackets: 1,
+		TXPackets: 1,
 	}
 	if uplink {
 		port.MACs = []MacTableEntry{
@@ -293,16 +303,25 @@ func portTable(ports []Port) []map[string]any {
 			"poe_caps":     0,
 			"rx_bytes":     p.RXBytes,
 			"tx_bytes":     p.TXBytes,
-			"rx_packets":   1,
-			"tx_packets":   1,
-			"rx_errors":    0,
-			"tx_errors":    0,
+			"rx_packets":   firstNonZeroInt64(p.RXPackets, 1),
+			"tx_packets":   firstNonZeroInt64(p.TXPackets, 1),
+			"rx_errors":    p.RXErrors,
+			"tx_errors":    p.TXErrors,
 			"stp_state":    "forwarding",
 			"stp_pathcost": 20000,
 			"mac_table":    p.MACs,
 		})
 	}
 	return out
+}
+
+func firstNonZeroInt64(values ...int64) int64 {
+	for _, value := range values {
+		if value != 0 {
+			return value
+		}
+	}
+	return 0
 }
 
 func managementInterfaceSpeed(ports []Port) int {

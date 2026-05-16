@@ -29,6 +29,9 @@ func serveSwitchEmulation() error {
 		return err
 	}
 	applyConfig(cfg, changed, flags)
+	if err := validateOperationFlags(flags); err != nil {
+		return err
+	}
 
 	profile, ok := device.LookupProfile(*flags.profileName)
 	if !ok {
@@ -38,10 +41,14 @@ func serveSwitchEmulation() error {
 
 	resolvedHostname := resolveHostname(*flags.hostname)
 	portOptions := resolvePortOptions(profile, *flags.linkSpeed, *flags.uplinkSpeed, *flags.controller)
-	mac := resolveMAC(*flags.macText, resolvedHostname, profile, *flags.model)
+	mac := resolveMAC(*flags.macText, resolvedHostname, profile, *flags.model, *flags.operationMode, *flags.observeInterface)
 	ip := net.ParseIP(*flags.ipText).To4()
 	if ip == nil {
 		log.Fatalf("invalid IPv4 address: %q", *flags.ipText)
+	}
+	if *flags.dryRunPlan {
+		printRuntimePlan(flags, profile, mac.String(), ip.String(), resolvedHostname)
+		return nil
 	}
 
 	ann := discovery.Announcement{
@@ -60,7 +67,8 @@ func serveSwitchEmulation() error {
 		return err
 	}
 
-	payload, err := payloadForIdentity(mac, ip, resolvedHostname, *flags.controller, adoption.Store{}, flags, portOptions)
+	ports := portsForRuntime(flags, portOptions)
+	payload, err := payloadForIdentity(mac, ip, resolvedHostname, *flags.controller, adoption.Store{}, flags, ports)
 	if err != nil {
 		return err
 	}
@@ -116,7 +124,8 @@ func maintainControllerPresence(cfg controllerPresence) error {
 	for {
 		store := loadAdoptionState(*cfg.flags.sshState)
 		informURL := effectiveInformURL(*cfg.flags.controller, store)
-		payload, err := payloadForIdentity(cfg.mac, cfg.ip, cfg.hostname, informURL, store, cfg.flags, cfg.portOptions)
+		ports := portsForRuntime(cfg.flags, cfg.portOptions)
+		payload, err := payloadForIdentity(cfg.mac, cfg.ip, cfg.hostname, informURL, store, cfg.flags, ports)
 		if err != nil {
 			return err
 		}

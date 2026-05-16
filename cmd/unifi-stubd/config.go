@@ -29,6 +29,9 @@ func applyConfig(cfg appconfig.Config, changed map[string]bool, flags runtimeFla
 	if !changed["profile"] {
 		*flags.profileName = cfg.Profile
 	}
+	if !changed["operation-mode"] {
+		*flags.operationMode = cfg.OperationMode
+	}
 	if !changed["mac"] {
 		*flags.macText = cfg.MAC
 	}
@@ -55,6 +58,18 @@ func applyConfig(cfg appconfig.Config, changed map[string]bool, flags runtimeFla
 	}
 	if !changed["uplink-speed"] {
 		*flags.uplinkSpeed = cfg.UplinkSpeed
+	}
+	if !changed["observe-interface"] {
+		*flags.observeInterface = cfg.ObserveInterface
+	}
+	if !changed["observe-bridge"] {
+		*flags.observeBridge = cfg.ObserveBridge
+	}
+	if !changed["lldp-source"] {
+		*flags.lldpSource = cfg.LLDPSource
+	}
+	if !changed["traffic-source"] {
+		*flags.trafficSource = cfg.TrafficSource
 	}
 	if !changed["controller"] {
 		*flags.controller = cfg.ControllerURL

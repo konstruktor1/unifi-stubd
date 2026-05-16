@@ -11,6 +11,8 @@ const DefaultPath = "/etc/unifi-stubd/config.yaml"
 
 // Config describes the runtime settings loaded from YAML and CLI flags.
 type Config struct {
+	// OperationMode selects the runtime network behavior.
+	OperationMode string `yaml:"operation_mode"`
 	// ControllerURL is the UniFi inform endpoint.
 	ControllerURL string `yaml:"controller_url"`
 	// Profile selects the device profile to emulate.
@@ -31,6 +33,14 @@ type Config struct {
 	LinkSpeed int `yaml:"link_speed"`
 	// UplinkSpeed is an explicit Mbps value, auto, or profile.
 	UplinkSpeed string `yaml:"uplink_speed"`
+	// ObserveInterface is the host interface used for passive link data.
+	ObserveInterface string `yaml:"observe_interface"`
+	// ObserveBridge is the Linux bridge used for passive FDB data.
+	ObserveBridge string `yaml:"observe_bridge"`
+	// LLDPSource selects the passive LLDP source.
+	LLDPSource string `yaml:"lldp_source"`
+	// TrafficSource selects the passive traffic metadata source.
+	TrafficSource string `yaml:"traffic_source"`
 	// Version overrides the firmware version from the selected profile.
 	Version string `yaml:"version"`
 	// IntervalSeconds is the loop interval for discovery and inform traffic.
@@ -52,24 +62,29 @@ type Config struct {
 // Default returns the built-in runtime defaults.
 func Default() Config {
 	return Config{
-		ControllerURL:   "",
-		Profile:         "us16p150",
-		MAC:             "auto",
-		IP:              "192.168.1.50",
-		Hostname:        "auto",
-		Model:           "",
-		ModelDisplay:    "",
-		Ports:           0,
-		LinkSpeed:       0,
-		UplinkSpeed:     "auto",
-		Version:         "",
-		IntervalSeconds: 10,
-		NoDiscovery:     false,
-		SSHListen:       "",
-		SSHUser:         "ubnt",
-		SSHPassword:     "ubnt",
-		SSHHostKeyPath:  "/etc/unifi-stubd/ssh_host_rsa_key",
-		StatePath:       "/var/lib/unifi-stubd/adoption.env",
+		OperationMode:    "stub",
+		ControllerURL:    "",
+		Profile:          "us16p150",
+		MAC:              "auto",
+		IP:               "192.168.1.50",
+		Hostname:         "auto",
+		Model:            "",
+		ModelDisplay:     "",
+		Ports:            0,
+		LinkSpeed:        0,
+		UplinkSpeed:      "auto",
+		ObserveInterface: "",
+		ObserveBridge:    "",
+		LLDPSource:       "off",
+		TrafficSource:    "off",
+		Version:          "",
+		IntervalSeconds:  10,
+		NoDiscovery:      false,
+		SSHListen:        "",
+		SSHUser:          "ubnt",
+		SSHPassword:      "ubnt",
+		SSHHostKeyPath:   "/etc/unifi-stubd/ssh_host_rsa_key",
+		StatePath:        "/var/lib/unifi-stubd/adoption.env",
 	}
 }
 

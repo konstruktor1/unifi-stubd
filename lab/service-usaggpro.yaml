@@ -1,9 +1,14 @@
 # Controller-known Pro Aggregation profile for an isolated lab.
 controller_url: http://192.0.2.10:8080/inform
+operation_mode: stub
 profile: usaggpro
 mac: auto
 ip: 192.0.2.50
 hostname: auto
+observe_interface: ""
+observe_bridge: ""
+lldp_source: off
+traffic_source: off
 
 link_speed: 0
 uplink_speed: profile

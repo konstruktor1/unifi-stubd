@@ -2,6 +2,8 @@ package main
 
 import (
 	"encoding/hex"
+	"errors"
+	"fmt"
 	"log"
 	"net"
 	"os"
@@ -19,7 +21,7 @@ func payloadForIdentity(
 	informURL string,
 	store adoption.Store,
 	flags runtimeFlags,
-	portOptions device.PortOptions,
+	ports []device.Port,
 ) ([]byte, error) {
 	return buildPayload(device.Identity{
 		MAC:          mac.String(),
@@ -30,16 +32,16 @@ func payloadForIdentity(
 		Version:      *flags.version,
 		Serial:       serialFromMAC(mac),
 		InformURL:    informURL,
-	}, store, *flags.portCount, portOptions)
+	}, store, ports)
 }
 
-func buildPayload(id device.Identity, store adoption.Store, portCount int, portOptions device.PortOptions) ([]byte, error) {
+func buildPayload(id device.Identity, store adoption.Store, ports []device.Port) ([]byte, error) {
 	id.CFGVersion = store.CFGVersion
 	id.Adopted = store.AuthKey != ""
 	if store.Version != "" {
 		id.Version = store.Version
 	}
-	return device.MinimalSwitchPayload(id, device.SwitchPortsWithOptions(portCount, portOptions))
+	return device.MinimalSwitchPayload(id, ports)
 }
 
 func resolveHostname(value string) string {
@@ -54,8 +56,19 @@ func resolveHostname(value string) string {
 	return "unifi-stubd"
 }
 
-func resolveMAC(value, hostname string, profile device.Profile, model string) net.HardwareAddr {
+func resolveMAC(value, hostname string, profile device.Profile, model, operationMode, ifaceName string) net.HardwareAddr {
 	value = strings.TrimSpace(value)
+	if strings.EqualFold(value, "host") {
+		if operationMode != operationModeHostDirect {
+			log.Fatalf("mac: host is only allowed with -operation-mode host-direct")
+		}
+		mac, err := hostInterfaceMAC(ifaceName)
+		if err != nil {
+			log.Fatalf("host MAC resolve failed: %v", err)
+		}
+		log.Printf("host MAC resolved: %s interface=%s", mac, ifaceName)
+		return mac
+	}
 	if value == "" || strings.EqualFold(value, "auto") {
 		seed := strings.Join([]string{"unifi-stubd", hostname, profile.Name, model}, "|")
 		mac := device.AutoMAC(seed)
@@ -67,6 +80,24 @@ func resolveMAC(value, hostname string, profile device.Profile, model string) ne
 		log.Fatalf("invalid MAC address: %v", err)
 	}
 	return mac
+}
+
+func hostInterfaceMAC(ifaceName string) (net.HardwareAddr, error) {
+	ifaceName = strings.TrimSpace(ifaceName)
+	if ifaceName == "" {
+		return nil, errors.New("observe_interface is required when mac is host")
+	}
+	if strings.Contains(ifaceName, "/") {
+		return nil, fmt.Errorf("invalid interface name %q", ifaceName)
+	}
+	iface, err := net.InterfaceByName(ifaceName)
+	if err != nil {
+		return nil, err
+	}
+	if len(iface.HardwareAddr) == 0 {
+		return nil, fmt.Errorf("interface %s has no hardware address", ifaceName)
+	}
+	return iface.HardwareAddr, nil
 }
 
 func resolvePortOptions(profile device.Profile, linkSpeed int, uplinkSpeed, controller string) device.PortOptions {

@@ -2,6 +2,7 @@
 # Installed as /etc/unifi-stubd/config.yaml.
 
 # Replace 192.0.2.10 and 192.0.2.50 with addresses from an isolated lab.
+operation_mode: stub
 controller_url: http://192.0.2.10:8080/inform
 profile: us16p150
 mac: auto
@@ -11,6 +12,13 @@ hostname: auto
 # 0 uses the selected profile, including mixed-speed profile port groups.
 link_speed: 0
 uplink_speed: auto
+
+# Passive Linux observation is read-only. Set operation_mode: observe and fill
+# these fields to read counters, speed, and bridge FDB entries.
+observe_interface: ""
+observe_bridge: ""
+lldp_source: off
+traffic_source: off
 
 interval_seconds: 10
 no_discovery: false

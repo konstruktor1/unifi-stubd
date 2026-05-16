@@ -27,6 +27,7 @@ flowchart LR
 | `internal/adoption` | Authkey, cfgversion und Lifecycle-State |
 | `internal/device` | UniFi-Status-Payloads bauen |
 | `internal/adapters/linuxbridge` | Linux-Bridge-FDB in MAC-Tabelle uebersetzen |
+| `internal/observe` | Read-only Linux-sysfs-/FDB-Snapshot und Payload-Merge |
 | `internal/config` | Konfiguration laden |
 
 ## Runtime Layout

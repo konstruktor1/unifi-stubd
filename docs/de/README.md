@@ -3,6 +3,7 @@
 - [Research](research.md)
 - [Protocol Notes](protocol-notes.md)
 - [Architecture](architecture.md)
+- [Betriebsmodi](operation-modes.md)
 - [Roadmap](roadmap.md)
 - [Lab Plan](lab-plan.md)
 - [Release-Checkliste](release.md)

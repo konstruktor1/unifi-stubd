@@ -179,3 +179,51 @@ func TestMinimalSwitchPayloadReportsGroupedUplinkSpeed(t *testing.T) {
 		t.Fatalf("uplink media = %q, want SFP28", got)
 	}
 }
+
+func TestMinimalSwitchPayloadReportsObservedCounters(t *testing.T) {
+	payload, err := device.MinimalSwitchPayload(device.Identity{
+		MAC:          "02:11:22:33:44:59",
+		IP:           "192.0.2.50",
+		Hostname:     "unifi-stubd-lab",
+		Model:        "US8",
+		ModelDisplay: "UniFi Switch 8",
+		Version:      "7.4.1.16850",
+		Serial:       "021122334459",
+		InformURL:    "http://10.10.0.30:8080/inform",
+	}, []device.Port{
+		{
+			Index:     1,
+			Name:      "Port 1",
+			Media:     "GE",
+			Uplink:    true,
+			Up:        true,
+			Speed:     1000,
+			RXBytes:   1234,
+			TXBytes:   5678,
+			RXPackets: 12,
+			TXPackets: 34,
+			RXErrors:  1,
+			TXErrors:  2,
+		},
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var doc struct {
+		PortTable []map[string]any `json:"port_table"`
+	}
+	if err := json.Unmarshal(payload, &doc); err != nil {
+		t.Fatal(err)
+	}
+	port := doc.PortTable[0]
+	if got := int64(port["rx_bytes"].(float64)); got != 1234 {
+		t.Fatalf("rx_bytes = %d, want 1234", got)
+	}
+	if got := int64(port["tx_packets"].(float64)); got != 34 {
+		t.Fatalf("tx_packets = %d, want 34", got)
+	}
+	if got := int64(port["rx_errors"].(float64)); got != 1 {
+		t.Fatalf("rx_errors = %d, want 1", got)
+	}
+}

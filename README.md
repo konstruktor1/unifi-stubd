@@ -104,6 +104,13 @@ The packaged Linux config source is
 commands live in `lab/`, and installed Linux paths are documented in
 `packaging/installed-files.md`.
 
+Runtime modes are documented in
+[English](docs/en/operation-modes.md) and
+[Deutsch](docs/de/operation-modes.md). The default `stub` mode remains fully
+synthetic. The `observe` mode is read-only and can merge Linux bridge FDB and
+sysfs counters into the switch payload when `observe_interface` and/or
+`observe_bridge` are configured.
+
 ## Services
 
 OpenRC:

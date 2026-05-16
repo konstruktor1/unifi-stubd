@@ -2,8 +2,10 @@
 
 ## Phase 0: Pin the Lab
 
+- [x] Validate a controller-known 10G profile: `USAGGPRO` online/adopted.
+- [x] Document operation modes and the current live lab state.
 - [ ] Choose and document a UniFi Network Controller version.
-- [ ] Run the controller in an isolated lab.
+- [x] Run the controller in an isolated lab.
 - [ ] Capture a real UniFi switch inform sequence if hardware is available.
 - [ ] Enable debug logs for `inform`, `discover`, `devmgr`.
 
@@ -25,18 +27,19 @@
 
 ## Phase 3: Adoption
 
-- [ ] Parse `_type: setparam`.
-- [ ] Split `mgmt_cfg` into key/value data.
-- [ ] Persist `authkey`, `cfgversion`, `use_aes_gcm`, `inform_url`.
+- [x] Parse `_type: setparam`.
+- [x] Split `mgmt_cfg` into key/value data.
+- [x] Persist `authkey`, `cfgversion`, `use_aes_gcm`, `inform_url`.
 - [ ] Send two quick inform requests after adoption.
-- [ ] Reach connected state.
+- [x] Reach connected state with `USAGGPRO`.
 
 ## Phase 4: Fake Switch Payload
 
 - [x] Minimal switch payload.
-- [ ] Extend `port_table` with stable defaults.
-- [ ] Fill `mac_table` from Linux bridge FDB.
-- [ ] Read port counters from sysfs.
+- [x] Extend `port_table` with stable defaults.
+- [x] Add read-only `observe` mode for Linux bridge/sysfs data.
+- [x] Fill `mac_table` from Linux bridge FDB when configured.
+- [x] Read port counters from sysfs when configured.
 - [ ] Model several virtual ports for `vmbr0`, `tap*`, `veth*`.
 
 ## Phase 5: Operations
@@ -52,6 +55,8 @@
 ## Phase 6: Later Research
 
 - [x] Built-in SSH adoption for `syswrapper.sh set-adopt` and `mca-cli-op set-inform`.
+- [ ] Active macvlan/ipvlan lifecycle after the dry-run plan is proven.
+- [ ] Passive LLDP import from `lldpd`.
 - [ ] Gateway profile `UGW3`/`UXG`.
 - [ ] Synthesize DPI fields from NetFlow/OPNsense/ntopng.
 - [ ] Compatibility matrix per UniFi Network version.
