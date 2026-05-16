@@ -39,14 +39,23 @@ type statusIdentity struct {
 }
 
 type statusConfig struct {
-	OperationMode string `json:"operation_mode"`
-	ControllerURL string `json:"controller_url,omitempty"`
-	InformURL     string `json:"inform_url,omitempty"`
-	Interval      string `json:"interval"`
-	NoDiscovery   bool   `json:"no_discovery"`
-	SSHListen     string `json:"ssh_listen,omitempty"`
-	StatePath     string `json:"state_path"`
-	StatusPath    string `json:"status_path"`
+	OperationMode string               `json:"operation_mode"`
+	ControllerURL string               `json:"controller_url,omitempty"`
+	InformURL     string               `json:"inform_url,omitempty"`
+	Interval      string               `json:"interval"`
+	NoDiscovery   bool                 `json:"no_discovery"`
+	SSHListen     string               `json:"ssh_listen,omitempty"`
+	StatePath     string               `json:"state_path"`
+	StatusPath    string               `json:"status_path"`
+	PortOverrides []statusPortOverride `json:"port_overrides,omitempty"`
+}
+
+type statusPortOverride struct {
+	Port  int    `json:"port"`
+	Name  string `json:"name,omitempty"`
+	Speed int    `json:"speed,omitempty"`
+	Media string `json:"media,omitempty"`
+	Up    *bool  `json:"up,omitempty"`
 }
 
 type statusAdoption struct {
@@ -129,6 +138,7 @@ func buildLocalStatus(flags runtimeFlags, profile device.Profile, mac net.Hardwa
 			SSHListen:     *flags.sshListen,
 			StatePath:     *flags.sshState,
 			StatusPath:    *flags.statusPath,
+			PortOverrides: statusPortOverrides(flags.portOverrides),
 		},
 		Adoption: statusAdoption{
 			State:      adoptionStateText(store),
@@ -221,6 +231,15 @@ func printHumanStatus(status localStatus) {
 	fmt.Printf("inform_url: %s\n", valueOrDash(status.Config.InformURL))
 	fmt.Printf("interval: %s\n", status.Config.Interval)
 	fmt.Printf("no_discovery: %t\n", status.Config.NoDiscovery)
+	for _, override := range status.Config.PortOverrides {
+		fmt.Printf("port_override: port=%d speed=%d media=%s up=%s name=%s\n",
+			override.Port,
+			override.Speed,
+			valueOrDash(override.Media),
+			boolPointerText(override.Up),
+			valueOrDash(override.Name),
+		)
+	}
 	fmt.Printf("ssh_listen: %s\n", valueOrDash(status.Config.SSHListen))
 	fmt.Printf("state_path: %s\n", status.Config.StatePath)
 	fmt.Printf("status_path: %s\n", status.Config.StatusPath)
@@ -235,6 +254,20 @@ func printHumanStatus(status localStatus) {
 	for _, warning := range status.Warnings {
 		fmt.Printf("warning: %s\n", warning)
 	}
+}
+
+func statusPortOverrides(overrides []device.PortOverride) []statusPortOverride {
+	out := make([]statusPortOverride, 0, len(overrides))
+	for _, override := range overrides {
+		out = append(out, statusPortOverride{
+			Port:  override.Port,
+			Name:  strings.TrimSpace(override.Name),
+			Speed: override.Speed,
+			Media: strings.TrimSpace(override.Media),
+			Up:    cloneBoolPointer(override.Up),
+		})
+	}
+	return out
 }
 
 func printObservationStatus(status statusObservation) {

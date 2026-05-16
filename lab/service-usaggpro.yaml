@@ -13,6 +13,15 @@ traffic_source: off
 link_speed: 0
 uplink_speed: profile
 uplink_port: 1
+port_overrides:
+  - port: 2
+    speed: 1000
+  - port: 3
+    speed: 2500
+  - port: 4
+    speed: 100
+  - port: 5
+    up: false
 interval_seconds: 10
 no_discovery: false
 

@@ -46,6 +46,21 @@ bestimmten physischen Port zu legen, ohne dessen Profil-Speed oder Medium zu
 aendern. Beispiel: `uplink_port: 1` setzt beim `usaggpro` den Uplink auf einen
 10G-SFP+-Port statt auf die Default-25G-SFP28-Uplinkgruppe.
 
+`port_overrides` setzt einzelne Lab-Portzustaende nach Profil- und
+Observation-Daten:
+
+```yaml
+port_overrides:
+  - port: 2
+    speed: 1000
+  - port: 3
+    speed: 2500
+  - port: 4
+    speed: 100
+  - port: 5
+    up: false
+```
+
 Wenn eine Quelle fehlt oder nicht lesbar ist, loggt der Dienst eine Warnung und
 faellt auf Profilwerte zurueck. Dieser Modus darf keine Interfaces anlegen,
 keine Adressen setzen und keine Routen aendern.

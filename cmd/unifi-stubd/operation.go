@@ -65,6 +65,17 @@ func validatePortOverrides(flags runtimeFlags) error {
 	if *flags.uplinkPort < 0 || *flags.uplinkPort > *flags.portCount {
 		return fmt.Errorf("invalid -uplink-port %d; use 0 or 1..%d", *flags.uplinkPort, *flags.portCount)
 	}
+	for _, override := range flags.portOverrides {
+		if override.Port < 1 || override.Port > *flags.portCount {
+			return fmt.Errorf("invalid port override %d; use 1..%d", override.Port, *flags.portCount)
+		}
+		if override.Speed < 0 {
+			return fmt.Errorf("invalid speed override %d on port %d; use 0 or a positive Mbps value", override.Speed, override.Port)
+		}
+		if override.Speed == 0 && override.Up == nil && strings.TrimSpace(override.Name) == "" && strings.TrimSpace(override.Media) == "" {
+			return fmt.Errorf("empty port override on port %d", override.Port)
+		}
+	}
 	return nil
 }
 
@@ -80,7 +91,7 @@ func portsForRuntime(flags runtimeFlags, portOptions device.PortOptions) []devic
 	ports := device.SwitchPortsWithOptions(*flags.portCount, portOptions)
 	mode := normalizeMode(*flags.operationMode)
 	if mode != operationModeObserve && mode != operationModeHostDirect {
-		return ports
+		return device.ApplyPortOverrides(ports, flags.portOverrides)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), observeTimeout)
 	defer cancel()
@@ -92,7 +103,7 @@ func portsForRuntime(flags runtimeFlags, portOptions device.PortOptions) []devic
 	for _, err := range errs {
 		log.Printf("passive observation warning: %v", err)
 	}
-	return observe.Apply(ports, snapshot)
+	return device.ApplyPortOverrides(observe.Apply(ports, snapshot), flags.portOverrides)
 }
 
 func printRuntimePlan(flags runtimeFlags, profile device.Profile, macText, ipText, hostname string) {
@@ -103,6 +114,15 @@ func printRuntimePlan(flags runtimeFlags, profile device.Profile, macText, ipTex
 	fmt.Printf("ip: %s\n", ipText)
 	fmt.Printf("hostname: %s\n", hostname)
 	fmt.Printf("uplink_port: %d\n", *flags.uplinkPort)
+	for _, override := range flags.portOverrides {
+		fmt.Printf("port_override: port=%d speed=%d media=%q up=%s name=%q\n",
+			override.Port,
+			override.Speed,
+			strings.TrimSpace(override.Media),
+			boolPointerText(override.Up),
+			strings.TrimSpace(override.Name),
+		)
+	}
 	fmt.Printf("observe_interface: %s\n", strings.TrimSpace(*flags.observeInterface))
 	fmt.Printf("observe_bridge: %s\n", strings.TrimSpace(*flags.observeBridge))
 	fmt.Printf("lldp_source: %s\n", strings.TrimSpace(*flags.lldpSource))
@@ -124,6 +144,13 @@ func printRuntimePlan(flags runtimeFlags, profile device.Profile, macText, ipTex
 		fmt.Printf("planned_command: ip link set unifi-stubd0 address %s up\n", macText)
 		fmt.Printf("planned_note: assign %s to unifi-stubd0 after subnet/prefix config exists\n", ipText)
 	}
+}
+
+func boolPointerText(value *bool) string {
+	if value == nil {
+		return "unset"
+	}
+	return fmt.Sprintf("%t", *value)
 }
 
 func uplinkPortIndex(ports []device.Port) int {

@@ -173,6 +173,71 @@ func TestSwitchPortsCanOverrideAggregationUplinkToTenGigPort(t *testing.T) {
 	}
 }
 
+func TestApplyPortOverridesChangesSpeedAndLinkState(t *testing.T) {
+	profile, ok := device.LookupProfile("usaggpro")
+	if !ok {
+		t.Fatal("profile not found")
+	}
+	linkDown := false
+	ports := device.ApplyPortOverrides(device.SwitchPortsWithOptions(profile.Ports, profile.PortOptions()), []device.PortOverride{
+		{Port: 2, Speed: 1000},
+		{Port: 3, Speed: 2500},
+		{Port: 4, Speed: 100},
+		{Port: 5, Up: &linkDown},
+	})
+
+	assertPort := func(index, speed int, media string, up bool) {
+		t.Helper()
+		port := ports[index-1]
+		if port.Speed != speed {
+			t.Fatalf("port %d speed = %d, want %d", index, port.Speed, speed)
+		}
+		if port.Media != media {
+			t.Fatalf("port %d media = %q, want %q", index, port.Media, media)
+		}
+		if port.Up != up {
+			t.Fatalf("port %d up = %v, want %v", index, port.Up, up)
+		}
+	}
+	assertPort(2, 1000, "GE", true)
+	assertPort(3, 2500, "GE", true)
+	assertPort(4, 100, "GE", true)
+	assertPort(5, 0, "SFP+", false)
+}
+
+func TestMinimalSwitchPayloadReportsPortOverrideLinkDown(t *testing.T) {
+	linkDown := false
+	payload, err := device.MinimalSwitchPayload(device.Identity{
+		MAC:          "02:11:22:33:44:60",
+		IP:           "192.0.2.50",
+		Hostname:     "unifi-stubd-lab",
+		Model:        "US8",
+		ModelDisplay: "UniFi Switch 8",
+		Version:      "7.4.1.16850",
+		Serial:       "021122334460",
+		InformURL:    "http://10.10.0.30:8080/inform",
+	}, device.ApplyPortOverrides(device.SwitchPorts(8), []device.PortOverride{
+		{Port: 5, Up: &linkDown},
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var doc struct {
+		PortTable []map[string]any `json:"port_table"`
+	}
+	if err := json.Unmarshal(payload, &doc); err != nil {
+		t.Fatal(err)
+	}
+	port := doc.PortTable[4]
+	if up := port["up"].(bool); up {
+		t.Fatal("port 5 is up, want down")
+	}
+	if got := int(port["speed"].(float64)); got != 0 {
+		t.Fatalf("port 5 speed = %d, want 0", got)
+	}
+}
+
 func TestMinimalSwitchPayloadReportsGroupedUplinkSpeed(t *testing.T) {
 	profile, ok := device.LookupProfile("usw-pro-xg-48")
 	if !ok {

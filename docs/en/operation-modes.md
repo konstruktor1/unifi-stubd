@@ -46,6 +46,21 @@ that port's profile speed and media. For example, `uplink_port: 1` puts the
 `usaggpro` uplink on a 10G SFP+ port instead of the default 25G SFP28 uplink
 group.
 
+Use `port_overrides` for per-port lab states after profile and observation data
+have been applied:
+
+```yaml
+port_overrides:
+  - port: 2
+    speed: 1000
+  - port: 3
+    speed: 2500
+  - port: 4
+    speed: 100
+  - port: 5
+    up: false
+```
+
 If any source is missing or unreadable, the daemon logs a warning and falls back
 to profile defaults. This mode must not create interfaces, assign addresses, or
 change routes.

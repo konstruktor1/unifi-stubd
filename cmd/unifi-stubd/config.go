@@ -9,6 +9,7 @@ import (
 	"time"
 
 	appconfig "github.com/konstruktor1/unifi-stubd/internal/config"
+	"github.com/konstruktor1/unifi-stubd/internal/device"
 )
 
 func loadConfig(path string, explicit bool) (appconfig.Config, error) {
@@ -26,7 +27,7 @@ func loadConfig(path string, explicit bool) (appconfig.Config, error) {
 	return appconfig.Config{}, fmt.Errorf("load config %s: %w", path, err)
 }
 
-func applyConfig(cfg appconfig.Config, changed map[string]bool, flags runtimeFlags) {
+func applyConfig(cfg appconfig.Config, changed map[string]bool, flags *runtimeFlags) {
 	if !changed["profile"] {
 		*flags.profileName = cfg.Profile
 	}
@@ -63,6 +64,7 @@ func applyConfig(cfg appconfig.Config, changed map[string]bool, flags runtimeFla
 	if !changed["uplink-port"] {
 		*flags.uplinkPort = cfg.UplinkPort
 	}
+	flags.portOverrides = configPortOverrides(cfg.PortOverrides)
 	if !changed["observe-interface"] {
 		*flags.observeInterface = cfg.ObserveInterface
 	}
@@ -102,4 +104,26 @@ func applyConfig(cfg appconfig.Config, changed map[string]bool, flags runtimeFla
 	if !changed["status-path"] {
 		*flags.statusPath = cfg.StatusPath
 	}
+}
+
+func configPortOverrides(overrides []appconfig.PortOverride) []device.PortOverride {
+	out := make([]device.PortOverride, 0, len(overrides))
+	for _, override := range overrides {
+		out = append(out, device.PortOverride{
+			Port:  override.Port,
+			Name:  override.Name,
+			Speed: override.Speed,
+			Media: override.Media,
+			Up:    cloneBoolPointer(override.Up),
+		})
+	}
+	return out
+}
+
+func cloneBoolPointer(value *bool) *bool {
+	if value == nil {
+		return nil
+	}
+	clone := *value
+	return &clone
 }

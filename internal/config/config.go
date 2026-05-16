@@ -38,6 +38,8 @@ type Config struct {
 	UplinkSpeed string `yaml:"uplink_speed"`
 	// UplinkPort overrides the profile-selected uplink port when positive.
 	UplinkPort int `yaml:"uplink_port"`
+	// PortOverrides applies per-port runtime overrides after profile generation.
+	PortOverrides []PortOverride `yaml:"port_overrides"`
 	// ObserveInterface is the host interface used for passive link data.
 	ObserveInterface string `yaml:"observe_interface"`
 	// ObserveBridge is the Linux bridge used for passive FDB data.
@@ -81,6 +83,7 @@ func Default() Config {
 		LinkSpeed:        0,
 		UplinkSpeed:      automaticValue,
 		UplinkPort:       0,
+		PortOverrides:    nil,
 		ObserveInterface: "",
 		ObserveBridge:    "",
 		LLDPSource:       "off",
@@ -95,6 +98,20 @@ func Default() Config {
 		StatePath:        "/var/lib/unifi-stubd/adoption.env",
 		StatusPath:       "/var/lib/unifi-stubd/status.json",
 	}
+}
+
+// PortOverride describes one per-port YAML override.
+type PortOverride struct {
+	// Port is the one-based switch port index.
+	Port int `yaml:"port"`
+	// Name overrides the controller-facing port label when set.
+	Name string `yaml:"name"`
+	// Speed overrides the negotiated speed in Mbps when positive.
+	Speed int `yaml:"speed"`
+	// Media overrides the controller-facing media label when set.
+	Media string `yaml:"media"`
+	// Up overrides link state when set.
+	Up *bool `yaml:"up"`
 }
 
 // Load reads path and overlays its YAML values on top of Default.

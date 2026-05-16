@@ -32,7 +32,7 @@ func serveSwitchEmulation() error {
 	if err != nil {
 		return err
 	}
-	applyConfig(cfg, changed, flags)
+	applyConfig(cfg, changed, &flags)
 	if err := validateOperationFlags(flags); err != nil {
 		return err
 	}

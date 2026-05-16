@@ -5,6 +5,7 @@ import (
 	"time"
 
 	appconfig "github.com/konstruktor1/unifi-stubd/internal/config"
+	"github.com/konstruktor1/unifi-stubd/internal/device"
 )
 
 type runtimeFlags struct {
@@ -23,6 +24,7 @@ type runtimeFlags struct {
 	linkSpeed        *int
 	uplinkSpeed      *string
 	uplinkPort       *int
+	portOverrides    []device.PortOverride
 	observeInterface *string
 	observeBridge    *string
 	lldpSource       *string
@@ -60,6 +62,7 @@ func parseRuntimeFlags(defaults appconfig.Config) (runtimeFlags, map[string]bool
 		linkSpeed:        flag.Int("link-speed", defaults.LinkSpeed, "override default switch port speed in Mbps; 0 uses selected profile"),
 		uplinkSpeed:      flag.String("uplink-speed", defaults.UplinkSpeed, "uplink speed in Mbps, auto, or profile"),
 		uplinkPort:       flag.Int("uplink-port", defaults.UplinkPort, "override uplink port index; 0 uses selected profile"),
+		portOverrides:    configPortOverrides(defaults.PortOverrides),
 		observeInterface: flag.String("observe-interface", defaults.ObserveInterface, "host interface used for passive link counters and speed"),
 		observeBridge:    flag.String("observe-bridge", defaults.ObserveBridge, "Linux bridge used for passive FDB MAC table data"),
 		lldpSource:       flag.String("lldp-source", defaults.LLDPSource, "passive LLDP source: off or lldpd"),

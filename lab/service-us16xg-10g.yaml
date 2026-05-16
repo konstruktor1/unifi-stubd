@@ -13,6 +13,7 @@ traffic_source: off
 link_speed: 10000
 uplink_speed: auto
 uplink_port: 0
+port_overrides: []
 interval_seconds: 10
 no_discovery: false
 

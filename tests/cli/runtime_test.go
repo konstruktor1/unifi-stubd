@@ -19,6 +19,9 @@ mac: auto
 ip: 192.0.2.50
 hostname: config-host
 uplink_speed: profile
+port_overrides:
+  - port: 2
+    speed: 1000
 `), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -45,6 +48,9 @@ uplink_speed: profile
 	if !strings.Contains(output, "uplink_port: 1") {
 		t.Fatalf("output did not contain uplink override:\n%s", output)
 	}
+	if !strings.Contains(output, `port_override: port=2 speed=1000`) {
+		t.Fatalf("output did not contain port override:\n%s", output)
+	}
 }
 
 func TestInvalidUplinkPortIsRejected(t *testing.T) {
@@ -58,6 +64,26 @@ func TestInvalidUplinkPortIsRejected(t *testing.T) {
 	}
 	if !strings.Contains(string(out), "invalid -uplink-port 33") {
 		t.Fatalf("output did not contain uplink validation:\n%s", out)
+	}
+}
+
+func TestInvalidPortOverrideIsRejected(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(configPath, []byte(`profile: usaggpro
+port_overrides:
+  - port: 33
+    speed: 1000
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	cmd := stubdCommand("-config", configPath, "-dry-run-plan")
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("command succeeded; output:\n%s", out)
+	}
+	if !strings.Contains(string(out), "invalid port override 33") {
+		t.Fatalf("output did not contain port override validation:\n%s", out)
 	}
 }
 

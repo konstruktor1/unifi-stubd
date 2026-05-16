@@ -35,6 +35,11 @@ operation_mode: observe
 observe_interface: eth0
 observe_bridge: vmbr0
 uplink_port: 1
+port_overrides:
+  - port: 2
+    speed: 1000
+  - port: 5
+    up: false
 lldp_source: lldpd
 ssh_listen: 0.0.0.0:22
 state_path: /tmp/unifi-stubd/adoption.env
@@ -61,6 +66,15 @@ status_path: /tmp/unifi-stubd/status.json
 	}
 	if cfg.UplinkPort != 1 {
 		t.Fatalf("UplinkPort = %d", cfg.UplinkPort)
+	}
+	if len(cfg.PortOverrides) != 2 {
+		t.Fatalf("len(PortOverrides) = %d, want 2", len(cfg.PortOverrides))
+	}
+	if cfg.PortOverrides[0].Port != 2 || cfg.PortOverrides[0].Speed != 1000 {
+		t.Fatalf("first PortOverride = %+v", cfg.PortOverrides[0])
+	}
+	if cfg.PortOverrides[1].Up == nil || *cfg.PortOverrides[1].Up {
+		t.Fatalf("second PortOverride.Up = %v, want false", cfg.PortOverrides[1].Up)
 	}
 	if cfg.LLDPSource != "lldpd" {
 		t.Fatalf("LLDPSource = %q", cfg.LLDPSource)

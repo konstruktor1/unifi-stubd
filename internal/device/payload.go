@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -110,6 +111,20 @@ type PortOptions struct {
 	PortGroups []PortGroup
 }
 
+// PortOverride describes one per-port runtime override.
+type PortOverride struct {
+	// Port is the one-based switch port index.
+	Port int
+	// Name overrides the controller-facing port label when set.
+	Name string
+	// Speed overrides the negotiated speed in Mbps when positive.
+	Speed int
+	// Media overrides the controller-facing media label when set.
+	Media string
+	// Up overrides link state when set.
+	Up *bool
+}
+
 // MinimalSwitchPayload returns a JSON inform payload for a fake UniFi switch.
 func MinimalSwitchPayload(id Identity, ports []Port) ([]byte, error) {
 	now := time.Now().Unix()
@@ -204,6 +219,38 @@ func SwitchPortsWithOptions(count int, options PortOptions) []Port {
 		ports = append(ports, generatedPort(i, speed, media, i == 1))
 	}
 	return applyUplinkPort(ports, options.UplinkPort)
+}
+
+// ApplyPortOverrides applies per-port overrides to ports.
+func ApplyPortOverrides(ports []Port, overrides []PortOverride) []Port {
+	if len(overrides) == 0 || len(ports) == 0 {
+		return ports
+	}
+	for _, override := range overrides {
+		if override.Port < 1 || override.Port > len(ports) {
+			continue
+		}
+		port := &ports[override.Port-1]
+		if name := strings.TrimSpace(override.Name); name != "" {
+			port.Name = name
+		}
+		if override.Speed > 0 {
+			port.Speed = override.Speed
+			if strings.TrimSpace(override.Media) == "" {
+				port.Media = mediaForSpeed(override.Speed)
+			}
+		}
+		if media := strings.TrimSpace(override.Media); media != "" {
+			port.Media = media
+		}
+		if override.Up != nil {
+			port.Up = *override.Up
+			if !*override.Up && override.Speed <= 0 {
+				port.Speed = 0
+			}
+		}
+	}
+	return ports
 }
 
 func groupedSwitchPorts(count int, options PortOptions) []Port {
@@ -321,11 +368,11 @@ func portTable(ports []Port) []map[string]any {
 	out := make([]map[string]any, 0, len(ports))
 	for _, p := range ports {
 		speed := p.Speed
-		if speed <= 0 {
+		if p.Up && speed <= 0 {
 			speed = 1000
 		}
 		media := p.Media
-		if media == "" {
+		if media == "" && speed > 0 {
 			media = mediaForSpeed(speed)
 		}
 		out = append(out, map[string]any{
