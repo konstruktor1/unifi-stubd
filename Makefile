@@ -8,13 +8,15 @@ PKG_GOARCH ?= $(shell $(GO) env GOARCH)
 PKG_FORMATS ?= deb rpm archlinux tgz
 PKG_LICENSE ?= AGPL-3.0-or-later
 PKG_MAINTAINER ?= unifi-stubd maintainers <info@spinas.org>
+BUILD_LDFLAGS := -s -w -X main.version=$(PKG_VERSION)
 
 PKG_ENV_NONFPM := PKG_VERSION='$(PKG_VERSION)' \
   PKG_RELEASE='$(PKG_RELEASE)' \
   PKG_GOOS='$(PKG_GOOS)' \
   PKG_GOARCH='$(PKG_GOARCH)' \
   PKG_LICENSE='$(PKG_LICENSE)' \
-  PKG_MAINTAINER='$(PKG_MAINTAINER)'
+  PKG_MAINTAINER='$(PKG_MAINTAINER)' \
+  BUILD_LDFLAGS='$(BUILD_LDFLAGS)'
 
 PKG_ENV := NFPM='$(NFPM)' \
   $(PKG_ENV_NONFPM)
@@ -34,7 +36,7 @@ help:
 		'  make clean-dist   Remove package build output'
 
 build:
-	$(GO) build ./...
+	$(GO) build -ldflags='$(BUILD_LDFLAGS)' ./...
 
 check: lint test
 

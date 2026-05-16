@@ -15,6 +15,7 @@ DIST_DIR="${DIST_DIR:-dist}"
 STAGE_DIR="${DIST_DIR}/stage/pkgroot"
 PACKAGE_DIR="${DIST_DIR}/packages"
 NFPM_CONFIG="${DIST_DIR}/nfpm.yaml"
+LDFLAGS="${BUILD_LDFLAGS:--s -w}"
 
 if [ "$GOOS_VALUE" != "linux" ]; then
   printf 'package target currently supports linux only, got %s\n' "$GOOS_VALUE" >&2
@@ -33,7 +34,7 @@ mkdir -p \
 
 printf '== build linux/%s ==\n' "$GOARCH_VALUE"
 CGO_ENABLED=0 GOOS="$GOOS_VALUE" GOARCH="$GOARCH_VALUE" \
-  go build -trimpath -ldflags='-s -w' -o "$STAGE_DIR/usr/local/bin/unifi-stubd" ./cmd/unifi-stubd
+  go build -trimpath -ldflags="$LDFLAGS" -o "$STAGE_DIR/usr/local/bin/unifi-stubd" ./cmd/unifi-stubd
 
 install -m 0600 packaging/linux/etc/unifi-stubd/config.yaml "$STAGE_DIR/etc/unifi-stubd/config.yaml"
 install -m 0755 packaging/linux/etc/init.d/unifi-stubd "$STAGE_DIR/etc/init.d/unifi-stubd"

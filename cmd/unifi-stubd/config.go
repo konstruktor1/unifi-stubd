@@ -47,7 +47,7 @@ func applyConfig(cfg appconfig.Config, changed map[string]bool, flags runtimeFla
 	if !changed["model-display"] {
 		*flags.modelDisplay = cfg.ModelDisplay
 	}
-	if !changed["version"] {
+	if !changed["firmware-version"] {
 		*flags.version = cfg.Version
 	}
 	if !changed["ports"] {

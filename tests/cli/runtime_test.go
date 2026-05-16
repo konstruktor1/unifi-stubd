@@ -83,6 +83,20 @@ func TestMacvlanDryRunPlanDoesNotExecute(t *testing.T) {
 	}
 }
 
+func TestVersionFlagPrintsBinaryVersion(t *testing.T) {
+	output := runStubdStdout(t, "-version")
+	if strings.TrimSpace(output) != "dev" {
+		t.Fatalf("version output = %q, want dev", output)
+	}
+}
+
+func TestDoubleDashVersionFlagPrintsBinaryVersion(t *testing.T) {
+	output := runStubdStdout(t, "--version")
+	if strings.TrimSpace(output) != "dev" {
+		t.Fatalf("version output = %q, want dev", output)
+	}
+}
+
 func TestStatusJSONReportsAdoptionAndLastInformWithoutAuthKey(t *testing.T) {
 	dir := t.TempDir()
 	statePath := filepath.Join(dir, "adoption.env")

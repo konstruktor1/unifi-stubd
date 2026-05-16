@@ -18,6 +18,7 @@ type runtimeFlags struct {
 	model            *string
 	modelDisplay     *string
 	version          *string
+	binaryVersion    *bool
 	portCount        *int
 	linkSpeed        *int
 	uplinkSpeed      *string
@@ -52,7 +53,8 @@ func parseRuntimeFlags(defaults appconfig.Config) (runtimeFlags, map[string]bool
 		hostname:         flag.String("hostname", defaults.Hostname, "fake device hostname, or auto to use the OS hostname"),
 		model:            flag.String("model", defaults.Model, "override UniFi model identifier from the selected profile"),
 		modelDisplay:     flag.String("model-display", defaults.ModelDisplay, "override display name from the selected profile"),
-		version:          flag.String("version", defaults.Version, "override firmware version from the selected profile"),
+		version:          flag.String("firmware-version", defaults.Version, "override firmware version from the selected profile"),
+		binaryVersion:    flag.Bool("version", false, "print unifi-stubd version and exit"),
 		portCount:        flag.Int("ports", defaults.Ports, "override number of switch ports from the selected profile"),
 		linkSpeed:        flag.Int("link-speed", defaults.LinkSpeed, "override default switch port speed in Mbps; 0 uses selected profile"),
 		uplinkSpeed:      flag.String("uplink-speed", defaults.UplinkSpeed, "uplink speed in Mbps, auto, or profile"),

@@ -19,6 +19,10 @@ func serveSwitchEmulation() error {
 	defaults := appconfig.Default()
 	flags, changed := parseRuntimeFlags(defaults)
 
+	if *flags.binaryVersion {
+		fmt.Println(version)
+		return nil
+	}
 	if *flags.listProfiles {
 		fmt.Print(device.FormatProfiles())
 		return nil

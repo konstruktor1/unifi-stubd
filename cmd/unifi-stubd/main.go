@@ -3,6 +3,8 @@ package main
 
 import "log"
 
+var version = "dev"
+
 func main() {
 	if err := serveSwitchEmulation(); err != nil {
 		log.Fatal(err)
