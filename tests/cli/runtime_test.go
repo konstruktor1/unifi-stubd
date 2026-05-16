@@ -1,6 +1,8 @@
 package cli_test
 
 import (
+	"encoding/json"
+	"errors"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -81,12 +83,110 @@ func TestMacvlanDryRunPlanDoesNotExecute(t *testing.T) {
 	}
 }
 
+func TestStatusJSONReportsAdoptionAndLastInformWithoutAuthKey(t *testing.T) {
+	dir := t.TempDir()
+	statePath := filepath.Join(dir, "adoption.env")
+	statusPath := filepath.Join(dir, "status.json")
+	configPath := filepath.Join(dir, "config.yaml")
+	if err := os.WriteFile(statePath, []byte(`STATE=connected
+INFORM_URL=http://10.10.0.30:8080/inform
+AUTHKEY=super-secret-test-key
+CFGVERSION=abc123
+USE_AES_GCM=true
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(statusPath, []byte(`{
+  "last_inform": {
+    "time": "2026-05-16T21:00:00+02:00",
+    "url": "http://10.10.0.30:8080/inform",
+    "status_code": 200,
+    "response_type": "noop",
+    "controller_state": "connected",
+    "cfgversion": "abc123",
+    "used_aes_gcm": true,
+    "raw_bytes": 128,
+    "json_bytes": 64
+  }
+}
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(configPath, []byte(`controller_url: http://192.0.2.10:8080/inform
+operation_mode: stub
+profile: usaggpro
+mac: auto
+ip: 192.0.2.50
+hostname: status-host
+uplink_speed: profile
+state_path: `+statePath+`
+status_path: `+statusPath+`
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	output := runStubdStdout(t, "-config", configPath, "-status-json")
+	if strings.Contains(output, "super-secret-test-key") {
+		t.Fatalf("status leaked authkey:\n%s", output)
+	}
+	var doc struct {
+		Config struct {
+			OperationMode string `json:"operation_mode"`
+			InformURL     string `json:"inform_url"`
+		} `json:"config"`
+		Adoption struct {
+			State      string `json:"state"`
+			Adopted    bool   `json:"adopted"`
+			AuthKeySet bool   `json:"authkey_set"`
+			CFGVersion string `json:"cfgversion"`
+		} `json:"adoption"`
+		Runtime struct {
+			LastInform struct {
+				StatusCode   int    `json:"status_code"`
+				ResponseType string `json:"response_type"`
+			} `json:"last_inform"`
+		} `json:"runtime"`
+	}
+	if err := json.Unmarshal([]byte(output), &doc); err != nil {
+		t.Fatalf("status JSON invalid: %v\n%s", err, output)
+	}
+	if doc.Config.OperationMode != "stub" {
+		t.Fatalf("OperationMode = %q", doc.Config.OperationMode)
+	}
+	if doc.Config.InformURL != "http://10.10.0.30:8080/inform" {
+		t.Fatalf("InformURL = %q", doc.Config.InformURL)
+	}
+	if !doc.Adoption.Adopted || !doc.Adoption.AuthKeySet {
+		t.Fatalf("adoption flags = %+v", doc.Adoption)
+	}
+	if doc.Adoption.State != "connected" || doc.Adoption.CFGVersion != "abc123" {
+		t.Fatalf("adoption state = %+v", doc.Adoption)
+	}
+	if doc.Runtime.LastInform.StatusCode != 200 || doc.Runtime.LastInform.ResponseType != "noop" {
+		t.Fatalf("last inform = %+v", doc.Runtime.LastInform)
+	}
+}
+
 func runStubd(t *testing.T, args ...string) string {
 	t.Helper()
 	cmd := stubdCommand(args...)
 	out, err := cmd.CombinedOutput()
 	if err != nil {
 		t.Fatalf("command failed: %v\n%s", err, out)
+	}
+	return string(out)
+}
+
+func runStubdStdout(t *testing.T, args ...string) string {
+	t.Helper()
+	cmd := stubdCommand(args...)
+	out, err := cmd.Output()
+	if err != nil {
+		var exitErr *exec.ExitError
+		if errors.As(err, &exitErr) {
+			t.Fatalf("command failed: %v\n%s", err, exitErr.Stderr)
+		}
+		t.Fatalf("command failed: %v", err)
 	}
 	return string(out)
 }

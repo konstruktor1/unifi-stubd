@@ -49,7 +49,7 @@
 - [x] YAML-Konfiguration voll verdrahten.
 - [x] Paket-Builder fuer Debian, RPM, Arch Linux und tgz.
 - [ ] Rotierendes Debug-Log.
-- [ ] Healthcheck/Status-Command.
+- [x] Healthcheck/Status-Command.
 - [ ] README mit Lab-Beispiel fuer Proxmox.
 
 ## Phase 6: Spaetere Forschung

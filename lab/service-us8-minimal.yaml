@@ -14,3 +14,4 @@ interval_seconds: 10
 ssh_listen: 0.0.0.0:22
 ssh_user: ubnt
 ssh_password: ubnt
+status_path: /var/lib/unifi-stubd/status.json

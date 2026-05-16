@@ -49,7 +49,7 @@
 - [x] YAML configuration wired into the daemon.
 - [x] Package builders for Debian, RPM, Arch Linux, and tgz.
 - [ ] Rotating debug log.
-- [ ] Healthcheck/status command.
+- [x] Healthcheck/status command.
 - [ ] README with Proxmox lab example.
 
 ## Phase 6: Later Research

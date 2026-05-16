@@ -57,6 +57,8 @@ type Config struct {
 	SSHHostKeyPath string `yaml:"ssh_host_key_path"`
 	// StatePath stores adoption state learned from the controller.
 	StatePath string `yaml:"state_path"`
+	// StatusPath stores non-sensitive runtime status for health checks.
+	StatusPath string `yaml:"status_path"`
 }
 
 // Default returns the built-in runtime defaults.
@@ -85,6 +87,7 @@ func Default() Config {
 		SSHPassword:      "ubnt",
 		SSHHostKeyPath:   "/etc/unifi-stubd/ssh_host_rsa_key",
 		StatePath:        "/var/lib/unifi-stubd/adoption.env",
+		StatusPath:       "/var/lib/unifi-stubd/status.json",
 	}
 }
 

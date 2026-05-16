@@ -19,6 +19,9 @@ func TestDefaultSeparatesConfigAndStatePaths(t *testing.T) {
 	if cfg.StatePath != "/var/lib/unifi-stubd/adoption.env" {
 		t.Fatalf("StatePath = %q", cfg.StatePath)
 	}
+	if cfg.StatusPath != "/var/lib/unifi-stubd/status.json" {
+		t.Fatalf("StatusPath = %q", cfg.StatusPath)
+	}
 	if cfg.Profile == "" {
 		t.Fatal("Profile default is empty")
 	}
@@ -34,6 +37,7 @@ observe_bridge: vmbr0
 lldp_source: lldpd
 ssh_listen: 0.0.0.0:22
 state_path: /tmp/unifi-stubd/adoption.env
+status_path: /tmp/unifi-stubd/status.json
 `), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -68,5 +72,8 @@ state_path: /tmp/unifi-stubd/adoption.env
 	}
 	if cfg.StatePath != "/tmp/unifi-stubd/adoption.env" {
 		t.Fatalf("StatePath = %q", cfg.StatePath)
+	}
+	if cfg.StatusPath != "/tmp/unifi-stubd/status.json" {
+		t.Fatalf("StatusPath = %q", cfg.StatusPath)
 	}
 }

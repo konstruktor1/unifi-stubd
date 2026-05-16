@@ -50,6 +50,9 @@ func serveSwitchEmulation() error {
 		printRuntimePlan(flags, profile, mac.String(), ip.String(), resolvedHostname)
 		return nil
 	}
+	if *flags.status || *flags.statusJSON {
+		return printLocalStatus(flags, profile, mac, ip, resolvedHostname, portOptions)
+	}
 
 	ann := discovery.Announcement{
 		MAC:      mac,
@@ -131,7 +134,7 @@ func maintainControllerPresence(cfg controllerPresence) error {
 		}
 
 		sendDiscovery(packet, cfg.hostname, cfg.mac, *cfg.discoverySkipped)
-		sendInformHeartbeat(cfg.mac, informURL, *cfg.flags.sshState, store, payload)
+		sendInformHeartbeat(cfg.mac, informURL, *cfg.flags.sshState, *cfg.flags.statusPath, store, payload)
 
 		if *cfg.flags.once {
 			return nil
@@ -163,21 +166,49 @@ func sendDiscovery(packet []byte, hostname string, mac net.HardwareAddr, skip bo
 	log.Printf("sent discovery announcement for %s (%s)", hostname, mac)
 }
 
-func sendInformHeartbeat(mac net.HardwareAddr, informURL, statePath string, store adoption.Store, payload []byte) {
+func sendInformHeartbeat(mac net.HardwareAddr, informURL, statePath, statusPath string, store adoption.Store, payload []byte) {
 	if informURL == "" {
 		return
 	}
 	resp, usedGCM, err := sendInform(mac, informURL, store, payload)
 	if err != nil {
+		recordLastInform(statusPath, newLastInformStatus(informURL, store), 0, "", usedGCM, 0, 0, err)
 		log.Printf("inform send failed: %v", err)
 		return
 	}
+	last := newLastInformStatus(informURL, store)
+	last.StatusCode = resp.StatusCode
+	last.UsedAESGCM = usedGCM
+	last.RawBytes = len(resp.RawBody)
+	last.JSONBytes = len(resp.JSONBody)
 	if len(resp.JSONBody) > 0 {
 		store = updateAdoptionState(statePath, store, resp.JSONBody, usedGCM)
+		last.ControllerState = adoptionStateText(store)
+		last.CFGVersion = store.CFGVersion
+		last.Version = store.Version
+		if _, kind, ok, _ := adoption.ParseControllerResponse(resp.JSONBody); ok {
+			last.ResponseType = kind
+		}
+		recordLastInform(statusPath, last, resp.StatusCode, last.ResponseType, usedGCM, len(resp.RawBody), len(resp.JSONBody), nil)
 		logInformResponse(resp, store)
 		return
 	}
+	recordLastInform(statusPath, last, resp.StatusCode, "", usedGCM, len(resp.RawBody), 0, nil)
 	log.Printf("inform response status=%d raw_bytes=%d", resp.StatusCode, len(resp.RawBody))
+}
+
+func recordLastInform(statusPath string, last lastInformStatus, statusCode int, responseType string, usedGCM bool, rawBytes, jsonBytes int, err error) {
+	last.StatusCode = statusCode
+	last.ResponseType = responseType
+	last.UsedAESGCM = usedGCM
+	last.RawBytes = rawBytes
+	last.JSONBytes = jsonBytes
+	if err != nil {
+		last.Error = err.Error()
+	}
+	if saveErr := saveLastInformStatus(statusPath, last); saveErr != nil {
+		log.Printf("runtime status write failed: %v", saveErr)
+	}
 }
 
 func startAdoptionSSH(flags runtimeFlags, mac net.HardwareAddr, ip net.IP, hostname string) (*adoptionssh.Server, error) {

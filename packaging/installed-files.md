@@ -11,6 +11,7 @@ under `packaging/linux/`.
 | `/etc/unifi-stubd/config.yaml` | `packaging/linux/etc/unifi-stubd/config.yaml` | Main service config, packaged as config/noreplace |
 | `/etc/unifi-stubd/ssh_host_rsa_key` | generated at first SSH adoption start | Host key for the built-in adoption SSH shim |
 | `/var/lib/unifi-stubd/adoption.env` | generated at runtime | Persisted adoption state from controller responses |
+| `/var/lib/unifi-stubd/status.json` | generated at runtime | Non-sensitive status snapshot for health checks |
 | `/usr/local/bin/unifi-stubd` | built from `cmd/unifi-stubd` | Static Linux binary |
 | `/lib/systemd/system/unifi-stubd.service` | `packaging/linux/usr/lib/systemd/system/unifi-stubd.service` | Debian systemd unit |
 | `/usr/lib/systemd/system/unifi-stubd.service` | `packaging/linux/usr/lib/systemd/system/unifi-stubd.service` | RPM/Arch systemd unit |

@@ -29,6 +29,8 @@ type runtimeFlags struct {
 	interval         *time.Duration
 	dryRun           *bool
 	dryRunPlan       *bool
+	status           *bool
+	statusJSON       *bool
 	once             *bool
 	noDiscovery      *bool
 	sshListen        *string
@@ -36,6 +38,7 @@ type runtimeFlags struct {
 	sshPassword      *string
 	sshHostKey       *string
 	sshState         *string
+	statusPath       *string
 }
 
 func parseRuntimeFlags(defaults appconfig.Config) (runtimeFlags, map[string]bool) {
@@ -61,6 +64,8 @@ func parseRuntimeFlags(defaults appconfig.Config) (runtimeFlags, map[string]bool
 		interval:         flag.Duration("interval", time.Duration(defaults.IntervalSeconds)*time.Second, "announcement interval"),
 		dryRun:           flag.Bool("dry-run", false, "print payloads without sending packets"),
 		dryRunPlan:       flag.Bool("dry-run-plan", false, "print the planned runtime actions without starting the stub"),
+		status:           flag.Bool("status", false, "print local runtime status and exit"),
+		statusJSON:       flag.Bool("status-json", false, "print local runtime status as JSON and exit"),
 		once:             flag.Bool("once", false, "send one discovery/inform batch and exit"),
 		noDiscovery:      flag.Bool("no-discovery", defaults.NoDiscovery, "skip UDP discovery and only send inform when -controller is set"),
 		sshListen:        flag.String("ssh-listen", defaults.SSHListen, "optional built-in adoption SSH listen address, for example 0.0.0.0:22"),
@@ -68,6 +73,7 @@ func parseRuntimeFlags(defaults appconfig.Config) (runtimeFlags, map[string]bool
 		sshPassword:      flag.String("ssh-password", defaults.SSHPassword, "built-in adoption SSH password"),
 		sshHostKey:       flag.String("ssh-host-key", defaults.SSHHostKeyPath, "built-in adoption SSH host key path"),
 		sshState:         flag.String("ssh-state", defaults.StatePath, "built-in adoption SSH state file path"),
+		statusPath:       flag.String("status-path", defaults.StatusPath, "non-sensitive runtime status file path"),
 	}
 	flag.Parse()
 	return flags, changedFlags()

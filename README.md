@@ -90,6 +90,7 @@ Runtime layout:
 /etc/unifi-stubd/config.yaml
 /etc/unifi-stubd/ssh_host_rsa_key
 /var/lib/unifi-stubd/adoption.env
+/var/lib/unifi-stubd/status.json
 /var/log/unifi-stubd.log
 /var/log/unifi-stubd.err
 ```
@@ -103,6 +104,17 @@ The packaged Linux config source is
 `packaging/linux/etc/unifi-stubd/config.yaml`. Lab switch identities and
 commands live in `lab/`, and installed Linux paths are documented in
 `packaging/installed-files.md`.
+
+Local health/status output:
+
+```sh
+unifi-stubd -status
+unifi-stubd -status-json
+```
+
+The status command reads local config and state only. It reports identity,
+operation mode, adoption state, observe counters/FDB counts, and the last
+inform response without printing the adoption authkey.
 
 Runtime modes are documented in
 [English](docs/en/operation-modes.md) and

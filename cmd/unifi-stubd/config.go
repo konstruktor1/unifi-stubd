@@ -95,4 +95,7 @@ func applyConfig(cfg appconfig.Config, changed map[string]bool, flags runtimeFla
 	if !changed["ssh-state"] {
 		*flags.sshState = cfg.StatePath
 	}
+	if !changed["status-path"] {
+		*flags.statusPath = cfg.StatusPath
+	}
 }
