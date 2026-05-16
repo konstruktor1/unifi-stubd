@@ -57,6 +57,28 @@ func TestMACEntriesFiltersLocalAndMulticastFDBRows(t *testing.T) {
 	}
 }
 
+func TestMACEntriesByDeviceGroupsBridgeMembers(t *testing.T) {
+	entries := []linuxbridge.FDBEntry{
+		{MAC: "00:11:22:33:44:55", Device: "tap101i0", VLAN: 20, Dynamic: true},
+		{MAC: "00:11:22:33:44:66", Device: "tap101i0", Dynamic: true},
+		{MAC: "00:11:22:33:44:77", Device: "veth200i0", Dynamic: true},
+		{MAC: "02:aa:bb:cc:dd:ee", Device: "eth0", Permanent: true, Self: true},
+	}
+	byDevice := observe.MACEntriesByDevice(entries)
+	if len(byDevice["tap101i0"]) != 2 {
+		t.Fatalf("tap101i0 entries = %+v", byDevice["tap101i0"])
+	}
+	if byDevice["tap101i0"][0].VLAN != 20 {
+		t.Fatalf("tap101i0 VLAN = %d", byDevice["tap101i0"][0].VLAN)
+	}
+	if len(byDevice["veth200i0"]) != 1 {
+		t.Fatalf("veth200i0 entries = %+v", byDevice["veth200i0"])
+	}
+	if _, ok := byDevice["eth0"]; ok {
+		t.Fatalf("local uplink entry was not filtered: %+v", byDevice["eth0"])
+	}
+}
+
 func TestApplySnapshotUpdatesUplinkPort(t *testing.T) {
 	ports := device.SwitchPortsWithOptions(4, device.PortOptions{
 		Speed:       10000,
@@ -92,6 +114,51 @@ func TestApplySnapshotUpdatesUplinkPort(t *testing.T) {
 		t.Fatalf("MACs = %+v", port.MACs)
 	}
 	if ports[3].RXBytes == out[3].RXBytes {
+		t.Fatal("Apply mutated input ports")
+	}
+}
+
+func TestApplySnapshotDistributesBridgeFDBDevices(t *testing.T) {
+	ports := device.SwitchPortsWithOptions(5, device.PortOptions{
+		Speed:       10000,
+		UplinkSpeed: 25000,
+		Media:       "SFP+",
+		UplinkMedia: "SFP28",
+		PortGroups: []device.PortGroup{
+			{Count: 4, Speed: 10000, Media: "SFP+"},
+			{Count: 1, Speed: 25000, Media: "SFP28", Uplink: true},
+		},
+	})
+	out := observe.Apply(ports, observe.Snapshot{
+		UplinkPortIndex: 5,
+		Interface:       "eth0",
+		Bridge:          "vmbr0",
+		DeviceMACs: map[string][]device.MacTableEntry{
+			"veth200i0": {{MAC: "00:11:22:33:44:77", Age: 4, Uptime: 1200}},
+			"tap101i0":  {{MAC: "00:11:22:33:44:55", Age: 4, Uptime: 1200, VLAN: 20}},
+			"eth0":      {{MAC: "00:11:22:33:44:99", Age: 4, Uptime: 1200}},
+		},
+	})
+
+	if out[0].Name != "tap101i0" {
+		t.Fatalf("port 1 name = %q", out[0].Name)
+	}
+	if len(out[0].MACs) != 1 || out[0].MACs[0].MAC != "00:11:22:33:44:55" {
+		t.Fatalf("port 1 MACs = %+v", out[0].MACs)
+	}
+	if out[1].Name != "veth200i0" {
+		t.Fatalf("port 2 name = %q", out[1].Name)
+	}
+	if len(out[1].MACs) != 1 || out[1].MACs[0].MAC != "00:11:22:33:44:77" {
+		t.Fatalf("port 2 MACs = %+v", out[1].MACs)
+	}
+	if out[4].Name != "eth0" {
+		t.Fatalf("uplink name = %q", out[4].Name)
+	}
+	if len(out[4].MACs) != 1 || out[4].MACs[0].MAC != "00:11:22:33:44:99" {
+		t.Fatalf("uplink MACs = %+v", out[4].MACs)
+	}
+	if ports[0].Name == out[0].Name {
 		t.Fatal("Apply mutated input ports")
 	}
 }

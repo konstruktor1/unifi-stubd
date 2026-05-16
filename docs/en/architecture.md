@@ -72,7 +72,7 @@ UniFi Network changes implicit payload expectations. Development should pin one 
 
 | Source | UniFi target |
 | --- | --- |
-| `bridge fdb show` | `port_table[].mac_table` |
+| `bridge fdb show` | `port_table[].mac_table`, grouped by bridge member |
 | `/sys/class/net/<if>/statistics/*` | rx/tx bytes, packets, errors |
 | `ip -json addr` | `if_table` |
 | `lldpcli -f json show neighbors` | later neighbor hints |

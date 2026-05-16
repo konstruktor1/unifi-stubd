@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"sort"
 	"strconv"
 	"strings"
 
@@ -41,14 +42,21 @@ type InterfaceStats struct {
 // Snapshot contains passive data that can be merged into generated switch ports.
 type Snapshot struct {
 	UplinkPortIndex int
+	Interface       string
+	Bridge          string
 	Stats           InterfaceStats
 	MACs            []device.MacTableEntry
+	DeviceMACs      map[string][]device.MacTableEntry
 }
 
 // LinuxSnapshot reads passive Linux bridge and sysfs data.
 func LinuxSnapshot(ctx context.Context, cfg Config, uplinkPortIndex int) (Snapshot, []error) {
 	var errs []error
-	snapshot := Snapshot{UplinkPortIndex: uplinkPortIndex}
+	snapshot := Snapshot{
+		UplinkPortIndex: uplinkPortIndex,
+		Interface:       strings.TrimSpace(cfg.Interface),
+		Bridge:          strings.TrimSpace(cfg.Bridge),
+	}
 	if strings.TrimSpace(cfg.SysfsRoot) == "" {
 		cfg.SysfsRoot = "/sys"
 	}
@@ -70,7 +78,8 @@ func LinuxSnapshot(ctx context.Context, cfg Config, uplinkPortIndex int) (Snapsh
 		if err != nil {
 			errs = append(errs, err)
 		} else {
-			snapshot.MACs = MACEntries(entries)
+			snapshot.DeviceMACs = MACEntriesByDevice(entries)
+			snapshot.MACs = flattenDeviceMACs(snapshot.DeviceMACs, snapshot.Interface, snapshot.Bridge)
 		}
 	}
 	return snapshot, errs
@@ -99,7 +108,9 @@ func Apply(ports []device.Port, snapshot Snapshot) []device.Port {
 		port.RXErrors = snapshot.Stats.RXErrors
 		port.TXErrors = snapshot.Stats.TXErrors
 	}
-	if len(snapshot.MACs) > 0 {
+	if len(snapshot.DeviceMACs) > 0 {
+		applyDeviceMACs(out, snapshot, index)
+	} else if len(snapshot.MACs) > 0 {
 		port.MACs = snapshot.MACs
 	}
 	return out
@@ -153,13 +164,23 @@ func BridgeFDB(ctx context.Context, bridge string) ([]linuxbridge.FDBEntry, erro
 
 // MACEntries converts Linux bridge FDB rows into UniFi MAC table entries.
 func MACEntries(entries []linuxbridge.FDBEntry) []device.MacTableEntry {
-	out := make([]device.MacTableEntry, 0, len(entries))
+	return flattenDeviceMACs(MACEntriesByDevice(entries), "", "")
+}
+
+// MACEntriesByDevice converts Linux bridge FDB rows into MAC entries grouped by bridge member.
+func MACEntriesByDevice(entries []linuxbridge.FDBEntry) map[string][]device.MacTableEntry {
+	out := map[string][]device.MacTableEntry{}
 	seen := map[string]bool{}
 	for _, entry := range entries {
-		if !learnedFDBEntry(entry) || seen[entry.MAC] {
+		if !learnedFDBEntry(entry) {
 			continue
 		}
-		seen[entry.MAC] = true
+		deviceName := strings.TrimSpace(entry.Device)
+		key := deviceName + "|" + entry.MAC
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
 		mac := device.MacTableEntry{
 			MAC:    entry.MAC,
 			Age:    4,
@@ -167,7 +188,19 @@ func MACEntries(entries []linuxbridge.FDBEntry) []device.MacTableEntry {
 			VLAN:   entry.VLAN,
 			Type:   "client",
 		}
-		out = append(out, mac)
+		out[deviceName] = append(out[deviceName], mac)
+	}
+	return out
+}
+
+func flattenDeviceMACs(deviceMACs map[string][]device.MacTableEntry, iface, bridge string) []device.MacTableEntry {
+	count := 0
+	for _, macs := range deviceMACs {
+		count += len(macs)
+	}
+	out := make([]device.MacTableEntry, 0, count)
+	for _, deviceName := range sortedDeviceNames(deviceMACs, iface, bridge) {
+		out = append(out, deviceMACs[deviceName]...)
 	}
 	return out
 }
@@ -202,6 +235,115 @@ func hasCounters(stats InterfaceStats) bool {
 		stats.TXPackets != 0 ||
 		stats.RXErrors != 0 ||
 		stats.TXErrors != 0
+}
+
+func applyDeviceMACs(ports []device.Port, snapshot Snapshot, uplinkIndex int) {
+	for index := range ports {
+		ports[index].MACs = nil
+	}
+
+	accessIndexes := make([]int, 0, len(ports)-1)
+	for _, port := range ports {
+		if port.Index != uplinkIndex {
+			accessIndexes = append(accessIndexes, port.Index)
+		}
+	}
+	nextAccess := 0
+
+	for _, deviceName := range sortedDeviceNames(snapshot.DeviceMACs, snapshot.Interface, snapshot.Bridge) {
+		macs := snapshot.DeviceMACs[deviceName]
+		if len(macs) == 0 {
+			continue
+		}
+
+		portIndex := uplinkIndex
+		isUplink := isUplinkDevice(deviceName, snapshot.Interface, snapshot.Bridge)
+		if !isUplink && nextAccess < len(accessIndexes) {
+			portIndex = accessIndexes[nextAccess]
+			nextAccess++
+		}
+		if portIndex < 1 || portIndex > len(ports) {
+			portIndex = uplinkIndex
+		}
+
+		port := &ports[portIndex-1]
+		port.MACs = append(port.MACs, macs...)
+		if deviceName != "" && (isUplink || portIndex != uplinkIndex) {
+			port.Name = deviceName
+		}
+	}
+}
+
+func sortedDeviceNames(deviceMACs map[string][]device.MacTableEntry, iface, bridge string) []string {
+	names := make([]string, 0, len(deviceMACs))
+	for deviceName := range deviceMACs {
+		names = append(names, deviceName)
+	}
+	sort.Slice(names, func(i, j int) bool {
+		left := deviceSortKey(names[i], iface, bridge)
+		right := deviceSortKey(names[j], iface, bridge)
+		if left.rank != right.rank {
+			return left.rank < right.rank
+		}
+		if left.number != right.number {
+			return left.number < right.number
+		}
+		return left.name < right.name
+	})
+	return names
+}
+
+type sortKey struct {
+	rank   int
+	number int
+	name   string
+}
+
+func deviceSortKey(deviceName, iface, bridge string) sortKey {
+	name := strings.ToLower(strings.TrimSpace(deviceName))
+	rank := 50
+	switch {
+	case isUplinkDevice(name, iface, bridge):
+		rank = 0
+	case strings.HasPrefix(name, "tap"):
+		rank = 10
+	case strings.HasPrefix(name, "veth"):
+		rank = 20
+	case strings.HasPrefix(name, "fwln"), strings.HasPrefix(name, "fwpr"), strings.HasPrefix(name, "fwbr"):
+		rank = 30
+	}
+	return sortKey{rank: rank, number: firstNumber(name), name: name}
+}
+
+func isUplinkDevice(deviceName, iface, bridge string) bool {
+	name := strings.ToLower(strings.TrimSpace(deviceName))
+	if name == "" {
+		return false
+	}
+	return name == strings.ToLower(strings.TrimSpace(iface)) ||
+		name == strings.ToLower(strings.TrimSpace(bridge))
+}
+
+func firstNumber(value string) int {
+	start := -1
+	for i, r := range value {
+		if r >= '0' && r <= '9' {
+			start = i
+			break
+		}
+	}
+	if start < 0 {
+		return 0
+	}
+	end := start
+	for end < len(value) && value[end] >= '0' && value[end] <= '9' {
+		end++
+	}
+	number, err := strconv.Atoi(value[start:end])
+	if err != nil {
+		return 0
+	}
+	return number
 }
 
 func readInt64(path string) (int64, error) {

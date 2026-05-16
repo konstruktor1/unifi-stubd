@@ -34,6 +34,11 @@ uses passive host data when available:
 - `/sys/class/net/<interface>/speed` for uplink speed
 - `bridge fdb show br <bridge>` for learned MAC table entries
 
+FDB rows are grouped by Linux bridge member. The configured
+`observe_interface` is mapped to the UniFi uplink port, while `tap*`, `veth*`,
+and other learned bridge members are mapped deterministically to free switch
+ports with their learned MAC tables.
+
 If any source is missing or unreadable, the daemon logs a warning and falls back
 to profile defaults. This mode must not create interfaces, assign addresses, or
 change routes.

@@ -40,7 +40,7 @@
 - [x] Add read-only `observe` mode for Linux bridge/sysfs data.
 - [x] Fill `mac_table` from Linux bridge FDB when configured.
 - [x] Read port counters from sysfs when configured.
-- [ ] Model several virtual ports for `vmbr0`, `tap*`, `veth*`.
+- [x] Model several virtual ports for `vmbr0`, `tap*`, `veth*`.
 
 ## Phase 5: Operations
 

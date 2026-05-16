@@ -34,6 +34,11 @@ aber passive Host-Daten werden genutzt, wenn sie verfuegbar sind:
 - `/sys/class/net/<interface>/speed` fuer Uplink-Speed
 - `bridge fdb show br <bridge>` fuer gelernte MAC-Table-Eintraege
 
+FDB-Zeilen werden nach Linux-Bridge-Member gruppiert. Das konfigurierte
+`observe_interface` wird auf den UniFi-Uplink-Port gelegt, waehrend `tap*`,
+`veth*` und andere gelernte Bridge-Member deterministisch auf freie Switch-Ports
+mit ihren MAC-Tabellen verteilt werden.
+
 Wenn eine Quelle fehlt oder nicht lesbar ist, loggt der Dienst eine Warnung und
 faellt auf Profilwerte zurueck. Dieser Modus darf keine Interfaces anlegen,
 keine Adressen setzen und keine Routen aendern.

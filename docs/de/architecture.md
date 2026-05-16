@@ -72,7 +72,7 @@ UniFi Network aendert implizite Payload-Erwartungen. Fuer Entwicklung sollte ein
 
 | Datenquelle | UniFi-Ziel |
 | --- | --- |
-| `bridge fdb show` | `port_table[].mac_table` |
+| `bridge fdb show` | `port_table[].mac_table`, nach Bridge-Member gruppiert |
 | `/sys/class/net/<if>/statistics/*` | rx/tx bytes, packets, errors |
 | `ip -json addr` | `if_table` |
 | `lldpcli -f json show neighbors` | spaetere Nachbarschaftshinweise |
