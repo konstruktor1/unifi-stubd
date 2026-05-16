@@ -82,3 +82,71 @@ func TestMinimalSwitchPayloadReportsTenGigUplink(t *testing.T) {
 		t.Fatalf("uplink media = %q, want SFP+", got)
 	}
 }
+
+func TestSwitchPortsWithProfilePortGroups(t *testing.T) {
+	profile, ok := device.LookupProfile("usw-pro-xg-48")
+	if !ok {
+		t.Fatal("profile not found")
+	}
+	ports := device.SwitchPortsWithOptions(profile.Ports, profile.PortOptions())
+
+	if len(ports) != 52 {
+		t.Fatalf("len(ports) = %d, want 52", len(ports))
+	}
+	assertPort := func(index, speed int, media string, uplink bool) {
+		t.Helper()
+		port := ports[index-1]
+		if port.Speed != speed {
+			t.Fatalf("port %d speed = %d, want %d", index, port.Speed, speed)
+		}
+		if port.Media != media {
+			t.Fatalf("port %d media = %q, want %q", index, port.Media, media)
+		}
+		if port.Uplink != uplink {
+			t.Fatalf("port %d uplink = %v, want %v", index, port.Uplink, uplink)
+		}
+	}
+	assertPort(1, 2500, "GE", false)
+	assertPort(16, 2500, "GE", false)
+	assertPort(17, 10000, "GE", false)
+	assertPort(48, 10000, "GE", false)
+	assertPort(49, 25000, "SFP28", true)
+	assertPort(52, 25000, "SFP28", false)
+}
+
+func TestMinimalSwitchPayloadReportsGroupedUplinkSpeed(t *testing.T) {
+	profile, ok := device.LookupProfile("usw-pro-xg-48")
+	if !ok {
+		t.Fatal("profile not found")
+	}
+	payload, err := device.MinimalSwitchPayload(device.Identity{
+		MAC:          "02:11:22:33:44:58",
+		IP:           "192.0.2.50",
+		Hostname:     "unifi-stubd-lab",
+		Model:        profile.Model,
+		ModelDisplay: profile.ModelDisplay,
+		Version:      profile.Version,
+		Serial:       "021122334458",
+		InformURL:    "http://10.10.0.30:8080/inform",
+	}, device.SwitchPortsWithOptions(profile.Ports, profile.PortOptions()))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var doc struct {
+		IfTable   []map[string]any `json:"if_table"`
+		PortTable []map[string]any `json:"port_table"`
+	}
+	if err := json.Unmarshal(payload, &doc); err != nil {
+		t.Fatal(err)
+	}
+	if got := int(doc.IfTable[0]["speed"].(float64)); got != 25000 {
+		t.Fatalf("if_table speed = %d, want 25000", got)
+	}
+	if got := int(doc.PortTable[48]["speed"].(float64)); got != 25000 {
+		t.Fatalf("uplink port speed = %d, want 25000", got)
+	}
+	if got := doc.PortTable[48]["media"].(string); got != "SFP28" {
+		t.Fatalf("uplink media = %q, want SFP28", got)
+	}
+}

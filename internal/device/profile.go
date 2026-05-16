@@ -19,6 +19,8 @@ type Profile struct {
 	Version string
 	// Ports is the number of switch ports.
 	Ports int
+	// PortGroups describe non-uniform physical port layouts.
+	PortGroups []PortGroup
 	// PortSpeed is the default access port speed in Mbps.
 	PortSpeed int
 	// UplinkSpeed is the uplink port speed in Mbps.
@@ -81,6 +83,23 @@ var profiles = []Profile{
 		Description:  "16-port 10G aggregation switch",
 	},
 	{
+		Name:         "usw-pro-xg-48",
+		Model:        "USWProXG48",
+		ModelDisplay: "UniFi Pro XG 48",
+		Version:      "7.4.1.16850",
+		Ports:        52,
+		PortGroups: []PortGroup{
+			{Count: 16, Speed: 2500, Media: "GE"},
+			{Count: 32, Speed: 10000, Media: "GE"},
+			{Count: 4, Speed: 25000, Media: "SFP28", Uplink: true},
+		},
+		PortSpeed:   10000,
+		UplinkSpeed: 25000,
+		PortMedia:   "GE",
+		UplinkMedia: "SFP28",
+		Description: "Pro XG 48 with 10G RJ45 and 25G SFP28 uplinks",
+	},
+	{
 		Name:         "us24p250",
 		Model:        "US24P250",
 		ModelDisplay: "UniFi Switch 24 POE-250W",
@@ -110,6 +129,9 @@ var profiles = []Profile{
 func Profiles() []Profile {
 	out := make([]Profile, len(profiles))
 	copy(out, profiles)
+	for i := range out {
+		out[i].PortGroups = clonePortGroups(out[i].PortGroups)
+	}
 	return out
 }
 
@@ -131,7 +153,17 @@ func (p Profile) PortOptions() PortOptions {
 		UplinkSpeed: p.UplinkSpeed,
 		Media:       p.PortMedia,
 		UplinkMedia: p.UplinkMedia,
+		PortGroups:  clonePortGroups(p.PortGroups),
 	}
+}
+
+func clonePortGroups(groups []PortGroup) []PortGroup {
+	if len(groups) == 0 {
+		return nil
+	}
+	out := make([]PortGroup, len(groups))
+	copy(out, groups)
+	return out
 }
 
 // AutoMAC derives a stable locally administered MAC address from seed.
@@ -155,7 +187,7 @@ func ProfileNames() string {
 func FormatProfiles() string {
 	var b strings.Builder
 	for _, profile := range profiles {
-		fmt.Fprintf(&b, "%-10s %-10s ports=%-2d speed=%-5d version=%s  %s\n",
+		fmt.Fprintf(&b, "%-15s %-15s ports=%-2d speed=%-5d version=%s  %s\n",
 			profile.Name,
 			profile.Model,
 			profile.Ports,

@@ -8,7 +8,7 @@ mac: auto
 ip: 192.0.2.50
 hostname: auto
 
-# 0 uses the selected profile. Set 10000 for a 10G lab profile.
+# 0 uses the selected profile, including mixed-speed profile port groups.
 link_speed: 0
 uplink_speed: auto
 

@@ -45,6 +45,28 @@ func TestTenGigProfile(t *testing.T) {
 	}
 }
 
+func TestLargestTenGigProfile(t *testing.T) {
+	profile, ok := device.LookupProfile("usw-pro-xg-48")
+	if !ok {
+		t.Fatal("profile not found")
+	}
+	if profile.Model != "USWProXG48" {
+		t.Fatalf("Model = %q, want USWProXG48", profile.Model)
+	}
+	if profile.Ports != 52 {
+		t.Fatalf("Ports = %d, want 52", profile.Ports)
+	}
+	if profile.PortSpeed != 10000 {
+		t.Fatalf("PortSpeed = %d, want 10000", profile.PortSpeed)
+	}
+	if profile.UplinkSpeed != 25000 {
+		t.Fatalf("UplinkSpeed = %d, want 25000", profile.UplinkSpeed)
+	}
+	if profile.UplinkMedia != "SFP28" {
+		t.Fatalf("UplinkMedia = %q, want SFP28", profile.UplinkMedia)
+	}
+}
+
 func TestAutoMACIsStableAndProfileSensitive(t *testing.T) {
 	first := device.AutoMAC("host|us16p150")
 	second := device.AutoMAC("host|us16p150")

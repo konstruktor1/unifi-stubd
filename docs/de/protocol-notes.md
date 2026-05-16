@@ -119,6 +119,11 @@ Wichtige Felder:
 | `port_table[].mac_table` | gesehene Clients/VMs |
 | `sys_stats` | CPU/RAM/Load |
 
+Mixed-Speed-Switch-Profile sollten das komplette physische Portlayout in
+`port_table` melden. `USW-Pro-XG-48` wird zum Beispiel mit 16 2.5G-RJ45-Ports,
+32 10G-RJ45-Ports und vier 25G-SFP28-Ports modelliert. Die Management-Speed in
+`if_table` kommt vom gewaehlten Uplink-Port.
+
 Bei alten Lab-Laeufen fuehrte ein fehlendes oder zu kleines `uptime` in `mac_table` zu Controller-Problemen. Deshalb sollte jeder MAC-Tabelleneintrag ein plausibles `uptime` besitzen.
 
 Ein Profilwechsel sollte als neue Geraeteidentitaet behandelt werden. Praktisch heisst das: neue Fake-MAC oder `-mac auto`, weil UniFi Modellinformationen pro MAC cached und ein spaeterer Modellwechsel am selben MAC haengen bleiben kann.
@@ -131,5 +136,7 @@ Fuer den MVP:
 - `US8P60`: ebenfalls klein, aber PoE-Felder koennen erwartet werden.
 - `US16P150`: 16-Port-Profil fuer US-16-150W-aehnliches Verhalten.
 - `US16XG`: 16-Port-10G-Profil fuer Aggregation-/SFP+-Pruefungen.
+- `USW-Pro-XG-48`: groesstes eingebautes 10G-Access-Switch-Profil mit gemischten
+  2.5G-, 10G- und 25G-SFP28-Portgruppen.
 
 Gateway-Modelle wie `UGW3`, `UGW4` oder `UXG` erst spaeter pruefen.

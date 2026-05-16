@@ -67,6 +67,18 @@ type Port struct {
 	MACs []MacTableEntry
 }
 
+// PortGroup describes one contiguous block in a switch port layout.
+type PortGroup struct {
+	// Count is the number of ports in this block.
+	Count int
+	// Speed is the negotiated speed in Mbps for ports in this block.
+	Speed int
+	// Media is the UniFi media label for ports in this block.
+	Media string
+	// Uplink marks the first port in this block as the upstream connection.
+	Uplink bool
+}
+
 // PortOptions configures generated switch port defaults.
 type PortOptions struct {
 	// Speed is the default access port speed in Mbps.
@@ -77,6 +89,8 @@ type PortOptions struct {
 	Media string
 	// UplinkMedia is the uplink port media label.
 	UplinkMedia string
+	// PortGroups optionally describe a non-uniform physical port layout.
+	PortGroups []PortGroup
 }
 
 // MinimalSwitchPayload returns a JSON inform payload for a fake UniFi switch.
@@ -92,8 +106,8 @@ func MinimalSwitchPayload(id Identity, ports []Port) ([]byte, error) {
 		cfgVersion = "?"
 	}
 	ifSpeed := 1000
-	if len(ports) > 0 && ports[0].Speed > 0 {
-		ifSpeed = ports[0].Speed
+	if speed := managementInterfaceSpeed(ports); speed > 0 {
+		ifSpeed = speed
 	}
 
 	return json.MarshalIndent(map[string]any{
@@ -153,6 +167,10 @@ func SwitchPortsWithOptions(count int, options PortOptions) []Port {
 		count = 1
 	}
 	options = normalizePortOptions(options)
+	if ports := groupedSwitchPorts(count, options); len(ports) > 0 {
+		return ports
+	}
+
 	ports := make([]Port, 0, count)
 	for i := 1; i <= count; i++ {
 		speed := options.Speed
@@ -161,24 +179,76 @@ func SwitchPortsWithOptions(count int, options PortOptions) []Port {
 			speed = options.UplinkSpeed
 			media = options.UplinkMedia
 		}
-		port := Port{
-			Index:   i,
-			Name:    portName(i),
-			Media:   media,
-			Uplink:  i == 1,
-			Up:      true,
-			Speed:   speed,
-			RXBytes: int64(1000 * i),
-			TXBytes: int64(900 * i),
-		}
-		if i == 1 {
-			port.MACs = []MacTableEntry{
-				{MAC: "02:aa:bb:cc:dd:01", Age: 4, Uptime: 1200, VLAN: 1, Type: "usw"},
-			}
-		}
-		ports = append(ports, port)
+		ports = append(ports, generatedPort(i, speed, media, i == 1))
 	}
 	return ports
+}
+
+func groupedSwitchPorts(count int, options PortOptions) []Port {
+	if len(options.PortGroups) == 0 {
+		return nil
+	}
+	total := 0
+	uplinkIndex := 0
+	for _, group := range options.PortGroups {
+		if group.Count < 1 {
+			return nil
+		}
+		if group.Uplink && uplinkIndex == 0 {
+			uplinkIndex = total + 1
+		}
+		total += group.Count
+	}
+	if total != count {
+		return nil
+	}
+	if uplinkIndex == 0 {
+		uplinkIndex = 1
+	}
+
+	ports := make([]Port, 0, count)
+	index := 0
+	for _, group := range options.PortGroups {
+		speed := group.Speed
+		if speed <= 0 {
+			speed = options.Speed
+		}
+		media := group.Media
+		if media == "" {
+			media = mediaForSpeed(speed)
+		}
+		for range group.Count {
+			index++
+			isUplink := index == uplinkIndex
+			portSpeed := speed
+			portMedia := media
+			if isUplink {
+				portSpeed = options.UplinkSpeed
+				portMedia = options.UplinkMedia
+			}
+			ports = append(ports, generatedPort(index, portSpeed, portMedia, isUplink))
+		}
+	}
+	return ports
+}
+
+func generatedPort(index, speed int, media string, uplink bool) Port {
+	port := Port{
+		Index:   index,
+		Name:    portName(index),
+		Media:   media,
+		Uplink:  uplink,
+		Up:      true,
+		Speed:   speed,
+		RXBytes: int64(1000 * index),
+		TXBytes: int64(900 * index),
+	}
+	if uplink {
+		port.MACs = []MacTableEntry{
+			{MAC: "02:aa:bb:cc:dd:01", Age: 4, Uptime: 1200, VLAN: 1, Type: "usw"},
+		}
+	}
+	return port
 }
 
 func portName(index int) string {
@@ -233,6 +303,18 @@ func portTable(ports []Port) []map[string]any {
 		})
 	}
 	return out
+}
+
+func managementInterfaceSpeed(ports []Port) int {
+	for _, port := range ports {
+		if port.Uplink && port.Speed > 0 {
+			return port.Speed
+		}
+	}
+	if len(ports) > 0 && ports[0].Speed > 0 {
+		return ports[0].Speed
+	}
+	return 0
 }
 
 func normalizePortOptions(options PortOptions) PortOptions {

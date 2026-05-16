@@ -76,6 +76,7 @@ func resolvePortOptions(profile device.Profile, linkSpeed int, uplinkSpeed, cont
 		portOptions.UplinkSpeed = linkSpeed
 		portOptions.Media = ""
 		portOptions.UplinkMedia = ""
+		portOptions.PortGroups = nil
 	}
 	return resolveUplinkSpeed(portOptions, uplinkSpeed, controller)
 }
