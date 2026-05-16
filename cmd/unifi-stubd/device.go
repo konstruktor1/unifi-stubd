@@ -14,6 +14,8 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/device"
 )
 
+const automaticText = "auto"
+
 func payloadForIdentity(
 	mac net.HardwareAddr,
 	ip net.IP,
@@ -41,12 +43,16 @@ func buildPayload(id device.Identity, store adoption.Store, ports []device.Port)
 	if store.Version != "" {
 		id.Version = store.Version
 	}
-	return device.MinimalSwitchPayload(id, ports)
+	payload, err := device.MinimalSwitchPayload(id, ports)
+	if err != nil {
+		return nil, fmt.Errorf("build switch payload: %w", err)
+	}
+	return payload, nil
 }
 
 func resolveHostname(value string) string {
 	value = strings.TrimSpace(value)
-	if value != "" && strings.ToLower(value) != "auto" {
+	if value != "" && strings.ToLower(value) != automaticText {
 		return value
 	}
 	host, err := os.Hostname()
@@ -69,7 +75,7 @@ func resolveMAC(value, hostname string, profile device.Profile, model, operation
 		log.Printf("host MAC resolved: %s interface=%s", mac, ifaceName)
 		return mac
 	}
-	if value == "" || strings.EqualFold(value, "auto") {
+	if value == "" || strings.EqualFold(value, automaticText) {
 		seed := strings.Join([]string{"unifi-stubd", hostname, profile.Name, model}, "|")
 		mac := device.AutoMAC(seed)
 		log.Printf("auto MAC resolved: %s seed=%q", mac, seed)
@@ -92,7 +98,7 @@ func hostInterfaceMAC(ifaceName string) (net.HardwareAddr, error) {
 	}
 	iface, err := net.InterfaceByName(ifaceName)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("find interface %s: %w", ifaceName, err)
 	}
 	if len(iface.HardwareAddr) == 0 {
 		return nil, fmt.Errorf("interface %s has no hardware address", ifaceName)
@@ -117,7 +123,7 @@ func resolveUplinkSpeed(options device.PortOptions, value, target string) device
 	switch value {
 	case "", "profile":
 		return options
-	case "auto":
+	case automaticText:
 		info, err := device.DetectEgressLink(target)
 		if err != nil {
 			log.Printf("uplink speed auto-detect failed: %v; using profile speed %d Mbps", err, options.UplinkSpeed)

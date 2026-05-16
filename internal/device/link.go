@@ -26,11 +26,11 @@ type LinkInfo struct {
 func DetectEgressLink(target string) (LinkInfo, error) {
 	address, err := targetAddress(target)
 	if err != nil {
-		return LinkInfo{}, err
+		return LinkInfo{}, fmt.Errorf("resolve target address: %w", err)
 	}
 	conn, err := net.Dial("udp", address)
 	if err != nil {
-		return LinkInfo{}, err
+		return LinkInfo{}, fmt.Errorf("dial route probe %s: %w", address, err)
 	}
 	defer func() {
 		_ = conn.Close()
@@ -42,11 +42,11 @@ func DetectEgressLink(target string) (LinkInfo, error) {
 	}
 	iface, err := interfaceByIP(local.IP)
 	if err != nil {
-		return LinkInfo{LocalIP: local.IP}, err
+		return LinkInfo{LocalIP: local.IP}, fmt.Errorf("find interface for local IP %s: %w", local.IP, err)
 	}
 	speed, err := InterfaceSpeedMbps(iface.Name)
 	if err != nil {
-		return LinkInfo{Interface: iface.Name, LocalIP: local.IP}, err
+		return LinkInfo{Interface: iface.Name, LocalIP: local.IP}, fmt.Errorf("detect speed for interface %s: %w", iface.Name, err)
 	}
 	return LinkInfo{Interface: iface.Name, SpeedMbps: speed, LocalIP: local.IP}, nil
 }
@@ -61,11 +61,11 @@ func InterfaceSpeedMbps(name string) (int, error) {
 	}
 	data, err := os.ReadFile(filepath.Join("/sys/class/net", name, "speed"))
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("read interface speed for %s: %w", name, err)
 	}
 	speed, err := strconv.Atoi(strings.TrimSpace(string(data)))
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("parse interface speed for %s: %w", name, err)
 	}
 	if speed <= 0 {
 		return 0, fmt.Errorf("interface %s reports unknown speed %d", name, speed)
@@ -81,7 +81,7 @@ func targetAddress(target string) (string, error) {
 	if strings.Contains(target, "://") {
 		parsed, err := url.Parse(target)
 		if err != nil {
-			return "", err
+			return "", fmt.Errorf("parse target URL %q: %w", target, err)
 		}
 		host := parsed.Hostname()
 		if host == "" {
@@ -108,7 +108,7 @@ func targetAddress(target string) (string, error) {
 func interfaceByIP(ip net.IP) (*net.Interface, error) {
 	ifaces, err := net.Interfaces()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("list network interfaces: %w", err)
 	}
 	for i := range ifaces {
 		if ifaces[i].Flags&net.FlagUp == 0 {

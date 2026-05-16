@@ -65,7 +65,7 @@ func authKeyBytes(authKey string) ([]byte, error) {
 	}
 	key, err := hex.DecodeString(authKey)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("decode adoption authkey: %w", err)
 	}
 	if len(key) != 16 {
 		return nil, fmt.Errorf("decoded authkey has %d bytes, want 16", len(key))

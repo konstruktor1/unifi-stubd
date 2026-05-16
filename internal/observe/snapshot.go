@@ -145,7 +145,10 @@ func ReadInterfaceStats(sysfsRoot, iface string) (InterfaceStats, error) {
 	} else if speed > 0 {
 		out.SpeedMbps = int(speed)
 	}
-	return out, errors.Join(errs...)
+	if err := errors.Join(errs...); err != nil {
+		return out, fmt.Errorf("read interface stats for %s: %w", iface, err)
+	}
+	return out, nil
 }
 
 // BridgeFDB reads bridge forwarding database rows for bridge.
@@ -157,7 +160,7 @@ func BridgeFDB(ctx context.Context, bridge string) ([]linuxbridge.FDBEntry, erro
 	cmd := exec.CommandContext(ctx, "bridge", "fdb", "show", "br", bridge)
 	out, err := cmd.Output()
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("run bridge FDB command for %s: %w", bridge, err)
 	}
 	return linuxbridge.ParseFDB(strings.NewReader(string(out))), nil
 }
@@ -349,11 +352,11 @@ func firstNumber(value string) int {
 func readInt64(path string) (int64, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("read integer file %s: %w", path, err)
 	}
 	value, err := strconv.ParseInt(strings.TrimSpace(string(data)), 10, 64)
 	if err != nil {
-		return 0, err
+		return 0, fmt.Errorf("parse integer file %s: %w", path, err)
 	}
 	return value, nil
 }

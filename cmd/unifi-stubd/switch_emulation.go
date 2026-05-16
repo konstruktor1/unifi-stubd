@@ -71,7 +71,7 @@ func serveSwitchEmulation() error {
 
 	packet, err := ann.MarshalBinary()
 	if err != nil {
-		return err
+		return fmt.Errorf("marshal discovery announcement: %w", err)
 	}
 
 	ports := portsForRuntime(flags, portOptions)
@@ -150,7 +150,7 @@ func maintainControllerPresence(cfg controllerPresence) error {
 			ann.Sequence++
 			packet, err = ann.MarshalBinary()
 			if err != nil {
-				return err
+				return fmt.Errorf("marshal discovery announcement: %w", err)
 			}
 		case <-stop:
 			log.Println("stopping")

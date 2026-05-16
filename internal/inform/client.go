@@ -51,12 +51,12 @@ func (c Client) Send(payload []byte) (*Response, error) {
 
 	body, err := EncodeJSON(c.MAC, key, payload, opts)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("encode inform request: %w", err)
 	}
 
 	req, err := http.NewRequest(http.MethodPost, c.URL, bytes.NewReader(body))
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("create inform request: %w", err)
 	}
 	req.Header.Set("User-Agent", "AirControl Agent v1.0")
 	req.Header.Set("Accept", "application/x-binary")
@@ -68,7 +68,7 @@ func (c Client) Send(payload []byte) (*Response, error) {
 	}
 	httpResp, err := client.Do(req)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("send inform request: %w", err)
 	}
 	defer func() {
 		_ = httpResp.Body.Close()
@@ -76,7 +76,7 @@ func (c Client) Send(payload []byte) (*Response, error) {
 
 	raw, err := io.ReadAll(httpResp.Body)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("read inform response body: %w", err)
 	}
 	resp := &Response{
 		StatusCode: httpResp.StatusCode,
@@ -88,7 +88,7 @@ func (c Client) Send(payload []byte) (*Response, error) {
 
 	packet, decoded, err := Decode(raw, key)
 	if err != nil {
-		return resp, err
+		return resp, fmt.Errorf("decode inform response: %w", err)
 	}
 	resp.Packet = packet
 	resp.JSONBody = decoded

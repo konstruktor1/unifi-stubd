@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -22,7 +23,7 @@ func loadConfig(path string, explicit bool) (appconfig.Config, error) {
 	if errors.Is(err, os.ErrNotExist) && !explicit {
 		return appconfig.Default(), nil
 	}
-	return appconfig.Config{}, err
+	return appconfig.Config{}, fmt.Errorf("load config %s: %w", path, err)
 }
 
 func applyConfig(cfg appconfig.Config, changed map[string]bool, flags runtimeFlags) {

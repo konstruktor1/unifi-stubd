@@ -1,3 +1,4 @@
+//nolint:goconst // Repeated sysfs and port fixture literals keep observation cases explicit.
 package observe_test
 
 import (

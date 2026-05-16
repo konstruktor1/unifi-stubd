@@ -1,3 +1,4 @@
+//nolint:goconst // Repeated CLI fixture literals keep adoption tests readable.
 package adoptionssh_test
 
 import (

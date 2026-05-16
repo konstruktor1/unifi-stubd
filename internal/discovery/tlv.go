@@ -81,7 +81,7 @@ func (a Announcement) MarshalBinary() ([]byte, error) {
 func Send(packet []byte) error {
 	conn, err := net.ListenPacket("udp4", ":0")
 	if err != nil {
-		return err
+		return fmt.Errorf("open discovery socket: %w", err)
 	}
 	defer func() {
 		_ = conn.Close()
@@ -90,10 +90,10 @@ func Send(packet []byte) error {
 	for _, addr := range []string{BroadcastAddress, MulticastAddress} {
 		udpAddr, err := net.ResolveUDPAddr("udp4", addr)
 		if err != nil {
-			return err
+			return fmt.Errorf("resolve discovery address %s: %w", addr, err)
 		}
 		if _, err := conn.WriteTo(packet, udpAddr); err != nil {
-			return err
+			return fmt.Errorf("send discovery packet to %s: %w", addr, err)
 		}
 	}
 	return nil

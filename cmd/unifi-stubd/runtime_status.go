@@ -93,7 +93,7 @@ func printLocalStatus(flags runtimeFlags, profile device.Profile, mac net.Hardwa
 	if *flags.statusJSON {
 		data, err := json.MarshalIndent(status, "", "  ")
 		if err != nil {
-			return err
+			return fmt.Errorf("marshal local status: %w", err)
 		}
 		fmt.Println(string(data))
 		return nil
@@ -281,10 +281,10 @@ func loadPersistedRunStatus(path string) (persistedRunStatus, error) {
 	var status persistedRunStatus
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return status, err
+		return status, fmt.Errorf("read runtime status %s: %w", path, err)
 	}
 	if err := json.Unmarshal(data, &status); err != nil {
-		return status, err
+		return status, fmt.Errorf("parse runtime status %s: %w", path, err)
 	}
 	return status, nil
 }
@@ -294,14 +294,17 @@ func saveLastInformStatus(path string, last lastInformStatus) error {
 		return errors.New("status path is required")
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return err
+		return fmt.Errorf("create runtime status directory: %w", err)
 	}
 	data, err := json.MarshalIndent(persistedRunStatus{LastInform: last}, "", "  ")
 	if err != nil {
-		return err
+		return fmt.Errorf("marshal runtime status: %w", err)
 	}
 	data = append(data, '\n')
-	return os.WriteFile(path, data, 0o600)
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		return fmt.Errorf("write runtime status %s: %w", path, err)
+	}
+	return nil
 }
 
 func newLastInformStatus(url string, store adoption.Store) lastInformStatus {

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"fmt"
 	"os"
 
 	"gopkg.in/yaml.v3"
@@ -8,6 +9,8 @@ import (
 
 // DefaultPath is the system-wide YAML configuration path.
 const DefaultPath = "/etc/unifi-stubd/config.yaml"
+
+const automaticValue = "auto"
 
 // Config describes the runtime settings loaded from YAML and CLI flags.
 type Config struct {
@@ -67,14 +70,14 @@ func Default() Config {
 		OperationMode:    "stub",
 		ControllerURL:    "",
 		Profile:          "us16p150",
-		MAC:              "auto",
+		MAC:              automaticValue,
 		IP:               "192.168.1.50",
-		Hostname:         "auto",
+		Hostname:         automaticValue,
 		Model:            "",
 		ModelDisplay:     "",
 		Ports:            0,
 		LinkSpeed:        0,
-		UplinkSpeed:      "auto",
+		UplinkSpeed:      automaticValue,
 		ObserveInterface: "",
 		ObserveBridge:    "",
 		LLDPSource:       "off",
@@ -96,10 +99,10 @@ func Load(path string) (Config, error) {
 	cfg := Default()
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return cfg, err
+		return cfg, fmt.Errorf("read config %s: %w", path, err)
 	}
 	if err := yaml.Unmarshal(data, &cfg); err != nil {
-		return cfg, err
+		return cfg, fmt.Errorf("parse config %s: %w", path, err)
 	}
 	return cfg, nil
 }

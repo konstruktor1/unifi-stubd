@@ -1,3 +1,4 @@
+//nolint:goconst // Repeated payload fixture literals document expected UniFi shapes.
 package device_test
 
 import (

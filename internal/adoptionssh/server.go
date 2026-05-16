@@ -23,6 +23,15 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+const (
+	defaultSSHUser     = "ubnt"
+	defaultSSHPassword = "ubnt"
+	defaultStatePath   = "/var/lib/unifi-stubd/adoption.env"
+	commandInfo        = "info"
+	commandSetInform   = "set-inform"
+	okOutput           = "OK\n"
+)
+
 // Identity describes the device data exposed through adoption SSH commands.
 type Identity struct {
 	// MAC is the fake device MAC address.
@@ -67,18 +76,18 @@ func Start(cfg Config) (*Server, error) {
 		return nil, nil
 	}
 	if cfg.User == "" {
-		cfg.User = "ubnt"
+		cfg.User = defaultSSHUser
 	}
 	if cfg.Password == "" {
-		cfg.Password = "ubnt"
+		cfg.Password = defaultSSHPassword
 	}
 	if cfg.StatePath == "" {
-		cfg.StatePath = "/var/lib/unifi-stubd/adoption.env"
+		cfg.StatePath = defaultStatePath
 	}
 
 	signer, err := loadOrCreateHostKey(cfg.HostKeyPath)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("load adoption SSH host key: %w", err)
 	}
 
 	sshConfig := &ssh.ServerConfig{
@@ -96,7 +105,7 @@ func Start(cfg Config) (*Server, error) {
 
 	listener, err := net.Listen("tcp", cfg.Listen)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("listen for adoption SSH: %w", err)
 	}
 
 	server := &Server{
@@ -113,7 +122,10 @@ func (s *Server) Close() error {
 	if s == nil || s.listener == nil {
 		return nil
 	}
-	return s.listener.Close()
+	if err := s.listener.Close(); err != nil {
+		return fmt.Errorf("close adoption SSH listener: %w", err)
+	}
+	return nil
 }
 
 // Addr returns the listener address, or nil when the server is not running.
@@ -243,7 +255,7 @@ func (h *Handler) executeOne(command string) (string, int) {
 	if args[0] == "sudo" {
 		args = args[1:]
 		if len(args) == 0 {
-			return "OK\n", 0
+			return okOutput, 0
 		}
 	}
 	if (args[0] == "sh" || args[0] == "/bin/sh") && len(args) >= 3 && args[1] == "-c" {
@@ -257,19 +269,19 @@ func (h *Handler) executeOne(command string) (string, int) {
 	case "syswrapper.sh":
 		return h.handleSyswrapper(args)
 	case "mca-cli-op":
-		if len(args) > 1 && args[1] == "info" {
+		if len(args) > 1 && args[1] == commandInfo {
 			return h.info(), 0
 		}
 		return h.handleSetInform(args)
-	case "info":
+	case commandInfo:
 		return h.info(), 0
-	case "set-inform":
+	case commandSetInform:
 		return h.handleSetInform(args)
 	case "mca-cli":
 		return h.handleMCA(args)
 	case "ubntbox":
 		h.saveState("", "", strings.Join(args, " "))
-		return "OK\n", 0
+		return okOutput, 0
 	case "hostname":
 		return h.config.Identity.Hostname + "\n", 0
 	case "uname":
@@ -286,7 +298,7 @@ func (h *Handler) executeOne(command string) (string, int) {
 			return fmt.Sprintf("Adoption request accepted: %s\n", url), 0
 		}
 		h.saveState("", "", strings.Join(args, " "))
-		return "OK\n", 0
+		return okOutput, 0
 	}
 }
 
@@ -309,13 +321,13 @@ func (h *Handler) handleSyswrapper(args []string) (string, int) {
 			return "Adoption command accepted\n", 0
 		}
 		return fmt.Sprintf("Adoption request accepted: %s\n", url), 0
-	case "set-inform":
+	case commandSetInform:
 		return h.handleSetInform(args)
-	case "info", "status", "get-info":
+	case commandInfo, "status", "get-info":
 		return h.info(), 0
 	default:
 		h.saveState("", "", strings.Join(args, " "))
-		return "OK\n", 0
+		return okOutput, 0
 	}
 }
 
@@ -327,13 +339,13 @@ func (h *Handler) handleMCA(args []string) (string, int) {
 		return h.handleSetInform(args[1:])
 	}
 	switch args[1] {
-	case "set-inform":
+	case commandSetInform:
 		return h.handleSetInform(args)
-	case "info", "status":
+	case commandInfo, "status":
 		return h.info(), 0
 	default:
 		h.saveState("", "", strings.Join(args, " "))
-		return "OK\n", 0
+		return okOutput, 0
 	}
 }
 
@@ -392,7 +404,7 @@ func (h *Handler) saveState(informURL, authKey, command string) {
 
 	statePath := h.config.StatePath
 	if statePath == "" {
-		statePath = "/var/lib/unifi-stubd/adoption.env"
+		statePath = defaultStatePath
 	}
 	store, err := adoption.LoadEnv(statePath)
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
@@ -479,33 +491,37 @@ func findInformURL(args []string) string {
 func loadOrCreateHostKey(hostKeyPath string) (ssh.Signer, error) {
 	if hostKeyPath != "" {
 		if data, err := os.ReadFile(hostKeyPath); err == nil {
-			return ssh.ParsePrivateKey(data)
+			signer, err := ssh.ParsePrivateKey(data)
+			if err != nil {
+				return nil, fmt.Errorf("parse SSH host key %s: %w", hostKeyPath, err)
+			}
+			return signer, nil
 		} else if !errors.Is(err, os.ErrNotExist) {
-			return nil, err
+			return nil, fmt.Errorf("read SSH host key %s: %w", hostKeyPath, err)
 		}
 	}
 
 	key, err := rsa.GenerateKey(rand.Reader, 2048)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("generate SSH host key: %w", err)
 	}
 	signer, err := ssh.NewSignerFromKey(key)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("create SSH signer: %w", err)
 	}
 	if hostKeyPath == "" {
 		return signer, nil
 	}
 
 	if err := os.MkdirAll(filepath.Dir(hostKeyPath), 0o700); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("create SSH host key directory: %w", err)
 	}
 	privateKey := pem.EncodeToMemory(&pem.Block{
 		Type:  "RSA PRIVATE KEY",
 		Bytes: x509.MarshalPKCS1PrivateKey(key),
 	})
 	if err := os.WriteFile(hostKeyPath, privateKey, 0o600); err != nil {
-		return nil, err
+		return nil, fmt.Errorf("write SSH host key %s: %w", hostKeyPath, err)
 	}
 	return signer, nil
 }

@@ -2,9 +2,16 @@ package device
 
 import (
 	"encoding/json"
+	"fmt"
 	"net"
 	"strconv"
 	"time"
+)
+
+const (
+	jsonKeyMAC     = "mac"
+	jsonKeyName    = "name"
+	jsonKeyNumPort = "num_port"
 )
 
 // Identity contains the device attributes reported in inform payloads.
@@ -118,8 +125,8 @@ func MinimalSwitchPayload(id Identity, ports []Port) ([]byte, error) {
 		ifSpeed = speed
 	}
 
-	return json.MarshalIndent(map[string]any{
-		"mac":                id.MAC,
+	payload := map[string]any{
+		jsonKeyMAC:           id.MAC,
 		"ip":                 id.IP,
 		"hostname":           id.Hostname,
 		"model":              id.Model,
@@ -127,7 +134,7 @@ func MinimalSwitchPayload(id Identity, ports []Port) ([]byte, error) {
 		"type":               "usw",
 		"version":            id.Version,
 		"serial":             id.Serial,
-		"num_port":           numPorts,
+		jsonKeyNumPort:       numPorts,
 		"state":              1,
 		"default":            !id.Adopted,
 		"discovery_response": true,
@@ -138,30 +145,35 @@ func MinimalSwitchPayload(id Identity, ports []Port) ([]byte, error) {
 		"inform_url":         informURL,
 		"if_table": []map[string]any{
 			{
-				"name":        "eth0",
-				"mac":         id.MAC,
-				"ip":          id.IP,
-				"num_port":    numPorts,
-				"up":          true,
-				"speed":       ifSpeed,
-				"full_duplex": true,
+				jsonKeyName:    "eth0",
+				jsonKeyMAC:     id.MAC,
+				"ip":           id.IP,
+				jsonKeyNumPort: numPorts,
+				"up":           true,
+				"speed":        ifSpeed,
+				"full_duplex":  true,
 			},
 		},
 		"ethernet_table": []map[string]any{
 			{
-				"name":     "eth0",
-				"mac":      id.MAC,
-				"num_port": numPorts,
+				jsonKeyName:    "eth0",
+				jsonKeyMAC:     id.MAC,
+				jsonKeyNumPort: numPorts,
 			},
 			{
-				"name": "srv0",
-				"mac":  incrementMAC(id.MAC),
+				jsonKeyName: "srv0",
+				jsonKeyMAC:  incrementMAC(id.MAC),
 			},
 		},
 		"port_table":   portTable(ports),
 		"sys_stats":    sysStats(),
 		"system-stats": map[string]any{"cpu": 1.0, "mem": 10.0, "uptime": 1},
-	}, "", "  ")
+	}
+	data, err := json.MarshalIndent(payload, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("marshal switch payload: %w", err)
+	}
+	return data, nil
 }
 
 // SwitchPorts returns count generated switch ports with profile-neutral defaults.
@@ -291,7 +303,7 @@ func portTable(ports []Port) []map[string]any {
 		}
 		out = append(out, map[string]any{
 			"port_idx":     p.Index,
-			"name":         p.Name,
+			jsonKeyName:    p.Name,
 			"media":        media,
 			"enable":       true,
 			"up":           p.Up,
@@ -354,7 +366,7 @@ func normalizePortOptions(options PortOptions) PortOptions {
 
 func mediaForSpeed(speed int) string {
 	if speed >= 10000 {
-		return "SFP+"
+		return mediaSFPPlus
 	}
 	return "GE"
 }
