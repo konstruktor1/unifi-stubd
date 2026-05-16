@@ -67,6 +67,25 @@ func TestLargestTenGigProfile(t *testing.T) {
 	}
 }
 
+func TestLargestControllerKnownTenGigProfile(t *testing.T) {
+	profile, ok := device.LookupProfile("usaggpro")
+	if !ok {
+		t.Fatal("profile not found")
+	}
+	if profile.Model != "USAGGPRO" {
+		t.Fatalf("Model = %q, want USAGGPRO", profile.Model)
+	}
+	if profile.Ports != 32 {
+		t.Fatalf("Ports = %d, want 32", profile.Ports)
+	}
+	if profile.PortSpeed != 10000 {
+		t.Fatalf("PortSpeed = %d, want 10000", profile.PortSpeed)
+	}
+	if profile.UplinkSpeed != 25000 {
+		t.Fatalf("UplinkSpeed = %d, want 25000", profile.UplinkSpeed)
+	}
+}
+
 func TestAutoMACIsStableAndProfileSensitive(t *testing.T) {
 	first := device.AutoMAC("host|us16p150")
 	second := device.AutoMAC("host|us16p150")

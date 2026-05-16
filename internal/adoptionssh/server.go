@@ -256,7 +256,14 @@ func (h *Handler) executeOne(command string) (string, int) {
 	switch name {
 	case "syswrapper.sh":
 		return h.handleSyswrapper(args)
-	case "mca-cli-op", "set-inform":
+	case "mca-cli-op":
+		if len(args) > 1 && args[1] == "info" {
+			return h.info(), 0
+		}
+		return h.handleSetInform(args)
+	case "info":
+		return h.info(), 0
+	case "set-inform":
 		return h.handleSetInform(args)
 	case "mca-cli":
 		return h.handleMCA(args)
@@ -364,8 +371,19 @@ func (h *Handler) info() string {
 	if id.Hostname == "" {
 		id.Hostname = "unifi-stubd"
 	}
-	return fmt.Sprintf("Model: %s\nVersion: %s\nHostname: %s\nMAC: %s\nIP: %s\nInform URL: %s\n",
-		id.Model, id.Version, id.Hostname, id.MAC, id.IP, id.InformURL)
+	informURL := id.InformURL
+	if informURL == "" {
+		informURL = "http://unifi:8080/inform"
+	}
+	return fmt.Sprintf(
+		"Model:       %s\nVersion:     %s\nMAC Address: %s\nIP Address:  %s\nHostname:    %s\nUptime:      1 seconds\nStatus:      Not Adopted (%s)\n",
+		id.Model,
+		id.Version,
+		id.MAC,
+		id.IP,
+		id.Hostname,
+		informURL,
+	)
 }
 
 func (h *Handler) saveState(informURL, authKey, command string) {

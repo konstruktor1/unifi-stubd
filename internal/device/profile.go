@@ -83,6 +83,22 @@ var profiles = []Profile{
 		Description:  "16-port 10G aggregation switch",
 	},
 	{
+		Name:         "usaggpro",
+		Model:        "USAGGPRO",
+		ModelDisplay: "UniFi Switch Aggregation PRO",
+		Version:      "7.4.1.16850",
+		Ports:        32,
+		PortGroups: []PortGroup{
+			{Count: 28, Speed: 10000, Media: "SFP+"},
+			{Count: 4, Speed: 25000, Media: "SFP28", Uplink: true},
+		},
+		PortSpeed:   10000,
+		UplinkSpeed: 25000,
+		PortMedia:   "SFP+",
+		UplinkMedia: "SFP28",
+		Description: "32-port Pro Aggregation switch with 10G SFP+ and 25G SFP28",
+	},
+	{
 		Name:         "usw-pro-xg-48",
 		Model:        "USWProXG48",
 		ModelDisplay: "UniFi Pro XG 48",

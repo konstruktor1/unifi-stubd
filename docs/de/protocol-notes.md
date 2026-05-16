@@ -136,6 +136,8 @@ Fuer den MVP:
 - `US8P60`: ebenfalls klein, aber PoE-Felder koennen erwartet werden.
 - `US16P150`: 16-Port-Profil fuer US-16-150W-aehnliches Verhalten.
 - `US16XG`: 16-Port-10G-Profil fuer Aggregation-/SFP+-Pruefungen.
+- `USAGGPRO`: groesstes controller-bekanntes 10G-Profil, gegen aeltere UniFi-
+  Modelldatenbanken validiert, mit 28 10G-SFP+- und vier 25G-SFP28-Ports.
 - `USW-Pro-XG-48`: groesstes eingebautes 10G-Access-Switch-Profil mit gemischten
   2.5G-, 10G- und 25G-SFP28-Portgruppen.
 

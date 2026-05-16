@@ -114,6 +114,35 @@ func TestSwitchPortsWithProfilePortGroups(t *testing.T) {
 	assertPort(52, 25000, "SFP28", false)
 }
 
+func TestSwitchPortsWithAggregationProPortGroups(t *testing.T) {
+	profile, ok := device.LookupProfile("usaggpro")
+	if !ok {
+		t.Fatal("profile not found")
+	}
+	ports := device.SwitchPortsWithOptions(profile.Ports, profile.PortOptions())
+
+	if len(ports) != 32 {
+		t.Fatalf("len(ports) = %d, want 32", len(ports))
+	}
+	assertPort := func(index, speed int, media string, uplink bool) {
+		t.Helper()
+		port := ports[index-1]
+		if port.Speed != speed {
+			t.Fatalf("port %d speed = %d, want %d", index, port.Speed, speed)
+		}
+		if port.Media != media {
+			t.Fatalf("port %d media = %q, want %q", index, port.Media, media)
+		}
+		if port.Uplink != uplink {
+			t.Fatalf("port %d uplink = %v, want %v", index, port.Uplink, uplink)
+		}
+	}
+	assertPort(1, 10000, "SFP+", false)
+	assertPort(28, 10000, "SFP+", false)
+	assertPort(29, 25000, "SFP28", true)
+	assertPort(32, 25000, "SFP28", false)
+}
+
 func TestMinimalSwitchPayloadReportsGroupedUplinkSpeed(t *testing.T) {
 	profile, ok := device.LookupProfile("usw-pro-xg-48")
 	if !ok {
