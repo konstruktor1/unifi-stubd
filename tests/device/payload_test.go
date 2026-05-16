@@ -144,6 +144,35 @@ func TestSwitchPortsWithAggregationProPortGroups(t *testing.T) {
 	assertPort(32, 25000, "SFP28", false)
 }
 
+func TestSwitchPortsCanOverrideAggregationUplinkToTenGigPort(t *testing.T) {
+	profile, ok := device.LookupProfile("usaggpro")
+	if !ok {
+		t.Fatal("profile not found")
+	}
+	options := profile.PortOptions()
+	options.UplinkPort = 1
+	ports := device.SwitchPortsWithOptions(profile.Ports, options)
+
+	if !ports[0].Uplink {
+		t.Fatal("port 1 is not uplink")
+	}
+	if ports[0].Speed != 10000 {
+		t.Fatalf("port 1 speed = %d, want 10000", ports[0].Speed)
+	}
+	if ports[0].Media != "SFP+" {
+		t.Fatalf("port 1 media = %q, want SFP+", ports[0].Media)
+	}
+	if len(ports[0].MACs) == 0 {
+		t.Fatal("port 1 did not receive uplink MAC table")
+	}
+	if ports[28].Uplink {
+		t.Fatal("port 29 is still uplink")
+	}
+	if ports[28].Speed != 25000 || ports[28].Media != "SFP28" {
+		t.Fatalf("port 29 = speed %d media %q, want 25000 SFP28", ports[28].Speed, ports[28].Media)
+	}
+}
+
 func TestMinimalSwitchPayloadReportsGroupedUplinkSpeed(t *testing.T) {
 	profile, ok := device.LookupProfile("usw-pro-xg-48")
 	if !ok {

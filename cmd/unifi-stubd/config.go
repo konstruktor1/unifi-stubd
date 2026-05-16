@@ -60,6 +60,9 @@ func applyConfig(cfg appconfig.Config, changed map[string]bool, flags runtimeFla
 	if !changed["uplink-speed"] {
 		*flags.uplinkSpeed = cfg.UplinkSpeed
 	}
+	if !changed["uplink-port"] {
+		*flags.uplinkPort = cfg.UplinkPort
+	}
 	if !changed["observe-interface"] {
 		*flags.observeInterface = cfg.ObserveInterface
 	}

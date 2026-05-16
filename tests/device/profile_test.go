@@ -1,3 +1,4 @@
+//nolint:goconst // Repeated profile fixture literals keep expected models explicit.
 package device_test
 
 import (

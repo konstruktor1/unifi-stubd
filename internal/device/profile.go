@@ -175,6 +175,7 @@ func (p Profile) PortOptions() PortOptions {
 		UplinkSpeed: p.UplinkSpeed,
 		Media:       p.PortMedia,
 		UplinkMedia: p.UplinkMedia,
+		UplinkPort:  0,
 		PortGroups:  clonePortGroups(p.PortGroups),
 	}
 }

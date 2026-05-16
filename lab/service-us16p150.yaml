@@ -12,6 +12,7 @@ traffic_source: off
 
 link_speed: 0
 uplink_speed: auto
+uplink_port: 0
 interval_seconds: 10
 no_discovery: false
 

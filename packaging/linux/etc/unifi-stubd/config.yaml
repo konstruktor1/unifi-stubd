@@ -12,6 +12,9 @@ hostname: auto
 # 0 uses the selected profile, including mixed-speed profile port groups.
 link_speed: 0
 uplink_speed: auto
+# 0 uses the selected profile uplink. Set a port number to move the uplink
+# marker while preserving that port's profile speed/media.
+uplink_port: 0
 
 # Passive Linux observation is read-only. Set operation_mode: observe and fill
 # these fields to read counters, speed, and bridge FDB entries.

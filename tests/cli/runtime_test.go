@@ -29,6 +29,7 @@ uplink_speed: profile
 		"-operation-mode", "observe",
 		"-profile", "usaggpro",
 		"-hostname", "cli-host",
+		"-uplink-port", "1",
 		"-observe-interface", "eth0",
 		"-observe-bridge", "br0",
 	)
@@ -40,6 +41,23 @@ uplink_speed: profile
 	}
 	if !strings.Contains(output, "hostname: cli-host") {
 		t.Fatalf("output did not contain hostname override:\n%s", output)
+	}
+	if !strings.Contains(output, "uplink_port: 1") {
+		t.Fatalf("output did not contain uplink override:\n%s", output)
+	}
+}
+
+func TestInvalidUplinkPortIsRejected(t *testing.T) {
+	cmd := stubdCommand("-dry-run-plan",
+		"-profile", "usaggpro",
+		"-uplink-port", "33",
+	)
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("command succeeded; output:\n%s", out)
+	}
+	if !strings.Contains(string(out), "invalid -uplink-port 33") {
+		t.Fatalf("output did not contain uplink validation:\n%s", out)
 	}
 }
 

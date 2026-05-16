@@ -36,6 +36,8 @@ type Config struct {
 	LinkSpeed int `yaml:"link_speed"`
 	// UplinkSpeed is an explicit Mbps value, auto, or profile.
 	UplinkSpeed string `yaml:"uplink_speed"`
+	// UplinkPort overrides the profile-selected uplink port when positive.
+	UplinkPort int `yaml:"uplink_port"`
 	// ObserveInterface is the host interface used for passive link data.
 	ObserveInterface string `yaml:"observe_interface"`
 	// ObserveBridge is the Linux bridge used for passive FDB data.
@@ -78,6 +80,7 @@ func Default() Config {
 		Ports:            0,
 		LinkSpeed:        0,
 		UplinkSpeed:      automaticValue,
+		UplinkPort:       0,
 		ObserveInterface: "",
 		ObserveBridge:    "",
 		LLDPSource:       "off",

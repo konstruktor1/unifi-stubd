@@ -61,6 +61,13 @@ func validateOperationFlags(flags runtimeFlags) error {
 	return nil
 }
 
+func validatePortOverrides(flags runtimeFlags) error {
+	if *flags.uplinkPort < 0 || *flags.uplinkPort > *flags.portCount {
+		return fmt.Errorf("invalid -uplink-port %d; use 0 or 1..%d", *flags.uplinkPort, *flags.portCount)
+	}
+	return nil
+}
+
 func normalizeMode(value string) string {
 	value = strings.ToLower(strings.TrimSpace(value))
 	if value == "" {
@@ -95,6 +102,7 @@ func printRuntimePlan(flags runtimeFlags, profile device.Profile, macText, ipTex
 	fmt.Printf("mac: %s\n", macText)
 	fmt.Printf("ip: %s\n", ipText)
 	fmt.Printf("hostname: %s\n", hostname)
+	fmt.Printf("uplink_port: %d\n", *flags.uplinkPort)
 	fmt.Printf("observe_interface: %s\n", strings.TrimSpace(*flags.observeInterface))
 	fmt.Printf("observe_bridge: %s\n", strings.TrimSpace(*flags.observeBridge))
 	fmt.Printf("lldp_source: %s\n", strings.TrimSpace(*flags.lldpSource))

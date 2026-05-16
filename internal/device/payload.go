@@ -104,6 +104,8 @@ type PortOptions struct {
 	Media string
 	// UplinkMedia is the uplink port media label.
 	UplinkMedia string
+	// UplinkPort overrides the generated uplink port when positive.
+	UplinkPort int
 	// PortGroups optionally describe a non-uniform physical port layout.
 	PortGroups []PortGroup
 }
@@ -188,7 +190,7 @@ func SwitchPortsWithOptions(count int, options PortOptions) []Port {
 	}
 	options = normalizePortOptions(options)
 	if ports := groupedSwitchPorts(count, options); len(ports) > 0 {
-		return ports
+		return applyUplinkPort(ports, options.UplinkPort)
 	}
 
 	ports := make([]Port, 0, count)
@@ -201,7 +203,7 @@ func SwitchPortsWithOptions(count int, options PortOptions) []Port {
 		}
 		ports = append(ports, generatedPort(i, speed, media, i == 1))
 	}
-	return ports
+	return applyUplinkPort(ports, options.UplinkPort)
 }
 
 func groupedSwitchPorts(count int, options PortOptions) []Port {
@@ -271,6 +273,31 @@ func generatedPort(index, speed int, media string, uplink bool) Port {
 		}
 	}
 	return port
+}
+
+func applyUplinkPort(ports []Port, uplinkPort int) []Port {
+	if uplinkPort <= 0 {
+		return ports
+	}
+	if uplinkPort > len(ports) {
+		return ports
+	}
+	targetIndex := uplinkPort - 1
+	var uplinkMACs []MacTableEntry
+	for index := range ports {
+		if ports[index].Uplink && len(ports[index].MACs) > 0 {
+			uplinkMACs = append([]MacTableEntry{}, ports[index].MACs...)
+		}
+		ports[index].Uplink = false
+		if index != targetIndex {
+			ports[index].MACs = nil
+		}
+	}
+	ports[targetIndex].Uplink = true
+	if len(ports[targetIndex].MACs) == 0 {
+		ports[targetIndex].MACs = uplinkMACs
+	}
+	return ports
 }
 
 func portName(index int) string {

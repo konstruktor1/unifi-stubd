@@ -106,7 +106,7 @@ func hostInterfaceMAC(ifaceName string) (net.HardwareAddr, error) {
 	return iface.HardwareAddr, nil
 }
 
-func resolvePortOptions(profile device.Profile, linkSpeed int, uplinkSpeed, controller string) device.PortOptions {
+func resolvePortOptions(profile device.Profile, linkSpeed int, uplinkPort int, uplinkSpeed, controller string) device.PortOptions {
 	portOptions := profile.PortOptions()
 	if linkSpeed > 0 {
 		portOptions.Speed = linkSpeed
@@ -115,6 +115,7 @@ func resolvePortOptions(profile device.Profile, linkSpeed int, uplinkSpeed, cont
 		portOptions.UplinkMedia = ""
 		portOptions.PortGroups = nil
 	}
+	portOptions.UplinkPort = uplinkPort
 	return resolveUplinkSpeed(portOptions, uplinkSpeed, controller)
 }
 

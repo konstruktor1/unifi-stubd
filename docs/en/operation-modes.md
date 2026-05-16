@@ -12,7 +12,8 @@ The validated live lab device is:
 - Controller model: `USAGGPRO` / `USW Pro Aggregation`
 - MAC: `32:c1:80:4f:7e:bc`
 - Controller state: online and adopted
-- Ports: 28 10G SFP+ ports and four 25G SFP28 ports, with port 29 as uplink
+- Ports: 28 10G SFP+ ports and four 25G SFP28 ports
+- Uplink: port 1 by live `uplink_port` override; profile default is port 29
 
 `USAGGPRO` is the currently validated large 10G profile. `USWProXG48` remains
 experimental because the current lab controller did not accept it as a known
@@ -38,6 +39,12 @@ FDB rows are grouped by Linux bridge member. The configured
 `observe_interface` is mapped to the UniFi uplink port, while `tap*`, `veth*`,
 and other learned bridge members are mapped deterministically to free switch
 ports with their learned MAC tables.
+
+The profile chooses the uplink port by default. Set `uplink_port` to a positive
+port number to move the uplink marker to a specific physical port while keeping
+that port's profile speed and media. For example, `uplink_port: 1` puts the
+`usaggpro` uplink on a 10G SFP+ port instead of the default 25G SFP28 uplink
+group.
 
 If any source is missing or unreadable, the daemon logs a warning and falls back
 to profile defaults. This mode must not create interfaces, assign addresses, or

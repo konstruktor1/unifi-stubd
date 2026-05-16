@@ -34,6 +34,7 @@ profile: us16p150
 operation_mode: observe
 observe_interface: eth0
 observe_bridge: vmbr0
+uplink_port: 1
 lldp_source: lldpd
 ssh_listen: 0.0.0.0:22
 state_path: /tmp/unifi-stubd/adoption.env
@@ -57,6 +58,9 @@ status_path: /tmp/unifi-stubd/status.json
 	}
 	if cfg.ObserveBridge != "vmbr0" {
 		t.Fatalf("ObserveBridge = %q", cfg.ObserveBridge)
+	}
+	if cfg.UplinkPort != 1 {
+		t.Fatalf("UplinkPort = %d", cfg.UplinkPort)
 	}
 	if cfg.LLDPSource != "lldpd" {
 		t.Fatalf("LLDPSource = %q", cfg.LLDPSource)

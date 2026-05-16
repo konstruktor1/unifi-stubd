@@ -27,14 +27,15 @@ type localStatus struct {
 }
 
 type statusIdentity struct {
-	MAC       string `json:"mac"`
-	IP        string `json:"ip"`
-	Hostname  string `json:"hostname"`
-	Serial    string `json:"serial"`
-	Model     string `json:"model"`
-	ModelName string `json:"model_name"`
-	Profile   string `json:"profile"`
-	Ports     int    `json:"ports"`
+	MAC        string `json:"mac"`
+	IP         string `json:"ip"`
+	Hostname   string `json:"hostname"`
+	Serial     string `json:"serial"`
+	Model      string `json:"model"`
+	ModelName  string `json:"model_name"`
+	Profile    string `json:"profile"`
+	Ports      int    `json:"ports"`
+	UplinkPort int    `json:"uplink_port"`
 }
 
 type statusConfig struct {
@@ -109,14 +110,15 @@ func buildLocalStatus(flags runtimeFlags, profile device.Profile, mac net.Hardwa
 	status := localStatus{
 		ConfigPath: *flags.configPath,
 		Identity: statusIdentity{
-			MAC:       mac.String(),
-			IP:        ip.String(),
-			Hostname:  hostname,
-			Serial:    serialFromMAC(mac),
-			Model:     *flags.model,
-			ModelName: *flags.modelDisplay,
-			Profile:   profile.Name,
-			Ports:     len(ports),
+			MAC:        mac.String(),
+			IP:         ip.String(),
+			Hostname:   hostname,
+			Serial:     serialFromMAC(mac),
+			Model:      *flags.model,
+			ModelName:  *flags.modelDisplay,
+			Profile:    profile.Name,
+			Ports:      len(ports),
+			UplinkPort: uplinkPortIndex(ports),
 		},
 		Config: statusConfig{
 			OperationMode: *flags.operationMode,
@@ -214,6 +216,7 @@ func printHumanStatus(status localStatus) {
 	fmt.Printf("hostname: %s\n", status.Identity.Hostname)
 	fmt.Printf("serial: %s\n", status.Identity.Serial)
 	fmt.Printf("ports: %d\n", status.Identity.Ports)
+	fmt.Printf("uplink_port: %d\n", status.Identity.UplinkPort)
 	fmt.Printf("controller_url: %s\n", valueOrDash(status.Config.ControllerURL))
 	fmt.Printf("inform_url: %s\n", valueOrDash(status.Config.InformURL))
 	fmt.Printf("interval: %s\n", status.Config.Interval)

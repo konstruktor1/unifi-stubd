@@ -42,9 +42,12 @@ func serveSwitchEmulation() error {
 		log.Fatalf("unknown profile %q; known profiles: %s", *flags.profileName, device.ProfileNames())
 	}
 	applyProfile(profile, flags.model, flags.modelDisplay, flags.version, flags.portCount)
+	if err := validatePortOverrides(flags); err != nil {
+		return err
+	}
 
 	resolvedHostname := resolveHostname(*flags.hostname)
-	portOptions := resolvePortOptions(profile, *flags.linkSpeed, *flags.uplinkSpeed, *flags.controller)
+	portOptions := resolvePortOptions(profile, *flags.linkSpeed, *flags.uplinkPort, *flags.uplinkSpeed, *flags.controller)
 	mac := resolveMAC(*flags.macText, resolvedHostname, profile, *flags.model, *flags.operationMode, *flags.observeInterface)
 	ip := net.ParseIP(*flags.ipText).To4()
 	if ip == nil {
