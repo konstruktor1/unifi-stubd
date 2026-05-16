@@ -1,0 +1,70 @@
+package main
+
+import (
+	"flag"
+	"time"
+
+	appconfig "github.com/konstruktor1/unifi-stubd/internal/config"
+)
+
+type runtimeFlags struct {
+	configPath   *string
+	profileName  *string
+	listProfiles *bool
+	macText      *string
+	ipText       *string
+	hostname     *string
+	model        *string
+	modelDisplay *string
+	version      *string
+	portCount    *int
+	linkSpeed    *int
+	uplinkSpeed  *string
+	controller   *string
+	interval     *time.Duration
+	dryRun       *bool
+	once         *bool
+	noDiscovery  *bool
+	sshListen    *string
+	sshUser      *string
+	sshPassword  *string
+	sshHostKey   *string
+	sshState     *string
+}
+
+func parseRuntimeFlags(defaults appconfig.Config) (runtimeFlags, map[string]bool) {
+	flags := runtimeFlags{
+		configPath:   flag.String("config", appconfig.DefaultPath, "YAML config file path; default path is optional when absent"),
+		profileName:  flag.String("profile", defaults.Profile, "device profile to emulate; use -list-profiles to show options"),
+		listProfiles: flag.Bool("list-profiles", false, "list known device profiles and exit"),
+		macText:      flag.String("mac", defaults.MAC, "fake device MAC address, or auto to derive one from hostname and profile"),
+		ipText:       flag.String("ip", defaults.IP, "fake device IPv4 address"),
+		hostname:     flag.String("hostname", defaults.Hostname, "fake device hostname, or auto to use the OS hostname"),
+		model:        flag.String("model", defaults.Model, "override UniFi model identifier from the selected profile"),
+		modelDisplay: flag.String("model-display", defaults.ModelDisplay, "override display name from the selected profile"),
+		version:      flag.String("version", defaults.Version, "override firmware version from the selected profile"),
+		portCount:    flag.Int("ports", defaults.Ports, "override number of switch ports from the selected profile"),
+		linkSpeed:    flag.Int("link-speed", defaults.LinkSpeed, "override default switch port speed in Mbps; 0 uses selected profile"),
+		uplinkSpeed:  flag.String("uplink-speed", defaults.UplinkSpeed, "uplink speed in Mbps, auto, or profile"),
+		controller:   flag.String("controller", defaults.ControllerURL, "optional UniFi inform URL, for example http://192.168.1.10:8080/inform"),
+		interval:     flag.Duration("interval", time.Duration(defaults.IntervalSeconds)*time.Second, "announcement interval"),
+		dryRun:       flag.Bool("dry-run", false, "print payloads without sending packets"),
+		once:         flag.Bool("once", false, "send one discovery/inform batch and exit"),
+		noDiscovery:  flag.Bool("no-discovery", defaults.NoDiscovery, "skip UDP discovery and only send inform when -controller is set"),
+		sshListen:    flag.String("ssh-listen", defaults.SSHListen, "optional built-in adoption SSH listen address, for example 0.0.0.0:22"),
+		sshUser:      flag.String("ssh-user", defaults.SSHUser, "built-in adoption SSH username"),
+		sshPassword:  flag.String("ssh-password", defaults.SSHPassword, "built-in adoption SSH password"),
+		sshHostKey:   flag.String("ssh-host-key", defaults.SSHHostKeyPath, "built-in adoption SSH host key path"),
+		sshState:     flag.String("ssh-state", defaults.StatePath, "built-in adoption SSH state file path"),
+	}
+	flag.Parse()
+	return flags, changedFlags()
+}
+
+func changedFlags() map[string]bool {
+	out := map[string]bool{}
+	flag.Visit(func(f *flag.Flag) {
+		out[f.Name] = true
+	})
+	return out
+}

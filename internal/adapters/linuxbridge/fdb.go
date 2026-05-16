@@ -7,12 +7,17 @@ import (
 	"strings"
 )
 
+// FDBEntry represents one Linux bridge forwarding database row.
 type FDBEntry struct {
-	MAC    string
+	// MAC is the learned forwarding database MAC address.
+	MAC string
+	// Device is the bridge member interface that owns the entry.
 	Device string
-	VLAN   int
+	// VLAN is the optional VLAN identifier parsed from the row.
+	VLAN int
 }
 
+// ParseFDB parses bridge fdb output into forwarding database entries.
 func ParseFDB(r io.Reader) []FDBEntry {
 	var entries []FDBEntry
 	scanner := bufio.NewScanner(r)

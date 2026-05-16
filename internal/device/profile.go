@@ -7,17 +7,28 @@ import (
 	"strings"
 )
 
+// Profile defines a built-in UniFi switch profile.
 type Profile struct {
-	Name         string
-	Model        string
+	// Name is the short CLI and config name.
+	Name string
+	// Model is the UniFi model identifier.
+	Model string
+	// ModelDisplay is the human-readable UniFi model name.
 	ModelDisplay string
-	Version      string
-	Ports        int
-	PortSpeed    int
-	UplinkSpeed  int
-	PortMedia    string
-	UplinkMedia  string
-	Description  string
+	// Version is the firmware version reported by this profile.
+	Version string
+	// Ports is the number of switch ports.
+	Ports int
+	// PortSpeed is the default access port speed in Mbps.
+	PortSpeed int
+	// UplinkSpeed is the uplink port speed in Mbps.
+	UplinkSpeed int
+	// PortMedia is the default access port media label.
+	PortMedia string
+	// UplinkMedia is the uplink port media label.
+	UplinkMedia string
+	// Description is the short label shown in profile listings.
+	Description string
 }
 
 var profiles = []Profile{
@@ -95,12 +106,14 @@ var profiles = []Profile{
 	},
 }
 
+// Profiles returns a copy of the built-in device profiles.
 func Profiles() []Profile {
 	out := make([]Profile, len(profiles))
 	copy(out, profiles)
 	return out
 }
 
+// LookupProfile returns a built-in profile by profile name or model identifier.
 func LookupProfile(name string) (Profile, bool) {
 	name = strings.ToLower(strings.TrimSpace(name))
 	for _, profile := range profiles {
@@ -111,6 +124,7 @@ func LookupProfile(name string) (Profile, bool) {
 	return Profile{}, false
 }
 
+// PortOptions converts p to generated switch port options.
 func (p Profile) PortOptions() PortOptions {
 	return PortOptions{
 		Speed:       p.PortSpeed,
@@ -120,6 +134,7 @@ func (p Profile) PortOptions() PortOptions {
 	}
 }
 
+// AutoMAC derives a stable locally administered MAC address from seed.
 func AutoMAC(seed string) net.HardwareAddr {
 	sum := sha256.Sum256([]byte(strings.TrimSpace(seed)))
 	mac := net.HardwareAddr{sum[0], sum[1], sum[2], sum[3], sum[4], sum[5]}
@@ -127,6 +142,7 @@ func AutoMAC(seed string) net.HardwareAddr {
 	return mac
 }
 
+// ProfileNames returns the known profile names as a comma-separated list.
 func ProfileNames() string {
 	names := make([]string, 0, len(profiles))
 	for _, profile := range profiles {
@@ -135,6 +151,7 @@ func ProfileNames() string {
 	return strings.Join(names, ", ")
 }
 
+// FormatProfiles returns a human-readable table of built-in profiles.
 func FormatProfiles() string {
 	var b strings.Builder
 	for _, profile := range profiles {

@@ -19,33 +19,49 @@ import (
 	"sync"
 	"time"
 
-	"github.com/corspi/unifi-stubd/internal/adoption"
+	"github.com/konstruktor1/unifi-stubd/internal/adoption"
 	"golang.org/x/crypto/ssh"
 )
 
+// Identity describes the device data exposed through adoption SSH commands.
 type Identity struct {
-	MAC       string
-	IP        string
-	Hostname  string
-	Model     string
-	Version   string
+	// MAC is the fake device MAC address.
+	MAC string
+	// IP is the fake device management IP address.
+	IP string
+	// Hostname is the fake device hostname.
+	Hostname string
+	// Model is the UniFi model identifier.
+	Model string
+	// Version is the firmware version reported by the SSH shim.
+	Version string
+	// InformURL is the controller inform URL currently known by the device.
 	InformURL string
 }
 
+// Config controls the built-in adoption SSH server.
 type Config struct {
-	Listen      string
-	User        string
-	Password    string
+	// Listen is the TCP listen address, such as 0.0.0.0:22.
+	Listen string
+	// User is the accepted SSH username.
+	User string
+	// Password is the accepted SSH password.
+	Password string
+	// HostKeyPath stores the persistent SSH host key.
 	HostKeyPath string
-	StatePath   string
-	Identity    Identity
+	// StatePath stores adoption state learned through SSH commands.
+	StatePath string
+	// Identity is the fake device identity exposed to the controller.
+	Identity Identity
 }
 
+// Server is a running adoption SSH listener.
 type Server struct {
 	listener net.Listener
 	handler  *Handler
 }
 
+// Start starts the built-in adoption SSH server when cfg.Listen is set.
 func Start(cfg Config) (*Server, error) {
 	if cfg.Listen == "" {
 		return nil, nil
@@ -92,6 +108,7 @@ func Start(cfg Config) (*Server, error) {
 	return server, nil
 }
 
+// Close shuts down the adoption SSH listener.
 func (s *Server) Close() error {
 	if s == nil || s.listener == nil {
 		return nil
@@ -99,6 +116,7 @@ func (s *Server) Close() error {
 	return s.listener.Close()
 }
 
+// Addr returns the listener address, or nil when the server is not running.
 func (s *Server) Addr() net.Addr {
 	if s == nil || s.listener == nil {
 		return nil
@@ -143,7 +161,9 @@ func (s *Server) handleConn(conn net.Conn, config *ssh.ServerConfig) {
 }
 
 func (s *Server) handleSession(channel ssh.Channel, requests <-chan *ssh.Request) {
-	defer channel.Close()
+	defer func() {
+		_ = channel.Close()
+	}()
 	for req := range requests {
 		switch req.Type {
 		case "pty-req", "env":
@@ -178,11 +198,13 @@ func sendExitStatus(channel ssh.Channel, status int) {
 	}{Status: uint32(status)}))
 }
 
+// Handler executes the small command subset used during UniFi adoption.
 type Handler struct {
 	config Config
 	mu     sync.Mutex
 }
 
+// Execute runs one or more shell-like adoption commands.
 func (h *Handler) Execute(command string) (string, int) {
 	var out strings.Builder
 	status := 0
@@ -196,6 +218,7 @@ func (h *Handler) Execute(command string) (string, int) {
 	return out.String(), status
 }
 
+// Shell serves a minimal interactive CLI over rw.
 func (h *Handler) Shell(rw io.ReadWriter) {
 	_, _ = io.WriteString(rw, "UniFi CLI shim\n")
 	scanner := bufio.NewScanner(rw)

@@ -1,0 +1,21 @@
+#!/sbin/openrc-run
+
+name="unifi-stubd"
+description="UniFi stub daemon"
+command="/usr/local/bin/unifi-stubd"
+command_background="yes"
+pidfile="/run/${RC_SVCNAME}.pid"
+output_log="/var/log/unifi-stubd.log"
+error_log="/var/log/unifi-stubd.err"
+
+depend() {
+  need net
+  after firewall
+}
+
+start_pre() {
+  checkpath -d -m 0755 /etc/unifi-stubd
+  checkpath -d -m 0755 /var/lib/unifi-stubd
+  checkpath -f -m 0644 "$output_log"
+  checkpath -f -m 0644 "$error_log"
+}

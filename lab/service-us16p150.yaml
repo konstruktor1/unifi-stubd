@@ -1,0 +1,17 @@
+# 16-port PoE switch profile for an isolated lab.
+controller_url: http://192.0.2.10:8080/inform
+profile: us16p150
+mac: auto
+ip: 192.0.2.50
+hostname: auto
+
+link_speed: 0
+uplink_speed: auto
+interval_seconds: 10
+no_discovery: false
+
+ssh_listen: 0.0.0.0:22
+ssh_user: ubnt
+ssh_password: ubnt
+ssh_host_key_path: /etc/unifi-stubd/ssh_host_rsa_key
+state_path: /var/lib/unifi-stubd/adoption.env

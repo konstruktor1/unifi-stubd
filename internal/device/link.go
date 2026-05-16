@@ -12,12 +12,17 @@ import (
 	"strings"
 )
 
+// LinkInfo describes the host interface used to reach a target.
 type LinkInfo struct {
+	// Interface is the operating system interface name.
 	Interface string
+	// SpeedMbps is the detected interface speed in Mbps.
 	SpeedMbps int
-	LocalIP   net.IP
+	// LocalIP is the local address selected for the target route.
+	LocalIP net.IP
 }
 
+// DetectEgressLink returns the local interface, IP, and speed used for target.
 func DetectEgressLink(target string) (LinkInfo, error) {
 	address, err := targetAddress(target)
 	if err != nil {
@@ -27,7 +32,9 @@ func DetectEgressLink(target string) (LinkInfo, error) {
 	if err != nil {
 		return LinkInfo{}, err
 	}
-	defer conn.Close()
+	defer func() {
+		_ = conn.Close()
+	}()
 
 	local, ok := conn.LocalAddr().(*net.UDPAddr)
 	if !ok || local.IP == nil {
@@ -44,6 +51,7 @@ func DetectEgressLink(target string) (LinkInfo, error) {
 	return LinkInfo{Interface: iface.Name, SpeedMbps: speed, LocalIP: local.IP}, nil
 }
 
+// InterfaceSpeedMbps reads the Linux sysfs speed value for name.
 func InterfaceSpeedMbps(name string) (int, error) {
 	if strings.Contains(name, "/") {
 		return 0, fmt.Errorf("invalid interface name %q", name)

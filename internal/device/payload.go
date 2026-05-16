@@ -7,46 +7,79 @@ import (
 	"time"
 )
 
+// Identity contains the device attributes reported in inform payloads.
 type Identity struct {
-	MAC          string
-	IP           string
-	Hostname     string
-	Model        string
+	// MAC is the fake device MAC address in controller-facing text form.
+	MAC string
+	// IP is the device management IP address reported to UniFi.
+	IP string
+	// Hostname is the device name reported to UniFi.
+	Hostname string
+	// Model is the UniFi model identifier.
+	Model string
+	// ModelDisplay is the human-readable UniFi model name.
 	ModelDisplay string
-	Version      string
-	Serial       string
-	InformURL    string
-	CFGVersion   string
-	Adopted      bool
+	// Version is the firmware version reported by the stub.
+	Version string
+	// Serial is the serial number reported by the stub.
+	Serial string
+	// InformURL is the controller inform URL currently known by the device.
+	InformURL string
+	// CFGVersion is the controller configuration version applied to the device.
+	CFGVersion string
+	// Adopted reports whether the stub should present itself as adopted.
+	Adopted bool
 }
 
+// MacTableEntry represents a learned MAC entry for a switch port.
 type MacTableEntry struct {
-	MAC    string `json:"mac"`
-	Age    int    `json:"age"`
-	Uptime int    `json:"uptime"`
-	VLAN   int    `json:"vlan,omitempty"`
-	Type   string `json:"type,omitempty"`
+	// MAC is the learned client or neighbor MAC address.
+	MAC string `json:"mac"`
+	// Age is the controller-facing age counter for this entry.
+	Age int `json:"age"`
+	// Uptime is the number of seconds the entry has been visible.
+	Uptime int `json:"uptime"`
+	// VLAN is the optional VLAN associated with the entry.
+	VLAN int `json:"vlan,omitempty"`
+	// Type describes the learned device type when known.
+	Type string `json:"type,omitempty"`
 }
 
+// Port describes one fake switch port in the UniFi payload.
 type Port struct {
-	Index   int
-	Name    string
-	Media   string
-	Uplink  bool
-	Up      bool
-	Speed   int
+	// Index is the one-based UniFi port index.
+	Index int
+	// Name is the display name reported for the port.
+	Name string
+	// Media is the UniFi media label, such as GE or SFP+.
+	Media string
+	// Uplink marks the port as the upstream connection.
+	Uplink bool
+	// Up reports whether link is up.
+	Up bool
+	// Speed is the negotiated speed in Mbps.
+	Speed int
+	// RXBytes is the receive byte counter.
 	RXBytes int64
+	// TXBytes is the transmit byte counter.
 	TXBytes int64
-	MACs    []MacTableEntry
+	// MACs contains learned MAC entries for this port.
+	MACs []MacTableEntry
 }
 
+// PortOptions configures generated switch port defaults.
 type PortOptions struct {
-	Speed       int
+	// Speed is the default access port speed in Mbps.
+	Speed int
+	// UplinkSpeed is the uplink port speed in Mbps.
 	UplinkSpeed int
-	Media       string
+	// Media is the default access port media label.
+	Media string
+	// UplinkMedia is the uplink port media label.
 	UplinkMedia string
 }
 
+// MinimalSwitchPayload returns a JSON inform payload for a fake UniFi switch.
 func MinimalSwitchPayload(id Identity, ports []Port) ([]byte, error) {
 	now := time.Now().Unix()
 	numPorts := len(ports)
@@ -109,10 +142,12 @@ func MinimalSwitchPayload(id Identity, ports []Port) ([]byte, error) {
 	}, "", "  ")
 }
 
+// SwitchPorts returns count generated switch ports with profile-neutral defaults.
 func SwitchPorts(count int) []Port {
 	return SwitchPortsWithOptions(count, PortOptions{})
 }
 
+// SwitchPortsWithOptions returns count generated switch ports using options.
 func SwitchPortsWithOptions(count int, options PortOptions) []Port {
 	if count < 1 {
 		count = 1
@@ -144,22 +179,6 @@ func SwitchPortsWithOptions(count int, options PortOptions) []Port {
 		ports = append(ports, port)
 	}
 	return ports
-}
-
-func ExampleUplinkPort() Port {
-	return Port{
-		Index:   1,
-		Name:    "vmbr0-uplink",
-		Media:   "GE",
-		Uplink:  true,
-		Up:      true,
-		Speed:   1000,
-		RXBytes: 1000,
-		TXBytes: 1000,
-		MACs: []MacTableEntry{
-			{MAC: "02:aa:bb:cc:dd:01", Age: 4, Uptime: 1200, VLAN: 1, Type: "usw"},
-		},
-	}
 }
 
 func portName(index int) string {

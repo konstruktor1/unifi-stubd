@@ -8,24 +8,37 @@ import (
 )
 
 const (
-	Port                  = 10001
-	BroadcastAddress      = "255.255.255.255:10001"
+	// Port is the UDP port used by UniFi discovery.
+	Port = 10001
+	// BroadcastAddress is the IPv4 broadcast target for discovery packets.
+	BroadcastAddress = "255.255.255.255:10001"
+	// MulticastAddress is the UniFi multicast target for discovery packets.
 	MulticastAddress      = "233.89.188.1:10001"
 	packetVersion    byte = 0x02
 	packetType       byte = 0x06
 )
 
+// Announcement describes one UniFi discovery TLV announcement.
 type Announcement struct {
-	MAC      net.HardwareAddr
-	IP       net.IP
-	Model    string
-	Version  string
+	// MAC is the announcing device MAC address.
+	MAC net.HardwareAddr
+	// IP is the announcing device IPv4 address.
+	IP net.IP
+	// Model is the UniFi model identifier.
+	Model string
+	// Version is the firmware version reported in discovery.
+	Version string
+	// Hostname is the optional device hostname.
 	Hostname string
-	Default  bool
-	Uptime   uint32
+	// Default reports whether the device is still in factory-default state.
+	Default bool
+	// Uptime is the announced uptime in seconds.
+	Uptime uint32
+	// Sequence is the discovery packet sequence counter.
 	Sequence uint32
 }
 
+// MarshalBinary encodes a as a UniFi discovery packet.
 func (a Announcement) MarshalBinary() ([]byte, error) {
 	if len(a.MAC) != 6 {
 		return nil, fmt.Errorf("MAC must be 6 bytes")
@@ -64,12 +77,15 @@ func (a Announcement) MarshalBinary() ([]byte, error) {
 	return out.Bytes(), nil
 }
 
+// Send broadcasts packet to the UniFi discovery broadcast and multicast targets.
 func Send(packet []byte) error {
 	conn, err := net.ListenPacket("udp4", ":0")
 	if err != nil {
 		return err
 	}
-	defer conn.Close()
+	defer func() {
+		_ = conn.Close()
+	}()
 
 	for _, addr := range []string{BroadcastAddress, MulticastAddress} {
 		udpAddr, err := net.ResolveUDPAddr("udp4", addr)

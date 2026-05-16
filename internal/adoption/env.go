@@ -9,6 +9,7 @@ import (
 	"strings"
 )
 
+// LoadEnv reads adoption state from a key-value environment file.
 func LoadEnv(path string) (Store, error) {
 	var store Store
 	data, err := os.ReadFile(path)
@@ -38,6 +39,7 @@ func LoadEnv(path string) (Store, error) {
 	return store, nil
 }
 
+// SaveEnv writes adoption state to a key-value environment file.
 func SaveEnv(path string, store Store) error {
 	if path == "" {
 		return errors.New("state path is required")
@@ -67,6 +69,7 @@ func SaveEnv(path string, store Store) error {
 	return os.WriteFile(path, []byte(b.String()), 0o600)
 }
 
+// Merge applies non-empty fields from update to base and reports changes.
 func Merge(base, update Store) (Store, bool) {
 	changed := false
 	setString := func(dst *string, src string) {
@@ -90,11 +93,13 @@ func Merge(base, update Store) (Store, bool) {
 	return base, changed
 }
 
+// ParseSetParamResponse extracts adoption settings from a setparam response.
 func ParseSetParamResponse(data []byte) (Store, bool, error) {
 	store, kind, ok, err := ParseControllerResponse(data)
 	return store, ok && kind == "setparam", err
 }
 
+// ParseControllerResponse extracts adoption state from a controller response.
 func ParseControllerResponse(data []byte) (Store, string, bool, error) {
 	var raw struct {
 		Type    string `json:"_type"`

@@ -1,0 +1,19 @@
+* text=auto eol=lf
+
+*.go text eol=lf
+*.sh text eol=lf
+*.service text eol=lf
+*.yaml text eol=lf
+*.yml text eol=lf
+*.md text eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.pcap binary
+*.pcapng binary
+*.deb binary
+*.rpm binary
+*.tar.gz binary
+*.pkg.tar.zst binary

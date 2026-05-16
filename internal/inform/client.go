@@ -9,21 +9,33 @@ import (
 	"time"
 )
 
+// Client sends UniFi inform packets to a controller.
 type Client struct {
-	URL        string
-	MAC        net.HardwareAddr
-	Key        []byte
+	// URL is the controller inform endpoint.
+	URL string
+	// MAC is the device MAC address placed in the packet header.
+	MAC net.HardwareAddr
+	// Key is the 16-byte inform encryption key.
+	Key []byte
+	// HTTPClient overrides the default HTTP client when set.
 	HTTPClient *http.Client
-	Options    Options
+	// Options controls inform packet encoding.
+	Options Options
 }
 
+// Response contains the raw and decoded controller response.
 type Response struct {
+	// StatusCode is the HTTP status code returned by the controller.
 	StatusCode int
-	RawBody    []byte
-	JSONBody   []byte
-	Packet     *Packet
+	// RawBody is the response body before inform decoding.
+	RawBody []byte
+	// JSONBody is the decoded response payload when available.
+	JSONBody []byte
+	// Packet is the decoded inform packet metadata when available.
+	Packet *Packet
 }
 
+// Send posts payload as a UniFi inform packet and decodes the response.
 func (c Client) Send(payload []byte) (*Response, error) {
 	if c.URL == "" {
 		return nil, fmt.Errorf("inform URL is required")
@@ -58,7 +70,9 @@ func (c Client) Send(payload []byte) (*Response, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer httpResp.Body.Close()
+	defer func() {
+		_ = httpResp.Body.Close()
+	}()
 
 	raw, err := io.ReadAll(httpResp.Body)
 	if err != nil {

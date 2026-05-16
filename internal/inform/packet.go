@@ -14,33 +14,50 @@ import (
 )
 
 const (
-	Magic          = "TNBU"
-	PacketVersion  = uint32(0)
+	// Magic is the inform packet magic marker.
+	Magic = "TNBU"
+	// PacketVersion is the supported inform packet header version.
+	PacketVersion = uint32(0)
+	// PayloadVersion is the supported inform payload version.
 	PayloadVersion = uint32(1)
 
-	FlagEncrypted    uint16 = 0x01
-	FlagZlib         uint16 = 0x02
-	FlagSnappy       uint16 = 0x04
+	// FlagEncrypted marks an encrypted inform payload.
+	FlagEncrypted uint16 = 0x01
+	// FlagZlib marks a zlib-compressed inform payload.
+	FlagZlib uint16 = 0x02
+	// FlagSnappy marks a snappy-compressed inform payload.
+	FlagSnappy uint16 = 0x04
+	// FlagEncryptedGCM marks an AES-GCM encrypted inform payload.
 	FlagEncryptedGCM uint16 = 0x08
 )
 
+// Options controls inform packet encoding features.
 type Options struct {
+	// Zlib enables zlib compression before encryption.
 	Zlib bool
-	GCM  bool
+	// GCM enables AES-GCM instead of AES-CBC.
+	GCM bool
 }
 
+// Packet contains decoded inform packet metadata and encrypted payload bytes.
 type Packet struct {
-	MAC     net.HardwareAddr
-	Flags   uint16
-	IV      []byte
+	// MAC is the device MAC address from the packet header.
+	MAC net.HardwareAddr
+	// Flags contains the inform packet feature bits.
+	Flags uint16
+	// IV is the initialization vector or GCM nonce from the packet header.
+	IV []byte
+	// Payload is the encoded payload body before decompression.
 	Payload []byte
 }
 
+// DefaultAuthKey returns the default UniFi adoption key derived from ubnt.
 func DefaultAuthKey() []byte {
 	sum := md5.Sum([]byte("ubnt"))
 	return sum[:]
 }
 
+// EncodeJSON wraps a JSON payload in a UniFi inform packet.
 func EncodeJSON(mac net.HardwareAddr, key []byte, payload []byte, opts Options) ([]byte, error) {
 	if len(mac) != 6 {
 		return nil, fmt.Errorf("MAC must be 6 bytes")
@@ -92,6 +109,7 @@ func EncodeJSON(mac net.HardwareAddr, key []byte, payload []byte, opts Options) 
 	return append(header, body...), nil
 }
 
+// Decode unwraps a UniFi inform packet and returns decoded JSON payload bytes.
 func Decode(data []byte, key []byte) (*Packet, []byte, error) {
 	if len(data) < 40 {
 		return nil, nil, fmt.Errorf("inform packet too short")
@@ -153,7 +171,9 @@ func Decode(data []byte, key []byte) (*Packet, []byte, error) {
 		if err != nil {
 			return nil, nil, err
 		}
-		defer zr.Close()
+		defer func() {
+			_ = zr.Close()
+		}()
 		body, err = io.ReadAll(zr)
 		if err != nil {
 			return nil, nil, err

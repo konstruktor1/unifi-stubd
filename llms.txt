@@ -1,0 +1,53 @@
+# unifi-stubd
+
+> Go lab tool that makes a Linux host, VM, or bridge appear as a minimal UniFi switch to a UniFi Network Controller without allowing blind host provisioning.
+
+`unifi-stubd` is experimental, unofficial, and intended only for isolated lab or
+management networks.
+
+This file is a public project index for readers, search systems, and language
+models. It is not the coding-agent instruction source. Coding agents should read
+[AGENTS.md](AGENTS.md), which is the single canonical agent file.
+
+## Agent Instructions
+
+- [AGENTS.md](AGENTS.md): Canonical coding-agent instructions, safety boundaries, commands, and repository layout.
+
+## Project Documentation
+
+- [README](README.md): Overview, quick start, configuration, service setup, packaging, and development commands.
+- [English docs index](docs/en/README.md): Main English documentation entry point.
+- [German docs index](docs/de/README.md): Main German documentation entry point.
+- [Packaged Linux config](packaging/linux/etc/unifi-stubd/config.yaml): Default config installed as `/etc/unifi-stubd/config.yaml`.
+- [Lab switch identities](lab/README.md): Device identities, shell commands, and payload fixture.
+- [Installed Linux files](packaging/installed-files.md): Mapping from repository sources to installed Linux paths.
+
+## Architecture And Protocol
+
+- [Architecture](docs/en/architecture.md): Component boundaries and runtime model.
+- [Protocol notes](docs/en/protocol-notes.md): Discovery, inform, encryption, and adoption notes.
+- [Research notes](docs/en/research.md): Research history and attribution boundary.
+- [Roadmap](docs/en/roadmap.md): Planned work and non-goals.
+
+## Source Layout
+
+- [Command entry point](cmd/unifi-stubd/main.go): CLI entry point.
+- [Switch emulation](cmd/unifi-stubd/switch_emulation.go): Discovery, inform, and adoption SSH service wiring.
+- [Device profiles](internal/device/): Fake switch profiles, link speed, and payload model.
+- [Discovery](internal/discovery/): UniFi discovery TLV packet building.
+- [Inform](internal/inform/): Inform packet framing and client behavior.
+- [Adoption SSH](internal/adoptionssh/): Built-in SSH shim for advanced adoption commands.
+- [Tests](tests/): Go tests kept outside production packages.
+
+## Release, Security, And Licensing
+
+- [Release checklist](docs/en/release.md): Pre-release validation and package metadata.
+- [Security policy](SECURITY.md): Vulnerability reporting and lab-data handling.
+- [Credits](CREDITS.md): Research sources, idea provenance, license boundaries, and thanks.
+- [Notices](NOTICE.md): Third-party notices and affiliation statement.
+- [License](LICENSE): AGPL-3.0-or-later license.
+
+## Optional
+
+- [Lab plan](docs/en/lab-plan.md): Local lab setup ideas and validation workflow.
+- [Package config](packaging/nfpm.yaml): nFPM packaging metadata for Debian, RPM, Arch Linux, and tarball builds.
