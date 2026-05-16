@@ -31,6 +31,10 @@ mkdir -p \
   "$STAGE_DIR/usr/share/doc/unifi-stubd" \
   "$STAGE_DIR/var/lib/unifi-stubd" \
   "$PACKAGE_DIR"
+rm -f "$PACKAGE_DIR"/unifi-stubd_*.deb \
+      "$PACKAGE_DIR"/unifi-stubd_*.rpm \
+      "$PACKAGE_DIR"/unifi-stubd_*.pkg.tar.zst \
+      "$PACKAGE_DIR"/unifi-stubd_*.tar.gz 2>/dev/null || true
 
 printf '== build linux/%s ==\n' "$GOARCH_VALUE"
 CGO_ENABLED=0 GOOS="$GOOS_VALUE" GOARCH="$GOARCH_VALUE" \
@@ -44,7 +48,7 @@ install -m 0644 NOTICE.md "$STAGE_DIR/usr/share/doc/unifi-stubd/NOTICE.md"
 install -m 0644 CREDITS.md "$STAGE_DIR/usr/share/doc/unifi-stubd/CREDITS.md"
 
 sed_escape() {
-  printf '%s' "$1" | sed 's/[\/&|]/\\&/g'
+  printf '%s' "$1" | sed 's/[\/&|\\]/\\&/g'
 }
 
 sed \
@@ -58,7 +62,7 @@ sed \
 build_nfpm() {
   format="$1"
   printf '== package %s ==\n' "$format"
-  sh -c "$NFPM_CMD package -f \"$NFPM_CONFIG\" -p \"$format\" -t \"$PACKAGE_DIR\""
+  $NFPM_CMD package -f "$NFPM_CONFIG" -p "$format" -t "$PACKAGE_DIR"
 }
 
 build_tgz() {
