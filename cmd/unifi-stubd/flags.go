@@ -24,6 +24,7 @@ type runtimeFlags struct {
 	linkSpeed        *int
 	uplinkSpeed      *string
 	uplinkPort       *int
+	uplinkNeighbor   *device.MacTableEntry
 	portOverrides    []device.PortOverride
 	observeInterface *string
 	observeBridge    *string
@@ -62,6 +63,7 @@ func parseRuntimeFlags(defaults appconfig.Config) (runtimeFlags, map[string]bool
 		linkSpeed:        flag.Int("link-speed", defaults.LinkSpeed, "override default switch port speed in Mbps; 0 uses selected profile"),
 		uplinkSpeed:      flag.String("uplink-speed", defaults.UplinkSpeed, "uplink speed in Mbps, auto, or profile"),
 		uplinkPort:       flag.Int("uplink-port", defaults.UplinkPort, "override uplink port index; 0 uses selected profile"),
+		uplinkNeighbor:   configUplinkNeighbor(defaults.UplinkNeighbor),
 		portOverrides:    configPortOverrides(defaults.PortOverrides),
 		observeInterface: flag.String("observe-interface", defaults.ObserveInterface, "host interface used for passive link counters and speed"),
 		observeBridge:    flag.String("observe-bridge", defaults.ObserveBridge, "Linux bridge used for passive FDB MAC table data"),

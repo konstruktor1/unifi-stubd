@@ -205,6 +205,31 @@ func TestApplyPortOverridesChangesSpeedAndLinkState(t *testing.T) {
 	assertPort(5, 0, "SFP+", false)
 }
 
+func TestApplyUplinkNeighborAddsConfiguredNeighbor(t *testing.T) {
+	profile, ok := device.LookupProfile("usaggpro")
+	if !ok {
+		t.Fatal("profile not found")
+	}
+	options := profile.PortOptions()
+	options.UplinkPort = 1
+	ports := device.ApplyUplinkNeighbor(device.SwitchPortsWithOptions(profile.Ports, options), &device.MacTableEntry{
+		MAC:  "02:aa:bb:cc:dd:01",
+		VLAN: 1,
+		Type: "usw",
+	})
+
+	if len(ports[0].MACs) == 0 {
+		t.Fatal("uplink neighbor was not added")
+	}
+	entry := ports[0].MACs[0]
+	if entry.MAC != "02:aa:bb:cc:dd:01" || entry.VLAN != 1 || entry.Type != "usw" {
+		t.Fatalf("uplink neighbor = %+v", entry)
+	}
+	if entry.Age == 0 || entry.Uptime == 0 {
+		t.Fatalf("uplink neighbor missing defaults: %+v", entry)
+	}
+}
+
 func TestMinimalSwitchPayloadReportsPortOverrideLinkDown(t *testing.T) {
 	linkDown := false
 	payload, err := device.MinimalSwitchPayload(device.Identity{

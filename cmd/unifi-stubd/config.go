@@ -64,6 +64,7 @@ func applyConfig(cfg appconfig.Config, changed map[string]bool, flags *runtimeFl
 	if !changed["uplink-port"] {
 		*flags.uplinkPort = cfg.UplinkPort
 	}
+	flags.uplinkNeighbor = configUplinkNeighbor(cfg.UplinkNeighbor)
 	flags.portOverrides = configPortOverrides(cfg.PortOverrides)
 	if !changed["observe-interface"] {
 		*flags.observeInterface = cfg.ObserveInterface
@@ -103,6 +104,31 @@ func applyConfig(cfg appconfig.Config, changed map[string]bool, flags *runtimeFl
 	}
 	if !changed["status-path"] {
 		*flags.statusPath = cfg.StatusPath
+	}
+}
+
+func configUplinkNeighbor(neighbor *appconfig.UplinkNeighbor) *device.MacTableEntry {
+	if neighbor == nil || strings.TrimSpace(neighbor.MAC) == "" {
+		return nil
+	}
+	age := neighbor.Age
+	if age == 0 {
+		age = 4
+	}
+	uptime := neighbor.Uptime
+	if uptime == 0 {
+		uptime = 1200
+	}
+	neighborType := strings.TrimSpace(neighbor.Type)
+	if neighborType == "" {
+		neighborType = "usw"
+	}
+	return &device.MacTableEntry{
+		MAC:    strings.TrimSpace(neighbor.MAC),
+		Age:    age,
+		Uptime: uptime,
+		VLAN:   neighbor.VLAN,
+		Type:   neighborType,
 	}
 }
 

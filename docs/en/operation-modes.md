@@ -50,6 +50,11 @@ Use `port_overrides` for per-port lab states after profile and observation data
 have been applied:
 
 ```yaml
+uplink_neighbor:
+  mac: 02:aa:bb:cc:dd:01
+  vlan: 1
+  type: usw
+
 port_overrides:
   - port: 2
     speed: 1000
@@ -60,6 +65,10 @@ port_overrides:
   - port: 5
     up: false
 ```
+
+`uplink_neighbor` is useful for pure stubs and virtual lab ports where there is
+no physical link partner. It adds a configured MAC-table entry to the current
+uplink port.
 
 If any source is missing or unreadable, the daemon logs a warning and falls back
 to profile defaults. This mode must not create interfaces, assign addresses, or

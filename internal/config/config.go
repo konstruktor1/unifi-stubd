@@ -38,6 +38,8 @@ type Config struct {
 	UplinkSpeed string `yaml:"uplink_speed"`
 	// UplinkPort overrides the profile-selected uplink port when positive.
 	UplinkPort int `yaml:"uplink_port"`
+	// UplinkNeighbor adds a configured fake neighbor to the selected uplink.
+	UplinkNeighbor *UplinkNeighbor `yaml:"uplink_neighbor"`
 	// PortOverrides applies per-port runtime overrides after profile generation.
 	PortOverrides []PortOverride `yaml:"port_overrides"`
 	// ObserveInterface is the host interface used for passive link data.
@@ -83,6 +85,7 @@ func Default() Config {
 		LinkSpeed:        0,
 		UplinkSpeed:      automaticValue,
 		UplinkPort:       0,
+		UplinkNeighbor:   nil,
 		PortOverrides:    nil,
 		ObserveInterface: "",
 		ObserveBridge:    "",
@@ -98,6 +101,20 @@ func Default() Config {
 		StatePath:        "/var/lib/unifi-stubd/adoption.env",
 		StatusPath:       "/var/lib/unifi-stubd/status.json",
 	}
+}
+
+// UplinkNeighbor describes a configured fake upstream neighbor.
+type UplinkNeighbor struct {
+	// MAC is the neighbor MAC address to expose on the uplink port.
+	MAC string `yaml:"mac"`
+	// VLAN is the optional VLAN associated with the neighbor.
+	VLAN int `yaml:"vlan"`
+	// Type is the controller-facing neighbor type.
+	Type string `yaml:"type"`
+	// Age is the controller-facing MAC-table age counter.
+	Age int `yaml:"age"`
+	// Uptime is the number of seconds the neighbor has been visible.
+	Uptime int `yaml:"uptime"`
 }
 
 // PortOverride describes one per-port YAML override.

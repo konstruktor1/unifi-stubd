@@ -35,6 +35,10 @@ operation_mode: observe
 observe_interface: eth0
 observe_bridge: vmbr0
 uplink_port: 1
+uplink_neighbor:
+  mac: 02:aa:bb:cc:dd:01
+  vlan: 1
+  type: usw
 port_overrides:
   - port: 2
     speed: 1000
@@ -66,6 +70,12 @@ status_path: /tmp/unifi-stubd/status.json
 	}
 	if cfg.UplinkPort != 1 {
 		t.Fatalf("UplinkPort = %d", cfg.UplinkPort)
+	}
+	if cfg.UplinkNeighbor == nil {
+		t.Fatal("UplinkNeighbor is nil")
+	}
+	if cfg.UplinkNeighbor.MAC != "02:aa:bb:cc:dd:01" || cfg.UplinkNeighbor.VLAN != 1 || cfg.UplinkNeighbor.Type != "usw" {
+		t.Fatalf("UplinkNeighbor = %+v", cfg.UplinkNeighbor)
 	}
 	if len(cfg.PortOverrides) != 2 {
 		t.Fatalf("len(PortOverrides) = %d, want 2", len(cfg.PortOverrides))

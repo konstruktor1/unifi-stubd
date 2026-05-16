@@ -19,6 +19,10 @@ mac: auto
 ip: 192.0.2.50
 hostname: config-host
 uplink_speed: profile
+uplink_neighbor:
+  mac: 02:aa:bb:cc:dd:01
+  vlan: 1
+  type: usw
 port_overrides:
   - port: 2
     speed: 1000
@@ -47,6 +51,9 @@ port_overrides:
 	}
 	if !strings.Contains(output, "uplink_port: 1") {
 		t.Fatalf("output did not contain uplink override:\n%s", output)
+	}
+	if !strings.Contains(output, `uplink_neighbor: mac=02:aa:bb:cc:dd:01`) {
+		t.Fatalf("output did not contain uplink neighbor:\n%s", output)
 	}
 	if !strings.Contains(output, `port_override: port=2 speed=1000`) {
 		t.Fatalf("output did not contain port override:\n%s", output)

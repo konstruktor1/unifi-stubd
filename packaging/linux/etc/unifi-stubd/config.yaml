@@ -15,6 +15,12 @@ uplink_speed: auto
 # 0 uses the selected profile uplink. Set a port number to move the uplink
 # marker while preserving that port's profile speed/media.
 uplink_port: 0
+# Optional fake upstream neighbor added to the selected uplink port. Leave
+# mac empty or set uplink_neighbor: null to disable it.
+uplink_neighbor:
+  mac: ""
+  vlan: 1
+  type: usw
 # Optional per-port overrides applied after profile and observation data.
 # Example:
 # port_overrides:

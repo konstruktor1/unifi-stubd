@@ -13,6 +13,7 @@ const (
 	jsonKeyMAC     = "mac"
 	jsonKeyName    = "name"
 	jsonKeyNumPort = "num_port"
+	deviceTypeUSW  = "usw"
 )
 
 // Identity contains the device attributes reported in inform payloads.
@@ -148,7 +149,7 @@ func MinimalSwitchPayload(id Identity, ports []Port) ([]byte, error) {
 		"hostname":           id.Hostname,
 		"model":              id.Model,
 		"model_display":      id.ModelDisplay,
-		"type":               "usw",
+		"type":               deviceTypeUSW,
 		"version":            id.Version,
 		"serial":             id.Serial,
 		jsonKeyNumPort:       numPorts,
@@ -253,6 +254,38 @@ func ApplyPortOverrides(ports []Port, overrides []PortOverride) []Port {
 	return ports
 }
 
+// ApplyUplinkNeighbor adds a configured neighbor entry to the uplink port.
+func ApplyUplinkNeighbor(ports []Port, neighbor *MacTableEntry) []Port {
+	if neighbor == nil || strings.TrimSpace(neighbor.MAC) == "" {
+		return ports
+	}
+	entry := *neighbor
+	entry.MAC = strings.ToLower(strings.TrimSpace(entry.MAC))
+	if entry.Age == 0 {
+		entry.Age = 4
+	}
+	if entry.Uptime == 0 {
+		entry.Uptime = 1200
+	}
+	if strings.TrimSpace(entry.Type) == "" {
+		entry.Type = deviceTypeUSW
+	}
+	for index := range ports {
+		if !ports[index].Uplink {
+			continue
+		}
+		for macIndex := range ports[index].MACs {
+			if strings.EqualFold(ports[index].MACs[macIndex].MAC, entry.MAC) {
+				ports[index].MACs[macIndex] = entry
+				return ports
+			}
+		}
+		ports[index].MACs = append([]MacTableEntry{entry}, ports[index].MACs...)
+		return ports
+	}
+	return ports
+}
+
 func groupedSwitchPorts(count int, options PortOptions) []Port {
 	if len(options.PortGroups) == 0 {
 		return nil
@@ -316,7 +349,7 @@ func generatedPort(index, speed int, media string, uplink bool) Port {
 	}
 	if uplink {
 		port.MACs = []MacTableEntry{
-			{MAC: "02:aa:bb:cc:dd:01", Age: 4, Uptime: 1200, VLAN: 1, Type: "usw"},
+			{MAC: "02:aa:bb:cc:dd:01", Age: 4, Uptime: 1200, VLAN: 1, Type: deviceTypeUSW},
 		}
 	}
 	return port

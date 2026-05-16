@@ -39,15 +39,24 @@ type statusIdentity struct {
 }
 
 type statusConfig struct {
-	OperationMode string               `json:"operation_mode"`
-	ControllerURL string               `json:"controller_url,omitempty"`
-	InformURL     string               `json:"inform_url,omitempty"`
-	Interval      string               `json:"interval"`
-	NoDiscovery   bool                 `json:"no_discovery"`
-	SSHListen     string               `json:"ssh_listen,omitempty"`
-	StatePath     string               `json:"state_path"`
-	StatusPath    string               `json:"status_path"`
-	PortOverrides []statusPortOverride `json:"port_overrides,omitempty"`
+	OperationMode  string                `json:"operation_mode"`
+	ControllerURL  string                `json:"controller_url,omitempty"`
+	InformURL      string                `json:"inform_url,omitempty"`
+	Interval       string                `json:"interval"`
+	NoDiscovery    bool                  `json:"no_discovery"`
+	SSHListen      string                `json:"ssh_listen,omitempty"`
+	StatePath      string                `json:"state_path"`
+	StatusPath     string                `json:"status_path"`
+	UplinkNeighbor *statusUplinkNeighbor `json:"uplink_neighbor,omitempty"`
+	PortOverrides  []statusPortOverride  `json:"port_overrides,omitempty"`
+}
+
+type statusUplinkNeighbor struct {
+	MAC    string `json:"mac"`
+	VLAN   int    `json:"vlan,omitempty"`
+	Type   string `json:"type,omitempty"`
+	Age    int    `json:"age,omitempty"`
+	Uptime int    `json:"uptime,omitempty"`
 }
 
 type statusPortOverride struct {
@@ -130,15 +139,16 @@ func buildLocalStatus(flags runtimeFlags, profile device.Profile, mac net.Hardwa
 			UplinkPort: uplinkPortIndex(ports),
 		},
 		Config: statusConfig{
-			OperationMode: *flags.operationMode,
-			ControllerURL: *flags.controller,
-			InformURL:     informURL,
-			Interval:      flags.interval.String(),
-			NoDiscovery:   *flags.noDiscovery,
-			SSHListen:     *flags.sshListen,
-			StatePath:     *flags.sshState,
-			StatusPath:    *flags.statusPath,
-			PortOverrides: statusPortOverrides(flags.portOverrides),
+			OperationMode:  *flags.operationMode,
+			ControllerURL:  *flags.controller,
+			InformURL:      informURL,
+			Interval:       flags.interval.String(),
+			NoDiscovery:    *flags.noDiscovery,
+			SSHListen:      *flags.sshListen,
+			StatePath:      *flags.sshState,
+			StatusPath:     *flags.statusPath,
+			UplinkNeighbor: statusUplinkNeighborEntry(flags.uplinkNeighbor),
+			PortOverrides:  statusPortOverrides(flags.portOverrides),
 		},
 		Adoption: statusAdoption{
 			State:      adoptionStateText(store),
@@ -231,6 +241,13 @@ func printHumanStatus(status localStatus) {
 	fmt.Printf("inform_url: %s\n", valueOrDash(status.Config.InformURL))
 	fmt.Printf("interval: %s\n", status.Config.Interval)
 	fmt.Printf("no_discovery: %t\n", status.Config.NoDiscovery)
+	if status.Config.UplinkNeighbor != nil {
+		fmt.Printf("uplink_neighbor: mac=%s vlan=%d type=%s\n",
+			status.Config.UplinkNeighbor.MAC,
+			status.Config.UplinkNeighbor.VLAN,
+			valueOrDash(status.Config.UplinkNeighbor.Type),
+		)
+	}
 	for _, override := range status.Config.PortOverrides {
 		fmt.Printf("port_override: port=%d speed=%d media=%s up=%s name=%s\n",
 			override.Port,
@@ -253,6 +270,19 @@ func printHumanStatus(status localStatus) {
 	printLastInform(status.Runtime.LastInform)
 	for _, warning := range status.Warnings {
 		fmt.Printf("warning: %s\n", warning)
+	}
+}
+
+func statusUplinkNeighborEntry(neighbor *device.MacTableEntry) *statusUplinkNeighbor {
+	if neighbor == nil {
+		return nil
+	}
+	return &statusUplinkNeighbor{
+		MAC:    neighbor.MAC,
+		VLAN:   neighbor.VLAN,
+		Type:   neighbor.Type,
+		Age:    neighbor.Age,
+		Uptime: neighbor.Uptime,
 	}
 }
 

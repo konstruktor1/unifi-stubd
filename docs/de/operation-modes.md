@@ -50,6 +50,11 @@ aendern. Beispiel: `uplink_port: 1` setzt beim `usaggpro` den Uplink auf einen
 Observation-Daten:
 
 ```yaml
+uplink_neighbor:
+  mac: 02:aa:bb:cc:dd:01
+  vlan: 1
+  type: usw
+
 port_overrides:
   - port: 2
     speed: 1000
@@ -60,6 +65,10 @@ port_overrides:
   - port: 5
     up: false
 ```
+
+`uplink_neighbor` ist fuer reine Stubs und virtuelle Lab-Ports gedacht, bei
+denen es keinen physischen Linkpartner gibt. Der Eintrag fuegt eine konfigurierte
+MAC-Table-Zeile auf dem aktuellen Uplink-Port ein.
 
 Wenn eine Quelle fehlt oder nicht lesbar ist, loggt der Dienst eine Warnung und
 faellt auf Profilwerte zurueck. Dieser Modus darf keine Interfaces anlegen,

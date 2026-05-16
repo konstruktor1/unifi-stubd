@@ -13,6 +13,10 @@ traffic_source: off
 link_speed: 0
 uplink_speed: profile
 uplink_port: 1
+uplink_neighbor:
+  mac: 02:aa:bb:cc:dd:01
+  vlan: 1
+  type: usw
 port_overrides:
   - port: 2
     speed: 1000
