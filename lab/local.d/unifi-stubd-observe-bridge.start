@@ -1,0 +1,12 @@
+#!/bin/sh
+if [ -r /etc/conf.d/unifi-stubd-observe-bridge ]; then
+  . /etc/conf.d/unifi-stubd-observe-bridge
+fi
+export UNIFI_STUBD_LAB_BRIDGE
+export UNIFI_STUBD_LAB_TAP_IFACE
+export UNIFI_STUBD_LAB_TAP_PEER
+export UNIFI_STUBD_LAB_TAP_MACS
+export UNIFI_STUBD_LAB_VETH_IFACE
+export UNIFI_STUBD_LAB_VETH_PEER
+export UNIFI_STUBD_LAB_VETH_MACS
+exec /usr/local/sbin/unifi-stubd-observe-bridge up

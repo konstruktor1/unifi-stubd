@@ -1,0 +1,39 @@
+#!/sbin/openrc-run
+
+name="unifi-stubd observe bridge"
+description="Lab-only bridge and veth fixture for unifi-stubd observe mode"
+command="/usr/local/sbin/unifi-stubd-observe-bridge"
+
+depend() {
+  need net
+  before unifi-stubd
+}
+
+export_config() {
+  export UNIFI_STUBD_LAB_BRIDGE
+  export UNIFI_STUBD_LAB_TAP_IFACE
+  export UNIFI_STUBD_LAB_TAP_PEER
+  export UNIFI_STUBD_LAB_TAP_MACS
+  export UNIFI_STUBD_LAB_VETH_IFACE
+  export UNIFI_STUBD_LAB_VETH_PEER
+  export UNIFI_STUBD_LAB_VETH_MACS
+}
+
+start() {
+  ebegin "Starting ${name}"
+  export_config
+  "${command}" up
+  eend $?
+}
+
+stop() {
+  ebegin "Stopping ${name}"
+  export_config
+  "${command}" down
+  eend $?
+}
+
+status() {
+  export_config
+  "${command}" status
+}
