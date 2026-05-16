@@ -9,12 +9,23 @@ PKG_FORMATS ?= deb rpm archlinux tgz
 PKG_LICENSE ?= AGPL-3.0-or-later
 PKG_MAINTAINER ?= unifi-stubd maintainers <info@spinas.org>
 
-.PHONY: build check clean-dist fmt help lint package package-arch package-deb package-rpm package-tgz policy switch-emulation switch-payload test
+PKG_ENV_NONFPM := PKG_VERSION='$(PKG_VERSION)' \
+  PKG_RELEASE='$(PKG_RELEASE)' \
+  PKG_GOOS='$(PKG_GOOS)' \
+  PKG_GOARCH='$(PKG_GOARCH)' \
+  PKG_LICENSE='$(PKG_LICENSE)' \
+  PKG_MAINTAINER='$(PKG_MAINTAINER)'
+
+PKG_ENV := NFPM='$(NFPM)' \
+  $(PKG_ENV_NONFPM)
+
+.PHONY: build check clean-dist coverage fmt help lint package package-arch package-deb package-rpm package-tgz policy switch-emulation switch-payload test
 
 help:
 	@printf '%s\n' \
 		'Targets:' \
 		'  make check        Run lint, policy checks, and tests' \
+		'  make coverage     Generate HTML coverage report in dist/coverage.html' \
 		'  make lint         Run golangci-lint and repository policy checks' \
 		'  make test         Run tests under tests/' \
 		'  make switch-payload  Print discovery and inform payloads' \
@@ -38,20 +49,25 @@ policy:
 test:
 	$(GO) test ./tests/...
 
+coverage:
+	$(GO) test -coverprofile=dist/cover.out ./tests/...
+	$(GO) tool cover -html=dist/cover.out -o dist/coverage.html
+	@printf 'coverage report written to dist/coverage.html\n'
+
 package:
-	NFPM='$(NFPM)' PKG_VERSION='$(PKG_VERSION)' PKG_RELEASE='$(PKG_RELEASE)' PKG_GOOS='$(PKG_GOOS)' PKG_GOARCH='$(PKG_GOARCH)' PKG_FORMATS='$(PKG_FORMATS)' PKG_LICENSE='$(PKG_LICENSE)' PKG_MAINTAINER='$(PKG_MAINTAINER)' sh scripts/package.sh
+	$(PKG_ENV) PKG_FORMATS='$(PKG_FORMATS)' sh scripts/package.sh
 
 package-deb:
-	NFPM='$(NFPM)' PKG_VERSION='$(PKG_VERSION)' PKG_RELEASE='$(PKG_RELEASE)' PKG_GOOS='$(PKG_GOOS)' PKG_GOARCH='$(PKG_GOARCH)' PKG_LICENSE='$(PKG_LICENSE)' PKG_MAINTAINER='$(PKG_MAINTAINER)' sh scripts/package.sh deb
+	$(PKG_ENV) sh scripts/package.sh deb
 
 package-rpm:
-	NFPM='$(NFPM)' PKG_VERSION='$(PKG_VERSION)' PKG_RELEASE='$(PKG_RELEASE)' PKG_GOOS='$(PKG_GOOS)' PKG_GOARCH='$(PKG_GOARCH)' PKG_LICENSE='$(PKG_LICENSE)' PKG_MAINTAINER='$(PKG_MAINTAINER)' sh scripts/package.sh rpm
+	$(PKG_ENV) sh scripts/package.sh rpm
 
 package-arch:
-	NFPM='$(NFPM)' PKG_VERSION='$(PKG_VERSION)' PKG_RELEASE='$(PKG_RELEASE)' PKG_GOOS='$(PKG_GOOS)' PKG_GOARCH='$(PKG_GOARCH)' PKG_LICENSE='$(PKG_LICENSE)' PKG_MAINTAINER='$(PKG_MAINTAINER)' sh scripts/package.sh archlinux
+	$(PKG_ENV) sh scripts/package.sh archlinux
 
 package-tgz:
-	PKG_VERSION='$(PKG_VERSION)' PKG_RELEASE='$(PKG_RELEASE)' PKG_GOOS='$(PKG_GOOS)' PKG_GOARCH='$(PKG_GOARCH)' PKG_LICENSE='$(PKG_LICENSE)' PKG_MAINTAINER='$(PKG_MAINTAINER)' sh scripts/package.sh tgz
+	$(PKG_ENV_NONFPM) sh scripts/package.sh tgz
 
 clean-dist:
 	rm -rf dist
