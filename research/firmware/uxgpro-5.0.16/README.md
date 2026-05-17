@@ -136,6 +136,7 @@ tokens, certificates, password hashes, and raw `system_cfg`:
 
 ```text
 simulation/fixtures/adoption-mitm-timeline.json
+simulation/fixtures/adopted-system-config-summary.json
 ```
 
 ## Source Availability

@@ -129,6 +129,18 @@ password hashes, Radius secrets, and network/firewall configuration. It is
 useful for local reverse engineering, but it is treated as sensitive lab data
 and only summarized in committed fixtures.
 
+The safe structural summary is committed in:
+
+```text
+research/firmware/uxgpro-5.0.16/simulation/fixtures/adopted-system-config-summary.json
+```
+
+Its `system_cfg` shape has top-level `ubntconf` and `udapi` keys. The `udapi`
+object contains five interfaces (`lo`, `eth0`, `eth1`, `eth2`, `eth3`), ten
+service categories, one root user entry with password hash present, 18 firewall
+sets, eight filter chains, no NAT rules, no static routes, and one Radius
+profile with a secret present.
+
 The decoded payload makes the gateway reporting shape visible. Gateway
 interfaces are reported through `if_table` and `network_table`; `port_table`
 remains `null` and was not observed in this gateway inform stream. The lab

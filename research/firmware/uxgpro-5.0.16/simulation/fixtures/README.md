@@ -16,3 +16,7 @@ omit raw HTTP bodies and body hashes.
   `Adopt` through adopted steady state. It records packet sizes, decoded
   message types, state changes, and config versions, but omits raw bodies,
   auth keys, tokens, certificates, password hashes, and `system_cfg` details.
+- `adopted-system-config-summary.json`: sanitized structural summary of the
+  large adopted `system_cfg` response. It records UDAPI categories, service
+  names, interface IDs, rule counts, and safe implementation implications, but
+  omits the raw `system_cfg` values.

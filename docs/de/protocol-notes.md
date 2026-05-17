@@ -91,6 +91,28 @@ Minimaler Ablauf:
 6. Stub speichert `authkey` und sendet danach mit diesem Key weiter.
 7. Controller schickt spaeter `noop`, `setparam`, Provisioning- oder Restart-Kommandos.
 
+Beobachteter UXG-Pro-5.0.16-Ablauf im Controller-Lab:
+
+| Phase | Request/Response-Form | Stub-Verhalten |
+| --- | --- | --- |
+| Vor Adoption | Firmware-Informs nutzen den Default-Key und bekommen HTTP `404`, bis ein Admin `Adopt` klickt. | `default=true`, `state=1` behalten. |
+| Erster akzeptierter Inform | Controller antwortet HTTP `200` mit `_type: "setparam"` und `mgmt_cfg`. | `authkey`, `cfgversion` und `use_aes_gcm=true` parsen und persistieren. |
+| Key-Wechsel | Firmware sendet den naechsten Inform sofort mit Adopted-Key und AES-GCM. | Fuer alle weiteren Informs den Adopted-Key verwenden. |
+| Adopted Inform | Firmware meldet `default=false`, danach `state=2`. | Geraet als connected behandeln, sobald der Controller `noop` liefert. |
+| System-Konfiguration | Controller sendet ein weiteres `_type: "setparam"` mit `system_cfg`. | Nur sichere Metadaten erfassen; keine Host-User, Firewall, Routen, Zertifikate, Tokens oder Secrets anwenden. |
+| Steady State | Controller antwortet mit `_type: "noop"`, `interval` und `include_blocks`. | Mit dem geforderten Intervall weiter informieren; beobachtet wurden 10 Sekunden. |
+
+Das erste im Lab beobachtete `mgmt_cfg` enthielt `cfgversion`, `stun_url`,
+`mgmt_url`, `authkey`, `use_aes_gcm=true` und `report_crash=true`. Ein neues
+`inform_url` war nicht noetig; die Firmware nutzte die bestehende Inform-URL
+weiter und wechselte nur Key/Cipher-Kontext.
+
+Das adoptierte `system_cfg` war ein JSON-String mit den Top-Level-Keys
+`ubntconf` und `udapi`. Das `udapi`-Objekt enthielt Interfaces, Services,
+System-User, Firewall-Sets/-Filterketten/-Settings, statische Routen und
+Radius-Profile. Das ist Provisioning-Datenmaterial fuer ein echtes Gateway,
+aber kein sicherer Satz Host-Anweisungen fuer `unifi-stubd`.
+
 Alternative Adoption ueber SSH:
 
 ```text
