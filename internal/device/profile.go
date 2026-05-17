@@ -40,16 +40,6 @@ type Profile struct {
 	Description string
 }
 
-const (
-	deviceTypeUSW = "usw"
-	deviceTypeUGW = "ugw"
-	deviceTypeUXG = "uxg"
-	deviceTypeUDM = "udm"
-	mediaSFPPlus  = "SFP+"
-	mediaSFP28    = "SFP28"
-	mediaSFP      = "SFP"
-)
-
 // PortOptions converts p to generated switch port options.
 func (p Profile) PortOptions() PortOptions {
 	return PortOptions{
@@ -89,21 +79,4 @@ func AutoMAC(seed string) net.HardwareAddr {
 	mac := net.HardwareAddr{sum[0], sum[1], sum[2], sum[3], sum[4], sum[5]}
 	mac[0] = (mac[0] | 0x02) & 0xfe
 	return mac
-}
-
-func deviceTypeOrDefault(value string) string {
-	value = strings.TrimSpace(value)
-	if value == "" {
-		return deviceTypeUSW
-	}
-	return value
-}
-
-func firstNonZero(values ...int) int {
-	for _, value := range values {
-		if value != 0 {
-			return value
-		}
-	}
-	return 0
 }
