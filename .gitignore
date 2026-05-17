@@ -7,3 +7,12 @@ coverage.out
 *.pcapng
 *.log
 /unifi-stubd
+
+# Firmware research inputs and extracted vendor artifacts are large and may be
+# proprietary. Keep only notes, manifests, and own helper source in Git.
+research/firmware/**/artifacts/
+research/firmware/**/*.bin
+research/firmware/**/*.img
+research/firmware/**/*.sqfs
+research/firmware/**/*.squashfs
+research/firmware/**/rootfs/
