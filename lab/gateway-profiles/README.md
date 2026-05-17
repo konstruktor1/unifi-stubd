@@ -13,6 +13,7 @@ Current profile directories:
 - `uxg-lite/`: ARM64 UbiOS userspace wrapper; partial simulation.
 - `uxgpro/`: ARM64 UbiOS userspace wrapper; includes controller lab helpers.
 - `ucg-fiber/`: ARM64 UbiOS userspace wrapper prepared for startup analysis.
+- `udm-pro-se/`: ARM64 UbiOS userspace wrapper prepared for startup analysis.
 
 Typical per-profile files:
 
@@ -31,3 +32,7 @@ Run a profile through its own compose file, for example:
 ```sh
 docker compose -f lab/gateway-profiles/ugw3/compose.yaml up -d --build
 ```
+
+To recreate the local Docker inputs and run every committed lab container stack
+together, use `run-all-containers.md`. A German runbook is available as
+`run-all-containers.de.md`.

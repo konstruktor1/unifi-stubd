@@ -72,6 +72,34 @@ profiles:
       - lab/gateway-profiles/ucg-fiber/firmware.md
       - lab/gateway-profiles/ucg-fiber/source-inventory.md
       - lab/gateway-profiles/ucg-fiber/docker-howto.md
+  - id: udm-pro-se-5.0.16
+    status: partial-userspace-simulation
+    product: UniFi Dream Machine Special Edition
+    device_type: udm
+    model: UDMPROSE
+    model_short: UDM Pro SE
+    firmware_version: 5.0.16
+    image_version_string: UDMPROSE.al324.v5.0.16.238fde6.260227.0037
+    architecture: arm64
+    firmware_image_name: 473c-UDMPROSE-5.0.16-511eddc1-cb19-476d-a02d-fcaf3dbddc29.bin
+    firmware_sha256: 7cf58f4563522220716f5025a7b2954b070df6be9364d7f60af0bc644512bce4
+    firmware_size_bytes: 964689062
+    rootfs_offset: 16141142
+    rootfs_image_name: rootfs.squashfs
+    rootfs_sha256: a5f710613cfd0b5f9ccb49380d36c76a9d21143db796a43d6c70e9ef1a84e17d
+    source_url: https://fw-download.ubnt.com/data/unifi-dream/473c-UDMPROSE-5.0.16-511eddc1-cb19-476d-a02d-fcaf3dbddc29.bin
+    local_base_image: udm-pro-se-fw:5.0.16
+    local_artifact_dir: research/firmware/udm-pro-se-5.0.16/artifacts
+    simulation_wrapper: lab/gateway-profiles/udm-pro-se/Dockerfile
+    start_command: /usr/local/bin/udm-pro-se-sim-start
+    start_style: ubios-udapi-server + udapi-bridge + mcad
+    current_blocker: ubios-udapi-server reaches board initialization and exits with "Failed to connect to switch chip"; /tmp/.mcad is not available, so mca-ctrl cannot dump management state yet.
+    committed_findings:
+      - research/firmware/udm-pro-se-5.0.16/README.md
+      - research/firmware/udm-pro-se-5.0.16/source-inventory.md
+      - lab/gateway-profiles/udm-pro-se/firmware.md
+      - lab/gateway-profiles/udm-pro-se/source-inventory.md
+      - lab/gateway-profiles/udm-pro-se/docker-howto.md
   - id: ugw3-4.4.57
     status: qemu-mcad-simulation
     product: UniFi Security Gateway 3P

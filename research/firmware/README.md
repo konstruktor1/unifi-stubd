@@ -161,6 +161,63 @@ Next research steps:
 - Add deterministic mock paths only as the firmware startup logs require them.
 - Keep the profile away from a controller until local `mca-ctrl` access works.
 
+## udm-pro-se-5.0.16
+
+Status: rootfs identified and Docker wrapper prepared.
+
+- Device type: `udm`
+- Model: `UDMPROSE`
+- Firmware: `5.0.16`
+- Image version string: `UDMPROSE.al324.v5.0.16.238fde6.260227.0037`
+- Architecture: `arm64`
+
+Research folder:
+
+```text
+research/firmware/udm-pro-se-5.0.16/
+```
+
+Committed profile artifacts:
+
+- `README.md`: firmware image source, local artifact path, checksum, and
+  current extraction status.
+- `source-inventory.md`: project-owned notes vs ignored local vendor artifact
+  boundary.
+- `lab/gateway-profiles/udm-pro-se/Dockerfile`: wrapper around the imported
+  local firmware rootfs image.
+- `lab/gateway-profiles/udm-pro-se/start-firmware-processes.sh`: starts
+  `ubios-udapi-server`, `udapi-bridge`, and `mcad`.
+- `lab/gateway-profiles/udm-pro-se/compose.yaml`: networkless ARM64
+  simulation.
+- `lab/gateway-profiles/udm-pro-se/docker-howto.md`: rootfs import, mock
+  hardware, shim build, and startup instructions.
+
+Current finding summary:
+
+- The official firmware image was downloaded from the Ubiquiti firmware CDN.
+- The local artifact and extracted `rootfs.squashfs` are ignored under
+  `artifacts/`.
+- The image header reports
+  `UBNTUDMPROSE.al324.v5.0.16.238fde6.260227.0037`.
+- The file type is currently reported as `HIT archive data`.
+- The rootfs is SquashFS 4.0 with zstd compression and Debian GNU/Linux 11
+  (`bullseye`) userspace.
+- The board config identifies product `udm-pro-se`, board ID `ea2c`, model
+  `UDM-SE`, WAN mappings `wan0` on `eth8`, `wan1` on `eth9`, and switch
+  driver `RTL8370`.
+- The same UbiOS `ubios-udapi-server` -> `udapi-bridge` -> `mcad` process
+  shape is present.
+- The networkless wrapper reaches board initialization and then exits with
+  `Failed to connect to switch chip`.
+- No controller adoption lab has been completed for this profile yet.
+
+Next research steps:
+
+- Import the rootfs into local Docker image `udm-pro-se-fw:5.0.16`.
+- Add a deterministic switch-chip mock so `ubios-udapi-server` can reach socket
+  bind.
+- Compare startup behavior against UCG-Fiber and UXG-Pro.
+
 ## ugw3-4.4.57
 
 Status: QEMU-MIPS chroot simulation starts `mcad` and supports `mca-ctrl`.

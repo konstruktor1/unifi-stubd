@@ -78,6 +78,8 @@ Current profiles:
   lab helpers.
 - `gateway-profiles/ucg-fiber/`: ARM64 UbiOS userspace wrapper; partial
   simulation.
+- `gateway-profiles/udm-pro-se/`: ARM64 UbiOS userspace wrapper; partial
+  simulation.
 
 Run a firmware simulation through the profile's own Compose file:
 
@@ -86,6 +88,7 @@ docker compose -f lab/gateway-profiles/ugw3/compose.yaml up -d --build
 docker compose -f lab/gateway-profiles/uxg-lite/compose.yaml up -d --build
 docker compose -f lab/gateway-profiles/uxgpro/compose.yaml up -d --build
 docker compose -f lab/gateway-profiles/ucg-fiber/compose.yaml up -d --build
+docker compose -f lab/gateway-profiles/udm-pro-se/compose.yaml up -d --build
 ```
 
 UXG-Pro also has a controller/MITM lab:

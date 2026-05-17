@@ -164,6 +164,8 @@ Aktuelle Gateway-Firmware-Labs:
   Controller/MITM-Lab.
 - `lab/gateway-profiles/ucg-fiber/`: ARM64-UbiOS-Userspace-Wrapper; teilweise
   Simulation.
+- `lab/gateway-profiles/udm-pro-se/`: ARM64-UbiOS-Userspace-Wrapper; teilweise
+  Simulation.
 
 Firmware-Simulation starten:
 
@@ -172,6 +174,7 @@ docker compose -f lab/gateway-profiles/ugw3/compose.yaml up -d --build
 docker compose -f lab/gateway-profiles/uxg-lite/compose.yaml up -d --build
 docker compose -f lab/gateway-profiles/uxgpro/compose.yaml up -d --build
 docker compose -f lab/gateway-profiles/ucg-fiber/compose.yaml up -d --build
+docker compose -f lab/gateway-profiles/udm-pro-se/compose.yaml up -d --build
 ```
 
 UXG-Pro Controller/MITM-Lab starten:
