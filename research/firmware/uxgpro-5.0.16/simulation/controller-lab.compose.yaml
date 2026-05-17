@@ -34,6 +34,8 @@ services:
     security_opt:
       - no-new-privileges:true
     environment:
+      UNIFI_FW_SIM_MODEL: ${UNIFI_FW_SIM_MODEL:-UXGPRO}
+      UNIFI_FW_SIM_MAC: ${UNIFI_FW_SIM_MAC:-00:15:6d:de:ad:00}
       UXGPRO_SIM_STATIC_INTERFACE: eth0
       UXGPRO_SIM_STATIC_ADDRESS: ${UNIFI_LAB_FIRMWARE_IP:-172.31.240.20}/24
       UXGPRO_SIM_START_DROPBEAR: "1"

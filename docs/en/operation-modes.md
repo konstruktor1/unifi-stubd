@@ -24,6 +24,10 @@ pending adoption model.
 legacy UniFi Security Gateway model and three 1G ports, but remains stub-only
 and does not emulate router services yet.
 
+`UXG` is available through the experimental `uxg-lite` gateway identity
+profile. It reports a two-port Gateway Lite layout with `LAN` and `WAN`, but
+remains stub-only and does not emulate router services yet.
+
 `UXGPRO` is available as an experimental 10G gateway identity profile. It
 keeps the original gateway-style assignment: `WAN` on the 1G RJ45 primary WAN,
 `LAN` on the 1G RJ45 LAN, `WAN2` on the 10G SFP+ secondary WAN, and `LAN2` on

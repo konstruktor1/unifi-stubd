@@ -1,4 +1,6 @@
 .DS_Store
+.git/
+.github/
 .utm-build/
 bin/
 dist/
@@ -9,8 +11,6 @@ coverage.out
 *.log
 /unifi-stubd
 
-# Firmware research inputs and extracted vendor artifacts are large and may be
-# proprietary. Keep only notes, manifests, and own helper source in Git.
 research/firmware/**/artifacts/
 research/firmware/**/*.bin
 research/firmware/**/*.img

@@ -22,6 +22,7 @@ Implemented:
 - Inform packet encode/decode foundation.
 - Minimal fake device payloads with selectable device profiles.
 - Experimental stub-only `UGW3` gateway identity profile.
+- Experimental stub-only `UXG` Gateway Lite identity profile.
 - Experimental stub-only `UXGPRO` 10G gateway identity profile.
 - Built-in SSH shim for advanced adoption commands.
 - YAML configuration under `/etc/unifi-stubd/config.yaml`.
@@ -54,6 +55,10 @@ The `ugw3` profile reports a legacy UniFi Security Gateway identity with three
 1G ports. It is useful for gateway-profile experiments, but it is still a
 stub-only identity profile and does not implement routing, DHCP, firewall, DPI,
 or WAN health behavior.
+
+The `uxg-lite` profile reports a two-port UniFi Gateway Lite identity with LAN
+and WAN roles. It is useful for comparing newer `uxg` gateway payload shape
+against `uxgpro` without running a real firmware rootfs.
 
 The `uxgpro` profile reports a UniFi Next-Generation Gateway Pro identity with
 the original gateway-style layout: WAN1 on 1G RJ45, LAN on 1G RJ45, WAN2 on

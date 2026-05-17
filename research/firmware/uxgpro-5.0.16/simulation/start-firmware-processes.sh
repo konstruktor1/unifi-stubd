@@ -1,8 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 
-preload="${UXGPRO_SIM_PRELOAD:-/mock/libubnthal_redirect.so}"
-log_dir="${UXGPRO_SIM_LOG_DIR:-/tmp}"
+preload="${UNIFI_FW_SIM_PRELOAD:-${UXGPRO_SIM_PRELOAD:-/mock/libubnthal_redirect.so}}"
+log_dir="${UNIFI_FW_SIM_LOG_DIR:-${UXGPRO_SIM_LOG_DIR:-/tmp}}"
+model="${UNIFI_FW_SIM_MODEL:-${UXGPRO_SIM_MODEL:-UXGPRO}}"
+mac="${UNIFI_FW_SIM_MAC:-${UXGPRO_SIM_MAC:-00:15:6d:de:ad:00}}"
 
 if [[ ! -r "$preload" ]]; then
     echo "missing LD_PRELOAD shim: $preload" >&2
@@ -49,15 +51,17 @@ if [[ ! -S /var/run/ubnt-udapi-server.sock ]]; then
     exit 1
 fi
 
-if [[ -n "${UXGPRO_SIM_STATIC_ADDRESS:-}" ]]; then
-    static_interface="${UXGPRO_SIM_STATIC_INTERFACE:-eth0}"
+static_address="${UNIFI_FW_SIM_STATIC_ADDRESS:-${UXGPRO_SIM_STATIC_ADDRESS:-}}"
+if [[ -n "$static_address" ]]; then
+    static_interface="${UNIFI_FW_SIM_STATIC_INTERFACE:-${UXGPRO_SIM_STATIC_INTERFACE:-eth0}}"
     ip link set "$static_interface" up || true
     ip addr flush dev "$static_interface" scope global || true
-    ip addr add "$UXGPRO_SIM_STATIC_ADDRESS" dev "$static_interface"
+    ip addr add "$static_address" dev "$static_interface"
 fi
 
-if [[ -n "${UXGPRO_SIM_DUMMY_INTERFACES:-}" ]]; then
-    IFS=';' read -r -a dummy_interfaces <<< "$UXGPRO_SIM_DUMMY_INTERFACES"
+dummy_interfaces_value="${UNIFI_FW_SIM_DUMMY_INTERFACES:-${UXGPRO_SIM_DUMMY_INTERFACES:-}}"
+if [[ -n "$dummy_interfaces_value" ]]; then
+    IFS=';' read -r -a dummy_interfaces <<< "$dummy_interfaces_value"
     for dummy_interface in "${dummy_interfaces[@]}"; do
         [[ -z "$dummy_interface" ]] && continue
         IFS=',' read -r iface mac address <<< "$dummy_interface"
@@ -75,7 +79,8 @@ if [[ -n "${UXGPRO_SIM_DUMMY_INTERFACES:-}" ]]; then
     done
 fi
 
-if [[ "${UXGPRO_SIM_START_DROPBEAR:-0}" == "1" ]]; then
+start_dropbear="${UNIFI_FW_SIM_START_DROPBEAR:-${UXGPRO_SIM_START_DROPBEAR:-0}}"
+if [[ "$start_dropbear" == "1" ]]; then
     mkdir -p /etc/dropbear
     /usr/sbin/dropbear -F -E -R -p 0.0.0.0:22 \
         >"$log_dir/dropbear.run.log" \
@@ -86,14 +91,15 @@ fi
 bridge_env=(
     "LD_PRELOAD=$preload"
 )
-if [[ -n "${UXGPRO_SIM_BRIDGE_REDIRECT_DEBUG:-}" ]]; then
-    bridge_env+=("UBNTHAL_REDIRECT_DEBUG=$UXGPRO_SIM_BRIDGE_REDIRECT_DEBUG")
+bridge_redirect_debug="${UNIFI_FW_SIM_BRIDGE_REDIRECT_DEBUG:-${UXGPRO_SIM_BRIDGE_REDIRECT_DEBUG:-}}"
+if [[ -n "$bridge_redirect_debug" ]]; then
+    bridge_env+=("UBNTHAL_REDIRECT_DEBUG=$bridge_redirect_debug")
 fi
 
 env "${bridge_env[@]}" \
     /usr/bin/udapi-bridge \
-    -m UXGPRO \
-    -M 00:15:6d:de:ad:00 \
+    -m "$model" \
+    -M "$mac" \
     --rest-api-port 1080 \
     --rest-api-secure-port 0 \
     --rest-api-interface lo \

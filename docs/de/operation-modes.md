@@ -24,6 +24,10 @@ Adoption-Modell angenommen hat.
 das Legacy-UniFi-Security-Gateway-Modell und drei 1G-Ports, bleibt aber
 Stub-only und emuliert noch keine Router-Dienste.
 
+`UXG` ist ueber das experimentelle `uxg-lite`-Gateway-Identitaetsprofil
+verfuegbar. Es meldet ein zweipoliges Gateway-Lite-Layout mit `LAN` und `WAN`,
+bleibt aber Stub-only und emuliert noch keine Router-Dienste.
+
 `UXGPRO` ist als experimentelles 10G-Gateway-Identitaetsprofil verfuegbar. Es
 behaelt die originale Gateway-artige Zuweisung: `WAN` auf dem primaeren
 1G-RJ45-WAN, `LAN` auf dem 1G-RJ45-LAN, `WAN2` auf dem sekundaeren

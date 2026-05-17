@@ -1,0 +1,50 @@
+schema: unifi-stubd/firmware-profile-catalog/v1
+updated: 2026-05-17
+notes:
+  - Firmware images, extracted root filesystems, controller captures, auth keys,
+    SSH keys, tokens, certificates, password hashes, and private lab addresses
+    must stay out of Git.
+  - A stub profile is enough for synthetic unifi-stubd simulation, but a real
+    firmware profile also needs a locally extracted vendor rootfs and a wrapper
+    matched to that firmware family.
+profiles:
+  - id: uxgpro-5.0.16
+    status: adopted-controller-lab
+    product: UniFi Gateway UXG-Pro
+    stub_profile: uxgpro
+    device_type: uxg
+    model: UXGPRO
+    model_short: UXG Pro
+    firmware_version: 5.0.16.30689
+    architecture: arm64
+    firmware_image_name: UXGPROV2-5.0.16.bin
+    local_base_image: uxgpro-fw:5.0.16
+    simulation_wrapper: research/firmware/uxgpro-5.0.16/simulation/Dockerfile
+    controller_lab_compose: research/firmware/uxgpro-5.0.16/simulation/controller-lab.compose.yaml
+    start_command: /usr/local/bin/uxgpro-sim-start
+    start_style: ubios-udapi-server + udapi-bridge + mcad
+    committed_findings:
+      - research/firmware/uxgpro-5.0.16/simulation/fixtures/adoption-mitm-timeline.json
+      - research/firmware/uxgpro-5.0.16/simulation/fixtures/adopted-system-config-summary.json
+  - id: uxg-lite-real-firmware
+    status: planned
+    product: UniFi Gateway Lite
+    stub_profile: uxg-lite
+    device_type: uxg
+    model: UXG
+    required_before_simulation:
+      - Download the matching public firmware image into an ignored artifacts directory.
+      - Inventory the firmware header, architecture, rootfs format, and service chain.
+      - Confirm whether it uses the UbiOS mcad/UDAPI chain or needs a different wrapper.
+      - Add only checksums, notes, and project-owned helper code to Git.
+  - id: ugw3-real-firmware
+    status: planned
+    product: UniFi Security Gateway 3P
+    stub_profile: ugw3
+    device_type: ugw
+    model: UGW3
+    required_before_simulation:
+      - Download the matching public firmware image into an ignored artifacts directory.
+      - Inventory the firmware header, architecture, rootfs format, and service chain.
+      - Build a separate wrapper if the firmware uses the legacy EdgeOS/USG agent stack instead of UbiOS.
+      - Add only checksums, notes, and project-owned helper code to Git.

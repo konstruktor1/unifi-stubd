@@ -123,6 +123,44 @@ sudo /usr/local/bin/unifi-stubd
 
 Der Controller kann dann fuer Advanced Adoption `ubnt` / `ubnt` gegen Port `22` nutzen. Management-SSH des Lab-Systems sollte in diesem Aufbau auf einen anderen Port gelegt werden.
 
+## Docker-Controller-Lab
+
+Fuer lokale Gateway-Profil-Simulation ohne Vendor-Firmware gibt es das Docker
+Compose Lab in `lab/controller-gateway-stubs.compose.yaml`. Es startet eine
+UniFi Network Application, MongoDB, einen Inform-MITM und ein ausgewaehltes
+`unifi-stubd` Gateway-Profil.
+
+Gateway-Lite-Profil starten:
+
+```sh
+mkdir -p lab/captures
+docker compose -f lab/controller-gateway-stubs.compose.yaml \
+  --profile uxg-lite \
+  up -d --build
+```
+
+Verfuegbare Stub-Profile sind `ugw3`, `uxg-lite` und `uxgpro`. Das Compose-
+Profil `gateways` startet alle drei fuer Payload-Vergleiche, aber Adoption-
+Tests sollten normalerweise ein Gateway pro frischer Controller-Site nutzen.
+
+Die UI ist unter `https://localhost:8443` erreichbar. Im UniFi-Setup bleibt
+TCP `8080` fuer Device-Kommunikation aktiv; als Inform-Host-Override wird
+`unifi` gesetzt. Der Stub sendet nach `http://unifi:8080/inform`, der Traffic
+geht durch den MITM-Container, und lokale Rohmitschnitte landen im ignorierten
+Verzeichnis `lab/captures/`.
+
+Die echten Firmware-Simulationsprofile werden separat in
+`research/firmware/profiles.yaml` gefuehrt. Das sind nicht nur
+`unifi-stubd`-Profile: jedes echte Firmware-Profil braucht ein lokales
+Vendor-Firmware-Image, ein extrahiertes Rootfs, Architektur-Notizen und einen
+passenden Prozess-Wrapper. Aktuell ist nur UXG-Pro `5.0.16` im Controller-Lab
+adoptiert lauffaehig.
+
+Das Compose-Lab nutzt das UniFi-Network-Application-Image von LinuxServer.io
+mit separatem MongoDB-Container. Ubiquitis aktuelle Self-Hosting-Richtung ist
+UniFi OS Server, aber Ubiquiti dokumentiert, dass dieser nicht als
+eigenstaendiger Docker-/Podman-Container bereitgestellt wird.
+
 OpenRC-Service:
 
 ```sh

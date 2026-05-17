@@ -176,16 +176,19 @@ For the MVP:
 - `UGW3`: experimental legacy UniFi Security Gateway identity profile. It
   reports device type `ugw`, model `UGW3`, and three 1G ports named `WAN 1`,
   `LAN 1`, and `WAN 2 / LAN 2`.
+- `UXG`: experimental UniFi Gateway Lite identity profile, exposed through the
+  `uxg-lite` profile. It reports device type `uxg`, model `UXG`, firmware
+  `5.0.16.30689`, and two 1G ports named `LAN` and `WAN`.
 - `UXGPRO`: experimental UniFi Next-Generation Gateway Pro identity profile. It
   reports device type `uxg`, model `UXGPRO`, firmware `5.0.16.30689`, two 1G
   RJ45 ports named `WAN` and `LAN`, and two 10G SFP+ ports named `WAN2` and
   `LAN2`. The default active uplink remains `WAN`; remap SFP+ internet labs
   with `uplink_port` and `port_overrides`.
 
-`UGW3` and `UXGPRO` are only identity/profile stubs in this release. A full
-gateway payload still needs WAN/LAN state, routing, DHCP, firewall, DPI, and
-health fields. The current UXG-Pro payload sends gateway tables such as
+`UGW3`, `UXG`, and `UXGPRO` are only identity/profile stubs in this release. A
+full gateway payload still needs WAN/LAN state, routing, DHCP, firewall, DPI,
+and health fields. The current UXG-Pro payload sends gateway tables such as
 `reported_networks` and `uplink`, but the controller may still render gateway
-ports from its internal model instead of preserving a switch-style
-`port_table`. Gateway models such as `UGW4`, Cloud Gateway devices, and EFG
-should be checked later.
+ports from its internal model instead of preserving a switch-style `port_table`.
+Gateway models such as `UGW4`, Cloud Gateway devices, and EFG should be checked
+later.

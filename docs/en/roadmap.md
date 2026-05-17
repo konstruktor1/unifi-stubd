@@ -58,7 +58,7 @@
 - [x] Built-in SSH adoption for `syswrapper.sh set-adopt` and `mca-cli-op set-inform`.
 - [ ] Active macvlan/ipvlan lifecycle after the dry-run plan is proven.
 - [ ] Passive LLDP import from `lldpd`.
-- [x] Experimental gateway identity profiles `UGW3` and `UXGPRO`.
+- [x] Experimental gateway identity profiles `UGW3`, `UXG`, and `UXGPRO`.
 - [ ] Full gateway status payload for `UGW3`/`UXG`.
 - [ ] Synthesize DPI fields from NetFlow/OPNsense/ntopng.
 - [ ] Compatibility matrix per UniFi Network version.
