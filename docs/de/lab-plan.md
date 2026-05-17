@@ -128,12 +128,22 @@ Der Controller kann dann fuer Advanced Adoption `ubnt` / `ubnt` gegen Port `22` 
 Fuer lokale Gateway-Profil-Simulation ohne Vendor-Firmware gibt es das Docker
 Compose Lab in `lab/controller-gateway-stubs.compose.yaml`. Es startet eine
 UniFi Network Application, MongoDB, einen Inform-MITM und ein ausgewaehltes
-`unifi-stubd` Gateway-Profil.
+`unifi-stubd` Stub-Profil.
 
-Jedes Gateway-Profil hat ein eigenes Dockerfile unter
-`lab/gateway-profiles/`; die Image-Entrypoints enthalten damit das jeweilige
-Profil. Compose liefert nur lab-spezifische Laufzeitwerte wie MAC-Adresse,
-IP-Adresse, Hostname und Controller-URL.
+Der generische Switch-Stub-Service `stub-us8` baut das Root-`Dockerfile` und
+uebergibt `-profile us8` zur Laufzeit. Jedes Gateway-Profil hat ein eigenes
+Dockerfile unter `lab/gateway-profiles/`; die Image-Entrypoints enthalten damit
+das jeweilige Gateway-Profil. Compose liefert nur lab-spezifische
+Laufzeitwerte wie MAC-Adresse, IP-Adresse, Hostname und Controller-URL.
+
+Generischen US-8-Switch-Stub starten:
+
+```sh
+mkdir -p lab/captures
+docker compose -f lab/controller-gateway-stubs.compose.yaml \
+  --profile stub \
+  up -d --build
+```
 
 Gateway-Lite-Profil starten:
 
@@ -144,9 +154,10 @@ docker compose -f lab/controller-gateway-stubs.compose.yaml \
   up -d --build
 ```
 
-Verfuegbare Stub-Profile sind `ugw3`, `uxg-lite`, `uxgpro` und `ucg-fiber`. Das
-Compose-Profil `gateways` startet alle vier fuer Payload-Vergleiche, aber
-Adoption-Tests sollten normalerweise ein Gateway pro frischer Controller-Site nutzen.
+Verfuegbare Gateway-Stub-Profile sind `ugw3`, `uxg-lite`, `uxgpro` und
+`ucg-fiber`. Das Compose-Profil `gateways` startet alle vier Gateway-Profile
+fuer Payload-Vergleiche, aber Gateway-Adoption-Tests sollten normalerweise ein
+Gateway pro frischer Controller-Site nutzen.
 
 Die UI ist unter `https://localhost:8443` erreichbar. Im UniFi-Setup bleibt
 TCP `8080` fuer Device-Kommunikation aktiv; als Inform-Host-Override wird

@@ -9,8 +9,8 @@ by packages automatically.
 - `service-usaggpro.yaml`: Controller-known Pro Aggregation identity with 10G and 25G port groups.
 - `service-usw-pro-xg-48.yaml`: Pro XG 48 identity with 2.5G, 10G, and 25G port groups.
 - `controller-gateway-stubs.compose.yaml`: Docker controller lab with
-  profile-selectable `ugw3`, `uxg-lite`, `uxgpro`, and `ucg-fiber` gateway
-  stubs.
+  profile-selectable `us8` switch stub plus `ugw3`, `uxg-lite`, `uxgpro`, and
+  `ucg-fiber` gateway stubs.
 - `mongo-init-unifi.sh`: MongoDB user bootstrap used by the Docker controller lab.
 - `mitm-inform-dump.py`: mitmproxy addon that records inform request/response metadata and raw local lab bodies.
 - `observe-bridge.sh`: Create or remove a lab-only Linux bridge with veth members for observe-mode tests.
@@ -27,7 +27,16 @@ by packages automatically.
 - a UniFi Network Application container,
 - a MongoDB container,
 - an inform MITM container, and
-- one selected `unifi-stubd` gateway profile container.
+- one selected `unifi-stubd` stub container.
+
+Start the generic US-8 switch stub:
+
+```sh
+mkdir -p lab/captures
+docker compose -f lab/controller-gateway-stubs.compose.yaml \
+  --profile stub \
+  up -d --build
+```
 
 Start one gateway profile:
 
@@ -41,6 +50,7 @@ docker compose -f lab/controller-gateway-stubs.compose.yaml \
 Other profiles:
 
 ```sh
+docker compose -f lab/controller-gateway-stubs.compose.yaml --profile us8 up -d --build
 docker compose -f lab/controller-gateway-stubs.compose.yaml --profile ugw3 up -d --build
 docker compose -f lab/controller-gateway-stubs.compose.yaml --profile uxgpro up -d --build
 docker compose -f lab/controller-gateway-stubs.compose.yaml --profile ucg-fiber up -d --build
@@ -64,10 +74,14 @@ container, `unifi` is mapped to the MITM container, which forwards to the real
 controller service. Captures are written to `lab/captures/`, which is ignored
 by Git because adopted inform traffic can contain controller state and keys.
 
-Use one gateway profile per clean controller site when testing adoption. The
-Compose profile `gateways` can start all stub profiles for packet-shape
-comparison, but a normal UniFi site should not be expected to adopt multiple
-gateway devices at once.
+The `stub-us8` service builds the generic root `Dockerfile` and passes
+`-profile us8` at runtime. Gateway services build the profile-specific
+Dockerfiles under `lab/gateway-profiles/`.
+
+Use one gateway profile per clean controller site when testing gateway
+adoption. The Compose profile `gateways` can start all gateway profiles for
+packet-shape comparison, but a normal UniFi site should not be expected to
+adopt multiple gateway devices at once.
 
 Stop and remove the disposable controller state:
 

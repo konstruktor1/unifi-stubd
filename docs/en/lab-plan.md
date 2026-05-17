@@ -128,12 +128,22 @@ The controller can then use `ubnt` / `ubnt` against port `22` for advanced adopt
 For local gateway-profile simulation without vendor firmware, use the Docker
 Compose lab in `lab/controller-gateway-stubs.compose.yaml`. It starts a UniFi
 Network Application, MongoDB, an inform MITM, and one selected `unifi-stubd`
-gateway profile.
+stub profile.
 
-Each gateway profile has its own Dockerfile under `lab/gateway-profiles/`, so
-the image entrypoint carries the selected profile. Compose only supplies
-lab-specific runtime values such as MAC address, IP address, hostname, and
-controller URL.
+The generic switch stub service `stub-us8` builds the root `Dockerfile` and
+passes `-profile us8` at runtime. Each gateway profile has its own Dockerfile
+under `lab/gateway-profiles/`, so the image entrypoint carries the selected
+gateway profile. Compose only supplies lab-specific runtime values such as MAC
+address, IP address, hostname, and controller URL.
+
+Start the generic US-8 switch stub:
+
+```sh
+mkdir -p lab/captures
+docker compose -f lab/controller-gateway-stubs.compose.yaml \
+  --profile stub \
+  up -d --build
+```
 
 Start the Gateway Lite profile:
 
@@ -144,9 +154,10 @@ docker compose -f lab/controller-gateway-stubs.compose.yaml \
   up -d --build
 ```
 
-Available stub profiles are `ugw3`, `uxg-lite`, `uxgpro`, and `ucg-fiber`. The
-`gateways` Compose profile starts all four for packet-shape comparison, but adoption
-testing should normally use one gateway per clean controller site.
+Available gateway stub profiles are `ugw3`, `uxg-lite`, `uxgpro`, and
+`ucg-fiber`. The `gateways` Compose profile starts all four gateway profiles
+for packet-shape comparison, but gateway adoption testing should normally use
+one gateway per clean controller site.
 
 Open the UI at `https://localhost:8443`. In the UniFi setup, keep TCP `8080`
 for device communication and set the Inform Host override to `unifi`. The

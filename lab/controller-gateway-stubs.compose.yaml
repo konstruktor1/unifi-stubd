@@ -110,6 +110,46 @@ services:
       - /captures/inform.flows
     restart: unless-stopped
 
+  stub-us8:
+    <<: *stub-common
+    build:
+      context: ..
+      dockerfile: Dockerfile
+      args:
+        VERSION: ${UNIFI_STUBD_VERSION:-lab}
+    image: ${UNIFI_STUB_IMAGE:-unifi-stubd:lab}
+    profiles:
+      - stub
+      - us8
+      - switches
+    container_name: ${UNIFI_STUB_US8_CONTAINER:-stub-lab-us8}
+    hostname: stub-us8
+    networks:
+      lab:
+        ipv4_address: ${UNIFI_STUB_US8_IP:-172.31.242.24}
+    volumes:
+      - stub_us8_state:/var/lib/unifi-stubd
+    command:
+      - -profile
+      - us8
+      - -mac
+      - ${UNIFI_STUB_US8_MAC:-02:15:6d:00:08:01}
+      - -ip
+      - ${UNIFI_STUB_US8_IP:-172.31.242.24}
+      - -hostname
+      - stub-us8
+      - -controller
+      - http://unifi:8080/inform
+      - -no-discovery
+      - -ssh-listen
+      - 0.0.0.0:22
+      - -ssh-host-key
+      - /var/lib/unifi-stubd/ssh_host_rsa_key
+      - -ssh-state
+      - /var/lib/unifi-stubd/adoption.env
+      - -status-path
+      - /var/lib/unifi-stubd/status.json
+
   stub-ugw3:
     <<: *stub-common
     build:
@@ -273,3 +313,4 @@ volumes:
   stub_uxg_lite_state:
   stub_uxgpro_state:
   stub_ucg_fiber_state:
+  stub_us8_state:
