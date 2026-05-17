@@ -1,3 +1,8 @@
+/*
+ * UXG-Pro firmware simulation LD_PRELOAD shim.
+ * Keeps selected firmware reads and host-management calls inside the lab.
+ */
+
 #define _GNU_SOURCE
 
 #include <dlfcn.h>

@@ -1,3 +1,5 @@
+# Project-local build output, captures, and firmware research artifacts.
+
 .DS_Store
 .utm-build/
 bin/
@@ -22,3 +24,9 @@ research/firmware/**/*.env
 research/firmware/**/controller-data/
 research/firmware/**/captures/
 lab/captures/
+lab/gateway-profiles/**/artifacts/
+lab/gateway-profiles/**/rootfs/
+lab/gateway-profiles/**/captures/
+lab/gateway-profiles/**/controller-data/
+lab/gateway-profiles/**/.env
+lab/gateway-profiles/**/*.env

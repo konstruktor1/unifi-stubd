@@ -11,22 +11,37 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/inform"
 )
 
+// decodedInform is the JSON output produced for one decoded packet.
 type decodedInform struct {
-	Packet  packetSummary `json:"packet"`
-	Payload any           `json:"payload"`
+	// Packet contains transport-level inform packet metadata.
+	Packet packetSummary `json:"packet"`
+	// Payload contains the decoded JSON body or raw text when it is not JSON.
+	Payload any `json:"payload"`
 }
 
+// packetSummary keeps transport metadata separate from the decoded JSON body.
 type packetSummary struct {
-	MAC            string `json:"mac"`
-	Flags          uint16 `json:"flags"`
-	Encrypted      bool   `json:"encrypted"`
-	Zlib           bool   `json:"zlib"`
-	Snappy         bool   `json:"snappy"`
-	EncryptedGCM   bool   `json:"encrypted_gcm"`
-	IVHex          string `json:"iv_hex"`
-	PayloadBytes   int    `json:"payload_bytes"`
-	DecodedBytes   int    `json:"decoded_bytes"`
-	PacketVersion  uint32 `json:"packet_version"`
+	// MAC is the device address from the inform packet header.
+	MAC string `json:"mac"`
+	// Flags contains the raw inform feature bitmask.
+	Flags uint16 `json:"flags"`
+	// Encrypted reports whether the encrypted flag is set.
+	Encrypted bool `json:"encrypted"`
+	// Zlib reports whether the zlib compression flag is set.
+	Zlib bool `json:"zlib"`
+	// Snappy reports whether the snappy compression flag is set.
+	Snappy bool `json:"snappy"`
+	// EncryptedGCM reports whether AES-GCM was used.
+	EncryptedGCM bool `json:"encrypted_gcm"`
+	// IVHex is the packet IV or nonce encoded as hex.
+	IVHex string `json:"iv_hex"`
+	// PayloadBytes is the encoded payload length in bytes.
+	PayloadBytes int `json:"payload_bytes"`
+	// DecodedBytes is the decoded payload length in bytes.
+	DecodedBytes int `json:"decoded_bytes"`
+	// PacketVersion is the inform header version decoded by the tool.
+	PacketVersion uint32 `json:"packet_version"`
+	// PayloadVersion is the inform payload version decoded by the tool.
 	PayloadVersion uint32 `json:"payload_version"`
 }
 
@@ -88,6 +103,7 @@ func main() {
 	fmt.Println(string(encoded))
 }
 
+// fail reports a CLI error in a stable one-line format and exits non-zero.
 func fail(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, format+"\n", args...)
 	os.Exit(1)

@@ -1,11 +1,14 @@
 package payload
 
+// This file renders gateway-specific inform tables from generated ports.
+
 import (
 	"net"
 	"strconv"
 	"strings"
 )
 
+// applyGatewayPayload fills the gateway-specific tables expected by UniFi.
 func applyGatewayPayload(payload map[string]any, id Identity, ports []Port) {
 	applyGatewayTelemetry(payload, id)
 	payload["if_table"] = gatewayIfTable(id, ports)
@@ -19,6 +22,8 @@ func applyGatewayPayload(payload map[string]any, id Identity, ports []Port) {
 		payload["config_network_wan2"] = map[string]any{jsonKeyType: "dhcp"}
 	}
 }
+
+// gatewayUplinkPortIndex returns the one-based uplink port index.
 func gatewayUplinkPortIndex(ports []Port) int {
 	for _, port := range ports {
 		if port.Uplink {
@@ -27,6 +32,8 @@ func gatewayUplinkPortIndex(ports []Port) int {
 	}
 	return 1
 }
+
+// gatewayIfTable renders physical interfaces for gateway inform payloads.
 func gatewayIfTable(id Identity, ports []Port) []map[string]any {
 	out := make([]map[string]any, 0, len(ports))
 	for _, port := range ports {
@@ -64,6 +71,8 @@ func gatewayIfTable(id Identity, ports []Port) []map[string]any {
 	}
 	return out
 }
+
+// gatewayNetworkTable renders the routed network view for each gateway port.
 func gatewayNetworkTable(id Identity, ports []Port) []map[string]any {
 	out := make([]map[string]any, 0, len(ports))
 	for _, port := range ports {
@@ -107,6 +116,8 @@ func gatewayNetworkTable(id Identity, ports []Port) []map[string]any {
 	}
 	return out
 }
+
+// gatewayHostTable renders learned client MACs for one gateway port.
 func gatewayHostTable(port Port) []map[string]any {
 	out := make([]map[string]any, 0, len(port.MACs))
 	for _, entry := range port.MACs {
@@ -123,6 +134,8 @@ func gatewayHostTable(port Port) []map[string]any {
 	}
 	return out
 }
+
+// gatewayUplinkTable renders the controller-facing uplink entry.
 func gatewayUplinkTable(id Identity, ports []Port) []map[string]any {
 	uplinkIndex := gatewayUplinkPortIndex(ports)
 	for _, port := range ports {
@@ -156,6 +169,8 @@ func gatewayUplinkTable(id Identity, ports []Port) []map[string]any {
 	}
 	return nil
 }
+
+// gatewayPortRole returns profile defaults unless a port override supplied a role.
 func gatewayPortRole(model string, port Port) string {
 	if role := normalizeGatewayRole(port.Role); role != "" {
 		return role
@@ -191,6 +206,8 @@ func gatewayPortRole(model string, port Port) string {
 		return gatewayPortRoleLAN
 	}
 }
+
+// gatewayNetworkGroup maps a gateway role into the UniFi network group label.
 func gatewayNetworkGroup(model string, port Port) string {
 	if networkGroup := normalizeGatewayNetworkGroup(port.NetworkGroup); networkGroup != "" {
 		return networkGroup
@@ -222,12 +239,18 @@ func gatewayNetworkGroup(model string, port Port) string {
 		return gatewayNetworkGroupLAN
 	}
 }
+
+// normalizeGatewayRole normalizes configured gateway role labels.
 func normalizeGatewayRole(role string) string {
 	return strings.ToLower(strings.TrimSpace(role))
 }
+
+// normalizeGatewayNetworkGroup normalizes configured network group labels.
 func normalizeGatewayNetworkGroup(networkGroup string) string {
 	return strings.TrimSpace(networkGroup)
 }
+
+// gatewayPortSpeed keeps an up gateway port from reporting an invalid speed.
 func gatewayPortSpeed(port Port) int {
 	speed := port.Speed
 	if port.Up && speed <= 0 {
@@ -235,18 +258,24 @@ func gatewayPortSpeed(port Port) int {
 	}
 	return speed
 }
+
+// gatewayInterfaceName maps a one-based port index to an ethN name.
 func gatewayInterfaceName(portIndex int) string {
 	if portIndex < 1 {
 		portIndex = 1
 	}
 	return "eth" + strconv.Itoa(portIndex-1)
 }
+
+// gatewayPortMAC returns a configured port MAC or derives one from the device MAC.
 func gatewayPortMAC(baseMAC string, port Port) string {
 	if mac := strings.TrimSpace(port.MAC); mac != "" {
 		return strings.ToLower(mac)
 	}
 	return gatewayInterfaceMAC(baseMAC, port.Index)
 }
+
+// gatewayInterfaceMAC derives a stable per-interface MAC from the base address.
 func gatewayInterfaceMAC(baseMAC string, portIndex int) string {
 	mac, err := net.ParseMAC(baseMAC)
 	if err != nil || len(mac) == 0 {
@@ -256,6 +285,8 @@ func gatewayInterfaceMAC(baseMAC string, portIndex int) string {
 	out[len(out)-1] += byte(portIndex - 1)
 	return out.String()
 }
+
+// gatewayInterfaceIP chooses the management or documentation WAN address for a port.
 func gatewayInterfaceIP(id Identity, port Port) string {
 	if ip := strings.TrimSpace(port.IP); ip != "" {
 		return ip
@@ -268,12 +299,16 @@ func gatewayInterfaceIP(id Identity, port Port) string {
 	}
 	return "0.0.0.0"
 }
+
+// gatewayInterfaceNetmask returns an override or the lab default netmask.
 func gatewayInterfaceNetmask(port Port) string {
 	if netmask := strings.TrimSpace(port.Netmask); netmask != "" {
 		return netmask
 	}
 	return "255.255.255.0"
 }
+
+// interfaceAddressCIDR combines dotted netmask data into controller CIDR form.
 func interfaceAddressCIDR(ip, netmask string) string {
 	prefix := netmaskPrefixLength(netmask)
 	if prefix < 0 {
@@ -281,6 +316,8 @@ func interfaceAddressCIDR(ip, netmask string) string {
 	}
 	return strings.TrimSpace(ip) + "/" + strconv.Itoa(prefix)
 }
+
+// netmaskPrefixLength converts a dotted IPv4 netmask to a prefix length.
 func netmaskPrefixLength(netmask string) int {
 	parsed := net.ParseIP(strings.TrimSpace(netmask)).To4()
 	if parsed == nil {
@@ -292,6 +329,8 @@ func netmaskPrefixLength(netmask string) int {
 	}
 	return ones
 }
+
+// boolText returns the string form used by gateway network table fields.
 func boolText(value bool) string {
 	if value {
 		return "true"

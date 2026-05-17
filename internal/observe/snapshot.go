@@ -1,6 +1,8 @@
 // Package observe builds passive host-network observations for switch payloads.
 package observe
 
+// This file collects passive Linux network observations for payload merging.
+
 import (
 	"context"
 	"errors"
@@ -30,23 +32,36 @@ type Config struct {
 
 // InterfaceStats contains passive counters and link speed for one interface.
 type InterfaceStats struct {
-	RXBytes   int64
-	TXBytes   int64
+	// RXBytes is the received byte counter.
+	RXBytes int64
+	// TXBytes is the transmitted byte counter.
+	TXBytes int64
+	// RXPackets is the received packet counter.
 	RXPackets int64
+	// TXPackets is the transmitted packet counter.
 	TXPackets int64
-	RXErrors  int64
-	TXErrors  int64
+	// RXErrors is the receive error counter.
+	RXErrors int64
+	// TXErrors is the transmit error counter.
+	TXErrors int64
+	// SpeedMbps is the reported link speed in Mbps.
 	SpeedMbps int
 }
 
 // Snapshot contains passive data that can be merged into generated switch ports.
 type Snapshot struct {
+	// UplinkPortIndex is the one-based target port for uplink observations.
 	UplinkPortIndex int
-	Interface       string
-	Bridge          string
-	Stats           InterfaceStats
-	MACs            []device.MacTableEntry
-	DeviceMACs      map[string][]device.MacTableEntry
+	// Interface is the observed host interface name.
+	Interface string
+	// Bridge is the observed Linux bridge name.
+	Bridge string
+	// Stats contains counters and link speed from the observed interface.
+	Stats InterfaceStats
+	// MACs contains learned MAC entries flattened for the uplink fallback.
+	MACs []device.MacTableEntry
+	// DeviceMACs contains learned MAC entries grouped by bridge member.
+	DeviceMACs map[string][]device.MacTableEntry
 }
 
 // LinuxSnapshot reads passive Linux bridge and sysfs data.

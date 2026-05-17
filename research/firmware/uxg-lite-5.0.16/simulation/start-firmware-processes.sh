@@ -1,4 +1,5 @@
 #!/bin/bash
+# Start the selected UXG-Lite firmware processes inside the lab container.
 set -euo pipefail
 
 preload="${UNIFI_FW_SIM_PRELOAD:-/mock/libubnthal_redirect.so}"

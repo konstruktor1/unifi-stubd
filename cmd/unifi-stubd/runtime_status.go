@@ -1,5 +1,7 @@
 package main
 
+// This file builds human and JSON runtime status output.
+
 import (
 	"context"
 	"encoding/json"
@@ -16,6 +18,7 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/observe"
 )
 
+// localStatus is the public status document printed by --status.
 type localStatus struct {
 	ConfigPath string             `json:"config_path"`
 	Identity   statusIdentity     `json:"identity"`
@@ -26,6 +29,7 @@ type localStatus struct {
 	Warnings   []string           `json:"warnings,omitempty"`
 }
 
+// statusIdentity contains the controller-facing fake device identity.
 type statusIdentity struct {
 	MAC        string `json:"mac"`
 	IP         string `json:"ip"`
@@ -39,6 +43,7 @@ type statusIdentity struct {
 	UplinkPort int    `json:"uplink_port"`
 }
 
+// statusConfig contains non-secret runtime configuration selected for status output.
 type statusConfig struct {
 	OperationMode    string                `json:"operation_mode"`
 	ControllerURL    string                `json:"controller_url,omitempty"`
@@ -54,6 +59,7 @@ type statusConfig struct {
 	PortOverrides    []statusPortOverride  `json:"port_overrides,omitempty"`
 }
 
+// statusUplinkNeighbor summarizes the configured uplink MAC-table neighbor.
 type statusUplinkNeighbor struct {
 	MAC    string `json:"mac"`
 	VLAN   int    `json:"vlan,omitempty"`
@@ -62,6 +68,7 @@ type statusUplinkNeighbor struct {
 	Uptime int    `json:"uptime,omitempty"`
 }
 
+// statusPortOverride summarizes one per-port runtime override.
 type statusPortOverride struct {
 	Port         int    `json:"port"`
 	Name         string `json:"name,omitempty"`
@@ -76,6 +83,7 @@ type statusPortOverride struct {
 	Up           *bool  `json:"up,omitempty"`
 }
 
+// statusPortNeighbor summarizes one configured per-port MAC-table neighbor.
 type statusPortNeighbor struct {
 	Port   int    `json:"port"`
 	MAC    string `json:"mac"`
@@ -85,6 +93,7 @@ type statusPortNeighbor struct {
 	Uptime int    `json:"uptime,omitempty"`
 }
 
+// statusAdoption exposes adoption state without leaking the auth key.
 type statusAdoption struct {
 	State      string `json:"state"`
 	Adopted    bool   `json:"adopted"`
@@ -94,6 +103,7 @@ type statusAdoption struct {
 	Version    string `json:"version,omitempty"`
 }
 
+// statusObservation reports passive Linux observation inputs and counters.
 type statusObservation struct {
 	Interface      string   `json:"interface,omitempty"`
 	Bridge         string   `json:"bridge,omitempty"`
@@ -107,10 +117,12 @@ type statusObservation struct {
 	SourceWarnings []string `json:"source_warnings,omitempty"`
 }
 
+// persistedRunStatus contains runtime data loaded from the status file.
 type persistedRunStatus struct {
 	LastInform lastInformStatus `json:"last_inform,omitempty"`
 }
 
+// lastInformStatus summarizes the latest controller inform exchange.
 type lastInformStatus struct {
 	Time            string   `json:"time,omitempty"`
 	URL             string   `json:"url,omitempty"`

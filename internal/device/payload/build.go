@@ -1,6 +1,8 @@
 // Package payload builds UniFi inform payloads from typed device data.
 package payload
 
+// This file assembles the top-level UniFi inform payload.
+
 import (
 	"encoding/json"
 	"fmt"
@@ -62,6 +64,8 @@ func MinimalSwitchPayload(id Identity, ports []Port) ([]byte, error) {
 	}
 	return data, nil
 }
+
+// applySwitchPayload fills the tables expected by UniFi switch devices.
 func applySwitchPayload(payload map[string]any, id Identity, ports []Port, numPorts int, ifSpeed int) {
 	payload["if_table"] = []map[string]any{
 		{
@@ -87,12 +91,16 @@ func applySwitchPayload(payload map[string]any, id Identity, ports []Port, numPo
 	}
 	payload["port_table"] = portTable(ports)
 }
+
+// informState maps adoption state to the controller-facing numeric state.
 func informState(adopted bool) int {
 	if adopted {
 		return 2
 	}
 	return 1
 }
+
+// isGatewayDeviceType reports whether a device type needs gateway-shaped tables.
 func isGatewayDeviceType(deviceType string) bool {
 	switch strings.TrimSpace(deviceType) {
 	case deviceTypeUGW, deviceTypeUXG, deviceTypeUDM:
@@ -102,6 +110,7 @@ func isGatewayDeviceType(deviceType string) bool {
 	}
 }
 
+// deviceTypeOrDefault keeps older switch payloads usable when no type is configured.
 func deviceTypeOrDefault(value string) string {
 	value = strings.TrimSpace(value)
 	if value == "" {
@@ -110,6 +119,7 @@ func deviceTypeOrDefault(value string) string {
 	return value
 }
 
+// managementInterfaceSpeed chooses a stable management speed from generated ports.
 func managementInterfaceSpeed(ports []Port) int {
 	for _, port := range ports {
 		if port.Uplink && port.Speed > 0 {
@@ -121,6 +131,8 @@ func managementInterfaceSpeed(ports []Port) int {
 	}
 	return 0
 }
+
+// sysStats returns deterministic low-load system counters for lab payloads.
 func sysStats() map[string]any {
 	return map[string]any{
 		"loadavg_1":  0.01,

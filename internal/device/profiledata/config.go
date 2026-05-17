@@ -1,6 +1,8 @@
 // Package profiledata loads and stores embedded device profile data.
 package profiledata
 
+// This file decodes embedded YAML profile records into validated profiles.
+
 import (
 	"bytes"
 	"fmt"
@@ -9,23 +11,40 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// profileConfig is the embedded YAML schema before validation and registration.
 type profileConfig struct {
-	Order             int         `yaml:"order"`
-	Name              string      `yaml:"name"`
-	Model             string      `yaml:"model"`
-	ModelDisplay      string      `yaml:"model_display"`
-	DeviceType        string      `yaml:"device_type"`
-	Version           string      `yaml:"version"`
-	Ports             int         `yaml:"ports"`
-	PortGroups        []PortGroup `yaml:"port_groups"`
-	PortNames         []string    `yaml:"port_names"`
-	PortRoles         []string    `yaml:"port_roles"`
-	PortNetworkGroups []string    `yaml:"port_network_groups"`
-	PortSpeed         int         `yaml:"port_speed"`
-	UplinkSpeed       int         `yaml:"uplink_speed"`
-	PortMedia         string      `yaml:"port_media"`
-	UplinkMedia       string      `yaml:"uplink_media"`
-	Description       string      `yaml:"description"`
+	// Order controls profile display order.
+	Order int `yaml:"order"`
+	// Name is the short CLI and config name.
+	Name string `yaml:"name"`
+	// Model is the UniFi model identifier.
+	Model string `yaml:"model"`
+	// ModelDisplay is the human-readable UniFi model name.
+	ModelDisplay string `yaml:"model_display"`
+	// DeviceType is the controller-facing UniFi device family.
+	DeviceType string `yaml:"device_type"`
+	// Version is the firmware version reported by this profile.
+	Version string `yaml:"version"`
+	// Ports is the number of reported Ethernet ports.
+	Ports int `yaml:"ports"`
+	// PortGroups describe non-uniform physical port layouts.
+	PortGroups []PortGroup `yaml:"port_groups"`
+	// PortNames optionally override one-based port display labels.
+	PortNames []string `yaml:"port_names"`
+	// PortRoles optionally define one-based gateway roles for the profile.
+	PortRoles []string `yaml:"port_roles"`
+	// PortNetworkGroups optionally define one-based UniFi network groups.
+	PortNetworkGroups []string `yaml:"port_network_groups"`
+	// PortSpeed is the default access port speed in Mbps.
+	PortSpeed int `yaml:"port_speed"`
+	// UplinkSpeed is the uplink port speed in Mbps.
+	UplinkSpeed int `yaml:"uplink_speed"`
+	// PortMedia is the default access port media label.
+	PortMedia string `yaml:"port_media"`
+	// UplinkMedia is the uplink port media label.
+	UplinkMedia string `yaml:"uplink_media"`
+	// Description is the short label shown in profile listings.
+	Description string `yaml:"description"`
 }
 
 // RegisterConfig decodes and registers one embedded profile YAML document.

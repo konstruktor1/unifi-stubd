@@ -1,4 +1,5 @@
 # syntax=docker/dockerfile:1.6
+# UGW3 firmware simulation image for running the extracted MIPS rootfs under QEMU.
 
 FROM debian:bookworm-slim
 

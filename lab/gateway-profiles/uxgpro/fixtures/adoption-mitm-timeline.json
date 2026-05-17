@@ -1,0 +1,197 @@
+{
+  "schema": "unifi-stubd/adoption-mitm-summary/v1",
+  "source": "UXG-Pro 5.0.16 firmware mcad through controller-lab MITM",
+  "captured_at": "2026-05-17T17:01:20Z/2026-05-17T17:02:32Z",
+  "raw_bodies": "omitted",
+  "secret_fields": "redacted",
+  "device": {
+    "mac": "02:15:6d:de:ad:00",
+    "serial": "02156DDEAD00",
+    "model": "UXGPRO"
+  },
+  "result": {
+    "controller_adopted": true,
+    "controller_device_type": "uxg",
+    "firmware_default": false,
+    "firmware_state": 2,
+    "firmware_last_error": null,
+    "firmware_cfgversion": "87893ca41993f905",
+    "firmware_cfgversion_effective": "f61fe55bbca41554",
+    "controller_http_status_after_adopt": 200
+  },
+  "timeline": [
+    {
+      "timestamp": "2026-05-17T17:01:20Z",
+      "phase": "pre_adoption",
+      "event_id": "1779037280245-fb26ae02",
+      "request": {
+        "direction": "firmware_to_controller",
+        "http_method": "POST",
+        "http_url": "http://unifi:8080/inform",
+        "body_bytes": 1935,
+        "tnbu_flags": 11,
+        "tnbu_payload_bytes": 1895,
+        "decode_key": "UniFi default inform key"
+      },
+      "response": {
+        "http_status": 404,
+        "body_bytes": 0
+      },
+      "observation": "Before the portal adoption action, real UXG-Pro inform requests were visible but not accepted by the controller."
+    },
+    {
+      "timestamp": "2026-05-17T17:01:29Z",
+      "phase": "adopt_button_clicked",
+      "event_id": "1779037289438-6b67a31d",
+      "request": {
+        "direction": "firmware_to_controller",
+        "body_bytes": 1912,
+        "tnbu_flags": 3,
+        "tnbu_payload_bytes": 1872,
+        "decode_key": "UniFi default inform key",
+        "decoded": {
+          "default": true,
+          "state": 1,
+          "cfgversion": "?",
+          "cfgversion_effective": "?",
+          "last_error": "Not Adopted (http://unifi:8080/inform)"
+        }
+      },
+      "response": {
+        "http_status": 200,
+        "body_bytes": 376,
+        "tnbu_flags": 1,
+        "tnbu_payload_bytes": 336,
+        "decoded_type": "setparam",
+        "decoded_keys": [
+          "_type",
+          "mgmt_cfg",
+          "server_time_in_utc"
+        ],
+        "mgmt_cfg_lines": [
+          "capability=notif,notif-assoc-stat",
+          "selfrun_guest_mode=pass",
+          "cfgversion=f61fe55bbca41554",
+          "led_enabled=true",
+          "stun_url=stun://unifi:3478/",
+          "mgmt_url=https://unifi:8443/manage/site/default",
+          "authkey=<redacted>",
+          "use_aes_gcm=true",
+          "report_crash=true"
+        ]
+      },
+      "observation": "The controller accepted the next default-key inform and delivered management configuration plus a new per-device inform key."
+    },
+    {
+      "timestamp": "2026-05-17T17:01:29Z",
+      "phase": "new_inform_key_active",
+      "event_id": "1779037289595-fa52b98b",
+      "request": {
+        "direction": "firmware_to_controller",
+        "body_bytes": 903,
+        "tnbu_flags": 11,
+        "tnbu_payload_bytes": 863,
+        "decode_key": "adopted inform key",
+        "decoded": {
+          "default": false,
+          "state": 0,
+          "cfgversion": "f61fe55bbca41554",
+          "cfgversion_effective": "f61fe55bbca41554",
+          "last_error": "Not Adopted (http://unifi:8080/inform)"
+        }
+      },
+      "response": {
+        "http_status": 200,
+        "body_bytes": 213,
+        "tnbu_flags": 9,
+        "tnbu_payload_bytes": 173,
+        "decoded_type": "noop",
+        "decoded_keys": [
+          "_type",
+          "include_blocks",
+          "interval",
+          "live_update",
+          "server_time_in_utc"
+        ]
+      },
+      "observation": "The firmware immediately switched to AES-GCM with the adopted inform key."
+    },
+    {
+      "timestamp": "2026-05-17T17:01:30Z",
+      "phase": "adopted_system_config",
+      "event_id": "1779037290647-73097ae3",
+      "request": {
+        "direction": "firmware_to_controller",
+        "body_bytes": 4489,
+        "tnbu_flags": 11,
+        "tnbu_payload_bytes": 4449,
+        "decode_key": "adopted inform key",
+        "decoded": {
+          "default": false,
+          "state": 2,
+          "cfgversion": "f61fe55bbca41554",
+          "cfgversion_effective": "f61fe55bbca41554",
+          "reported_blocks": [
+            "if_table",
+            "network_table",
+            "ipv4_active_leases",
+            "gw_caps",
+            "sys_stats",
+            "system-stats"
+          ]
+        }
+      },
+      "response": {
+        "http_status": 200,
+        "body_bytes": 10421,
+        "tnbu_flags": 9,
+        "tnbu_payload_bytes": 10381,
+        "decoded_type": "setparam",
+        "decoded_keys": [
+          "_type",
+          "blocked_sta",
+          "cfgversion",
+          "mgmt_cfg",
+          "server_time_in_utc",
+          "system_cfg"
+        ],
+        "cfgversion": "87893ca41993f905",
+        "system_cfg": "present_redacted",
+        "redacted_system_cfg_categories": [
+          "controller tokens",
+          "certificates",
+          "password hashes",
+          "radius secrets",
+          "firewall and network configuration"
+        ]
+      },
+      "observation": "After state=2, the controller delivered the larger gateway system configuration."
+    },
+    {
+      "timestamp": "2026-05-17T17:01:42Z",
+      "phase": "steady_state",
+      "event_id": "1779037302714-2133134a",
+      "request": {
+        "direction": "firmware_to_controller",
+        "body_bytes": 1935,
+        "tnbu_flags": 11,
+        "tnbu_payload_bytes": 1895,
+        "decode_key": "adopted inform key"
+      },
+      "response": {
+        "http_status": 200,
+        "body_bytes": 214,
+        "tnbu_flags": 9,
+        "tnbu_payload_bytes": 174,
+        "decoded_type": "noop",
+        "interval_seconds": 10,
+        "include_blocks": [
+          "ipv4_active_leases",
+          "dns_shield_servers",
+          "gw_caps"
+        ]
+      },
+      "observation": "The adopted gateway settled into a 10-second inform interval."
+    }
+  ]
+}

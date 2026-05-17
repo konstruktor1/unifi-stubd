@@ -1,34 +1,17 @@
-# syntax=docker/dockerfile:1.7
+# syntax=docker/dockerfile:1.6
+# UGW3 firmware simulation image for running the extracted MIPS rootfs under QEMU.
 
-FROM --platform=$BUILDPLATFORM golang:1.25-bookworm AS build
+FROM debian:bookworm-slim
 
-ARG TARGETOS=linux
-ARG TARGETARCH
-ARG VERSION=dev
+LABEL org.opencontainers.image.title="UGW3 firmware QEMU simulation runner"
+LABEL org.opencontainers.image.description="Local research runner for an extracted UGW3 MIPS rootfs"
 
-WORKDIR /src
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        ca-certificates \
+        qemu-user-static \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY go.mod go.sum go.work go.work.sum ./
-RUN --mount=type=cache,target=/go/pkg/mod go mod download
+COPY --chmod=0755 start-ugw3-qemu.sh /usr/local/bin/ugw3-qemu-start
 
-COPY cmd ./cmd
-COPY internal ./internal
-
-RUN --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
-    go build -trimpath -ldflags="-s -w -X main.version=${VERSION}" \
-    -o /out/unifi-stubd ./cmd/unifi-stubd
-
-FROM alpine:3.22
-
-LABEL org.opencontainers.image.title="unifi-stubd UGW3 profile"
-LABEL org.opencontainers.image.description="Lab-only UniFi Security Gateway 3P stub profile"
-
-RUN apk add --no-cache ca-certificates tzdata \
-    && mkdir -p /etc/unifi-stubd /var/lib/unifi-stubd
-
-COPY --from=build /out/unifi-stubd /usr/local/bin/unifi-stubd
-
-VOLUME ["/var/lib/unifi-stubd"]
-
-ENTRYPOINT ["/usr/local/bin/unifi-stubd", "-profile", "ugw3"]
+CMD ["/usr/local/bin/ugw3-qemu-start"]

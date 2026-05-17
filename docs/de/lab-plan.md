@@ -125,52 +125,69 @@ Der Controller kann dann fuer Advanced Adoption `ubnt` / `ubnt` gegen Port `22` 
 
 ## Docker-Controller-Lab
 
-Fuer lokale Gateway-Profil-Simulation ohne Vendor-Firmware gibt es das Docker
-Compose Lab in `lab/controller-gateway-stubs.compose.yaml`. Es startet eine
-UniFi Network Application, MongoDB, einen Inform-MITM und ein ausgewaehltes
-`unifi-stubd` Stub-Profil.
+Fuer den einfachen `unifi-stubd` Switch-Stub gibt es das dedizierte Docker
+Compose Lab in `lab/stub/compose.yaml`. Verzeichnis, Compose-Service,
+standardmaessiger Container-Name, Hostname und persistentes Volume sind als
+`stub` deklariert:
 
-Der generische Switch-Stub-Service `stub-us8` baut das Root-`Dockerfile` und
-uebergibt `-profile us8` zur Laufzeit. Jedes Gateway-Profil hat ein eigenes
-Dockerfile unter `lab/gateway-profiles/`; die Image-Entrypoints enthalten damit
-das jeweilige Gateway-Profil. Compose liefert nur lab-spezifische
-Laufzeitwerte wie MAC-Adresse, IP-Adresse, Hostname und Controller-URL.
-
-Generischen US-8-Switch-Stub starten:
-
-```sh
-mkdir -p lab/captures
-docker compose -f lab/controller-gateway-stubs.compose.yaml \
-  --profile stub \
-  up -d --build
+```text
+lab/stub/compose.yaml
+services.stub
+container_name: stub
+hostname: stub
+volume: stub_state
 ```
 
-Gateway-Lite-Profil starten:
+Den generischen Stub-Service mit seinen Controller/MITM-Abhaengigkeiten
+starten:
 
 ```sh
-mkdir -p lab/captures
-docker compose -f lab/controller-gateway-stubs.compose.yaml \
-  --profile uxg-lite \
-  up -d --build
+mkdir -p lab/stub/captures
+docker compose -f lab/stub/compose.yaml up -d --build stub
 ```
 
-Verfuegbare Gateway-Stub-Profile sind `ugw3`, `uxg-lite`, `uxgpro` und
-`ucg-fiber`. Das Compose-Profil `gateways` startet alle vier Gateway-Profile
-fuer Payload-Vergleiche, aber Gateway-Adoption-Tests sollten normalerweise ein
-Gateway pro frischer Controller-Site nutzen.
+Der `stub`-Service baut das Root-`Dockerfile` und uebergibt
+`${UNIFI_STUB_PROFILE:-us8}` zur Laufzeit. Das emulierte UniFi-Profil ist
+standardmaessig `us8`; Docker-Pfad und Container-Identitaet bleiben `stub`.
 
-Die UI ist unter `https://localhost:8443` erreichbar. Im UniFi-Setup bleibt
-TCP `8080` fuer Device-Kommunikation aktiv; als Inform-Host-Override wird
-`unifi` gesetzt. Der Stub sendet nach `http://unifi:8080/inform`, der Traffic
-geht durch den MITM-Container, und lokale Rohmitschnitte landen im ignorierten
-Verzeichnis `lab/captures/`.
+Fuer Gateway-Firmware-Simulation gibt es die profilbezogenen Docker-Labs unter
+`lab/gateway-profiles/`. Diese Verzeichnisse sind echte Firmware-Wrapper, keine
+Kopien von `internal/device` Stub-Profilen.
 
-Die echten Firmware-Simulationsprofile werden separat in
-`research/firmware/profiles.yaml` gefuehrt. Das sind nicht nur
-`unifi-stubd`-Profile: jedes echte Firmware-Profil braucht ein lokales
-Vendor-Firmware-Image, ein extrahiertes Rootfs, Architektur-Notizen und einen
-passenden Prozess-Wrapper. Aktuell ist nur UXG-Pro `5.0.16` im Controller-Lab
-adoptiert lauffaehig.
+Aktuelle Gateway-Firmware-Labs:
+
+- `lab/gateway-profiles/ugw3/`: QEMU-MIPS-Runner fuer ein extrahiertes UGW3
+  Rootfs.
+- `lab/gateway-profiles/uxg-lite/`: ARM64-UbiOS-Userspace-Wrapper; teilweise
+  Simulation.
+- `lab/gateway-profiles/uxgpro/`: ARM64-UbiOS-Userspace-Wrapper plus
+  Controller/MITM-Lab.
+- `lab/gateway-profiles/ucg-fiber/`: ARM64-UbiOS-Userspace-Wrapper; teilweise
+  Simulation.
+
+Firmware-Simulation starten:
+
+```sh
+docker compose -f lab/gateway-profiles/ugw3/compose.yaml up -d --build
+docker compose -f lab/gateway-profiles/uxg-lite/compose.yaml up -d --build
+docker compose -f lab/gateway-profiles/uxgpro/compose.yaml up -d --build
+docker compose -f lab/gateway-profiles/ucg-fiber/compose.yaml up -d --build
+```
+
+UXG-Pro Controller/MITM-Lab starten:
+
+```sh
+mkdir -p lab/gateway-profiles/uxgpro/captures
+docker compose -f lab/gateway-profiles/uxgpro/controller-lab.compose.yaml up -d --build
+```
+
+Firmware-Images, extrahierte Rootfs-Baeume, Rohmitschnitte, Adoption-Keys,
+Controller-Tokens, Zertifikate und private Controller-Daten bleiben aus Git
+draussen.
+
+Sichere Firmware-Research-Zusammenfassungen stehen weiterhin in
+`research/firmware/profiles.yaml`. Aktuell ist nur UXG-Pro `5.0.16` im
+Controller-Lab adoptiert lauffaehig.
 
 Das Compose-Lab nutzt das UniFi-Network-Application-Image von LinuxServer.io
 mit separatem MongoDB-Container. Ubiquitis aktuelle Self-Hosting-Richtung ist

@@ -1,10 +1,13 @@
 package payload
 
+// This file renders switch-specific inform tables from generated ports.
+
 import (
 	"net"
 	"strings"
 )
 
+// incrementMAC derives the secondary switch interface MAC from the device MAC.
 func incrementMAC(macText string) string {
 	mac, err := net.ParseMAC(macText)
 	if err != nil || len(mac) == 0 {
@@ -14,6 +17,8 @@ func incrementMAC(macText string) string {
 	out[len(out)-1]++
 	return out.String()
 }
+
+// portTable renders switch port rows in the shape expected by UniFi Network.
 func portTable(ports []Port) []map[string]any {
 	out := make([]map[string]any, 0, len(ports))
 	for _, p := range ports {
@@ -63,6 +68,8 @@ func portTable(ports []Port) []map[string]any {
 	}
 	return out
 }
+
+// speedCaps returns controller speed capabilities implied by speed and media.
 func speedCaps(speed int, media string) []int {
 	media = strings.ToUpper(strings.TrimSpace(media))
 	switch {
@@ -76,6 +83,8 @@ func speedCaps(speed int, media string) []int {
 		return []int{10, 100, 1000}
 	}
 }
+
+// firstNonZeroInt64 returns the first non-zero value from a fallback list.
 func firstNonZeroInt64(values ...int64) int64 {
 	for _, value := range values {
 		if value != 0 {
@@ -85,6 +94,7 @@ func firstNonZeroInt64(values ...int64) int64 {
 	return 0
 }
 
+// firstNonZero returns the first non-zero value from a fallback list.
 func firstNonZero(values ...int) int {
 	for _, value := range values {
 		if value != 0 {

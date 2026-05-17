@@ -1,4 +1,5 @@
 # syntax=docker/dockerfile:1.6
+# UXG-Pro firmware simulation wrapper around an imported ARM64 rootfs image.
 
 ARG BASE_IMAGE=uxgpro-fw:5.0.16
 FROM ${BASE_IMAGE}

@@ -1,5 +1,7 @@
 package payload
 
+// This file generates deterministic port layouts and applies runtime overrides.
+
 import (
 	"strconv"
 	"strings"
@@ -148,6 +150,8 @@ func ApplyPortNeighbors(ports []Port, neighbors []PortNeighbor) []Port {
 	}
 	return ports
 }
+
+// normalizeMacTableEntry fills controller-facing defaults for configured neighbors.
 func normalizeMacTableEntry(entry MacTableEntry) MacTableEntry {
 	entry.MAC = strings.ToLower(strings.TrimSpace(entry.MAC))
 	if entry.Age == 0 {
@@ -161,6 +165,8 @@ func normalizeMacTableEntry(entry MacTableEntry) MacTableEntry {
 	}
 	return entry
 }
+
+// groupedSwitchPorts generates physical layouts with non-uniform speed or media blocks.
 func groupedSwitchPorts(count int, options PortOptions) []Port {
 	if len(options.PortGroups) == 0 {
 		return nil
@@ -216,6 +222,8 @@ func groupedSwitchPorts(count int, options PortOptions) []Port {
 	}
 	return ports
 }
+
+// generatedPort builds one deterministic port entry before runtime overrides.
 func generatedPort(index, speed int, media string, uplink bool, names, roles, networkGroups []string) Port {
 	port := Port{
 		Index:        index,
@@ -238,6 +246,8 @@ func generatedPort(index, speed int, media string, uplink bool, names, roles, ne
 	}
 	return port
 }
+
+// applyUplinkPort moves uplink metadata to a caller-selected one-based port.
 func applyUplinkPort(ports []Port, uplinkPort int) []Port {
 	if uplinkPort <= 0 {
 		return ports
@@ -262,6 +272,8 @@ func applyUplinkPort(ports []Port, uplinkPort int) []Port {
 	}
 	return ports
 }
+
+// portName returns a configured one-based port label or a deterministic default.
 func portName(index int, names []string) string {
 	if index < 1 {
 		index = 1
@@ -273,12 +285,16 @@ func portName(index int, names []string) string {
 	}
 	return "Port " + strconv.Itoa(index)
 }
+
+// oneBasedString returns a trimmed one-based list value.
 func oneBasedString(index int, values []string) string {
 	if index < 1 || index > len(values) {
 		return ""
 	}
 	return strings.TrimSpace(values[index-1])
 }
+
+// normalizePortOptions applies profile-neutral defaults used by generated ports.
 func normalizePortOptions(options PortOptions) PortOptions {
 	if options.Speed <= 0 {
 		options.Speed = 1000
@@ -294,6 +310,8 @@ func normalizePortOptions(options PortOptions) PortOptions {
 	}
 	return options
 }
+
+// mediaForSpeed returns the UniFi media label implied by a link speed.
 func mediaForSpeed(speed int) string {
 	if speed >= 10000 {
 		return mediaSFPPlus

@@ -108,6 +108,59 @@ Next research steps:
 - Extend the mock hardware/sysctl set only with deterministic lab values.
 - Do not connect this profile to a controller until `mca-ctrl -t dump` works.
 
+## ucg-fiber-5.0.16
+
+Status: partial UbiOS userspace simulation; blocked before `mcad` control
+socket.
+
+- Stub profile: `ucg-fiber`
+- Device type: `udm`
+- Model: `UCGF`
+- Firmware: `5.0.16`
+- Architecture: `arm64`
+
+Research folder:
+
+```text
+research/firmware/ucg-fiber-5.0.16/
+```
+
+Committed profile artifacts:
+
+- `README.md`: firmware image inventory, rootfs metadata, service chain,
+  current simulation status, and source availability notes.
+- `source-inventory.md`: project-owned helper source vs observed vendor files.
+- `lab/gateway-profiles/ucg-fiber/Dockerfile`: wrapper around the imported
+  local firmware rootfs image.
+- `lab/gateway-profiles/ucg-fiber/start-firmware-processes.sh`: starts
+  `ubios-udapi-server`, `udapi-bridge`, and `mcad`.
+- `lab/gateway-profiles/ucg-fiber/compose.yaml`: networkless ARM64 simulation.
+- `lab/gateway-profiles/ucg-fiber/docker-howto.md`: rootfs import, mock
+  hardware, shim build, and startup instructions.
+
+Current finding summary:
+
+- UCG-Fiber uses the UbiOS `ubios-udapi-server` -> `udapi-bridge` -> `mcad`
+  process shape seen in the other ARM64 gateway profiles.
+- The firmware rootfs is Debian GNU/Linux 11 (`bullseye`) for the `ipq9574`
+  platform.
+- The board config identifies product `ucg-fiber`, board ID `a6a8`, model
+  `UCGF`, SFP+ interfaces on `eth5` and `eth6`, and WAN mappings `wan0` on
+  `eth4`, `wan1` on `eth6`.
+- The local wrapper can start `ubios-udapi-server`, `udapi-bridge`, and
+  `mcad`.
+- In the current containerized run, `ubios-udapi-server` creates the bridge
+  event notifier socket but not `/var/run/ubnt-udapi-server.sock`.
+- Because that socket is missing, `mcad` does not expose `/tmp/.mcad` yet, so
+  this profile is not ready for controller adoption.
+
+Next research steps:
+
+- Add ARM64 `strace` or broader shim tracing to identify the missing runtime
+  dependency before the UDAPI server socket bind.
+- Add deterministic mock paths only as the firmware startup logs require them.
+- Keep the profile away from a controller until local `mca-ctrl` access works.
+
 ## ugw3-4.4.57
 
 Status: QEMU-MIPS chroot simulation starts `mcad` and supports `mca-ctrl`.

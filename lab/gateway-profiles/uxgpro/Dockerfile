@@ -1,34 +1,13 @@
-# syntax=docker/dockerfile:1.7
+# syntax=docker/dockerfile:1.6
+# UXG-Pro firmware simulation wrapper around an imported ARM64 rootfs image.
 
-FROM --platform=$BUILDPLATFORM golang:1.25-bookworm AS build
+ARG BASE_IMAGE=uxgpro-fw:5.0.16
+FROM ${BASE_IMAGE}
 
-ARG TARGETOS=linux
-ARG TARGETARCH
-ARG VERSION=dev
+LABEL org.opencontainers.image.title="UXG-Pro firmware simulation wrapper"
+LABEL org.opencontainers.image.description="Local research wrapper around an imported UXG-Pro firmware rootfs"
 
-WORKDIR /src
+COPY ubnthal_redirect.c /opt/unifi-fw-sim/ubnthal_redirect.c
+COPY --chmod=0755 start-firmware-processes.sh /usr/local/bin/uxgpro-sim-start
 
-COPY go.mod go.sum go.work go.work.sum ./
-RUN --mount=type=cache,target=/go/pkg/mod go mod download
-
-COPY cmd ./cmd
-COPY internal ./internal
-
-RUN --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
-    go build -trimpath -ldflags="-s -w -X main.version=${VERSION}" \
-    -o /out/unifi-stubd ./cmd/unifi-stubd
-
-FROM alpine:3.22
-
-LABEL org.opencontainers.image.title="unifi-stubd UXG-Pro profile"
-LABEL org.opencontainers.image.description="Lab-only UniFi Gateway Pro stub profile"
-
-RUN apk add --no-cache ca-certificates tzdata \
-    && mkdir -p /etc/unifi-stubd /var/lib/unifi-stubd
-
-COPY --from=build /out/unifi-stubd /usr/local/bin/unifi-stubd
-
-VOLUME ["/var/lib/unifi-stubd"]
-
-ENTRYPOINT ["/usr/local/bin/unifi-stubd", "-profile", "uxgpro"]
+CMD ["/bin/sleep", "infinity"]

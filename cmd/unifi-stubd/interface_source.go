@@ -1,5 +1,7 @@
 package main
 
+// This file maps host interface data into controller-facing port overrides.
+
 import (
 	"log"
 	"net"
@@ -10,12 +12,17 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/device"
 )
 
+// hostInterfaceDetails carries link state parsed from platform network tools.
 type hostInterfaceDetails struct {
-	Up    *bool
+	// Up is the optional parsed carrier state.
+	Up *bool
+	// Speed is the parsed link speed in Mbps.
 	Speed int
+	// Media is the UniFi media label inferred from platform output.
 	Media string
 }
 
+// enrichPortOverridesFromInterfaces overlays configured ports with host interface data.
 func enrichPortOverridesFromInterfaces(overrides []device.PortOverride) []device.PortOverride {
 	if len(overrides) == 0 {
 		return overrides
@@ -33,6 +40,7 @@ func enrichPortOverridesFromInterfaces(overrides []device.PortOverride) []device
 	return out
 }
 
+// enrichPortOverrideFromInterface applies one host interface snapshot to an override.
 func enrichPortOverrideFromInterface(override *device.PortOverride, ifaceName string) {
 	iface, err := net.InterfaceByName(ifaceName)
 	if err != nil {
@@ -68,6 +76,7 @@ func enrichPortOverrideFromInterface(override *device.PortOverride, ifaceName st
 	enrichPortOverrideCounters(override, ifaceName)
 }
 
+// firstInterfaceIPv4 returns the first IPv4 address and netmask for iface.
 func firstInterfaceIPv4(iface *net.Interface) (string, string) {
 	addrs, err := iface.Addrs()
 	if err != nil {
@@ -88,6 +97,7 @@ func firstInterfaceIPv4(iface *net.Interface) (string, string) {
 	return "", ""
 }
 
+// readHostInterfaceDetails reads platform link details through ifconfig.
 func readHostInterfaceDetails(ifaceName string) hostInterfaceDetails {
 	out, err := exec.Command("ifconfig", ifaceName).Output()
 	if err != nil {
@@ -96,6 +106,7 @@ func readHostInterfaceDetails(ifaceName string) hostInterfaceDetails {
 	return parseIfconfigDetails(string(out))
 }
 
+// parseIfconfigDetails extracts link state, speed, and media from ifconfig output.
 func parseIfconfigDetails(output string) hostInterfaceDetails {
 	var details hostInterfaceDetails
 	for _, line := range strings.Split(output, "\n") {
@@ -113,6 +124,7 @@ func parseIfconfigDetails(output string) hostInterfaceDetails {
 	return details
 }
 
+// enrichPortOverrideCounters overlays counters from netstat when available.
 func enrichPortOverrideCounters(override *device.PortOverride, ifaceName string) {
 	out, err := exec.Command("netstat", "-ibn", "-I", ifaceName).Output()
 	if err != nil {
@@ -130,15 +142,23 @@ func enrichPortOverrideCounters(override *device.PortOverride, ifaceName string)
 	override.TXErrors = counters.TXErrors
 }
 
+// interfaceCounters contains packet and byte counters parsed from netstat.
 type interfaceCounters struct {
-	RXBytes   int64
-	TXBytes   int64
+	// RXBytes is the received byte counter.
+	RXBytes int64
+	// TXBytes is the transmitted byte counter.
+	TXBytes int64
+	// RXPackets is the received packet counter.
 	RXPackets int64
+	// TXPackets is the transmitted packet counter.
 	TXPackets int64
-	RXErrors  int64
-	TXErrors  int64
+	// RXErrors is the receive error counter.
+	RXErrors int64
+	// TXErrors is the transmit error counter.
+	TXErrors int64
 }
 
+// parseNetstatCounters extracts counters for one link-layer interface row.
 func parseNetstatCounters(output, ifaceName string) (interfaceCounters, bool) {
 	for _, line := range strings.Split(output, "\n") {
 		fields := strings.Fields(line)
@@ -165,6 +185,7 @@ func parseNetstatCounters(output, ifaceName string) (interfaceCounters, bool) {
 	return interfaceCounters{}, false
 }
 
+// speedFromMediaLine maps ifconfig media text to Mbps.
 func speedFromMediaLine(line string) int {
 	switch {
 	case strings.Contains(line, "25g"):
@@ -186,6 +207,7 @@ func speedFromMediaLine(line string) int {
 	}
 }
 
+// mediaFromMediaLine maps ifconfig media text to UniFi media labels.
 func mediaFromMediaLine(line string) string {
 	switch {
 	case strings.Contains(line, "sfp28"), strings.Contains(line, "25gbase"):

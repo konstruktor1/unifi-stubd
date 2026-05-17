@@ -1,3 +1,5 @@
+"""Capture UniFi inform requests and responses in the UXG-Pro research lab."""
+
 from __future__ import annotations
 
 import hashlib

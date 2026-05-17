@@ -1,10 +1,13 @@
 package payload
 
+// This file supplies deterministic gateway telemetry blocks for lab payloads.
+
 import (
 	"net"
 	"time"
 )
 
+// applyGatewayTelemetry adds deterministic low-risk gateway metadata fields.
 func applyGatewayTelemetry(payload map[string]any, id Identity) {
 	cfgVersion, _ := payload["cfgversion"].(string)
 	if cfgVersion == "" {
@@ -77,6 +80,8 @@ func applyGatewayTelemetry(payload map[string]any, id Identity) {
 	payload["usg_caps"] = 0
 	payload["wifi_caps"] = 0
 }
+
+// gatewaySpeedtestStatus returns an idle speed-test block for gateway payloads.
 func gatewaySpeedtestStatus() map[string]any {
 	return map[string]any{
 		"latency":         0,
@@ -92,6 +97,8 @@ func gatewaySpeedtestStatus() map[string]any {
 		"xput_upload":     0.0,
 	}
 }
+
+// gatewaySysID derives a stable numeric system ID from the device MAC.
 func gatewaySysID(macText string) int {
 	mac, err := net.ParseMAC(macText)
 	if err != nil || len(mac) < 2 {
