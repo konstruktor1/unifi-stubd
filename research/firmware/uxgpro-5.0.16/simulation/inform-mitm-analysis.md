@@ -27,6 +27,12 @@ Snapshot source:
 research/firmware/uxgpro-5.0.16/simulation/captures/events.jsonl
 ```
 
+Committed sanitized telegram samples:
+
+```text
+research/firmware/uxgpro-5.0.16/simulation/fixtures/inform-telegrams.jsonl
+```
+
 Snapshot window:
 
 ```text

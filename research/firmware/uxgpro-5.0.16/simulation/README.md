@@ -7,6 +7,8 @@ See `docker-howto.md` for the full container setup.
 See `controller-lab.md` for a local UniFi Network Application lab that can run
 against the firmware container.
 See `inform-mitm-analysis.md` for sanitized findings from a local MITM run.
+See `fixtures/inform-telegrams.jsonl` for committed, sanitized inform
+telegram samples.
 
 `ubnthal_redirect.c` is an LD_PRELOAD shim. It lets selected firmware binaries
 read mock hardware data from `/mock` instead of host kernel paths and no-ops a
