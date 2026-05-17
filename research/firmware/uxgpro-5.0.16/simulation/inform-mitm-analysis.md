@@ -39,6 +39,12 @@ Committed decoded gateway payload sample:
 research/firmware/uxgpro-5.0.16/simulation/fixtures/decoded-gateway-inform-sample.json
 ```
 
+Committed sanitized adoption timeline:
+
+```text
+research/firmware/uxgpro-5.0.16/simulation/fixtures/adoption-mitm-timeline.json
+```
+
 Snapshot window:
 
 ```text
@@ -76,11 +82,52 @@ system metadata. Setting both `serial` and `serialno` to `00156DDEAD00` made
 `mcad` emit a stable top-level MAC and serial in both the TNBU packet header
 and decoded payload.
 
-The controller still returned empty responses with HTTP `404` for the real
-UXG-Pro firmware `POST /inform` stream. Direct invalid requests to `/inform`
-returned `400`, so the controller HTTP path exists; the current Dockerized
-UniFi Network Application still does not accept this simulated real-gateway
-inform stream as an adopted or adoptable device.
+Before the portal adoption action, the controller returned empty responses with
+HTTP `404` for the real UXG-Pro firmware `POST /inform` stream. Direct invalid
+requests to `/inform` returned `400`, so the controller HTTP path existed, but
+the simulated gateway was not accepted until an admin explicitly clicked
+`Adopt` in the UniFi Network web portal.
+
+## Portal Adoption Sequence
+
+After web-portal login as the lab admin and an explicit `Adopt` click, the
+next visible inform exchange changed from HTTP `404` to HTTP `200` and the
+controller stored the device as adopted.
+
+Adoption result:
+
+| Field | Observed value |
+| --- | --- |
+| Device MAC | `00:15:6d:de:ad:00` |
+| Device serial | `00156DDEAD00` |
+| Controller device type | `uxg` |
+| Controller adopted flag | `true` |
+| Firmware `default` | `false` |
+| Firmware `state` | `2` |
+| Firmware `last_error` | `null` |
+| Firmware `cfgversion` | `87893ca41993f905` |
+| Steady-state inform interval | `10` seconds |
+
+High-level transition:
+
+| Time | Event ID | Direction | Decoded type | Result |
+| --- | --- | --- | --- | --- |
+| `2026-05-17T17:01:20Z` | `1779037280245-fb26ae02` | firmware -> controller | normal inform | HTTP `404` before portal adoption |
+| `2026-05-17T17:01:29Z` | `1779037289438-6b67a31d` | controller -> firmware | `setparam` | First HTTP `200`; `mgmt_cfg` delivered with new inform auth key redacted |
+| `2026-05-17T17:01:29Z` | `1779037289595-fa52b98b` | firmware -> controller | inform with adopted key | Firmware switched to AES-GCM using the new key |
+| `2026-05-17T17:01:30Z` | `1779037290647-73097ae3` | controller -> firmware | `setparam` | Controller delivered larger gateway `system_cfg`; sensitive content redacted |
+| `2026-05-17T17:01:42Z` | `1779037302714-2133134a` | controller -> firmware | `noop` | Steady-state poll interval set to `10` seconds |
+
+The first adoption `setparam` carried `mgmt_cfg` fields including
+`cfgversion`, `stun_url`, `mgmt_url`, `use_aes_gcm=true`, and an `authkey`.
+The `authkey` is the point where the inform cipher context changes; it is not
+committed. Later request and response bodies require that adopted inform key
+for decoding.
+
+The larger `system_cfg` response contains controller tokens, certificates,
+password hashes, Radius secrets, and network/firewall configuration. It is
+useful for local reverse engineering, but it is treated as sensitive lab data
+and only summarized in committed fixtures.
 
 The decoded payload makes the gateway reporting shape visible. Gateway
 interfaces are reported through `if_table` and `network_table`; `port_table`
@@ -94,11 +141,13 @@ currently reports four interfaces:
 | `eth2` | `198.51.100.2/24` | `00:15:6d:de:ad:02` | `network_table` |
 | `eth3` | `203.0.113.2/24` | `00:15:6d:de:ad:03` | `network_table` |
 
-`mcad` repeatedly tries to log in to the local `udapi-bridge` as `root`, but
-the bridge reports `RESTAPI login failed for user root`. Direct UDAPI probing
-showed `/user/check` returning an `A12` error while `/system/users` still lists
-`root`. Because of that bridge authentication failure, UDAPI-derived blocks are
-not present in the inform payload yet.
+Before adoption, `mcad` repeatedly tried to log in to the local `udapi-bridge`
+as `root`, and the bridge reported `RESTAPI login failed for user root`.
+Direct UDAPI probing showed `/user/check` returning an `A12` error while
+`/system/users` still listed `root`. That explained missing UDAPI-derived
+blocks in the pre-adoption payload. After adoption, the inform stream included
+additional gateway blocks such as `ipv4_active_leases` and `gw_caps`, but the
+raw adopted payloads remain local because they require the adopted inform key.
 
 ## Local Raw Files
 

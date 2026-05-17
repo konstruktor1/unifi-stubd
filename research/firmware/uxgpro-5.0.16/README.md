@@ -120,6 +120,24 @@ Application and MongoDB so the firmware wrapper can talk to
 `http://unifi:8080/inform` inside a private Docker network. See
 `simulation/controller-lab.md`.
 
+On 2026-05-17, after a lab admin logged into the UniFi Network web portal and
+clicked `Adopt`, the simulated UXG-Pro firmware completed adoption:
+
+- `mca-ctrl -t dump` reported `default=false`, `state=2`, and
+  `last_error=null`.
+- The controller database stored MAC `00:15:6d:de:ad:00` as model `UXGPRO`,
+  type `uxg`, with `adopted=true`.
+- The controller sent `setparam` messages for management configuration and
+  gateway system configuration, then settled into `noop` responses with a
+  10-second inform interval.
+
+The committed adoption fixture is sanitized and omits the adopted inform key,
+tokens, certificates, password hashes, and raw `system_cfg`:
+
+```text
+simulation/fixtures/adoption-mitm-timeline.json
+```
+
 ## Source Availability
 
 No complete public source tree for `mcad`, `udapi-bridge`, or

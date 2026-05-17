@@ -12,3 +12,7 @@ omit raw HTTP bodies and body hashes.
 - `decoded-gateway-inform-sample.json`: sanitized decoded firmware inform
   payload showing the gateway `if_table` and `network_table` fields used for
   WAN/LAN interface reporting in the current lab.
+- `adoption-mitm-timeline.json`: sanitized adoption sequence from portal
+  `Adopt` through adopted steady state. It records packet sizes, decoded
+  message types, state changes, and config versions, but omits raw bodies,
+  auth keys, tokens, certificates, password hashes, and `system_cfg` details.

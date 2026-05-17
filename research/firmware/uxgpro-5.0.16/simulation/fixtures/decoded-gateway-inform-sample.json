@@ -6,7 +6,7 @@
   "decode_key": "UniFi default inform key",
   "controller_response": {
     "status_code": 404,
-    "meaning": "The lab controller route is reachable, but the Dockerized UniFi Network Application does not accept this simulated real-gateway inform stream for adoption yet."
+    "meaning": "Pre-adoption baseline before the portal Adopt action. The same lab later accepted the device after the admin clicked Adopt in the UniFi Network web portal."
   },
   "packet": {
     "magic": "TNBU",

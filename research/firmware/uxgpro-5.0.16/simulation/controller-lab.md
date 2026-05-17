@@ -156,11 +156,18 @@ The lab now makes the firmware telegrams visible end to end:
   `00:15:6d:de:ad:00` and serial `00156DDEAD00`.
 - Gateway interface state is visible in `if_table` and `network_table`; the
   switch-style `port_table` remains `null`.
-- The controller still answers the real UXG-Pro firmware inform stream with
-  HTTP `404`, so the device is not adopted yet.
-- `udapi-bridge` repeatedly logs `RESTAPI login failed for user root`, and
-  direct UDAPI probing showed `/user/check` returning `A12`. Until that local
-  bridge login path is understood, UDAPI-derived payload blocks stay missing.
+- Before portal adoption, the controller answers the real UXG-Pro firmware
+  inform stream with HTTP `404`.
+- After logging into the web portal and clicking `Adopt`, the controller
+  answers with HTTP `200`, sends `setparam`, delivers a new inform auth key,
+  and stores the device as adopted.
+- After adoption, `mca-ctrl -t dump` reports `default=false`, `state=2`, and
+  `last_error=null`.
+- Pre-adoption `udapi-bridge` logs showed `RESTAPI login failed for user root`;
+  direct UDAPI probing showed `/user/check` returning `A12`. The adopted inform
+  stream includes additional gateway blocks, but raw adopted payloads are kept
+  local because they require the adopted inform key and include sensitive
+  controller data.
 
 Quick status summary from the firmware container:
 
@@ -183,6 +190,12 @@ SIM_DIR="$SIM" docker compose \
 SIM_DIR="$SIM" docker compose \
   -f "$RESEARCH/simulation/controller-lab.compose.yaml" \
   exec firmware tail -80 /tmp/unifi-fw-sim/udapi-bridge.run.err
+```
+
+The committed sanitized adoption timeline is:
+
+```text
+research/firmware/uxgpro-5.0.16/simulation/fixtures/adoption-mitm-timeline.json
 ```
 
 ## Inspect
