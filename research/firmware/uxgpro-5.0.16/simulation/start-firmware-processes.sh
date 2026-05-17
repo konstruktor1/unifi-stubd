@@ -18,6 +18,10 @@ mkdir -p /data/udapi-config/ubios-udapi-server "$log_dir"
 : > "$log_dir/udapi-bridge.run.err"
 : > "$log_dir/mcad.run.out"
 : > "$log_dir/mcad.run.err"
+: > "$log_dir/dropbear.run.log"
+: > "$log_dir/dropbear.run.err"
+
+dropbear_pid=""
 
 env LD_PRELOAD="$preload" \
     /usr/bin/ubios-udapi-server \
@@ -52,6 +56,14 @@ if [[ -n "${UXGPRO_SIM_STATIC_ADDRESS:-}" ]]; then
     ip addr add "$UXGPRO_SIM_STATIC_ADDRESS" dev "$static_interface"
 fi
 
+if [[ "${UXGPRO_SIM_START_DROPBEAR:-0}" == "1" ]]; then
+    mkdir -p /etc/dropbear
+    /usr/sbin/dropbear -F -E -R -p 0.0.0.0:22 \
+        >"$log_dir/dropbear.run.log" \
+        2>"$log_dir/dropbear.run.err" &
+    dropbear_pid=$!
+fi
+
 /usr/bin/udapi-bridge \
     -m UXGPRO \
     -M 00:15:6d:de:ad:00 \
@@ -70,13 +82,22 @@ env LD_PRELOAD="$preload" \
 mcad_pid=$!
 
 stop_processes() {
-    kill "$mcad_pid" "$bridge_pid" "$udapi_pid" 2>/dev/null || true
-    wait "$mcad_pid" "$bridge_pid" "$udapi_pid" 2>/dev/null || true
+    pids=("$mcad_pid" "$bridge_pid" "$udapi_pid")
+    if [[ -n "$dropbear_pid" ]]; then
+        pids+=("$dropbear_pid")
+    fi
+    kill "${pids[@]}" 2>/dev/null || true
+    wait "${pids[@]}" 2>/dev/null || true
 }
 
 trap stop_processes INT TERM
 
-wait -n "$mcad_pid" "$bridge_pid" "$udapi_pid"
+wait_pids=("$mcad_pid" "$bridge_pid" "$udapi_pid")
+if [[ -n "$dropbear_pid" ]]; then
+    wait_pids+=("$dropbear_pid")
+fi
+
+wait -n "${wait_pids[@]}"
 status=$?
 stop_processes
 exit "$status"

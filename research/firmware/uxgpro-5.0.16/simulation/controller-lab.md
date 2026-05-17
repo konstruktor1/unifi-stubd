@@ -22,6 +22,10 @@ firmware container cannot reach the host network or the internet. The
 controller also joins a normal Docker network so its UI can be published to
 localhost on HTTPS port `8443`.
 
+The lab starts Dropbear inside the firmware container because `mcad` waits for
+an SSH daemon before it sends normal inform traffic. No SSH port is published
+to the host; it is only reachable inside the private Docker lab network.
+
 The lab uses static internal addresses because `ubios-udapi-server` rewrites
 `/etc/resolv.conf` inside the firmware container and also takes control of
 `eth0`. The firmware service therefore gets an `/etc/hosts` entry for `unifi`,
