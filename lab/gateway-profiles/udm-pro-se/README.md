@@ -12,6 +12,9 @@ Current state:
 - Firmware image downloaded under `research/firmware/udm-pro-se-5.0.16/`.
 - Rootfs SquashFS offset and checksum identified.
 - Docker wrapper and networkless Compose simulation are prepared.
-- Simulation is expected to be partial until local `mca-ctrl` access is proven.
+- `ubios-udapi-server` reaches `/var/run/ubnt-udapi-server.sock` through the
+  deterministic RTL8370-style `swconfig` mock.
+- Simulation remains partial until local `mca-ctrl` access and controller
+  adoption are proven.
 
 Use `docker-howto.md` for the local import and startup steps.

@@ -40,6 +40,7 @@ Observed inside the extracted rootfs:
 - `/usr/bin/ubios-udapi-client`
 - `/usr/bin/udapi-bridge`
 - `/usr/bin/udapic`
+- `/usr/lib/libsw.so`
 - `/lib/systemd/system/udapi-server.service`
 - `/lib/systemd/system/udapi-bridge.service`
 - `/lib/systemd/system/mcagent.service`

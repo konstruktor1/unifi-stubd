@@ -93,7 +93,7 @@ profiles:
     simulation_wrapper: lab/gateway-profiles/udm-pro-se/Dockerfile
     start_command: /usr/local/bin/udm-pro-se-sim-start
     start_style: ubios-udapi-server + udapi-bridge + mcad
-    current_blocker: ubios-udapi-server reaches board initialization and exits with "Failed to connect to switch chip"; /tmp/.mcad is not available, so mca-ctrl cannot dump management state yet.
+    current_blocker: ubios-udapi-server reaches /var/run/ubnt-udapi-server.sock with the RTL8370-style swconfig mock; mca-ctrl and controller adoption still need deterministic mcad control data.
     committed_findings:
       - research/firmware/udm-pro-se-5.0.16/README.md
       - research/firmware/udm-pro-se-5.0.16/source-inventory.md

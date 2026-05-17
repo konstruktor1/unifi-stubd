@@ -68,6 +68,11 @@ docker run --rm \
 ```sh
 rm -rf "$SIM"
 mkdir -p \
+  "$SIM/mtd" \
+  "$SIM/persistent" \
+  "$SIM/sys/class/hwmon/hwmon0/device" \
+  "$SIM/sys/class/mtd/mtd5" \
+  "$SIM/sys/class/thermal/thermal_zone0" \
   "$SIM/ubnthal/status" \
   "$SIM/proc/sys/crypto" \
   "$SIM/proc/sys/kernel" \
@@ -144,6 +149,16 @@ printf '4096\n' > "$SIM/proc/sys/net/core/somaxconn"
 printf '0\n' > "$SIM/proc/sys/net/ipv4/ip_forward"
 printf '0\n' > "$SIM/proc/sys/net/ipv6/conf/all/forwarding"
 printf '0\n' > "$SIM/proc/sys/net/netfilter/nf_conntrack_helper"
+printf 'dev:    size   erasesize  name\nmtd5: 00010000 00010000 "eeprom"\n' > "$SIM/mtd/proc_mtd"
+dd if=/dev/zero of="$SIM/mtd/mtd5" bs=65536 count=1
+cp "$SIM/mtd/mtd5" "$SIM/mtd/mtdblock5"
+printf 'c2 20 18\n' > "$SIM/sys/class/mtd/mtd5/jedec_id"
+printf '50000\n' > "$SIM/sys/class/hwmon/hwmon0/device/temp1_input"
+printf '42000\n' > "$SIM/sys/class/hwmon/hwmon0/device/temp2_input"
+printf '43000\n' > "$SIM/sys/class/hwmon/hwmon0/device/temp3_input"
+printf '1800\n' > "$SIM/sys/class/hwmon/hwmon0/device/fan1_input"
+printf '1600\n' > "$SIM/sys/class/hwmon/hwmon0/device/fan2_input"
+printf '50000\n' > "$SIM/sys/class/thermal/thermal_zone0/temp"
 ```
 
 ## Build Shim
@@ -155,10 +170,27 @@ SIM_DIR="$SIM" docker compose \
   run --rm shim-builder
 ```
 
-## Start Partial Simulation
+## Start Simulation
 
 ```sh
 SIM_DIR="$SIM" docker compose \
+  -f "$PROFILE/compose.yaml" \
+  up -d --build firmware
+```
+
+For syscall and shim tracing, rebuild the shim and start with tracing enabled:
+
+```sh
+SIM_DIR="$SIM" docker compose \
+  -f "$PROFILE/compose.yaml" \
+  --profile build-shim \
+  run --rm shim-builder
+
+SIM_DIR="$SIM" \
+UNIFI_FW_SIM_TRACE=1 \
+UBNTHAL_REDIRECT_DEBUG=1 \
+UBNTHAL_REDIRECT_TRACE_ALL=1 \
+docker compose \
   -f "$PROFILE/compose.yaml" \
   up -d --build firmware
 ```
@@ -176,6 +208,12 @@ any controller lab:
 ```sh
 docker compose -f "$PROFILE/compose.yaml" exec firmware \
   find /run /tmp -maxdepth 2 -type s -o -type f
+
+docker compose -f "$PROFILE/compose.yaml" exec firmware \
+  sh -lc 'test -S /var/run/ubnt-udapi-server.sock && echo UDAPI_SOCKET_PRESENT'
+
+docker compose -f "$PROFILE/compose.yaml" exec firmware \
+  tail -80 /tmp/ubios-udapi-server.run.log
 ```
 
 Stop:
@@ -186,15 +224,14 @@ SIM_DIR="$SIM" docker compose \
   down
 ```
 
-## Known Blocker
+## Current Limitation
 
-This wrapper starts far enough to prove that the firmware reads the mocked
-board identity and writes redirected sysctl values through the mock tree. It
-currently stops at `Failed to connect to switch chip`; with
-`UNIFI_FW_SIM_ALLOW_PARTIAL=1` the container stays alive for log inspection.
-In this partial state, `mca-ctrl -t dump` cannot complete because `/tmp/.mcad`
-is not available.
+This wrapper now starts far enough to prove that the firmware reads the mocked
+board identity, writes redirected sysctl values, initializes mocked MTD/sysfs
+paths, configures the RTL8370-style switch through the userspace `swconfig`
+ABI, and creates `/var/run/ubnt-udapi-server.sock`.
 
-Treat it as a startup-analysis profile until `mca-ctrl -t dump` works with
-deterministic lab values and `mcad` uses the mocked identity instead of fallback
-runtime data.
+The RTL8370 is not emulated at register or kernel-driver level. The shim only
+mocks the `libsw.so` API surface used by the firmware. Treat this as a
+startup-analysis profile until `mca-ctrl -t dump` works with deterministic lab
+values and a controller/MITM run proves the adopted inform path.

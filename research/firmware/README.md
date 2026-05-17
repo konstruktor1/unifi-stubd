@@ -163,7 +163,8 @@ Next research steps:
 
 ## udm-pro-se-5.0.16
 
-Status: rootfs identified and Docker wrapper prepared.
+Status: Docker wrapper reaches the UbiOS UDAPI socket with a deterministic
+RTL8370-style switch mock.
 
 - Device type: `udm`
 - Model: `UDMPROSE`
@@ -207,16 +208,21 @@ Current finding summary:
   driver `RTL8370`.
 - The same UbiOS `ubios-udapi-server` -> `udapi-bridge` -> `mcad` process
   shape is present.
-- The networkless wrapper reaches board initialization and then exits with
-  `Failed to connect to switch chip`.
+- The networkless wrapper redirects board, sysctl, MTD, sysfs, and persistent
+  paths into `/mock`.
+- The RTL8370 is not emulated at register level; the wrapper exposes a
+  deterministic userspace `libsw.so`/OpenWrt `swconfig` ABI mock.
+- `ubios-udapi-server` creates `/var/run/ubnt-udapi-server.sock`, and
+  `udapi-bridge` exchanges internal UDAPI requests through it.
 - No controller adoption lab has been completed for this profile yet.
 
 Next research steps:
 
-- Import the rootfs into local Docker image `udm-pro-se-fw:5.0.16`.
-- Add a deterministic switch-chip mock so `ubios-udapi-server` can reach socket
-  bind.
-- Compare startup behavior against UCG-Fiber and UXG-Pro.
+- Add deterministic Linux netdev and netlink behavior for `switch0` and `eth0`
+  through `eth10`.
+- Prove stable `mcad` local control data with `mca-ctrl -t dump`.
+- Attach the profile to a controller/MITM lab only after local control data is
+  stable.
 
 ## ugw3-4.4.57
 
