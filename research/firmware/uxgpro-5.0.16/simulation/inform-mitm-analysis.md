@@ -33,6 +33,12 @@ Committed sanitized telegram samples:
 research/firmware/uxgpro-5.0.16/simulation/fixtures/inform-telegrams.jsonl
 ```
 
+Committed decoded gateway payload sample:
+
+```text
+research/firmware/uxgpro-5.0.16/simulation/fixtures/decoded-gateway-inform-sample.json
+```
+
 Snapshot window:
 
 ```text
@@ -66,6 +72,14 @@ The controller returned empty responses with HTTP `404` during this run. That
 means the firmware, MITM, and controller network path is working, but the UniFi
 Network Application had not yet reached a state where it handles this lab
 inform stream as an adopted or adoptable device.
+
+After the controller setup flow was completed through the local API, `GET
+/inform` returned `400`, confirming that the inform route was present. Firmware
+`POST /inform` requests still returned `404` because the real firmware payload
+continues to report a zero top-level device MAC in both the TNBU packet header
+and decoded payload. The decoded payload still makes the gateway reporting
+shape visible: WAN/LAN state appears in `if_table` and `network_table`, not in
+the switch-style `port_table`.
 
 ## Local Raw Files
 

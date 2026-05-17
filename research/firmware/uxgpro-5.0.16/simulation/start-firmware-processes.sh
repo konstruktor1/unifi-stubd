@@ -56,6 +56,25 @@ if [[ -n "${UXGPRO_SIM_STATIC_ADDRESS:-}" ]]; then
     ip addr add "$UXGPRO_SIM_STATIC_ADDRESS" dev "$static_interface"
 fi
 
+if [[ -n "${UXGPRO_SIM_DUMMY_INTERFACES:-}" ]]; then
+    IFS=';' read -r -a dummy_interfaces <<< "$UXGPRO_SIM_DUMMY_INTERFACES"
+    for dummy_interface in "${dummy_interfaces[@]}"; do
+        [[ -z "$dummy_interface" ]] && continue
+        IFS=',' read -r iface mac address <<< "$dummy_interface"
+        [[ -z "${iface:-}" ]] && continue
+
+        ip link show "$iface" >/dev/null 2>&1 || ip link add "$iface" type dummy
+        if [[ -n "${mac:-}" ]]; then
+            ip link set "$iface" address "$mac"
+        fi
+        ip link set "$iface" up
+        if [[ -n "${address:-}" ]]; then
+            ip addr flush dev "$iface" scope global || true
+            ip addr add "$address" dev "$iface"
+        fi
+    done
+fi
+
 if [[ "${UXGPRO_SIM_START_DROPBEAR:-0}" == "1" ]]; then
     mkdir -p /etc/dropbear
     /usr/sbin/dropbear -F -E -R -p 0.0.0.0:22 \

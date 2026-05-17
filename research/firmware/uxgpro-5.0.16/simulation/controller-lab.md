@@ -26,6 +26,12 @@ The lab starts Dropbear inside the firmware container because `mcad` waits for
 an SSH daemon before it sends normal inform traffic. No SSH port is published
 to the host; it is only reachable inside the private Docker lab network.
 
+The lab also creates dummy `eth1`, `eth2`, and `eth3` interfaces by default so
+decoded gateway inform payloads show WAN/LAN interface reporting beyond the
+single Docker `eth0` link. Override `UXGPRO_SIM_DUMMY_INTERFACES` with
+semicolon-separated `interface,mac,address` entries, or set it to an empty
+string to disable the extra interfaces.
+
 The lab uses static internal addresses because `ubios-udapi-server` rewrites
 `/etc/resolv.conf` inside the firmware container and also takes control of
 `eth0`. The firmware service therefore gets an `/etc/hosts` entry for `unifi`,
@@ -131,6 +137,13 @@ Watch live MITM logs:
 SIM_DIR="$SIM" docker compose \
   -f "$RESEARCH/simulation/controller-lab.compose.yaml" \
   logs -f inform-mitm
+```
+
+Decode one local request body with the default inform key:
+
+```sh
+go run ./research/firmware/uxgpro-5.0.16/simulation/tools/decode-inform \
+  "$RESEARCH/simulation/captures/<event-id>-request.bin"
 ```
 
 ## Inspect

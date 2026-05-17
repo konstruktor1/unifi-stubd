@@ -9,6 +9,8 @@ against the firmware container.
 See `inform-mitm-analysis.md` for sanitized findings from a local MITM run.
 See `fixtures/inform-telegrams.jsonl` for committed, sanitized inform
 telegram samples.
+Use `tools/decode-inform` to decode local raw `TNBU` capture bodies with a
+known inform key.
 
 `ubnthal_redirect.c` is an LD_PRELOAD shim. It lets selected firmware binaries
 read mock hardware data from `/mock` instead of host kernel paths and no-ops a

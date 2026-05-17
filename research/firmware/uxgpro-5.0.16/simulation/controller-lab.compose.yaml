@@ -34,6 +34,7 @@ services:
       UXGPRO_SIM_STATIC_INTERFACE: eth0
       UXGPRO_SIM_STATIC_ADDRESS: ${UNIFI_LAB_FIRMWARE_IP:-172.31.240.20}/24
       UXGPRO_SIM_START_DROPBEAR: "1"
+      UXGPRO_SIM_DUMMY_INTERFACES: ${UXGPRO_SIM_DUMMY_INTERFACES-eth1,00:15:6d:de:ad:01,192.0.2.2/24;eth2,00:15:6d:de:ad:02,198.51.100.2/24;eth3,00:15:6d:de:ad:03,203.0.113.2/24}
     volumes:
       - type: bind
         source: ${SIM_DIR:-/tmp/unifi-fw-sim}

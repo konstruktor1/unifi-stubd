@@ -119,6 +119,7 @@ model_description=Gateway Pro
 model_url=http://ui.com
 serial=000000000000
 hwaddrbbase=00:15:6d:de:ad:00
+hwaddrbase=00:15:6d:de:ad:00
 EOF
 
 cat > "$SIM/ubnthal/system.info" <<'EOF'
@@ -136,6 +137,7 @@ mfgweek=202607
 qrid=SIMULATED
 cpu_rev_id=00010000
 macaddr=02:00:00:00:00:01
+eth0.macaddr=00:15:6d:de:ad:00
 firmware=5.0.16
 EOF
 
