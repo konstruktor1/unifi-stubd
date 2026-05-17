@@ -18,7 +18,9 @@ Der Controller darf nicht ungeprueft Host-Konfigurationen veraendern. Fuer den M
 
 - `setparam` speichern.
 - `noop` quittieren.
-- Restart/upgrade/provisioning nur loggen.
+- Fuer Gateway-`system_cfg` nur bereinigte Metadaten wie Byte-Laenge und
+  Top-Level-Keys erfassen.
+- Restart-/Upgrade-/Provisioning-Kommandos als per Policy ignoriert markieren.
 - Keine Shell-Kommandos vom Controller ausfuehren.
 
 ## Netzgrenzen

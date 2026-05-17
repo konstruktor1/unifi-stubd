@@ -24,7 +24,10 @@ func TestMinimalSwitchPayloadReportsPortCount(t *testing.T) {
 	}
 
 	var doc struct {
+		Adopted       bool             `json:"adopted"`
+		Default       bool             `json:"default"`
 		NumPort       int              `json:"num_port"`
+		State         int              `json:"state"`
 		EthernetTable []map[string]any `json:"ethernet_table"`
 		IfTable       []map[string]any `json:"if_table"`
 		PortTable     []map[string]any `json:"port_table"`
@@ -35,6 +38,9 @@ func TestMinimalSwitchPayloadReportsPortCount(t *testing.T) {
 	if doc.NumPort != 16 {
 		t.Fatalf("top-level num_port = %d, want 16", doc.NumPort)
 	}
+	if doc.State != 1 || !doc.Default || doc.Adopted {
+		t.Fatalf("factory adoption fields = state %d default %t adopted %t", doc.State, doc.Default, doc.Adopted)
+	}
 	if got := int(doc.EthernetTable[0]["num_port"].(float64)); got != 16 {
 		t.Fatalf("ethernet_table num_port = %d, want 16", got)
 	}
@@ -43,6 +49,36 @@ func TestMinimalSwitchPayloadReportsPortCount(t *testing.T) {
 	}
 	if len(doc.PortTable) != 16 {
 		t.Fatalf("port_table length = %d, want 16", len(doc.PortTable))
+	}
+}
+
+func TestMinimalSwitchPayloadReportsAdoptedState(t *testing.T) {
+	payload, err := device.MinimalSwitchPayload(device.Identity{
+		MAC:          "02:11:22:33:44:56",
+		IP:           "192.0.2.50",
+		Hostname:     "unifi-stubd-lab",
+		Model:        "US8",
+		ModelDisplay: "UniFi Switch 8",
+		Version:      "7.4.1.16850",
+		Serial:       "021122334456",
+		InformURL:    "http://192.0.2.10:8080/inform",
+		CFGVersion:   "abc123",
+		Adopted:      true,
+	}, device.SwitchPorts(8))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var doc struct {
+		Adopted bool `json:"adopted"`
+		Default bool `json:"default"`
+		State   int  `json:"state"`
+	}
+	if err := json.Unmarshal(payload, &doc); err != nil {
+		t.Fatal(err)
+	}
+	if doc.State != 2 || doc.Default || !doc.Adopted {
+		t.Fatalf("adopted fields = state %d default %t adopted %t", doc.State, doc.Default, doc.Adopted)
 	}
 }
 

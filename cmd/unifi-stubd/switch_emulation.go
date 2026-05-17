@@ -194,19 +194,35 @@ func sendInformHeartbeat(mac net.HardwareAddr, informURL, statePath, statusPath 
 	last.RawBytes = len(resp.RawBody)
 	last.JSONBytes = len(resp.JSONBody)
 	if len(resp.JSONBody) > 0 {
-		store = updateAdoptionState(statePath, store, resp.JSONBody, usedGCM)
-		last.ControllerState = adoptionStateText(store)
-		last.CFGVersion = store.CFGVersion
-		last.Version = store.Version
-		if _, kind, ok, _ := adoption.ParseControllerResponse(resp.JSONBody); ok {
-			last.ResponseType = kind
+		controllerResponse, parseErr := adoption.ParseControllerResponseInfo(resp.JSONBody)
+		if parseErr != nil {
+			last.Error = parseErr.Error()
+			log.Printf("controller response parse failed: %v", parseErr)
+		} else {
+			store = updateAdoptionState(statePath, store, controllerResponse, usedGCM)
+			last.ControllerState = adoptionStateText(store)
+			last.CFGVersion = store.CFGVersion
+			last.Version = store.Version
+			applyControllerResponseStatus(&last, controllerResponse)
+			logInformResponse(resp, controllerResponse, store)
 		}
 		recordLastInform(statusPath, last, resp.StatusCode, last.ResponseType, usedGCM, len(resp.RawBody), len(resp.JSONBody), nil)
-		logInformResponse(resp, store)
 		return
 	}
 	recordLastInform(statusPath, last, resp.StatusCode, "", usedGCM, len(resp.RawBody), 0, nil)
 	log.Printf("inform response status=%d raw_bytes=%d", resp.StatusCode, len(resp.RawBody))
+}
+
+func applyControllerResponseStatus(last *lastInformStatus, response adoption.ControllerResponse) {
+	last.ResponseType = response.Type
+	last.IntervalSeconds = response.IntervalSeconds
+	last.IncludeBlocks = cloneStrings(response.IncludeBlocks)
+	last.HasMgmtCFG = response.HasMgmtCFG
+	last.HasSystemCFG = response.HasSystemCFG
+	last.SystemCFGBytes = response.SystemCFGBytes
+	last.SystemCFGKeys = cloneStrings(response.SystemCFGKeys)
+	last.Ignored = response.Ignored
+	last.IgnoredReason = response.IgnoredReason
 }
 
 func recordLastInform(statusPath string, last lastInformStatus, statusCode int, responseType string, usedGCM bool, rawBytes, jsonBytes int, err error) {

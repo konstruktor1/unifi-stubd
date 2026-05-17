@@ -112,17 +112,25 @@ type persistedRunStatus struct {
 }
 
 type lastInformStatus struct {
-	Time            string `json:"time,omitempty"`
-	URL             string `json:"url,omitempty"`
-	StatusCode      int    `json:"status_code,omitempty"`
-	ResponseType    string `json:"response_type,omitempty"`
-	ControllerState string `json:"controller_state,omitempty"`
-	CFGVersion      string `json:"cfgversion,omitempty"`
-	Version         string `json:"version,omitempty"`
-	UsedAESGCM      bool   `json:"used_aes_gcm,omitempty"`
-	RawBytes        int    `json:"raw_bytes,omitempty"`
-	JSONBytes       int    `json:"json_bytes,omitempty"`
-	Error           string `json:"error,omitempty"`
+	Time            string   `json:"time,omitempty"`
+	URL             string   `json:"url,omitempty"`
+	StatusCode      int      `json:"status_code,omitempty"`
+	ResponseType    string   `json:"response_type,omitempty"`
+	ControllerState string   `json:"controller_state,omitempty"`
+	CFGVersion      string   `json:"cfgversion,omitempty"`
+	Version         string   `json:"version,omitempty"`
+	UsedAESGCM      bool     `json:"used_aes_gcm,omitempty"`
+	RawBytes        int      `json:"raw_bytes,omitempty"`
+	JSONBytes       int      `json:"json_bytes,omitempty"`
+	IntervalSeconds int      `json:"interval_seconds,omitempty"`
+	IncludeBlocks   []string `json:"include_blocks,omitempty"`
+	HasMgmtCFG      bool     `json:"has_mgmt_cfg,omitempty"`
+	HasSystemCFG    bool     `json:"has_system_cfg,omitempty"`
+	SystemCFGBytes  int      `json:"system_cfg_bytes,omitempty"`
+	SystemCFGKeys   []string `json:"system_cfg_keys,omitempty"`
+	Ignored         bool     `json:"ignored,omitempty"`
+	IgnoredReason   string   `json:"ignored_reason,omitempty"`
+	Error           string   `json:"error,omitempty"`
 }
 
 func printLocalStatus(flags runtimeFlags, profile device.Profile, mac net.HardwareAddr, ip net.IP, hostname string, portOptions device.PortOptions) error {
@@ -391,6 +399,26 @@ func printLastInform(last lastInformStatus) {
 	fmt.Printf("last_inform_used_aes_gcm: %t\n", last.UsedAESGCM)
 	fmt.Printf("last_inform_raw_bytes: %d\n", last.RawBytes)
 	fmt.Printf("last_inform_json_bytes: %d\n", last.JSONBytes)
+	if last.IntervalSeconds > 0 {
+		fmt.Printf("last_inform_interval_seconds: %d\n", last.IntervalSeconds)
+	}
+	for _, block := range last.IncludeBlocks {
+		fmt.Printf("last_inform_include_block: %s\n", block)
+	}
+	if last.HasMgmtCFG {
+		fmt.Println("last_inform_has_mgmt_cfg: true")
+	}
+	if last.HasSystemCFG {
+		fmt.Printf("last_inform_has_system_cfg: true\n")
+		fmt.Printf("last_inform_system_cfg_bytes: %d\n", last.SystemCFGBytes)
+		for _, key := range last.SystemCFGKeys {
+			fmt.Printf("last_inform_system_cfg_key: %s\n", key)
+		}
+	}
+	if last.Ignored {
+		fmt.Println("last_inform_ignored: true")
+		fmt.Printf("last_inform_ignored_reason: %s\n", valueOrDash(last.IgnoredReason))
+	}
 	if last.Error != "" {
 		fmt.Printf("last_inform_error: %s\n", last.Error)
 	}

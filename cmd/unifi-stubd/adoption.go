@@ -27,13 +27,9 @@ func effectiveInformURL(fallback string, store adoption.Store) string {
 	return fallback
 }
 
-func updateAdoptionState(path string, store adoption.Store, body []byte, usedGCM bool) adoption.Store {
-	update, kind, ok, err := adoption.ParseControllerResponse(body)
-	if err != nil {
-		log.Printf("controller response parse failed: %v", err)
-		return store
-	}
-	if !ok {
+func updateAdoptionState(path string, store adoption.Store, response adoption.ControllerResponse, usedGCM bool) adoption.Store {
+	update := response.Store
+	if !response.HasStateUpdate {
 		if usedGCM && store.AuthKey != "" && !store.UseAESGCM {
 			store.UseAESGCM = true
 			if err := adoption.SaveEnv(path, store); err != nil {
@@ -51,33 +47,50 @@ func updateAdoptionState(path string, store adoption.Store, body []byte, usedGCM
 			log.Printf("adoption state write failed: %v", err)
 		}
 	}
-	if kind == "upgrade" {
+	if response.Type == "upgrade" {
 		log.Printf("controller requested firmware version %q; reporting it from next inform", store.Version)
 	}
 	return store
 }
 
-func logInformResponse(resp *inform.Response, store adoption.Store) {
-	if _, kind, ok, _ := adoption.ParseControllerResponse(resp.JSONBody); ok {
-		if kind == "setparam" {
+func logInformResponse(resp *inform.Response, response adoption.ControllerResponse, store adoption.Store) {
+	if response.Type != "" {
+		if response.Type == "setparam" {
 			log.Printf(
-				"inform response status=%d setparam cfgversion=%q inform_url=%q use_aes_gcm=%t authkey_set=%t",
+				"inform response status=%d setparam cfgversion=%q inform_url=%q use_aes_gcm=%t authkey_set=%t mgmt_cfg=%t system_cfg=%t system_cfg_bytes=%d ignored=%t",
 				resp.StatusCode,
 				store.CFGVersion,
 				store.InformURL,
 				store.UseAESGCM,
 				store.AuthKey != "",
+				response.HasMgmtCFG,
+				response.HasSystemCFG,
+				response.SystemCFGBytes,
+				response.Ignored,
+			)
+			return
+		}
+		if response.Ignored {
+			log.Printf(
+				"inform response status=%d type=%s ignored=true reason=%q state=%q version=%q",
+				resp.StatusCode,
+				response.Type,
+				response.IgnoredReason,
+				store.State,
+				store.Version,
 			)
 			return
 		}
 		log.Printf(
-			"inform response status=%d type=%s state=%q version=%q",
+			"inform response status=%d type=%s state=%q version=%q interval=%d include_blocks=%v",
 			resp.StatusCode,
-			kind,
+			response.Type,
 			store.State,
 			store.Version,
+			response.IntervalSeconds,
+			response.IncludeBlocks,
 		)
 		return
 	}
-	log.Printf("inform response status=%d body=%s", resp.StatusCode, string(resp.JSONBody))
+	log.Printf("inform response status=%d decoded_json_bytes=%d type=unknown", resp.StatusCode, len(resp.JSONBody))
 }

@@ -236,7 +236,8 @@ func MinimalSwitchPayload(id Identity, ports []Port) ([]byte, error) {
 		"version":            id.Version,
 		"serial":             id.Serial,
 		jsonKeyNumPort:       numPorts,
-		"state":              1,
+		"state":              informState(id.Adopted),
+		"adopted":            id.Adopted,
 		"default":            !id.Adopted,
 		"discovery_response": true,
 		"required_version":   "5.0.0",
@@ -278,6 +279,13 @@ func MinimalSwitchPayload(id Identity, ports []Port) ([]byte, error) {
 		return nil, fmt.Errorf("marshal switch payload: %w", err)
 	}
 	return data, nil
+}
+
+func informState(adopted bool) int {
+	if adopted {
+		return 2
+	}
+	return 1
 }
 
 func isGatewayDeviceType(deviceType string) bool {

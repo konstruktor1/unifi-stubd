@@ -18,7 +18,9 @@ The controller must not blindly mutate host configuration. For the MVP:
 
 - Persist `setparam`.
 - Acknowledge `noop`.
-- Only log restart/upgrade/provisioning commands.
+- Record only sanitized metadata for gateway `system_cfg`, such as byte length
+  and top-level keys.
+- Mark restart/upgrade/provisioning commands as ignored by policy.
 - Do not execute shell commands from the controller.
 
 ## Network Boundaries

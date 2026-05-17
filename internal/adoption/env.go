@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -97,56 +98,177 @@ func Merge(base, update Store) (Store, bool) {
 	return base, changed
 }
 
+const (
+	responseTypeNoop     = "noop"
+	responseTypeSetParam = "setparam"
+	responseTypeUpgrade  = "upgrade"
+)
+
 // ParseSetParamResponse extracts adoption settings from a setparam response.
 func ParseSetParamResponse(data []byte) (Store, bool, error) {
 	store, kind, ok, err := ParseControllerResponse(data)
-	return store, ok && kind == "setparam", err
+	return store, ok && kind == responseTypeSetParam, err
 }
 
 // ParseControllerResponse extracts adoption state from a controller response.
 func ParseControllerResponse(data []byte) (Store, string, bool, error) {
-	var raw struct {
-		Type    string `json:"_type"`
-		MgmtCFG string `json:"mgmt_cfg"`
-		Version string `json:"version"`
+	info, err := ParseControllerResponseInfo(data)
+	if err != nil {
+		return Store{}, "", false, err
 	}
+	return info.Store, info.Type, info.HasStateUpdate, nil
+}
+
+// ParseControllerResponseInfo returns a sanitized controller response summary.
+func ParseControllerResponseInfo(data []byte) (ControllerResponse, error) {
+	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(data, &raw); err != nil {
-		return Store{}, "", false, fmt.Errorf("parse controller response: %w", err)
+		return ControllerResponse{}, fmt.Errorf("parse controller response: %w", err)
 	}
-	switch raw.Type {
-	case "setparam":
-		if raw.MgmtCFG == "" {
-			return Store{}, raw.Type, false, nil
+	response := ControllerResponse{Type: jsonString(raw["_type"])}
+	switch response.Type {
+	case responseTypeSetParam:
+		if mgmtCFG := jsonString(raw["mgmt_cfg"]); mgmtCFG != "" {
+			response.HasMgmtCFG = true
+			response.Store = parseMgmtCFG(mgmtCFG)
+			response.HasStateUpdate = storeHasStateUpdate(response.Store)
 		}
-		store := Store{State: StateProvisioning}
-		for _, line := range strings.Split(raw.MgmtCFG, "\n") {
-			key, value, ok := strings.Cut(strings.TrimSpace(line), "=")
-			if !ok {
-				continue
+		if systemCFG, ok := raw["system_cfg"]; ok {
+			response.HasSystemCFG = true
+			response.SystemCFGBytes, response.SystemCFGKeys = summarizeSystemCFG(systemCFG)
+			response.Ignored = true
+			response.IgnoredReason = "system_cfg provisioning is recorded as metadata only"
+		}
+	case responseTypeUpgrade:
+		version := jsonString(raw["version"])
+		if version != "" {
+			response.Store = Store{
+				State:   StateProvisioning,
+				Version: version,
 			}
-			switch key {
-			case "inform_url":
-				store.InformURL = value
-			case "authkey":
-				store.AuthKey = value
-			case "cfgversion":
-				store.CFGVersion = value
-			case "use_aes_gcm":
-				store.UseAESGCM, _ = strconv.ParseBool(value)
-			}
+			response.HasStateUpdate = true
 		}
-		return store, raw.Type, true, nil
-	case "upgrade":
-		if raw.Version == "" {
-			return Store{}, raw.Type, false, nil
-		}
-		return Store{
-			State:   StateProvisioning,
-			Version: raw.Version,
-		}, raw.Type, true, nil
-	case "noop":
-		return Store{State: StateConnected}, raw.Type, true, nil
+		response.Ignored = true
+		response.IgnoredReason = "firmware upgrade request ignored by safety policy"
+	case responseTypeNoop:
+		response.Store = Store{State: StateConnected}
+		response.HasStateUpdate = true
+		response.IntervalSeconds = jsonInt(raw["interval"])
+		response.IncludeBlocks = jsonStringSlice(raw["include_blocks"])
 	default:
-		return Store{}, raw.Type, false, nil
+		if isUnsafeControllerCommand(response.Type) {
+			response.Store = Store{State: StateProvisioning}
+			response.HasStateUpdate = true
+			response.Ignored = true
+			response.IgnoredReason = "controller command ignored by safety policy"
+		}
+	}
+	return response, nil
+}
+
+func parseMgmtCFG(mgmtCFG string) Store {
+	store := Store{State: StateProvisioning}
+	for _, line := range strings.Split(mgmtCFG, "\n") {
+		key, value, ok := strings.Cut(strings.TrimSpace(line), "=")
+		if !ok {
+			continue
+		}
+		switch key {
+		case "inform_url":
+			store.InformURL = value
+		case "authkey":
+			store.AuthKey = value
+		case "cfgversion":
+			store.CFGVersion = value
+		case "use_aes_gcm":
+			store.UseAESGCM, _ = strconv.ParseBool(value)
+		}
+	}
+	return store
+}
+
+func storeHasStateUpdate(store Store) bool {
+	return store.InformURL != "" ||
+		store.AuthKey != "" ||
+		store.CFGVersion != "" ||
+		store.UseAESGCM ||
+		store.Version != "" ||
+		store.State != ""
+}
+
+func jsonString(raw json.RawMessage) string {
+	if len(raw) == 0 {
+		return ""
+	}
+	var value string
+	if err := json.Unmarshal(raw, &value); err == nil {
+		return strings.TrimSpace(value)
+	}
+	return ""
+}
+
+func jsonInt(raw json.RawMessage) int {
+	if len(raw) == 0 {
+		return 0
+	}
+	var value int
+	if err := json.Unmarshal(raw, &value); err == nil {
+		return value
+	}
+	return 0
+}
+
+func jsonStringSlice(raw json.RawMessage) []string {
+	if len(raw) == 0 {
+		return nil
+	}
+	var values []string
+	if err := json.Unmarshal(raw, &values); err != nil {
+		return nil
+	}
+	out := make([]string, 0, len(values))
+	for _, value := range values {
+		if value = strings.TrimSpace(value); value != "" {
+			out = append(out, value)
+		}
+	}
+	return out
+}
+
+func summarizeSystemCFG(raw json.RawMessage) (int, []string) {
+	raw = []byte(strings.TrimSpace(string(raw)))
+	if len(raw) == 0 {
+		return 0, nil
+	}
+	payload := raw
+	var text string
+	if err := json.Unmarshal(raw, &text); err == nil {
+		payload = []byte(strings.TrimSpace(text))
+	}
+	keys := topLevelJSONKeys(payload)
+	return len(payload), keys
+}
+
+func topLevelJSONKeys(data []byte) []string {
+	var object map[string]json.RawMessage
+	if err := json.Unmarshal(data, &object); err != nil {
+		return nil
+	}
+	keys := make([]string, 0, len(object))
+	for key := range object {
+		if key = strings.TrimSpace(key); key != "" {
+			keys = append(keys, key)
+		}
+	}
+	sort.Strings(keys)
+	return keys
+}
+
+func isUnsafeControllerCommand(responseType string) bool {
+	switch strings.TrimSpace(responseType) {
+	case "cmd", "exec", "restart", "reboot", "restore-default", "shell", "syswrapper", "upgrade":
+		return true
+	default:
+		return false
 	}
 }

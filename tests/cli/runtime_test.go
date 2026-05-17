@@ -183,6 +183,13 @@ USE_AES_GCM=true
     "controller_state": "connected",
     "cfgversion": "abc123",
     "used_aes_gcm": true,
+    "interval_seconds": 10,
+    "include_blocks": ["system-stats"],
+    "has_system_cfg": true,
+    "system_cfg_bytes": 42,
+    "system_cfg_keys": ["ubntconf", "udapi"],
+    "ignored": true,
+    "ignored_reason": "system_cfg provisioning is recorded as metadata only",
     "raw_bytes": 128,
     "json_bytes": 64
   }
@@ -220,8 +227,15 @@ status_path: `+statusPath+`
 		} `json:"adoption"`
 		Runtime struct {
 			LastInform struct {
-				StatusCode   int    `json:"status_code"`
-				ResponseType string `json:"response_type"`
+				StatusCode      int      `json:"status_code"`
+				ResponseType    string   `json:"response_type"`
+				IntervalSeconds int      `json:"interval_seconds"`
+				IncludeBlocks   []string `json:"include_blocks"`
+				HasSystemCFG    bool     `json:"has_system_cfg"`
+				SystemCFGBytes  int      `json:"system_cfg_bytes"`
+				SystemCFGKeys   []string `json:"system_cfg_keys"`
+				Ignored         bool     `json:"ignored"`
+				IgnoredReason   string   `json:"ignored_reason"`
 			} `json:"last_inform"`
 		} `json:"runtime"`
 	}
@@ -242,6 +256,18 @@ status_path: `+statusPath+`
 	}
 	if doc.Runtime.LastInform.StatusCode != 200 || doc.Runtime.LastInform.ResponseType != "noop" {
 		t.Fatalf("last inform = %+v", doc.Runtime.LastInform)
+	}
+	if doc.Runtime.LastInform.IntervalSeconds != 10 ||
+		len(doc.Runtime.LastInform.IncludeBlocks) != 1 ||
+		doc.Runtime.LastInform.IncludeBlocks[0] != "system-stats" {
+		t.Fatalf("last inform interval/include blocks = %+v", doc.Runtime.LastInform)
+	}
+	if !doc.Runtime.LastInform.HasSystemCFG ||
+		doc.Runtime.LastInform.SystemCFGBytes != 42 ||
+		len(doc.Runtime.LastInform.SystemCFGKeys) != 2 ||
+		!doc.Runtime.LastInform.Ignored ||
+		doc.Runtime.LastInform.IgnoredReason == "" {
+		t.Fatalf("last inform safe provisioning metadata = %+v", doc.Runtime.LastInform)
 	}
 }
 
