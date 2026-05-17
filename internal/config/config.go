@@ -58,6 +58,8 @@ type Config struct {
 	IntervalSeconds int `yaml:"interval_seconds"`
 	// NoDiscovery disables UDP discovery announcements.
 	NoDiscovery bool `yaml:"no_discovery"`
+	// DiscoveryTargets adds explicit UDP discovery targets.
+	DiscoveryTargets []string `yaml:"discovery_targets"`
 	// SSHListen enables the built-in adoption SSH server when set.
 	SSHListen string `yaml:"ssh_listen"`
 	// SSHUser is the username accepted by the adoption SSH server.
@@ -97,6 +99,7 @@ func Default() Config {
 		Version:          "",
 		IntervalSeconds:  10,
 		NoDiscovery:      false,
+		DiscoveryTargets: nil,
 		SSHListen:        "",
 		SSHUser:          "ubnt",
 		SSHPassword:      "ubnt",
@@ -142,6 +145,18 @@ type PortOverride struct {
 	Port int `yaml:"port"`
 	// Name overrides the controller-facing port label when set.
 	Name string `yaml:"name"`
+	// Interface names the optional host interface used as a passive source.
+	Interface string `yaml:"interface"`
+	// MAC overrides the controller-facing interface MAC when set.
+	MAC string `yaml:"mac"`
+	// IP overrides the controller-facing interface IPv4 address when set.
+	IP string `yaml:"ip"`
+	// Netmask overrides the controller-facing interface IPv4 netmask when set.
+	Netmask string `yaml:"netmask"`
+	// Role overrides the gateway-facing role when set.
+	Role string `yaml:"role"`
+	// NetworkGroup overrides the UniFi network group when set.
+	NetworkGroup string `yaml:"network_group"`
 	// Speed overrides the negotiated speed in Mbps when positive.
 	Speed int `yaml:"speed"`
 	// Media overrides the controller-facing media label when set.

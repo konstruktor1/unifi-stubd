@@ -19,11 +19,11 @@ func TestInfoOutputMatchesUniFiCLIShape(t *testing.T) {
 		StatePath:   t.TempDir() + "/adoption.env",
 		Identity: adoptionssh.Identity{
 			MAC:       "a2:4b:45:16:50:51",
-			IP:        "10.0.0.151",
+			IP:        "192.0.2.151",
 			Hostname:  "unifi-stubd-lab",
 			Model:     "USWProXG48",
 			Version:   "7.4.1.16850",
-			InformURL: "http://10.10.0.30:8080/inform",
+			InformURL: "http://192.0.2.10:8080/inform",
 		},
 	})
 	if err != nil {
@@ -40,9 +40,9 @@ func TestInfoOutputMatchesUniFiCLIShape(t *testing.T) {
 		"Model:       USWProXG48",
 		"Version:     7.4.1.16850",
 		"MAC Address: a2:4b:45:16:50:51",
-		"IP Address:  10.0.0.151",
+		"IP Address:  192.0.2.151",
 		"Hostname:    unifi-stubd-lab",
-		"Status:      Not Adopted (http://10.10.0.30:8080/inform)",
+		"Status:      Not Adopted (http://192.0.2.10:8080/inform)",
 	} {
 		if !strings.Contains(output, want) {
 			t.Fatalf("info output missing %q:\n%s", want, output)

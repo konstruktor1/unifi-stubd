@@ -16,9 +16,11 @@ const (
 	jsonKeyIfName     = "ifname"
 	jsonKeyL1Up       = "l1up"
 	jsonKeyMAC        = "mac"
+	jsonKeyMaxSpeed   = "max_speed"
 	jsonKeyMedia      = "media"
 	jsonKeyName       = "name"
 	jsonKeyNetworkGrp = "networkgroup"
+	jsonKeyNetmask    = "netmask"
 	jsonKeyNumPort    = "num_port"
 	jsonKeyPortIdx    = "port_idx"
 	jsonKeyRXBytes    = "rx_bytes"
@@ -26,6 +28,7 @@ const (
 	jsonKeyRXPackets  = "rx_packets"
 	jsonKeySpeed      = "speed"
 	jsonKeySpeedCaps  = "speed_caps"
+	jsonKeySourceIf   = "source_interface"
 	jsonKeyTXBytes    = "tx_bytes"
 	jsonKeyTXErrors   = "tx_errors"
 	jsonKeyTXPackets  = "tx_packets"
@@ -89,6 +92,18 @@ type Port struct {
 	Index int
 	// Name is the display name reported for the port.
 	Name string
+	// Interface is the optional host interface that supplied this port's data.
+	Interface string
+	// MAC is the optional interface MAC address reported for this port.
+	MAC string
+	// IP is the optional IPv4 address reported for this port.
+	IP string
+	// Netmask is the optional IPv4 netmask reported for this port.
+	Netmask string
+	// Role is the gateway-facing role, such as wan, lan, wan2, or lan2.
+	Role string
+	// NetworkGroup is the UniFi network group, such as WAN, WAN2, or LAN.
+	NetworkGroup string
 	// Media is the UniFi media label, such as GE or SFP+.
 	Media string
 	// Uplink marks the port as the upstream connection.
@@ -141,6 +156,10 @@ type PortOptions struct {
 	PortGroups []PortGroup
 	// PortNames optionally override one-based port display labels.
 	PortNames []string
+	// PortRoles optionally assign one-based gateway roles.
+	PortRoles []string
+	// PortNetworkGroups optionally assign one-based UniFi network groups.
+	PortNetworkGroups []string
 }
 
 // PortOverride describes one per-port runtime override.
@@ -149,12 +168,36 @@ type PortOverride struct {
 	Port int
 	// Name overrides the controller-facing port label when set.
 	Name string
+	// Interface names the optional host interface used as a passive source.
+	Interface string
+	// MAC overrides the controller-facing interface MAC when set.
+	MAC string
+	// IP overrides the controller-facing interface IPv4 address when set.
+	IP string
+	// Netmask overrides the controller-facing interface IPv4 netmask when set.
+	Netmask string
+	// Role overrides the gateway-facing role when set.
+	Role string
+	// NetworkGroup overrides the UniFi network group when set.
+	NetworkGroup string
 	// Speed overrides the negotiated speed in Mbps when positive.
 	Speed int
 	// Media overrides the controller-facing media label when set.
 	Media string
 	// Up overrides link state when set.
 	Up *bool
+	// RXBytes overrides the receive byte counter when non-zero.
+	RXBytes int64
+	// TXBytes overrides the transmit byte counter when non-zero.
+	TXBytes int64
+	// RXPackets overrides the receive packet counter when non-zero.
+	RXPackets int64
+	// TXPackets overrides the transmit packet counter when non-zero.
+	TXPackets int64
+	// RXErrors overrides the receive error counter when non-zero.
+	RXErrors int64
+	// TXErrors overrides the transmit error counter when non-zero.
+	TXErrors int64
 }
 
 // PortNeighbor describes one configured MAC-table entry on a specific port.
@@ -253,8 +296,9 @@ func applyGatewayPayload(payload map[string]any, id Identity, ports []Port) {
 	payload["ethernet_overrides"] = gatewayEthernetOverrides(id.Model, ports)
 	payload["port_overrides"] = gatewayPortOverrides(id.Model, ports)
 	payload["network_table"] = gatewayNetworkTable(id, ports)
+	payload["reported_networks"] = gatewayReportedNetworks(id, ports)
 	payload["uplink"] = gatewayInterfaceName(gatewayUplinkPortIndex(ports))
-	payload["uplink_table"] = gatewayUplinkTable(ports)
+	payload["uplink_table"] = gatewayUplinkTable(id, ports)
 	payload["has_eth1"] = len(ports) > 1
 	payload["has_dpi"] = false
 	payload["config_network_wan"] = map[string]any{jsonKeyType: "dhcp"}
@@ -295,7 +339,7 @@ func SwitchPortsWithOptions(count int, options PortOptions) []Port {
 			speed = options.UplinkSpeed
 			media = options.UplinkMedia
 		}
-		ports = append(ports, generatedPort(i, speed, media, i == 1, options.PortNames))
+		ports = append(ports, generatedPort(i, speed, media, i == 1, options.PortNames, options.PortRoles, options.PortNetworkGroups))
 	}
 	return applyUplinkPort(ports, options.UplinkPort)
 }
@@ -313,11 +357,47 @@ func ApplyPortOverrides(ports []Port, overrides []PortOverride) []Port {
 		if name := strings.TrimSpace(override.Name); name != "" {
 			port.Name = name
 		}
+		if iface := strings.TrimSpace(override.Interface); iface != "" {
+			port.Interface = iface
+		}
+		if mac := strings.TrimSpace(override.MAC); mac != "" {
+			port.MAC = strings.ToLower(mac)
+		}
+		if ip := strings.TrimSpace(override.IP); ip != "" {
+			port.IP = ip
+		}
+		if netmask := strings.TrimSpace(override.Netmask); netmask != "" {
+			port.Netmask = netmask
+		}
+		if role := normalizeGatewayRole(override.Role); role != "" {
+			port.Role = role
+		}
+		if networkGroup := normalizeGatewayNetworkGroup(override.NetworkGroup); networkGroup != "" {
+			port.NetworkGroup = networkGroup
+		}
 		if override.Speed > 0 {
 			port.Speed = override.Speed
 			if strings.TrimSpace(override.Media) == "" {
 				port.Media = mediaForSpeed(override.Speed)
 			}
+		}
+		if override.RXBytes != 0 {
+			port.RXBytes = override.RXBytes
+		}
+		if override.TXBytes != 0 {
+			port.TXBytes = override.TXBytes
+		}
+		if override.RXPackets != 0 {
+			port.RXPackets = override.RXPackets
+		}
+		if override.TXPackets != 0 {
+			port.TXPackets = override.TXPackets
+		}
+		if override.RXErrors != 0 {
+			port.RXErrors = override.RXErrors
+		}
+		if override.TXErrors != 0 {
+			port.TXErrors = override.TXErrors
 		}
 		if media := strings.TrimSpace(override.Media); media != "" {
 			port.Media = media
@@ -436,24 +516,34 @@ func groupedSwitchPorts(count int, options PortOptions) []Port {
 				portSpeed = options.UplinkSpeed
 				portMedia = options.UplinkMedia
 			}
-			ports = append(ports, generatedPort(index, portSpeed, portMedia, isUplink, options.PortNames))
+			ports = append(ports, generatedPort(
+				index,
+				portSpeed,
+				portMedia,
+				isUplink,
+				options.PortNames,
+				options.PortRoles,
+				options.PortNetworkGroups,
+			))
 		}
 	}
 	return ports
 }
 
-func generatedPort(index, speed int, media string, uplink bool, names []string) Port {
+func generatedPort(index, speed int, media string, uplink bool, names, roles, networkGroups []string) Port {
 	port := Port{
-		Index:     index,
-		Name:      portName(index, names),
-		Media:     media,
-		Uplink:    uplink,
-		Up:        true,
-		Speed:     speed,
-		RXBytes:   int64(1000 * index),
-		TXBytes:   int64(900 * index),
-		RXPackets: 1,
-		TXPackets: 1,
+		Index:        index,
+		Name:         portName(index, names),
+		Role:         normalizeGatewayRole(oneBasedString(index, roles)),
+		NetworkGroup: normalizeGatewayNetworkGroup(oneBasedString(index, networkGroups)),
+		Media:        media,
+		Uplink:       uplink,
+		Up:           true,
+		Speed:        speed,
+		RXBytes:      int64(1000 * index),
+		TXBytes:      int64(900 * index),
+		RXPackets:    1,
+		TXPackets:    1,
 	}
 	if uplink {
 		port.MACs = []MacTableEntry{
@@ -500,6 +590,13 @@ func portName(index int, names []string) string {
 	return "Port " + strconv.Itoa(index)
 }
 
+func oneBasedString(index int, values []string) string {
+	if index < 1 || index > len(values) {
+		return ""
+	}
+	return strings.TrimSpace(values[index-1])
+}
+
 func incrementMAC(macText string) string {
 	mac, err := net.ParseMAC(macText)
 	if err != nil || len(mac) == 0 {
@@ -531,6 +628,7 @@ func portTable(ports []Port) []map[string]any {
 			"is_uplink":       p.Uplink,
 			"op_mode":         payloadModeSwitch,
 			jsonKeySpeed:      speed,
+			jsonKeyMaxSpeed:   speed,
 			jsonKeySpeedCaps:  speedCaps(speed, media),
 			jsonKeyFullDuplex: true,
 			jsonKeyAutoneg:    true,
@@ -553,6 +651,7 @@ func portTable(ports []Port) []map[string]any {
 			"stp_state":       "forwarding",
 			"stp_pathcost":    20000,
 			"mac_table":       p.MACs,
+			jsonKeySourceIf:   p.Interface,
 		})
 	}
 	return out
@@ -565,17 +664,23 @@ func gatewayIfTable(id Identity, ports []Port) []map[string]any {
 		if port.Up && speed <= 0 {
 			speed = 1000
 		}
+		ip := gatewayInterfaceIP(id, port)
+		netmask := gatewayInterfaceNetmask(port)
 		out = append(out, map[string]any{
 			jsonKeyName:       gatewayInterfaceName(port.Index),
-			jsonKeyMAC:        gatewayInterfaceMAC(id.MAC, port.Index),
-			"ip":              gatewayInterfaceIP(id.IP, port),
-			"netmask":         "255.255.255.0",
+			jsonKeyIfName:     gatewayInterfaceName(port.Index),
+			jsonKeyPortIdx:    port.Index,
+			jsonKeyMAC:        gatewayPortMAC(id.MAC, port),
+			"ip":              ip,
+			jsonKeyNetmask:    netmask,
 			jsonKeyNumPort:    1,
 			jsonKeyUp:         port.Up,
 			jsonKeyEnable:     true,
 			jsonKeySpeed:      speed,
+			jsonKeyMaxSpeed:   speed,
 			jsonKeySpeedCaps:  speedCaps(speed, port.Media),
 			jsonKeyMedia:      port.Media,
+			jsonKeyNetworkGrp: gatewayNetworkGroup(id.Model, port),
 			jsonKeyFullDuplex: true,
 			jsonKeyRXBytes:    port.RXBytes,
 			jsonKeyTXBytes:    port.TXBytes,
@@ -583,6 +688,7 @@ func gatewayIfTable(id Identity, ports []Port) []map[string]any {
 			jsonKeyTXPackets:  firstNonZeroInt64(port.TXPackets, 1),
 			jsonKeyRXErrors:   port.RXErrors,
 			jsonKeyTXErrors:   port.TXErrors,
+			jsonKeySourceIf:   port.Interface,
 		})
 	}
 	return out
@@ -606,14 +712,17 @@ func gatewayEthernetTable(id Identity, ports []Port) []map[string]any {
 		out = append(out, map[string]any{
 			jsonKeyName:       gatewayInterfaceName(port.Index),
 			jsonKeyIfName:     gatewayInterfaceName(port.Index),
-			jsonKeyMAC:        gatewayInterfaceMAC(id.MAC, port.Index),
+			jsonKeyMAC:        gatewayPortMAC(id.MAC, port),
 			jsonKeyNumPort:    1,
 			jsonKeyPortIdx:    port.Index,
 			jsonKeySpeed:      speed,
+			jsonKeyMaxSpeed:   speed,
 			jsonKeyUp:         port.Up,
 			jsonKeyMedia:      port.Media,
 			jsonKeyNetworkGrp: gatewayNetworkGroup(id.Model, port),
 			jsonKeySpeedCaps:  speedCaps(speed, port.Media),
+			jsonKeyFullDuplex: true,
+			jsonKeyAutoneg:    true,
 		})
 	}
 	return out
@@ -629,6 +738,7 @@ func gatewayEthernetOverrides(model string, ports []Port) []map[string]any {
 			jsonKeyPortIdx:    port.Index,
 			jsonKeyNetworkGrp: gatewayNetworkGroup(model, port),
 			jsonKeySpeed:      speed,
+			jsonKeyMaxSpeed:   speed,
 			jsonKeyFullDuplex: true,
 			jsonKeyAutoneg:    true,
 		})
@@ -648,6 +758,7 @@ func gatewayPortOverrides(model string, ports []Port) []map[string]any {
 			"op_mode":         payloadModeSwitch,
 			jsonKeyMedia:      port.Media,
 			jsonKeySpeed:      speed,
+			jsonKeyMaxSpeed:   speed,
 			jsonKeySpeedCaps:  speedCaps(speed, port.Media),
 			jsonKeyEnable:     true,
 			jsonKeyUp:         port.Up,
@@ -662,19 +773,29 @@ func gatewayNetworkTable(id Identity, ports []Port) []map[string]any {
 	out := make([]map[string]any, 0, len(ports))
 	for _, port := range ports {
 		speed := gatewayPortSpeed(port)
+		ip := gatewayInterfaceIP(id, port)
+		netmask := gatewayInterfaceNetmask(port)
+		address := interfaceAddressCIDR(ip, netmask)
 		entry := map[string]any{
-			jsonKeyName: gatewayInterfaceName(port.Index),
-			jsonKeyMAC:  gatewayInterfaceMAC(id.MAC, port.Index),
-			"address":   gatewayInterfaceIP(id.IP, port) + "/24",
+			jsonKeyName:       gatewayInterfaceName(port.Index),
+			jsonKeyIfName:     gatewayInterfaceName(port.Index),
+			jsonKeyPortIdx:    port.Index,
+			jsonKeyMAC:        gatewayPortMAC(id.MAC, port),
+			jsonKeyNetworkGrp: gatewayNetworkGroup(id.Model, port),
+			"ip":              ip,
+			jsonKeyNetmask:    netmask,
+			"address":         address,
 			"addresses": []string{
-				gatewayInterfaceIP(id.IP, port) + "/24",
+				address,
 			},
-			jsonKeyUp:      boolText(port.Up),
-			jsonKeyL1Up:    boolText(port.Up),
-			jsonKeyAutoneg: "true",
-			"duplex":       "full",
-			jsonKeySpeed:   strconv.Itoa(speed),
-			"mtu":          "1500",
+			jsonKeyUp:       boolText(port.Up),
+			jsonKeyL1Up:     boolText(port.Up),
+			jsonKeyAutoneg:  "true",
+			"duplex":        "full",
+			jsonKeySpeed:    strconv.Itoa(speed),
+			jsonKeyMaxSpeed: strconv.Itoa(speed),
+			"mtu":           "1500",
+			jsonKeySourceIf: port.Interface,
 			"stats": map[string]any{
 				jsonKeyRXBytes:   port.RXBytes,
 				jsonKeyTXBytes:   port.TXBytes,
@@ -688,6 +809,30 @@ func gatewayNetworkTable(id Identity, ports []Port) []map[string]any {
 			entry["host_table"] = hosts
 		}
 		out = append(out, entry)
+	}
+	return out
+}
+
+func gatewayReportedNetworks(id Identity, ports []Port) []map[string]any {
+	out := make([]map[string]any, 0, len(ports))
+	for _, port := range ports {
+		ip := gatewayInterfaceIP(id, port)
+		netmask := gatewayInterfaceNetmask(port)
+		address := interfaceAddressCIDR(ip, netmask)
+		out = append(out, map[string]any{
+			jsonKeyName:       gatewayInterfaceName(port.Index),
+			jsonKeyIfName:     gatewayInterfaceName(port.Index),
+			jsonKeyPortIdx:    port.Index,
+			jsonKeyNetworkGrp: gatewayNetworkGroup(id.Model, port),
+			"ip":              ip,
+			jsonKeyNetmask:    netmask,
+			"address":         address,
+			"addresses": []string{
+				address,
+			},
+			jsonKeyUp:       port.Up,
+			jsonKeySourceIf: port.Interface,
+		})
 	}
 	return out
 }
@@ -709,20 +854,34 @@ func gatewayHostTable(port Port) []map[string]any {
 	return out
 }
 
-func gatewayUplinkTable(ports []Port) []map[string]any {
+func gatewayUplinkTable(id Identity, ports []Port) []map[string]any {
 	uplinkIndex := gatewayUplinkPortIndex(ports)
 	for _, port := range ports {
 		if port.Index != uplinkIndex {
 			continue
 		}
+		speed := gatewayPortSpeed(port)
 		return []map[string]any{
 			{
-				jsonKeyName:    gatewayInterfaceName(port.Index),
-				jsonKeyIfName:  gatewayInterfaceName(port.Index),
-				jsonKeyPortIdx: port.Index,
-				jsonKeySpeed:   gatewayPortSpeed(port),
-				jsonKeyType:    "wire",
-				jsonKeyMedia:   port.Media,
+				jsonKeyName:       gatewayInterfaceName(port.Index),
+				jsonKeyIfName:     gatewayInterfaceName(port.Index),
+				jsonKeyPortIdx:    port.Index,
+				jsonKeyMAC:        gatewayPortMAC(id.MAC, port),
+				jsonKeySpeed:      speed,
+				jsonKeyMaxSpeed:   speed,
+				jsonKeySpeedCaps:  speedCaps(speed, port.Media),
+				jsonKeyType:       "wire",
+				jsonKeyMedia:      port.Media,
+				jsonKeyUp:         port.Up,
+				jsonKeyEnable:     true,
+				jsonKeyFullDuplex: true,
+				jsonKeyRXBytes:    port.RXBytes,
+				jsonKeyTXBytes:    port.TXBytes,
+				jsonKeyRXPackets:  firstNonZeroInt64(port.RXPackets, 1),
+				jsonKeyTXPackets:  firstNonZeroInt64(port.TXPackets, 1),
+				jsonKeyRXErrors:   port.RXErrors,
+				jsonKeyTXErrors:   port.TXErrors,
+				jsonKeySourceIf:   port.Interface,
 			},
 		}
 	}
@@ -730,6 +889,17 @@ func gatewayUplinkTable(ports []Port) []map[string]any {
 }
 
 func gatewayPortRole(model string, port Port) string {
+	if role := normalizeGatewayRole(port.Role); role != "" {
+		return role
+	}
+	if strings.EqualFold(model, "UXG") {
+		switch port.Index {
+		case 1:
+			return gatewayPortRoleLAN
+		case 2:
+			return gatewayPortRoleWAN
+		}
+	}
 	if strings.EqualFold(model, "UXGPRO") {
 		switch port.Index {
 		case 1:
@@ -755,6 +925,17 @@ func gatewayPortRole(model string, port Port) string {
 }
 
 func gatewayNetworkGroup(model string, port Port) string {
+	if networkGroup := normalizeGatewayNetworkGroup(port.NetworkGroup); networkGroup != "" {
+		return networkGroup
+	}
+	if strings.EqualFold(model, "UXG") {
+		switch port.Index {
+		case 2:
+			return gatewayNetworkGroupWAN
+		default:
+			return gatewayNetworkGroupLAN
+		}
+	}
 	if strings.EqualFold(model, "UXGPRO") {
 		switch port.Index {
 		case 1:
@@ -773,6 +954,14 @@ func gatewayNetworkGroup(model string, port Port) string {
 	default:
 		return gatewayNetworkGroupLAN
 	}
+}
+
+func normalizeGatewayRole(role string) string {
+	return strings.ToLower(strings.TrimSpace(role))
+}
+
+func normalizeGatewayNetworkGroup(networkGroup string) string {
+	return strings.TrimSpace(networkGroup)
 }
 
 func gatewayPortSpeed(port Port) int {
@@ -804,6 +993,13 @@ func gatewayInterfaceName(portIndex int) string {
 	return "eth" + strconv.Itoa(portIndex-1)
 }
 
+func gatewayPortMAC(baseMAC string, port Port) string {
+	if mac := strings.TrimSpace(port.MAC); mac != "" {
+		return strings.ToLower(mac)
+	}
+	return gatewayInterfaceMAC(baseMAC, port.Index)
+}
+
 func gatewayInterfaceMAC(baseMAC string, portIndex int) string {
 	mac, err := net.ParseMAC(baseMAC)
 	if err != nil || len(mac) == 0 {
@@ -814,17 +1010,44 @@ func gatewayInterfaceMAC(baseMAC string, portIndex int) string {
 	return out.String()
 }
 
-func gatewayInterfaceIP(baseIP string, port Port) string {
-	if port.Uplink {
+func gatewayInterfaceIP(id Identity, port Port) string {
+	if ip := strings.TrimSpace(port.IP); ip != "" {
+		return ip
+	}
+	switch gatewayPortRole(id.Model, port) {
+	case gatewayPortRoleLAN, gatewayPortRoleLAN2:
+		return id.IP
+	case gatewayPortRoleWAN, gatewayPortRoleWAN2:
 		return "192.0.2.2"
 	}
-	if port.Index == 2 || strings.Contains(strings.ToLower(port.Name), "downlink") {
-		return baseIP
-	}
-	if port.Index == 4 {
-		return baseIP
-	}
 	return "0.0.0.0"
+}
+
+func gatewayInterfaceNetmask(port Port) string {
+	if netmask := strings.TrimSpace(port.Netmask); netmask != "" {
+		return netmask
+	}
+	return "255.255.255.0"
+}
+
+func interfaceAddressCIDR(ip, netmask string) string {
+	prefix := netmaskPrefixLength(netmask)
+	if prefix < 0 {
+		prefix = 24
+	}
+	return strings.TrimSpace(ip) + "/" + strconv.Itoa(prefix)
+}
+
+func netmaskPrefixLength(netmask string) int {
+	parsed := net.ParseIP(strings.TrimSpace(netmask)).To4()
+	if parsed == nil {
+		return -1
+	}
+	ones, bits := net.IPMask(parsed).Size()
+	if bits != 32 {
+		return -1
+	}
+	return ones
 }
 
 func boolText(value bool) string {

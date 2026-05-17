@@ -18,6 +18,27 @@ uplink_neighbor:
   vlan: 1
   type: usw
 port_neighbors: []
+# Profiles describe hardware. Use port_overrides for OPNsense/FreeBSD lab
+# assignments such as WAN/LAN/backup_wan without changing the selected profile.
+# port_overrides can also name a host interface. In stub mode this is still
+# read-only; the daemon only copies MAC/IP/link state into the inform payload.
+# Example:
+# port_overrides:
+#   - port: 1
+#     name: LAN
+#     role: lan
+#     network_group: LAN
+#     interface: vtnet0
+#   - port: 2
+#     name: WAN
+#     role: wan
+#     network_group: WAN
+#     interface: ixl0
+#   - port: 3
+#     name: backup_wan
+#     role: wan2
+#     network_group: WAN2
+#     interface: vlan09
 port_overrides: []
 
 observe_interface: ""
@@ -27,6 +48,10 @@ traffic_source: off
 
 interval_seconds: 10
 no_discovery: false
+# Optional explicit UDP discovery targets for routed or FreeBSD labs where
+# 255.255.255.255 is not usable. Leave empty for the default broadcast and
+# multicast targets.
+discovery_targets: []
 
 ssh_listen: 0.0.0.0:22
 ssh_user: ubnt

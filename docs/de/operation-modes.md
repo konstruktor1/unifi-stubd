@@ -8,10 +8,10 @@ Observation ist dort noch nicht implementiert.
 
 Das validierte Live-Lab-Geraet ist:
 
-- Host: `10.0.0.151`
+- Host: `192.0.2.151`
 - Profil: `usaggpro`
 - Controller-Modell: `USAGGPRO` / `USW Pro Aggregation`
-- MAC: `32:c1:80:4f:7e:bc`
+- MAC: `02:00:5e:00:53:51`
 - Controller-State: online und adopted
 - Ports: 28 10G-SFP+-Ports und vier 25G-SFP28-Ports
 - Uplink: Port 1 durch Live-Override `uplink_port`; Profil-Default ist Port 29
@@ -25,9 +25,11 @@ das Legacy-UniFi-Security-Gateway-Modell und drei 1G-Ports, bleibt aber
 Stub-only und emuliert noch keine Router-Dienste.
 
 `UXGPRO` ist als experimentelles 10G-Gateway-Identitaetsprofil verfuegbar. Es
-meldet zwei 1G-RJ45-Ports und zwei 10G-SFP+-Ports; fuer Lab-Tests kann `WAN2`
-die synthetische 10G-Internet-Seite und `LAN2` die synthetische
-10G-Downlink-Seite darstellen.
+behaelt die originale Gateway-artige Zuweisung: `WAN` auf dem primaeren
+1G-RJ45-WAN, `LAN` auf dem 1G-RJ45-LAN, `WAN2` auf dem sekundaeren
+10G-SFP+-WAN und `LAN2` auf dem 10G-SFP+-LAN. Wenn ein Lab die aktive
+Internet-Seite auf SFP+ legt, gehoert das in `uplink_port` und
+`port_overrides`.
 
 ## Modi
 
@@ -57,8 +59,10 @@ bestimmten physischen Port zu legen, ohne dessen Profil-Speed oder Medium zu
 aendern. Beispiel: `uplink_port: 1` setzt beim `usaggpro` den Uplink auf einen
 10G-SFP+-Port statt auf die Default-25G-SFP28-Uplinkgruppe.
 
-`port_overrides` setzt einzelne Lab-Portzustaende nach Profil- und
-Observation-Daten:
+Profile beschreiben das echte Hardware-Layout: Modell, Portanzahl,
+Speed-/Mediengruppen, Default-Portnamen und Default-Gateway-Rollen.
+`port_overrides` setzt danach lab-spezifische Zuweisungen und einzelne
+Portzustaende:
 
 ```yaml
 uplink_neighbor:
@@ -68,14 +72,23 @@ uplink_neighbor:
 
 port_neighbors:
   - port: 2
-    mac: 28:70:4e:c3:b7:b8
+    mac: 02:00:5e:00:53:03
     vlan: 1
     type: usw
 
 port_overrides:
   - port: 2
+    name: lab_lan
+    role: lan
+    network_group: LAN
+    interface: eth1
+    ip: 192.0.2.51
+    netmask: 255.255.255.0
     speed: 1000
   - port: 3
+    name: backup_wan
+    role: wan2
+    network_group: WAN2
     speed: 2500
   - port: 4
     speed: 100
@@ -86,6 +99,22 @@ port_overrides:
 `port_neighbors` fuellt `port_table[].mac_table` auf bestimmten Ports. Das ist
 nuetzlich, wenn der Controller eine Downstream-Switch- oder Host-MAC auf einem
 Nicht-Uplink-Port sehen soll.
+
+Gateway-Modelle melden WAN-/LAN-Zuweisungen ueber `config_port_table`,
+`ethernet_overrides`, `network_table` und `reported_networks`.
+Switch-artige MAC-Table-Nachbarn koennen vom Controller bei Gateway-
+Identitaeten ignoriert werden. Fuer Gateway-Visualisierung daher `role` und
+`network_group` nutzen, statt das Hardware-Profil umzubauen.
+
+Bei `UXGPRO` rendert der Controller Gateway-Ports aus seinem Gateway-Modell und
+dem gemeldeten WAN-/LAN-State. Er zeigt deshalb nicht dieselbe Switch-
+`port_table`-Ansicht wie bei einem UniFi-Switch-Profil.
+
+`port_overrides[].interface` ist read-only. Der Dienst kopiert damit MAC,
+IPv4-Adresse, Link-State und verfuegbare Counter-/Speed-Daten eines bestehenden
+Host-Interfaces in den Inform-Payload dieses Ports. Das ist fuer
+FreeBSD-/OPNsense-Stub-only-Gateway-Tests nuetzlich, wenn WAN/LAN aus echten
+Interfaces visualisiert werden sollen, ohne Host-Netzwerk zu veraendern.
 
 `uplink_neighbor` ist fuer reine Stubs und virtuelle Lab-Ports gedacht, bei
 denen es keinen physischen Linkpartner gibt. Der Eintrag fuegt eine konfigurierte

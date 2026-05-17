@@ -25,11 +25,13 @@ uplink_neighbor:
   type: usw
 port_neighbors:
   - port: 2
-    mac: 28:70:4e:c3:b7:b8
+    mac: 02:00:5e:00:53:03
     vlan: 1
     type: usw
 port_overrides:
   - port: 2
+    role: lan
+    network_group: LAN
     speed: 1000
 `), 0o600); err != nil {
 		t.Fatal(err)
@@ -60,11 +62,14 @@ port_overrides:
 	if !strings.Contains(output, `uplink_neighbor: mac=02:aa:bb:cc:dd:01`) {
 		t.Fatalf("output did not contain uplink neighbor:\n%s", output)
 	}
-	if !strings.Contains(output, `port_neighbor: port=2 mac=28:70:4e:c3:b7:b8`) {
+	if !strings.Contains(output, `port_neighbor: port=2 mac=02:00:5e:00:53:03`) {
 		t.Fatalf("output did not contain port neighbor:\n%s", output)
 	}
-	if !strings.Contains(output, `port_override: port=2 speed=1000`) {
+	if !strings.Contains(output, `port_override: port=2`) || !strings.Contains(output, `speed=1000`) {
 		t.Fatalf("output did not contain port override:\n%s", output)
+	}
+	if !strings.Contains(output, `role="lan"`) || !strings.Contains(output, `network_group="LAN"`) {
+		t.Fatalf("output did not contain port assignment override:\n%s", output)
 	}
 }
 
@@ -162,7 +167,7 @@ func TestStatusJSONReportsAdoptionAndLastInformWithoutAuthKey(t *testing.T) {
 	statusPath := filepath.Join(dir, "status.json")
 	configPath := filepath.Join(dir, "config.yaml")
 	if err := os.WriteFile(statePath, []byte(`STATE=connected
-INFORM_URL=http://10.10.0.30:8080/inform
+INFORM_URL=http://192.0.2.10:8080/inform
 AUTHKEY=super-secret-test-key
 CFGVERSION=abc123
 USE_AES_GCM=true
@@ -172,7 +177,7 @@ USE_AES_GCM=true
 	if err := os.WriteFile(statusPath, []byte(`{
   "last_inform": {
     "time": "2026-05-16T21:00:00+02:00",
-    "url": "http://10.10.0.30:8080/inform",
+    "url": "http://192.0.2.10:8080/inform",
     "status_code": 200,
     "response_type": "noop",
     "controller_state": "connected",
@@ -226,7 +231,7 @@ status_path: `+statusPath+`
 	if doc.Config.OperationMode != "stub" {
 		t.Fatalf("OperationMode = %q", doc.Config.OperationMode)
 	}
-	if doc.Config.InformURL != "http://10.10.0.30:8080/inform" {
+	if doc.Config.InformURL != "http://192.0.2.10:8080/inform" {
 		t.Fatalf("InformURL = %q", doc.Config.InformURL)
 	}
 	if !doc.Adoption.Adopted || !doc.Adoption.AuthKeySet {

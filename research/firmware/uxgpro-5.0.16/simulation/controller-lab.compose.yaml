@@ -1,0 +1,153 @@
+name: uxgpro-controller-lab
+
+services:
+  firmware:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BASE_IMAGE: ${UXGPRO_BASE_IMAGE:-uxgpro-fw:5.0.16}
+    image: ${UXGPRO_SIM_IMAGE:-uxgpro-fw-sim:5.0.16}
+    container_name: ${UXGPRO_SIM_CONTAINER:-uxgpro-fw-lab}
+    platform: linux/arm64
+    init: true
+    depends_on:
+      inform-mitm:
+        condition: service_started
+    networks:
+      lab:
+        aliases:
+          - uxgpro
+        ipv4_address: ${UNIFI_LAB_FIRMWARE_IP:-172.31.240.20}
+    extra_hosts:
+      - "unifi:${UNIFI_LAB_MITM_IP:-172.31.240.12}"
+    cap_drop:
+      - ALL
+    cap_add:
+      - DAC_OVERRIDE
+      - FOWNER
+      - NET_ADMIN
+      - NET_RAW
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      UXGPRO_SIM_STATIC_INTERFACE: eth0
+      UXGPRO_SIM_STATIC_ADDRESS: ${UNIFI_LAB_FIRMWARE_IP:-172.31.240.20}/24
+    volumes:
+      - type: bind
+        source: ${SIM_DIR:-/tmp/unifi-fw-sim}
+        target: /mock
+    tmpfs:
+      - /tmp:exec,nosuid,nodev
+      - /run:exec,nosuid,nodev
+      - /var/run:exec,nosuid,nodev
+      - /var/log:nosuid,nodev
+      - /data:exec,nosuid,nodev
+    command:
+      - /usr/local/bin/uxgpro-sim-start
+
+  unifi:
+    image: ${UNIFI_NETWORK_IMAGE:-lscr.io/linuxserver/unifi-network-application:latest}
+    container_name: ${UNIFI_CONTAINER:-uxgpro-unifi-network}
+    depends_on:
+      unifi-db:
+        condition: service_healthy
+    environment:
+      PUID: ${PUID:-1000}
+      PGID: ${PGID:-1000}
+      TZ: ${TZ:-Europe/Zurich}
+      MONGO_USER: ${UNIFI_MONGO_USER:-unifi}
+      MONGO_PASS: ${UNIFI_MONGO_PASS:-unifi-lab-pass}
+      MONGO_HOST: unifi-db
+      MONGO_PORT: 27017
+      MONGO_DBNAME: ${UNIFI_MONGO_DBNAME:-unifi}
+      MONGO_AUTHSOURCE: admin
+      MEM_LIMIT: ${UNIFI_MEM_LIMIT:-1024}
+      MEM_STARTUP: ${UNIFI_MEM_STARTUP:-1024}
+    networks:
+      lab:
+        aliases:
+          - unifi-controller
+        ipv4_address: ${UNIFI_LAB_CONTROLLER_IP:-172.31.240.10}
+      ui: {}
+    ports:
+      - "127.0.0.1:${UNIFI_HTTPS_PORT:-8443}:8443"
+    volumes:
+      - unifi_config:/config
+    restart: unless-stopped
+
+  inform-mitm:
+    image: ${MITMPROXY_IMAGE:-mitmproxy/mitmproxy:latest}
+    container_name: ${MITMPROXY_CONTAINER:-uxgpro-inform-mitm}
+    depends_on:
+      unifi:
+        condition: service_started
+    networks:
+      lab:
+        aliases:
+          - unifi-inform-mitm
+        ipv4_address: ${UNIFI_LAB_MITM_IP:-172.31.240.12}
+    volumes:
+      - type: bind
+        source: ./mitm-inform-dump.py
+        target: /scripts/mitm-inform-dump.py
+        read_only: true
+      - type: bind
+        source: ./captures
+        target: /captures
+    command:
+      - mitmdump
+      - --mode
+      - reverse:http://unifi-controller:8080@8080
+      - --listen-host
+      - 0.0.0.0
+      - --set
+      - keep_host_header=true
+      - --set
+      - flow_detail=2
+      - -s
+      - /scripts/mitm-inform-dump.py
+      - -w
+      - /captures/inform.flows
+    restart: unless-stopped
+
+  unifi-db:
+    image: ${UNIFI_MONGO_IMAGE:-mongo:7.0}
+    container_name: ${UNIFI_MONGO_CONTAINER:-uxgpro-unifi-db}
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${UNIFI_MONGO_ROOT_USER:-root}
+      MONGO_INITDB_ROOT_PASSWORD: ${UNIFI_MONGO_ROOT_PASSWORD:-unifi-root-lab-pass}
+      MONGO_USER: ${UNIFI_MONGO_USER:-unifi}
+      MONGO_PASS: ${UNIFI_MONGO_PASS:-unifi-lab-pass}
+      MONGO_DBNAME: ${UNIFI_MONGO_DBNAME:-unifi}
+      MONGO_AUTHSOURCE: admin
+    networks:
+      lab:
+        ipv4_address: ${UNIFI_LAB_MONGO_IP:-172.31.240.11}
+    volumes:
+      - mongo_data:/data/db
+      - type: bind
+        source: ./mongo-init-unifi.sh
+        target: /docker-entrypoint-initdb.d/init-mongo.sh
+        read_only: true
+    healthcheck:
+      test:
+        - "CMD-SHELL"
+        - "mongosh --quiet -u \"$$MONGO_INITDB_ROOT_USERNAME\" -p \"$$MONGO_INITDB_ROOT_PASSWORD\" --authenticationDatabase admin --eval 'db.adminCommand({ ping: 1 }).ok' | grep 1"
+      interval: 10s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    restart: unless-stopped
+
+networks:
+  lab:
+    internal: true
+    ipam:
+      config:
+        - subnet: ${UNIFI_LAB_SUBNET:-172.31.240.0/24}
+  ui:
+
+volumes:
+  mongo_data:
+  unifi_config:

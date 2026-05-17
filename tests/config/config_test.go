@@ -29,11 +29,14 @@ func TestDefaultSeparatesConfigAndStatePaths(t *testing.T) {
 
 func TestLoadMergesWithDefaults(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.yaml")
-	if err := os.WriteFile(path, []byte(`controller_url: http://10.10.0.30:8080/inform
+	if err := os.WriteFile(path, []byte(`controller_url: http://192.0.2.10:8080/inform
 profile: us16p150
 operation_mode: observe
 observe_interface: eth0
 observe_bridge: vmbr0
+discovery_targets:
+  - 192.0.2.255:10001
+  - 233.89.188.1:10001
 uplink_port: 1
 uplink_neighbor:
   mac: 02:aa:bb:cc:dd:01
@@ -41,11 +44,17 @@ uplink_neighbor:
   type: usw
 port_neighbors:
   - port: 2
-    mac: 28:70:4e:c3:b7:b8
+    mac: 02:00:5e:00:53:03
     vlan: 1
     type: usw
 port_overrides:
   - port: 2
+    interface: eth1
+    mac: 02:00:5e:00:53:02
+    ip: 192.0.2.2
+    netmask: 255.255.255.0
+    role: lan
+    network_group: LAN
     speed: 1000
   - port: 5
     up: false
@@ -61,7 +70,7 @@ status_path: /tmp/unifi-stubd/status.json
 	if err != nil {
 		t.Fatal(err)
 	}
-	if cfg.ControllerURL != "http://10.10.0.30:8080/inform" {
+	if cfg.ControllerURL != "http://192.0.2.10:8080/inform" {
 		t.Fatalf("ControllerURL = %q", cfg.ControllerURL)
 	}
 	if cfg.OperationMode != "observe" {
@@ -72,6 +81,9 @@ status_path: /tmp/unifi-stubd/status.json
 	}
 	if cfg.ObserveBridge != "vmbr0" {
 		t.Fatalf("ObserveBridge = %q", cfg.ObserveBridge)
+	}
+	if len(cfg.DiscoveryTargets) != 2 || cfg.DiscoveryTargets[0] != "192.0.2.255:10001" {
+		t.Fatalf("DiscoveryTargets = %#v", cfg.DiscoveryTargets)
 	}
 	if cfg.UplinkPort != 1 {
 		t.Fatalf("UplinkPort = %d", cfg.UplinkPort)
@@ -85,13 +97,20 @@ status_path: /tmp/unifi-stubd/status.json
 	if len(cfg.PortNeighbors) != 1 {
 		t.Fatalf("len(PortNeighbors) = %d, want 1", len(cfg.PortNeighbors))
 	}
-	if cfg.PortNeighbors[0].Port != 2 || cfg.PortNeighbors[0].MAC != "28:70:4e:c3:b7:b8" {
+	if cfg.PortNeighbors[0].Port != 2 || cfg.PortNeighbors[0].MAC != "02:00:5e:00:53:03" {
 		t.Fatalf("first PortNeighbor = %+v", cfg.PortNeighbors[0])
 	}
 	if len(cfg.PortOverrides) != 2 {
 		t.Fatalf("len(PortOverrides) = %d, want 2", len(cfg.PortOverrides))
 	}
-	if cfg.PortOverrides[0].Port != 2 || cfg.PortOverrides[0].Speed != 1000 {
+	if cfg.PortOverrides[0].Port != 2 ||
+		cfg.PortOverrides[0].Interface != "eth1" ||
+		cfg.PortOverrides[0].MAC != "02:00:5e:00:53:02" ||
+		cfg.PortOverrides[0].IP != "192.0.2.2" ||
+		cfg.PortOverrides[0].Netmask != "255.255.255.0" ||
+		cfg.PortOverrides[0].Role != "lan" ||
+		cfg.PortOverrides[0].NetworkGroup != "LAN" ||
+		cfg.PortOverrides[0].Speed != 1000 {
 		t.Fatalf("first PortOverride = %+v", cfg.PortOverrides[0])
 	}
 	if cfg.PortOverrides[1].Up == nil || *cfg.PortOverrides[1].Up {

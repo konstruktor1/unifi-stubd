@@ -22,6 +22,11 @@ const (
 	lldpSourceLLDPD  = "lldpd"
 	trafficSourceOff = "off"
 	observeTimeout   = 2 * time.Second
+
+	portRoleLAN  = "lan"
+	portRoleLAN2 = "lan2"
+	portRoleWAN  = "wan"
+	portRoleWAN2 = "wan2"
 )
 
 func validateOperationFlags(flags runtimeFlags) error {
@@ -89,14 +94,51 @@ func validatePortOverrides(flags runtimeFlags) error {
 		if override.Port < 1 || override.Port > *flags.portCount {
 			return fmt.Errorf("invalid port override %d; use 1..%d", override.Port, *flags.portCount)
 		}
+		if strings.TrimSpace(override.MAC) != "" {
+			if _, err := net.ParseMAC(override.MAC); err != nil {
+				return fmt.Errorf("invalid port override mac %q on port %d: %w", override.MAC, override.Port, err)
+			}
+		}
 		if override.Speed < 0 {
 			return fmt.Errorf("invalid speed override %d on port %d; use 0 or a positive Mbps value", override.Speed, override.Port)
 		}
-		if override.Speed == 0 && override.Up == nil && strings.TrimSpace(override.Name) == "" && strings.TrimSpace(override.Media) == "" {
+		if iface := strings.TrimSpace(override.Interface); strings.Contains(iface, "/") {
+			return fmt.Errorf("invalid interface override %q on port %d", iface, override.Port)
+		}
+		if ip := strings.TrimSpace(override.IP); ip != "" && net.ParseIP(ip).To4() == nil {
+			return fmt.Errorf("invalid port override ip %q on port %d", ip, override.Port)
+		}
+		if netmask := strings.TrimSpace(override.Netmask); netmask != "" && net.ParseIP(netmask).To4() == nil {
+			return fmt.Errorf("invalid port override netmask %q on port %d", netmask, override.Port)
+		}
+		if role := strings.ToLower(strings.TrimSpace(override.Role)); role != "" && !validPortRole(role) {
+			return fmt.Errorf("invalid port override role %q on port %d; use wan, lan, wan2, or lan2", override.Role, override.Port)
+		}
+		if networkGroup := strings.TrimSpace(override.NetworkGroup); strings.ContainsAny(networkGroup, "\r\n\t") {
+			return fmt.Errorf("invalid port override network_group %q on port %d", networkGroup, override.Port)
+		}
+		if override.Speed == 0 && override.Up == nil &&
+			strings.TrimSpace(override.Name) == "" &&
+			strings.TrimSpace(override.Interface) == "" &&
+			strings.TrimSpace(override.MAC) == "" &&
+			strings.TrimSpace(override.IP) == "" &&
+			strings.TrimSpace(override.Netmask) == "" &&
+			strings.TrimSpace(override.Role) == "" &&
+			strings.TrimSpace(override.NetworkGroup) == "" &&
+			strings.TrimSpace(override.Media) == "" {
 			return fmt.Errorf("empty port override on port %d", override.Port)
 		}
 	}
 	return nil
+}
+
+func validPortRole(role string) bool {
+	switch role {
+	case portRoleWAN, portRoleLAN, portRoleWAN2, portRoleLAN2:
+		return true
+	default:
+		return false
+	}
 }
 
 func normalizeMode(value string) string {
@@ -155,8 +197,14 @@ func printRuntimePlan(flags runtimeFlags, profile device.Profile, macText, ipTex
 		)
 	}
 	for _, override := range flags.portOverrides {
-		fmt.Printf("port_override: port=%d speed=%d media=%q up=%s name=%q\n",
+		fmt.Printf("port_override: port=%d interface=%q mac=%q ip=%q netmask=%q role=%q network_group=%q speed=%d media=%q up=%s name=%q\n",
 			override.Port,
+			strings.TrimSpace(override.Interface),
+			strings.TrimSpace(override.MAC),
+			strings.TrimSpace(override.IP),
+			strings.TrimSpace(override.Netmask),
+			strings.TrimSpace(override.Role),
+			strings.TrimSpace(override.NetworkGroup),
 			override.Speed,
 			strings.TrimSpace(override.Media),
 			boolPointerText(override.Up),
@@ -167,6 +215,9 @@ func printRuntimePlan(flags runtimeFlags, profile device.Profile, macText, ipTex
 	fmt.Printf("observe_bridge: %s\n", strings.TrimSpace(*flags.observeBridge))
 	fmt.Printf("lldp_source: %s\n", strings.TrimSpace(*flags.lldpSource))
 	fmt.Printf("traffic_source: %s\n", strings.TrimSpace(*flags.trafficSource))
+	for _, target := range flags.discoveryTargets {
+		fmt.Printf("discovery_target: %s\n", strings.TrimSpace(target))
+	}
 	switch mode {
 	case operationModeStub:
 		fmt.Println("actions: synthetic stub only; no host network changes")

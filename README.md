@@ -56,8 +56,14 @@ stub-only identity profile and does not implement routing, DHCP, firewall, DPI,
 or WAN health behavior.
 
 The `uxgpro` profile reports a UniFi Next-Generation Gateway Pro identity with
-two 1G RJ45 ports and two 10G SFP+ ports. Like `ugw3`, it is an identity and
-status-payload stub only.
+the original gateway-style layout: WAN1 on 1G RJ45, LAN on 1G RJ45, WAN2 on
+10G SFP+, and LAN2 on 10G SFP+. Like `ugw3`, it is an identity and
+status-payload stub only. Use `uplink_port` and `port_overrides` when a lab
+uses the SFP+ port as the active WAN.
+
+Profiles describe hardware. Use YAML `port_overrides` to map lab assignments
+such as WAN, LAN, or backup WAN onto those profile ports via `role` and
+`network_group`.
 
 Send discovery traffic in a lab:
 

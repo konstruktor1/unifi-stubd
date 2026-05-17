@@ -42,6 +42,7 @@ func serveSwitchEmulation() error {
 		log.Fatalf("unknown profile %q; known profiles: %s", *flags.profileName, device.ProfileNames())
 	}
 	applyProfile(profile, flags.model, flags.modelDisplay, flags.version, flags.portCount)
+	flags.portOverrides = enrichPortOverridesFromInterfaces(flags.portOverrides)
 	if err := validatePortOverrides(flags); err != nil {
 		return err
 	}
@@ -108,6 +109,7 @@ func serveSwitchEmulation() error {
 		announcement:     ann,
 		discoveryPacket:  packet,
 		discoverySkipped: flags.noDiscovery,
+		discoveryTargets: flags.discoveryTargets,
 	})
 }
 
@@ -121,6 +123,7 @@ type controllerPresence struct {
 	announcement     discovery.Announcement
 	discoveryPacket  []byte
 	discoverySkipped *bool
+	discoveryTargets []string
 }
 
 func maintainControllerPresence(cfg controllerPresence) error {
@@ -142,7 +145,7 @@ func maintainControllerPresence(cfg controllerPresence) error {
 			return err
 		}
 
-		sendDiscovery(packet, cfg.hostname, cfg.mac, *cfg.discoverySkipped)
+		sendDiscovery(packet, cfg.hostname, cfg.mac, *cfg.discoverySkipped, cfg.discoveryTargets)
 		sendInformHeartbeat(cfg.mac, informURL, *cfg.flags.sshState, *cfg.flags.statusPath, store, payload)
 
 		if *cfg.flags.once {
@@ -164,11 +167,11 @@ func maintainControllerPresence(cfg controllerPresence) error {
 	}
 }
 
-func sendDiscovery(packet []byte, hostname string, mac net.HardwareAddr, skip bool) {
+func sendDiscovery(packet []byte, hostname string, mac net.HardwareAddr, skip bool, targets []string) {
 	if skip {
 		return
 	}
-	if err := discovery.Send(packet); err != nil {
+	if err := discovery.SendTo(packet, targets); err != nil {
 		log.Printf("discovery send failed: %v", err)
 		return
 	}

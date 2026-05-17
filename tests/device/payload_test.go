@@ -17,7 +17,7 @@ func TestMinimalSwitchPayloadReportsPortCount(t *testing.T) {
 		ModelDisplay: "UniFi Switch 16 POE-150W",
 		Version:      "7.4.1.16850",
 		Serial:       "021122334455",
-		InformURL:    "http://10.10.0.30:8080/inform",
+		InformURL:    "http://192.0.2.10:8080/inform",
 	}, device.SwitchPorts(16))
 	if err != nil {
 		t.Fatal(err)
@@ -55,7 +55,7 @@ func TestMinimalSwitchPayloadReportsTenGigUplink(t *testing.T) {
 		ModelDisplay: "UniFi Switch 16 XG",
 		Version:      "7.4.1.16850",
 		Serial:       "021122334457",
-		InformURL:    "http://10.10.0.30:8080/inform",
+		InformURL:    "http://192.0.2.10:8080/inform",
 	}, device.SwitchPortsWithOptions(16, device.PortOptions{
 		Speed:       10000,
 		UplinkSpeed: 10000,
@@ -159,7 +159,7 @@ func TestGatewayProfileReportsDeviceTypeAndPortNames(t *testing.T) {
 		DeviceType:   profile.DeviceType,
 		Version:      profile.Version,
 		Serial:       "021122334461",
-		InformURL:    "http://10.10.0.30:8080/inform",
+		InformURL:    "http://192.0.2.10:8080/inform",
 	}, ports)
 	if err != nil {
 		t.Fatal(err)
@@ -202,7 +202,7 @@ func TestTenGigGatewayProfileReportsPortLayout(t *testing.T) {
 		DeviceType:   profile.DeviceType,
 		Version:      profile.Version,
 		Serial:       "021122334462",
-		InformURL:    "http://10.10.0.30:8080/inform",
+		InformURL:    "http://192.0.2.10:8080/inform",
 	}, ports)
 	if err != nil {
 		t.Fatal(err)
@@ -219,6 +219,7 @@ func TestTenGigGatewayProfileReportsPortLayout(t *testing.T) {
 		NetworkTable      []map[string]any `json:"network_table"`
 		PortOverrides     []map[string]any `json:"port_overrides"`
 		PortTable         []map[string]any `json:"port_table"`
+		ReportedNetworks  []map[string]any `json:"reported_networks"`
 		UplinkTable       []map[string]any `json:"uplink_table"`
 	}
 	if err := json.Unmarshal(payload, &doc); err != nil {
@@ -232,6 +233,9 @@ func TestTenGigGatewayProfileReportsPortLayout(t *testing.T) {
 	}
 	if len(doc.IfTable) != 4 {
 		t.Fatalf("if_table length = %d, want 4", len(doc.IfTable))
+	}
+	if got := int(doc.IfTable[0]["speed"].(float64)); got != 1000 {
+		t.Fatalf("if_table eth0 speed = %d, want 1000", got)
 	}
 	if got := int(doc.IfTable[2]["speed"].(float64)); got != 10000 {
 		t.Fatalf("if_table eth2 speed = %d, want 10000", got)
@@ -251,8 +255,8 @@ func TestTenGigGatewayProfileReportsPortLayout(t *testing.T) {
 	if len(doc.UplinkTable) != 1 {
 		t.Fatalf("uplink_table length = %d, want 1", len(doc.UplinkTable))
 	}
-	if doc.Uplink != "eth2" {
-		t.Fatalf("uplink = %q, want eth2", doc.Uplink)
+	if doc.Uplink != "eth0" {
+		t.Fatalf("uplink = %q, want eth0", doc.Uplink)
 	}
 	if got := doc.ConfigPortTable[2]["name"].(string); got != "wan2" {
 		t.Fatalf("config_port_table port 3 name = %q, want wan2", got)
@@ -265,6 +269,12 @@ func TestTenGigGatewayProfileReportsPortLayout(t *testing.T) {
 	}
 	if len(doc.NetworkTable) != 4 {
 		t.Fatalf("network_table length = %d, want 4", len(doc.NetworkTable))
+	}
+	if len(doc.ReportedNetworks) != 4 {
+		t.Fatalf("reported_networks length = %d, want 4", len(doc.ReportedNetworks))
+	}
+	if got := doc.ReportedNetworks[2]["networkgroup"].(string); got != "WAN2" {
+		t.Fatalf("reported_networks port 3 networkgroup = %q, want WAN2", got)
 	}
 	assertPort := func(index int, name string, speed int, media string, uplink bool) {
 		t.Helper()
@@ -282,10 +292,59 @@ func TestTenGigGatewayProfileReportsPortLayout(t *testing.T) {
 			t.Fatalf("port %d is_uplink = %v, want %v", index, got, uplink)
 		}
 	}
-	assertPort(1, "WAN", 1000, "GE", false)
+	assertPort(1, "WAN", 1000, "GE", true)
 	assertPort(2, "LAN", 1000, "GE", false)
-	assertPort(3, "WAN2", 10000, "SFP+", true)
+	assertPort(3, "WAN2", 10000, "SFP+", false)
 	assertPort(4, "LAN2", 10000, "SFP+", false)
+}
+
+func TestGatewayPortAssignmentsCanBeOverriddenFromConfigModel(t *testing.T) {
+	profile, ok := device.LookupProfile("uxgpro")
+	if !ok {
+		t.Fatal("profile not found")
+	}
+	ports := device.ApplyPortOverrides(device.SwitchPortsWithOptions(profile.Ports, profile.PortOptions()), []device.PortOverride{
+		{Port: 1, Name: "WAN uplink", Role: "wan", NetworkGroup: "WAN", Interface: "ixl0"},
+		{Port: 2, Name: "LAN bridge", Role: "lan", NetworkGroup: "LAN", Interface: "vtnet0"},
+		{Port: 3, Name: "backup_wan", Role: "wan2", NetworkGroup: "WAN2", Interface: "vlan09"},
+		{Port: 4, Name: "unused_lab_lan", Role: "lan2", NetworkGroup: "LAN", Interface: "vlan10"},
+	})
+	payload, err := device.MinimalSwitchPayload(device.Identity{
+		MAC:          "02:11:22:33:44:63",
+		IP:           "192.0.2.50",
+		Hostname:     "unifi-stubd-uxg",
+		Model:        profile.Model,
+		ModelDisplay: profile.ModelDisplay,
+		DeviceType:   profile.DeviceType,
+		Version:      profile.Version,
+		Serial:       "021122334463",
+		InformURL:    "http://192.0.2.10:8080/inform",
+	}, ports)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var doc struct {
+		ConfigPortTable   []map[string]any `json:"config_port_table"`
+		EthernetOverrides []map[string]any `json:"ethernet_overrides"`
+		NetworkTable      []map[string]any `json:"network_table"`
+		ReportedNetworks  []map[string]any `json:"reported_networks"`
+	}
+	if err := json.Unmarshal(payload, &doc); err != nil {
+		t.Fatal(err)
+	}
+	if got := doc.ConfigPortTable[2]["name"].(string); got != "wan2" {
+		t.Fatalf("config_port_table port 3 name = %q, want wan2", got)
+	}
+	if got := doc.EthernetOverrides[2]["networkgroup"].(string); got != "WAN2" {
+		t.Fatalf("ethernet_overrides port 3 networkgroup = %q, want WAN2", got)
+	}
+	if got := doc.NetworkTable[2]["source_interface"].(string); got != "vlan09" {
+		t.Fatalf("network_table port 3 source_interface = %q, want vlan09", got)
+	}
+	if got := doc.ReportedNetworks[3]["networkgroup"].(string); got != "LAN" {
+		t.Fatalf("reported_networks port 4 networkgroup = %q, want LAN", got)
+	}
 }
 
 func TestSwitchPortsCanOverrideAggregationUplinkToTenGigPort(t *testing.T) {
@@ -349,6 +408,127 @@ func TestApplyPortOverridesChangesSpeedAndLinkState(t *testing.T) {
 	assertPort(5, 0, "SFP+", false)
 }
 
+func TestGatewayPayloadReportsPortOverrideMACs(t *testing.T) {
+	profile, ok := device.LookupProfile("ugw3")
+	if !ok {
+		t.Fatal("profile not found")
+	}
+	ports := device.ApplyPortOverrides(device.SwitchPortsWithOptions(2, profile.PortOptions()), []device.PortOverride{
+		{Port: 1, Name: "WAN", MAC: "02:00:5e:00:53:01", IP: "192.0.2.2", Netmask: "255.255.255.0"},
+		{Port: 2, Name: "LAN", MAC: "02:00:5e:00:53:02", IP: "192.0.2.1", Netmask: "255.255.255.0"},
+	})
+	payload, err := device.MinimalSwitchPayload(device.Identity{
+		MAC:          "02:00:5e:00:53:01",
+		IP:           "192.0.2.1",
+		Hostname:     "opnsense",
+		Model:        profile.Model,
+		ModelDisplay: profile.ModelDisplay,
+		DeviceType:   profile.DeviceType,
+		Version:      profile.Version,
+		Serial:       "02005E005301",
+		InformURL:    "http://192.0.2.10:8080/inform",
+	}, ports)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var doc struct {
+		IfTable      []map[string]any `json:"if_table"`
+		NetworkTable []map[string]any `json:"network_table"`
+	}
+	if err := json.Unmarshal(payload, &doc); err != nil {
+		t.Fatal(err)
+	}
+	if got := doc.IfTable[0]["mac"].(string); got != "02:00:5e:00:53:01" {
+		t.Fatalf("WAN if_table mac = %q", got)
+	}
+	if got := doc.IfTable[1]["mac"].(string); got != "02:00:5e:00:53:02" {
+		t.Fatalf("LAN if_table mac = %q", got)
+	}
+	if got := doc.NetworkTable[1]["mac"].(string); got != "02:00:5e:00:53:02" {
+		t.Fatalf("LAN network_table mac = %q", got)
+	}
+	if got := doc.NetworkTable[1]["address"].(string); got != "192.0.2.1/24" {
+		t.Fatalf("LAN network_table address = %q", got)
+	}
+}
+
+func TestUXGGatewayPayloadUsesInterfaceOverrideData(t *testing.T) {
+	profile, ok := device.LookupProfile("uxg-lite")
+	if !ok {
+		t.Fatal("profile not found")
+	}
+	ports := device.ApplyPortOverrides(device.SwitchPortsWithOptions(profile.Ports, profile.PortOptions()), []device.PortOverride{
+		{
+			Port:      1,
+			Name:      "LAN",
+			Interface: "vtnet0",
+			MAC:       "02:00:5e:00:53:02",
+			IP:        "192.0.2.1",
+			Netmask:   "255.255.255.0",
+			Speed:     10000,
+			Media:     "GE",
+			RXBytes:   1234,
+			TXBytes:   5678,
+		},
+		{
+			Port:      2,
+			Name:      "WAN",
+			Interface: "ixl0",
+			MAC:       "02:00:5e:00:53:01",
+			IP:        "198.51.100.9",
+			Netmask:   "255.255.255.0",
+			Speed:     10000,
+			Media:     "SFP+",
+		},
+	})
+	payload, err := device.MinimalSwitchPayload(device.Identity{
+		MAC:          "02:00:5e:00:53:01",
+		IP:           "192.0.2.1",
+		Hostname:     "opnsense",
+		Model:        profile.Model,
+		ModelDisplay: profile.ModelDisplay,
+		DeviceType:   profile.DeviceType,
+		Version:      profile.Version,
+		Serial:       "02005E005301",
+		InformURL:    "http://192.0.2.10:8080/inform",
+	}, ports)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var doc struct {
+		IfTable      []map[string]any `json:"if_table"`
+		NetworkTable []map[string]any `json:"network_table"`
+		PortTable    []map[string]any `json:"port_table"`
+		UplinkTable  []map[string]any `json:"uplink_table"`
+	}
+	if err := json.Unmarshal(payload, &doc); err != nil {
+		t.Fatal(err)
+	}
+	if got := doc.IfTable[0]["ip"].(string); got != "192.0.2.1" {
+		t.Fatalf("LAN if_table ip = %q", got)
+	}
+	if got := doc.IfTable[1]["ip"].(string); got != "198.51.100.9" {
+		t.Fatalf("WAN if_table ip = %q", got)
+	}
+	if got := doc.NetworkTable[0]["networkgroup"].(string); got != "LAN" {
+		t.Fatalf("LAN networkgroup = %q", got)
+	}
+	if got := doc.NetworkTable[1]["networkgroup"].(string); got != "WAN" {
+		t.Fatalf("WAN networkgroup = %q", got)
+	}
+	if got := int(doc.PortTable[0]["max_speed"].(float64)); got != 10000 {
+		t.Fatalf("LAN max_speed = %d", got)
+	}
+	if got := doc.PortTable[0]["source_interface"].(string); got != "vtnet0" {
+		t.Fatalf("LAN source_interface = %q", got)
+	}
+	if got := int(doc.UplinkTable[0]["max_speed"].(float64)); got != 10000 {
+		t.Fatalf("uplink max_speed = %d", got)
+	}
+}
+
 func TestApplyUplinkNeighborAddsConfiguredNeighbor(t *testing.T) {
 	profile, ok := device.LookupProfile("usaggpro")
 	if !ok {
@@ -383,7 +563,7 @@ func TestApplyPortNeighborsAddsConfiguredMacTableEntry(t *testing.T) {
 		{
 			Port: 2,
 			Entry: device.MacTableEntry{
-				MAC:  "28:70:4e:c3:b7:b8",
+				MAC:  "02:00:5e:00:53:03",
 				VLAN: 1,
 				Type: "usw",
 			},
@@ -394,7 +574,7 @@ func TestApplyPortNeighborsAddsConfiguredMacTableEntry(t *testing.T) {
 		t.Fatalf("port 2 MAC table length = %d, want 1", len(ports[1].MACs))
 	}
 	entry := ports[1].MACs[0]
-	if entry.MAC != "28:70:4e:c3:b7:b8" || entry.VLAN != 1 || entry.Type != "usw" {
+	if entry.MAC != "02:00:5e:00:53:03" || entry.VLAN != 1 || entry.Type != "usw" {
 		t.Fatalf("port 2 neighbor = %+v", entry)
 	}
 	if entry.Age == 0 || entry.Uptime == 0 {
@@ -415,7 +595,7 @@ func TestMinimalSwitchPayloadReportsPortOverrideLinkDown(t *testing.T) {
 		ModelDisplay: "UniFi Switch 8",
 		Version:      "7.4.1.16850",
 		Serial:       "021122334460",
-		InformURL:    "http://10.10.0.30:8080/inform",
+		InformURL:    "http://192.0.2.10:8080/inform",
 	}, device.ApplyPortOverrides(device.SwitchPorts(8), []device.PortOverride{
 		{Port: 5, Up: &linkDown},
 	}))
@@ -451,7 +631,7 @@ func TestMinimalSwitchPayloadReportsGroupedUplinkSpeed(t *testing.T) {
 		ModelDisplay: profile.ModelDisplay,
 		Version:      profile.Version,
 		Serial:       "021122334458",
-		InformURL:    "http://10.10.0.30:8080/inform",
+		InformURL:    "http://192.0.2.10:8080/inform",
 	}, device.SwitchPortsWithOptions(profile.Ports, profile.PortOptions()))
 	if err != nil {
 		t.Fatal(err)
@@ -484,7 +664,7 @@ func TestMinimalSwitchPayloadReportsObservedCounters(t *testing.T) {
 		ModelDisplay: "UniFi Switch 8",
 		Version:      "7.4.1.16850",
 		Serial:       "021122334459",
-		InformURL:    "http://10.10.0.30:8080/inform",
+		InformURL:    "http://192.0.2.10:8080/inform",
 	}, []device.Port{
 		{
 			Index:     1,

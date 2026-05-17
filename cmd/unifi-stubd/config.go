@@ -88,6 +88,7 @@ func applyConfig(cfg appconfig.Config, changed map[string]bool, flags *runtimeFl
 	if !changed["no-discovery"] {
 		*flags.noDiscovery = cfg.NoDiscovery
 	}
+	flags.discoveryTargets = cloneStrings(cfg.DiscoveryTargets)
 	if !changed["ssh-listen"] {
 		*flags.sshListen = cfg.SSHListen
 	}
@@ -145,11 +146,17 @@ func configPortOverrides(overrides []appconfig.PortOverride) []device.PortOverri
 	out := make([]device.PortOverride, 0, len(overrides))
 	for _, override := range overrides {
 		out = append(out, device.PortOverride{
-			Port:  override.Port,
-			Name:  override.Name,
-			Speed: override.Speed,
-			Media: override.Media,
-			Up:    cloneBoolPointer(override.Up),
+			Port:         override.Port,
+			Name:         override.Name,
+			Interface:    override.Interface,
+			MAC:          override.MAC,
+			IP:           override.IP,
+			Netmask:      override.Netmask,
+			Role:         override.Role,
+			NetworkGroup: override.NetworkGroup,
+			Speed:        override.Speed,
+			Media:        override.Media,
+			Up:           cloneBoolPointer(override.Up),
 		})
 	}
 	return out
@@ -175,6 +182,15 @@ func defaultNeighborType(neighborType string) string {
 		return "usw"
 	}
 	return neighborType
+}
+
+func cloneStrings(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	out := make([]string, len(values))
+	copy(out, values)
+	return out
 }
 
 func cloneBoolPointer(value *bool) *bool {

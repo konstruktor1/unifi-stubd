@@ -31,10 +31,23 @@ uplink_neighbor:
 #     type: usw
 port_neighbors: []
 # Optional per-port overrides applied after profile and observation data.
+# Profiles describe hardware. Use these overrides for lab assignments such as
+# WAN/LAN/backup_wan without changing the selected device profile.
 # Example:
 # port_overrides:
 #   - port: 2
+#     name: lab_lan
+#     role: lan
+#     network_group: LAN
+#     # Optional host interface source for MAC/IP/link state on that port.
+#     interface: eth1
+#     ip: 192.0.2.51
+#     netmask: 255.255.255.0
 #     speed: 1000
+#   - port: 3
+#     name: backup_wan
+#     role: wan2
+#     network_group: WAN2
 #   - port: 5
 #     up: false
 port_overrides: []
@@ -48,6 +61,9 @@ traffic_source: off
 
 interval_seconds: 10
 no_discovery: false
+# Optional explicit UDP discovery targets for routed labs where the default
+# broadcast or multicast target is not usable.
+discovery_targets: []
 
 ssh_listen: 0.0.0.0:22
 ssh_user: ubnt

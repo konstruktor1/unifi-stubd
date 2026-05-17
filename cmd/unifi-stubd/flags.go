@@ -39,6 +39,7 @@ type runtimeFlags struct {
 	statusJSON       *bool
 	once             *bool
 	noDiscovery      *bool
+	discoveryTargets []string
 	sshListen        *string
 	sshUser          *string
 	sshPassword      *string

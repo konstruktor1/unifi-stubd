@@ -115,6 +115,11 @@ docker exec uxgpro-fw-fullsim /usr/bin/ubios-udapi-client -r GET /interfaces
 docker exec uxgpro-fw-fullsim /usr/bin/ubios-udapi-client -r GET /system/configuration
 ```
 
+`simulation/controller-lab.compose.yaml` adds a local UniFi Network
+Application and MongoDB so the firmware wrapper can talk to
+`http://unifi:8080/inform` inside a private Docker network. See
+`simulation/controller-lab.md`.
+
 ## Source Availability
 
 No complete public source tree for `mcad`, `udapi-bridge`, or

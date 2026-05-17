@@ -40,17 +40,18 @@ type statusIdentity struct {
 }
 
 type statusConfig struct {
-	OperationMode  string                `json:"operation_mode"`
-	ControllerURL  string                `json:"controller_url,omitempty"`
-	InformURL      string                `json:"inform_url,omitempty"`
-	Interval       string                `json:"interval"`
-	NoDiscovery    bool                  `json:"no_discovery"`
-	SSHListen      string                `json:"ssh_listen,omitempty"`
-	StatePath      string                `json:"state_path"`
-	StatusPath     string                `json:"status_path"`
-	UplinkNeighbor *statusUplinkNeighbor `json:"uplink_neighbor,omitempty"`
-	PortNeighbors  []statusPortNeighbor  `json:"port_neighbors,omitempty"`
-	PortOverrides  []statusPortOverride  `json:"port_overrides,omitempty"`
+	OperationMode    string                `json:"operation_mode"`
+	ControllerURL    string                `json:"controller_url,omitempty"`
+	InformURL        string                `json:"inform_url,omitempty"`
+	Interval         string                `json:"interval"`
+	NoDiscovery      bool                  `json:"no_discovery"`
+	DiscoveryTargets []string              `json:"discovery_targets,omitempty"`
+	SSHListen        string                `json:"ssh_listen,omitempty"`
+	StatePath        string                `json:"state_path"`
+	StatusPath       string                `json:"status_path"`
+	UplinkNeighbor   *statusUplinkNeighbor `json:"uplink_neighbor,omitempty"`
+	PortNeighbors    []statusPortNeighbor  `json:"port_neighbors,omitempty"`
+	PortOverrides    []statusPortOverride  `json:"port_overrides,omitempty"`
 }
 
 type statusUplinkNeighbor struct {
@@ -62,11 +63,17 @@ type statusUplinkNeighbor struct {
 }
 
 type statusPortOverride struct {
-	Port  int    `json:"port"`
-	Name  string `json:"name,omitempty"`
-	Speed int    `json:"speed,omitempty"`
-	Media string `json:"media,omitempty"`
-	Up    *bool  `json:"up,omitempty"`
+	Port         int    `json:"port"`
+	Name         string `json:"name,omitempty"`
+	Interface    string `json:"interface,omitempty"`
+	MAC          string `json:"mac,omitempty"`
+	IP           string `json:"ip,omitempty"`
+	Netmask      string `json:"netmask,omitempty"`
+	Role         string `json:"role,omitempty"`
+	NetworkGroup string `json:"network_group,omitempty"`
+	Speed        int    `json:"speed,omitempty"`
+	Media        string `json:"media,omitempty"`
+	Up           *bool  `json:"up,omitempty"`
 }
 
 type statusPortNeighbor struct {
@@ -151,17 +158,18 @@ func buildLocalStatus(flags runtimeFlags, profile device.Profile, mac net.Hardwa
 			UplinkPort: uplinkPortIndex(ports),
 		},
 		Config: statusConfig{
-			OperationMode:  *flags.operationMode,
-			ControllerURL:  *flags.controller,
-			InformURL:      informURL,
-			Interval:       flags.interval.String(),
-			NoDiscovery:    *flags.noDiscovery,
-			SSHListen:      *flags.sshListen,
-			StatePath:      *flags.sshState,
-			StatusPath:     *flags.statusPath,
-			UplinkNeighbor: statusUplinkNeighborEntry(flags.uplinkNeighbor),
-			PortNeighbors:  statusPortNeighbors(flags.portNeighbors),
-			PortOverrides:  statusPortOverrides(flags.portOverrides),
+			OperationMode:    *flags.operationMode,
+			ControllerURL:    *flags.controller,
+			InformURL:        informURL,
+			Interval:         flags.interval.String(),
+			NoDiscovery:      *flags.noDiscovery,
+			DiscoveryTargets: cloneStrings(flags.discoveryTargets),
+			SSHListen:        *flags.sshListen,
+			StatePath:        *flags.sshState,
+			StatusPath:       *flags.statusPath,
+			UplinkNeighbor:   statusUplinkNeighborEntry(flags.uplinkNeighbor),
+			PortNeighbors:    statusPortNeighbors(flags.portNeighbors),
+			PortOverrides:    statusPortOverrides(flags.portOverrides),
 		},
 		Adoption: statusAdoption{
 			State:      adoptionStateText(store),
@@ -255,6 +263,9 @@ func printHumanStatus(status localStatus) {
 	fmt.Printf("inform_url: %s\n", valueOrDash(status.Config.InformURL))
 	fmt.Printf("interval: %s\n", status.Config.Interval)
 	fmt.Printf("no_discovery: %t\n", status.Config.NoDiscovery)
+	for _, target := range status.Config.DiscoveryTargets {
+		fmt.Printf("discovery_target: %s\n", target)
+	}
 	if status.Config.UplinkNeighbor != nil {
 		fmt.Printf("uplink_neighbor: mac=%s vlan=%d type=%s\n",
 			status.Config.UplinkNeighbor.MAC,
@@ -271,8 +282,14 @@ func printHumanStatus(status localStatus) {
 		)
 	}
 	for _, override := range status.Config.PortOverrides {
-		fmt.Printf("port_override: port=%d speed=%d media=%s up=%s name=%s\n",
+		fmt.Printf("port_override: port=%d interface=%s mac=%s ip=%s netmask=%s role=%s network_group=%s speed=%d media=%s up=%s name=%s\n",
 			override.Port,
+			valueOrDash(override.Interface),
+			valueOrDash(override.MAC),
+			valueOrDash(override.IP),
+			valueOrDash(override.Netmask),
+			valueOrDash(override.Role),
+			valueOrDash(override.NetworkGroup),
 			override.Speed,
 			valueOrDash(override.Media),
 			boolPointerText(override.Up),
@@ -327,11 +344,17 @@ func statusPortOverrides(overrides []device.PortOverride) []statusPortOverride {
 	out := make([]statusPortOverride, 0, len(overrides))
 	for _, override := range overrides {
 		out = append(out, statusPortOverride{
-			Port:  override.Port,
-			Name:  strings.TrimSpace(override.Name),
-			Speed: override.Speed,
-			Media: strings.TrimSpace(override.Media),
-			Up:    cloneBoolPointer(override.Up),
+			Port:         override.Port,
+			Name:         strings.TrimSpace(override.Name),
+			Interface:    strings.TrimSpace(override.Interface),
+			MAC:          strings.TrimSpace(override.MAC),
+			IP:           strings.TrimSpace(override.IP),
+			Netmask:      strings.TrimSpace(override.Netmask),
+			Role:         strings.TrimSpace(override.Role),
+			NetworkGroup: strings.TrimSpace(override.NetworkGroup),
+			Speed:        override.Speed,
+			Media:        strings.TrimSpace(override.Media),
+			Up:           cloneBoolPointer(override.Up),
 		})
 	}
 	return out

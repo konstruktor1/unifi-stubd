@@ -3,8 +3,10 @@ package discovery
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"fmt"
 	"net"
+	"strings"
 )
 
 const (
@@ -77,8 +79,22 @@ func (a Announcement) MarshalBinary() ([]byte, error) {
 	return out.Bytes(), nil
 }
 
+// DefaultTargets returns the standard UniFi discovery UDP targets.
+func DefaultTargets() []string {
+	return []string{BroadcastAddress, MulticastAddress}
+}
+
 // Send broadcasts packet to the UniFi discovery broadcast and multicast targets.
 func Send(packet []byte) error {
+	return SendTo(packet, nil)
+}
+
+// SendTo sends packet to explicit targets or to the default discovery targets.
+func SendTo(packet []byte, targets []string) error {
+	targets = cleanTargets(targets)
+	if len(targets) == 0 {
+		targets = DefaultTargets()
+	}
 	conn, err := net.ListenPacket("udp4", ":0")
 	if err != nil {
 		return fmt.Errorf("open discovery socket: %w", err)
@@ -87,16 +103,32 @@ func Send(packet []byte) error {
 		_ = conn.Close()
 	}()
 
-	for _, addr := range []string{BroadcastAddress, MulticastAddress} {
+	var errs []error
+	for _, addr := range targets {
 		udpAddr, err := net.ResolveUDPAddr("udp4", addr)
 		if err != nil {
-			return fmt.Errorf("resolve discovery address %s: %w", addr, err)
+			errs = append(errs, fmt.Errorf("resolve discovery address %s: %w", addr, err))
+			continue
 		}
 		if _, err := conn.WriteTo(packet, udpAddr); err != nil {
-			return fmt.Errorf("send discovery packet to %s: %w", addr, err)
+			errs = append(errs, fmt.Errorf("send discovery packet to %s: %w", addr, err))
 		}
 	}
+	if err := errors.Join(errs...); err != nil {
+		return fmt.Errorf("send discovery packets: %w", err)
+	}
 	return nil
+}
+
+func cleanTargets(targets []string) []string {
+	out := make([]string, 0, len(targets))
+	for _, target := range targets {
+		target = strings.TrimSpace(target)
+		if target != "" {
+			out = append(out, target)
+		}
+	}
+	return out
 }
 
 func writeTLV(w *bytes.Buffer, typ byte, value []byte) {

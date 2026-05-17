@@ -2,6 +2,7 @@
 .utm-build/
 bin/
 dist/
+__pycache__/
 coverage.out
 *.pcap
 *.pcapng
@@ -16,3 +17,7 @@ research/firmware/**/*.img
 research/firmware/**/*.sqfs
 research/firmware/**/*.squashfs
 research/firmware/**/rootfs/
+research/firmware/**/.env
+research/firmware/**/*.env
+research/firmware/**/controller-data/
+research/firmware/**/captures/

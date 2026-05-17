@@ -202,6 +202,10 @@ SIM_DIR="$SIM" docker compose \
   down
 ```
 
+To run this firmware container against a local UniFi Network Application
+controller, use `controller-lab.compose.yaml` as described in
+`controller-lab.md`.
+
 ### Manual Docker Option
 
 ```sh

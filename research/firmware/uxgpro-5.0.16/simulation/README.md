@@ -4,6 +4,8 @@ This folder contains project-owned helper source for running parts of the
 UXG-Pro firmware in an isolated, networkless container.
 
 See `docker-howto.md` for the full container setup.
+See `controller-lab.md` for a local UniFi Network Application lab that can run
+against the firmware container.
 
 `ubnthal_redirect.c` is an LD_PRELOAD shim. It lets selected firmware binaries
 read mock hardware data from `/mock` instead of host kernel paths and no-ops a

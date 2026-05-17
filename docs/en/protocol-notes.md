@@ -9,6 +9,11 @@ Discovery uses UDP `10001`. Historical implementations send to:
 - `255.255.255.255:10001`
 - `233.89.188.1:10001`
 
+Some FreeBSD/OPNsense lab routes cannot send to the all-ones broadcast address.
+For those cases `discovery_targets` can set explicit UDP targets such as the
+LAN broadcast address, for example `192.0.2.255:10001`. Empty
+`discovery_targets` keeps the defaults above.
+
 Packet shape:
 
 ```text
@@ -124,6 +129,10 @@ Mixed-speed switch profiles should report the complete physical port layout in
 32 10G RJ45 ports, and four 25G SFP28 ports. The management `if_table` speed
 uses the selected uplink port speed.
 
+Profiles should stay hardware-shaped. Lab assignments such as "this port is
+WAN", "this port is LAN", or "this port represents backup WAN" belong in
+`port_overrides[].role` and `port_overrides[].network_group`.
+
 Older lab runs showed controller issues when `uptime` in `mac_table` was missing or too small. Each MAC table entry should therefore include plausible `uptime`.
 
 A profile change should be treated as a new device identity. In practice: use a new fake MAC or `-mac auto`, because UniFi caches model information per MAC and later model changes can stick.
@@ -134,8 +143,10 @@ For the MVP:
 
 - `US8`: simple, no PoE expectations.
 - `US8P60`: also small, but PoE fields may be expected.
-- `US16P150`: 16-port profile for US-16-150W-like behavior.
-- `US16XG`: 16-port 10G profile for aggregation/SFP+ checks.
+- `US16P150`: 18-port profile for US-16-150W-like behavior, with 16 1G RJ45
+  ports and two 1G SFP uplinks.
+- `US16XG`: 16-port 10G profile for aggregation/SFP+ checks, with twelve
+  1/10G SFP+ ports and four 1/10G RJ45 ports.
 - `USAGGPRO`: largest controller-known 10G profile validated against older UniFi
   model databases, with 28 10G SFP+ and four 25G SFP28 ports.
 - `USW-Pro-XG-48`: largest built-in 10G access switch profile, with mixed 2.5G,
@@ -144,10 +155,15 @@ For the MVP:
   reports device type `ugw`, model `UGW3`, and three 1G ports named `WAN 1`,
   `LAN 1`, and `WAN 2 / LAN 2`.
 - `UXGPRO`: experimental UniFi Next-Generation Gateway Pro identity profile. It
-  reports device type `uxg`, model `UXGPRO`, two 1G RJ45 ports named `WAN` and
-  `LAN`, and two 10G SFP+ ports named `WAN2` and `LAN2`.
+  reports device type `uxg`, model `UXGPRO`, firmware `5.0.16.30689`, two 1G
+  RJ45 ports named `WAN` and `LAN`, and two 10G SFP+ ports named `WAN2` and
+  `LAN2`. The default active uplink remains `WAN`; remap SFP+ internet labs
+  with `uplink_port` and `port_overrides`.
 
 `UGW3` and `UXGPRO` are only identity/profile stubs in this release. A full
 gateway payload still needs WAN/LAN state, routing, DHCP, firewall, DPI, and
-health fields. Gateway models such as `UGW4`, Cloud Gateway devices, and EFG
+health fields. The current UXG-Pro payload sends gateway tables such as
+`reported_networks` and `uplink`, but the controller may still render gateway
+ports from its internal model instead of preserving a switch-style
+`port_table`. Gateway models such as `UGW4`, Cloud Gateway devices, and EFG
 should be checked later.

@@ -45,6 +45,13 @@ if [[ ! -S /var/run/ubnt-udapi-server.sock ]]; then
     exit 1
 fi
 
+if [[ -n "${UXGPRO_SIM_STATIC_ADDRESS:-}" ]]; then
+    static_interface="${UXGPRO_SIM_STATIC_INTERFACE:-eth0}"
+    ip link set "$static_interface" up || true
+    ip addr flush dev "$static_interface" scope global || true
+    ip addr add "$UXGPRO_SIM_STATIC_ADDRESS" dev "$static_interface"
+fi
+
 /usr/bin/udapi-bridge \
     -m UXGPRO \
     -M 00:15:6d:de:ad:00 \
