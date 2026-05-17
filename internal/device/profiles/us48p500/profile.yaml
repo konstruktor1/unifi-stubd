@@ -1,0 +1,23 @@
+order: 80
+name: us48p500
+model: US48P500
+model_display: UniFi Switch 48 POE-500W
+device_type: usw
+version: 7.4.1.16850
+ports: 52
+port_groups:
+  - count: 48
+    speed: 1000
+    media: GE
+  - count: 2
+    speed: 10000
+    media: SFP+
+    uplink: true
+  - count: 2
+    speed: 1000
+    media: SFP
+port_speed: 1000
+uplink_speed: 10000
+port_media: GE
+uplink_media: SFP+
+description: 48-port UniFi Switch with PoE, 2 SFP+, and 2 SFP uplinks

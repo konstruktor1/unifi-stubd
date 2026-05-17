@@ -9,7 +9,8 @@ by packages automatically.
 - `service-usaggpro.yaml`: Controller-known Pro Aggregation identity with 10G and 25G port groups.
 - `service-usw-pro-xg-48.yaml`: Pro XG 48 identity with 2.5G, 10G, and 25G port groups.
 - `controller-gateway-stubs.compose.yaml`: Docker controller lab with
-  profile-selectable `ugw3`, `uxg-lite`, and `uxgpro` gateway stubs.
+  profile-selectable `ugw3`, `uxg-lite`, `uxgpro`, and `ucg-fiber` gateway
+  stubs.
 - `mongo-init-unifi.sh`: MongoDB user bootstrap used by the Docker controller lab.
 - `mitm-inform-dump.py`: mitmproxy addon that records inform request/response metadata and raw local lab bodies.
 - `observe-bridge.sh`: Create or remove a lab-only Linux bridge with veth members for observe-mode tests.
@@ -42,6 +43,7 @@ Other profiles:
 ```sh
 docker compose -f lab/controller-gateway-stubs.compose.yaml --profile ugw3 up -d --build
 docker compose -f lab/controller-gateway-stubs.compose.yaml --profile uxgpro up -d --build
+docker compose -f lab/controller-gateway-stubs.compose.yaml --profile ucg-fiber up -d --build
 ```
 
 Open the UniFi UI at:

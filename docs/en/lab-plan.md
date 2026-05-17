@@ -130,6 +130,11 @@ Compose lab in `lab/controller-gateway-stubs.compose.yaml`. It starts a UniFi
 Network Application, MongoDB, an inform MITM, and one selected `unifi-stubd`
 gateway profile.
 
+Each gateway profile has its own Dockerfile under `lab/gateway-profiles/`, so
+the image entrypoint carries the selected profile. Compose only supplies
+lab-specific runtime values such as MAC address, IP address, hostname, and
+controller URL.
+
 Start the Gateway Lite profile:
 
 ```sh
@@ -139,8 +144,8 @@ docker compose -f lab/controller-gateway-stubs.compose.yaml \
   up -d --build
 ```
 
-Available stub profiles are `ugw3`, `uxg-lite`, and `uxgpro`. The `gateways`
-Compose profile starts all three for packet-shape comparison, but adoption
+Available stub profiles are `ugw3`, `uxg-lite`, `uxgpro`, and `ucg-fiber`. The
+`gateways` Compose profile starts all four for packet-shape comparison, but adoption
 testing should normally use one gateway per clean controller site.
 
 Open the UI at `https://localhost:8443`. In the UniFi setup, keep TCP `8080`

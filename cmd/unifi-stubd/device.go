@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -36,6 +37,7 @@ func payloadForIdentity(
 		Version:      *flags.version,
 		Serial:       serialFromMAC(mac),
 		InformURL:    informURL,
+		InformIP:     resolveInformIP(informURL),
 	}, store, ports)
 }
 
@@ -50,6 +52,33 @@ func buildPayload(id device.Identity, store adoption.Store, ports []device.Port)
 		return nil, fmt.Errorf("build device payload: %w", err)
 	}
 	return payload, nil
+}
+
+func resolveInformIP(informURL string) string {
+	parsed, err := url.Parse(strings.TrimSpace(informURL))
+	if err != nil {
+		return ""
+	}
+	host := parsed.Hostname()
+	if host == "" {
+		return ""
+	}
+	if ip := net.ParseIP(host); ip != nil {
+		return ip.String()
+	}
+	ips, err := net.LookupIP(host)
+	if err != nil {
+		return ""
+	}
+	for _, ip := range ips {
+		if v4 := ip.To4(); v4 != nil {
+			return v4.String()
+		}
+	}
+	if len(ips) > 0 {
+		return ips[0].String()
+	}
+	return ""
 }
 
 func resolveHostname(value string) string {

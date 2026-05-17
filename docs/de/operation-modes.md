@@ -35,6 +35,12 @@ behaelt die originale Gateway-artige Zuweisung: `WAN` auf dem primaeren
 Internet-Seite auf SFP+ legt, gehoert das in `uplink_port` und
 `port_overrides`.
 
+`UCGF` ist ueber das experimentelle `ucg-fiber`-Cloud-Gateway-Fiber-
+Identitaetsprofil verfuegbar. Es meldet Device-Type `udm` mit vier
+2.5G-RJ45-LAN-Ports, einem 10G-RJ45-Port `WAN2`, einem 10G-SFP+-Port `WAN`
+und einem 10G-SFP+-LAN-Port. Es ist Stub-only und startet weder UniFi OS noch
+gebuendelte Controller-Anwendungen.
+
 ## Modi
 
 ### `stub`

@@ -1,12 +1,6 @@
 name: unifi-stubd-gateway-lab
 
 x-stub-common: &stub-common
-  build:
-    context: ..
-    dockerfile: Dockerfile
-    args:
-      VERSION: ${UNIFI_STUBD_VERSION:-lab}
-  image: ${UNIFI_STUBD_IMAGE:-unifi-stubd:lab}
   init: true
   depends_on:
     inform-mitm:
@@ -118,6 +112,12 @@ services:
 
   stub-ugw3:
     <<: *stub-common
+    build:
+      context: ..
+      dockerfile: lab/gateway-profiles/ugw3/Dockerfile
+      args:
+        VERSION: ${UNIFI_STUBD_VERSION:-lab}
+    image: ${UNIFI_STUB_UGW3_IMAGE:-unifi-stubd-ugw3:lab}
     profiles:
       - ugw3
       - gateways
@@ -129,8 +129,6 @@ services:
     volumes:
       - stub_ugw3_state:/var/lib/unifi-stubd
     command:
-      - -profile
-      - ugw3
       - -mac
       - ${UNIFI_STUB_UGW3_MAC:-02:15:6d:00:03:01}
       - -ip
@@ -151,6 +149,12 @@ services:
 
   stub-uxg-lite:
     <<: *stub-common
+    build:
+      context: ..
+      dockerfile: lab/gateway-profiles/uxg-lite/Dockerfile
+      args:
+        VERSION: ${UNIFI_STUBD_VERSION:-lab}
+    image: ${UNIFI_STUB_UXG_LITE_IMAGE:-unifi-stubd-uxg-lite:lab}
     profiles:
       - uxg-lite
       - gateways
@@ -162,8 +166,6 @@ services:
     volumes:
       - stub_uxg_lite_state:/var/lib/unifi-stubd
     command:
-      - -profile
-      - uxg-lite
       - -mac
       - ${UNIFI_STUB_UXG_LITE_MAC:-02:15:6d:00:10:01}
       - -ip
@@ -184,6 +186,12 @@ services:
 
   stub-uxgpro:
     <<: *stub-common
+    build:
+      context: ..
+      dockerfile: lab/gateway-profiles/uxgpro/Dockerfile
+      args:
+        VERSION: ${UNIFI_STUBD_VERSION:-lab}
+    image: ${UNIFI_STUB_UXGPRO_IMAGE:-unifi-stubd-uxgpro:lab}
     profiles:
       - uxgpro
       - gateways
@@ -195,14 +203,49 @@ services:
     volumes:
       - stub_uxgpro_state:/var/lib/unifi-stubd
     command:
-      - -profile
-      - uxgpro
       - -mac
       - ${UNIFI_STUB_UXGPRO_MAC:-02:15:6d:00:20:01}
       - -ip
       - ${UNIFI_STUB_UXGPRO_IP:-172.31.242.22}
       - -hostname
       - stub-uxgpro
+      - -controller
+      - http://unifi:8080/inform
+      - -no-discovery
+      - -ssh-listen
+      - 0.0.0.0:22
+      - -ssh-host-key
+      - /var/lib/unifi-stubd/ssh_host_rsa_key
+      - -ssh-state
+      - /var/lib/unifi-stubd/adoption.env
+      - -status-path
+      - /var/lib/unifi-stubd/status.json
+
+  stub-ucg-fiber:
+    <<: *stub-common
+    build:
+      context: ..
+      dockerfile: lab/gateway-profiles/ucg-fiber/Dockerfile
+      args:
+        VERSION: ${UNIFI_STUBD_VERSION:-lab}
+    image: ${UNIFI_STUB_UCG_FIBER_IMAGE:-unifi-stubd-ucg-fiber:lab}
+    profiles:
+      - ucg-fiber
+      - gateways
+    container_name: ${UNIFI_STUB_UCG_FIBER_CONTAINER:-stub-lab-ucg-fiber}
+    hostname: stub-ucg-fiber
+    networks:
+      lab:
+        ipv4_address: ${UNIFI_STUB_UCG_FIBER_IP:-172.31.242.23}
+    volumes:
+      - stub_ucg_fiber_state:/var/lib/unifi-stubd
+    command:
+      - -mac
+      - ${UNIFI_STUB_UCG_FIBER_MAC:-02:15:6d:00:30:01}
+      - -ip
+      - ${UNIFI_STUB_UCG_FIBER_IP:-172.31.242.23}
+      - -hostname
+      - stub-ucg-fiber
       - -controller
       - http://unifi:8080/inform
       - -no-discovery
@@ -229,3 +272,4 @@ volumes:
   stub_ugw3_state:
   stub_uxg_lite_state:
   stub_uxgpro_state:
+  stub_ucg_fiber_state:

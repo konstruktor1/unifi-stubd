@@ -34,6 +34,11 @@ keeps the original gateway-style assignment: `WAN` on the 1G RJ45 primary WAN,
 the 10G SFP+ LAN. Use `uplink_port` and `port_overrides` when a lab maps the
 active internet side to the SFP+ port.
 
+`UCGF` is available through the experimental `ucg-fiber` Cloud Gateway Fiber
+identity profile. It reports `udm` device type with four 2.5G RJ45 LAN ports,
+one 10G RJ45 `WAN2` port, one 10G SFP+ `WAN` port, and one 10G SFP+ LAN port.
+It is stub-only and does not run UniFi OS or bundled controller applications.
+
 ## Modes
 
 ### `stub`

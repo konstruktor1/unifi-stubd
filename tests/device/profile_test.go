@@ -222,6 +222,54 @@ func TestGatewayLiteProfile(t *testing.T) {
 	}
 }
 
+func TestCloudGatewayFiberProfile(t *testing.T) {
+	profile, ok := device.LookupProfile("ucg-fiber")
+	if !ok {
+		t.Fatal("profile not found")
+	}
+	if profile.Model != "UCGF" {
+		t.Fatalf("Model = %q, want UCGF", profile.Model)
+	}
+	if profile.DeviceType != "udm" {
+		t.Fatalf("DeviceType = %q, want udm", profile.DeviceType)
+	}
+	if profile.Ports != 7 {
+		t.Fatalf("Ports = %d, want 7", profile.Ports)
+	}
+	if profile.Version != "5.0.16" {
+		t.Fatalf("Version = %q, want 5.0.16", profile.Version)
+	}
+	byModel, ok := device.LookupProfile("UCGF")
+	if !ok || byModel.Name != "ucg-fiber" {
+		t.Fatalf("LookupProfile(UCGF) = %+v, %v; want ucg-fiber", byModel, ok)
+	}
+	ports := device.SwitchPortsWithOptions(profile.Ports, profile.PortOptions())
+	assertPort := func(index int, name string, speed int, media string, role string, group string, uplink bool) {
+		t.Helper()
+		port := ports[index-1]
+		if port.Name != name {
+			t.Fatalf("port %d name = %q, want %q", index, port.Name, name)
+		}
+		if port.Speed != speed {
+			t.Fatalf("port %d speed = %d, want %d", index, port.Speed, speed)
+		}
+		if port.Media != media {
+			t.Fatalf("port %d media = %q, want %q", index, port.Media, media)
+		}
+		if port.Role != role || port.NetworkGroup != group {
+			t.Fatalf("port %d assignment = role %q group %q, want %s/%s", index, port.Role, port.NetworkGroup, role, group)
+		}
+		if port.Uplink != uplink {
+			t.Fatalf("port %d uplink = %v, want %v", index, port.Uplink, uplink)
+		}
+	}
+	assertPort(1, "LAN 1", 2500, "GE", "lan", "LAN", false)
+	assertPort(4, "LAN 4", 2500, "GE", "lan", "LAN", false)
+	assertPort(5, "WAN 2", 10000, "GE", "wan2", "WAN2", false)
+	assertPort(6, "WAN", 10000, "SFP+", "wan", "WAN", true)
+	assertPort(7, "LAN 5", 10000, "SFP+", "lan", "LAN", false)
+}
+
 func TestAutoMACIsStableAndProfileSensitive(t *testing.T) {
 	first := device.AutoMAC("host|us16p150")
 	second := device.AutoMAC("host|us16p150")

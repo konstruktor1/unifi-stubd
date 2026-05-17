@@ -1,0 +1,24 @@
+order: 90
+name: ugw3
+model: UGW3
+model_display: UniFi Security Gateway 3P
+device_type: ugw
+version: 4.4.57.5578372
+ports: 3
+port_names:
+  - WAN 1
+  - LAN 1
+  - WAN 2 / LAN 2
+port_roles:
+  - wan
+  - lan
+  - wan2
+port_network_groups:
+  - WAN
+  - LAN
+  - WAN2
+port_speed: 1000
+uplink_speed: 1000
+port_media: GE
+uplink_media: GE
+description: experimental 3-port UniFi Security Gateway stub

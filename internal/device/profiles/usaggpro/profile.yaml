@@ -1,0 +1,20 @@
+order: 50
+name: usaggpro
+model: USAGGPRO
+model_display: UniFi Switch Aggregation PRO
+device_type: usw
+version: 7.4.1.16850
+ports: 32
+port_groups:
+  - count: 28
+    speed: 10000
+    media: SFP+
+  - count: 4
+    speed: 25000
+    media: SFP28
+    uplink: true
+port_speed: 10000
+uplink_speed: 25000
+port_media: SFP+
+uplink_media: SFP28
+description: 32-port Pro Aggregation switch with 10G SFP+ and 25G SFP28

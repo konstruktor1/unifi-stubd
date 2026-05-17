@@ -66,6 +66,8 @@ type Identity struct {
 	Serial string
 	// InformURL is the controller inform URL currently known by the device.
 	InformURL string
+	// InformIP is the numeric controller inform endpoint address reported to UniFi.
+	InformIP string
 	// CFGVersion is the controller configuration version applied to the device.
 	CFGVersion string
 	// Adopted reports whether the stub should present itself as adopted.
@@ -245,40 +247,48 @@ func MinimalSwitchPayload(id Identity, ports []Port) ([]byte, error) {
 		jsonKeyUptime:        1,
 		"time":               now,
 		"inform_url":         informURL,
-		"if_table": []map[string]any{
-			{
-				jsonKeyName:       "eth0",
-				jsonKeyMAC:        id.MAC,
-				"ip":              id.IP,
-				jsonKeyNumPort:    numPorts,
-				"up":              true,
-				jsonKeySpeed:      ifSpeed,
-				jsonKeyFullDuplex: true,
-			},
-		},
-		"ethernet_table": []map[string]any{
-			{
-				jsonKeyName:    "eth0",
-				jsonKeyMAC:     id.MAC,
-				jsonKeyNumPort: numPorts,
-			},
-			{
-				jsonKeyName: "srv0",
-				jsonKeyMAC:  incrementMAC(id.MAC),
-			},
-		},
-		"port_table":   portTable(ports),
-		"sys_stats":    sysStats(),
-		"system-stats": map[string]any{"cpu": 1.0, "mem": 10.0, jsonKeyUptime: 1},
+		"sys_stats":          sysStats(),
+		"system-stats":       map[string]any{"cpu": 1.0, "mem": 10.0, jsonKeyUptime: 1},
+	}
+	if id.InformIP != "" {
+		payload["inform_ip"] = id.InformIP
 	}
 	if isGatewayDeviceType(deviceType) {
 		applyGatewayPayload(payload, id, ports)
+	} else {
+		applySwitchPayload(payload, id, ports, numPorts, ifSpeed)
 	}
 	data, err := json.MarshalIndent(payload, "", "  ")
 	if err != nil {
 		return nil, fmt.Errorf("marshal switch payload: %w", err)
 	}
 	return data, nil
+}
+
+func applySwitchPayload(payload map[string]any, id Identity, ports []Port, numPorts int, ifSpeed int) {
+	payload["if_table"] = []map[string]any{
+		{
+			jsonKeyName:       "eth0",
+			jsonKeyMAC:        id.MAC,
+			"ip":              id.IP,
+			jsonKeyNumPort:    numPorts,
+			"up":              true,
+			jsonKeySpeed:      ifSpeed,
+			jsonKeyFullDuplex: true,
+		},
+	}
+	payload["ethernet_table"] = []map[string]any{
+		{
+			jsonKeyName:    "eth0",
+			jsonKeyMAC:     id.MAC,
+			jsonKeyNumPort: numPorts,
+		},
+		{
+			jsonKeyName: "srv0",
+			jsonKeyMAC:  incrementMAC(id.MAC),
+		},
+	}
+	payload["port_table"] = portTable(ports)
 }
 
 func informState(adopted bool) int {
@@ -290,7 +300,7 @@ func informState(adopted bool) int {
 
 func isGatewayDeviceType(deviceType string) bool {
 	switch strings.TrimSpace(deviceType) {
-	case deviceTypeUGW, deviceTypeUXG:
+	case deviceTypeUGW, deviceTypeUXG, deviceTypeUDM:
 		return true
 	default:
 		return false
@@ -298,13 +308,9 @@ func isGatewayDeviceType(deviceType string) bool {
 }
 
 func applyGatewayPayload(payload map[string]any, id Identity, ports []Port) {
+	applyGatewayTelemetry(payload, id)
 	payload["if_table"] = gatewayIfTable(id, ports)
-	payload["ethernet_table"] = gatewayEthernetTable(id, ports)
-	payload["config_port_table"] = gatewayConfigPortTable(id.Model, ports)
-	payload["ethernet_overrides"] = gatewayEthernetOverrides(id.Model, ports)
-	payload["port_overrides"] = gatewayPortOverrides(id.Model, ports)
 	payload["network_table"] = gatewayNetworkTable(id, ports)
-	payload["reported_networks"] = gatewayReportedNetworks(id, ports)
 	payload["uplink"] = gatewayInterfaceName(gatewayUplinkPortIndex(ports))
 	payload["uplink_table"] = gatewayUplinkTable(id, ports)
 	payload["has_eth1"] = len(ports) > 1
@@ -313,6 +319,103 @@ func applyGatewayPayload(payload map[string]any, id Identity, ports []Port) {
 	if len(ports) > 2 {
 		payload["config_network_wan2"] = map[string]any{jsonKeyType: "dhcp"}
 	}
+}
+
+func applyGatewayTelemetry(payload map[string]any, id Identity) {
+	cfgVersion, _ := payload["cfgversion"].(string)
+	if cfgVersion == "" {
+		cfgVersion = "?"
+	}
+	payload["anon_id"] = ""
+	payload["architecture"] = "aarch64"
+	payload["ble_caps"] = 0
+	payload["board_rev"] = 1
+	payload["bomrev"] = "unknown"
+	payload["bomrev_id"] = "00000000"
+	payload["boot"] = map[string]any{}
+	payload["bootid"] = -1
+	payload["bootrom_version"] = "unknown"
+	payload["cfgversion_effective"] = cfgVersion
+	payload["connections"] = []map[string]any{}
+	payload["content_filtering_status"] = map[string]any{"feature_status": "UNAVAILABLE_NO_SUBSCRIPTION"}
+	payload["dns_shield"] = map[string]any{"hash": ""}
+	payload["dpi_stats"] = []map[string]any{}
+	payload["dualboot"] = false
+	payload["ever_crash"] = false
+	payload["fingerprint"] = "00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00"
+	payload["fingerprints"] = []map[string]any{}
+	payload["fw2_caps"] = 0
+	payload["fw_caps"] = 0
+	payload["guest_kicks"] = 0
+	payload["guest_token"] = ""
+	payload["gw_caps"] = map[string]any{}
+	payload["hardware_uuid"] = "00000000-0000-4000-8000-000000000000"
+	payload["has_default_route_distance"] = true
+	payload["has_speaker"] = false
+	payload["has_ssh_disable"] = true
+	payload["has_vti"] = true
+	payload["hw_caps"] = 0
+	payload["ids_ips_rule"] = map[string]any{"rule_count": 0, "sha256": "", "signature_type": "", "update_time": ""}
+	payload["inform_min_interval"] = 1
+	payload["ipv4_active_leases"] = []map[string]any{}
+	payload["isolated"] = false
+	payload["kernel_version"] = "6.12.0-stubd"
+	payload["last_error_conns"] = []map[string]any{}
+	payload["led_state"] = map[string]any{"pattern": "0", "tempo": 120}
+	payload["lldp_table"] = []map[string]any{}
+	payload["locating"] = false
+	payload["manufacturer_id"] = 61
+	payload["netmask"] = "255.255.255.0"
+	payload["outlet_table"] = []map[string]any{}
+	payload["pingtest-status"] = []map[string]any{}
+	payload["qrid"] = ""
+	payload["reboot_duration"] = 30
+	payload["selfrun_beacon"] = true
+	payload["speedtest-status"] = gatewaySpeedtestStatus()
+	payload["speedtest-status-udapi"] = []map[string]any{}
+	payload["ssh_session_table"] = []map[string]any{}
+	payload["stats_inform_interval"] = 0
+	payload["switch_caps"] = map[string]any{"feature_caps": 1048576, "max_aggregate_sessions": 0, "max_mirror_sessions": 1}
+	payload["sys_error_caps"] = 0
+	payload["sysid"] = gatewaySysID(id.MAC)
+	payload["teleport_version"] = 1
+	payload["time_ms"] = 0
+	payload["timestamp"] = time.Now().UTC().Format("2006-01-02T15:04:05")
+	payload["tm_ready"] = false
+	payload["triggers"] = []map[string]any{}
+	payload["triggers_dns_filter"] = []map[string]any{}
+	payload["triggers_geo"] = []map[string]any{}
+	payload["udapi_caps"] = 0
+	payload["udapi_version"] = map[string]any{}
+	payload["upgrade_duration"] = 150
+	payload["uptime_str"] = "1s"
+	payload["usg2_caps"] = 0
+	payload["usg_caps"] = 0
+	payload["wifi_caps"] = 0
+}
+
+func gatewaySpeedtestStatus() map[string]any {
+	return map[string]any{
+		"latency":         0,
+		"rundate":         0,
+		"runtime":         0,
+		"server":          map[string]any{"cc": "", "city": "", "country": "", "lat": 0.0, "lon": 0.0, "provider": "", "provider_url": ""},
+		jsonKeySourceIf:   "",
+		"status_download": 0,
+		"status_ping":     0,
+		"status_summary":  0,
+		"status_upload":   0,
+		"xput_download":   0.0,
+		"xput_upload":     0.0,
+	}
+}
+
+func gatewaySysID(macText string) int {
+	mac, err := net.ParseMAC(macText)
+	if err != nil || len(mac) < 2 {
+		return 42615
+	}
+	return int(mac[len(mac)-2])<<8 | int(mac[len(mac)-1])
 }
 
 func gatewayUplinkPortIndex(ports []Port) int {
@@ -677,6 +780,7 @@ func gatewayIfTable(id Identity, ports []Port) []map[string]any {
 		out = append(out, map[string]any{
 			jsonKeyName:       gatewayInterfaceName(port.Index),
 			jsonKeyIfName:     gatewayInterfaceName(port.Index),
+			"comment":         port.Name,
 			jsonKeyPortIdx:    port.Index,
 			jsonKeyMAC:        gatewayPortMAC(id.MAC, port),
 			"ip":              ip,
@@ -697,81 +801,6 @@ func gatewayIfTable(id Identity, ports []Port) []map[string]any {
 			jsonKeyRXErrors:   port.RXErrors,
 			jsonKeyTXErrors:   port.TXErrors,
 			jsonKeySourceIf:   port.Interface,
-		})
-	}
-	return out
-}
-
-func gatewayConfigPortTable(model string, ports []Port) []map[string]any {
-	out := make([]map[string]any, 0, len(ports))
-	for _, port := range ports {
-		out = append(out, map[string]any{
-			jsonKeyIfName: gatewayInterfaceName(port.Index),
-			jsonKeyName:   gatewayPortRole(model, port),
-		})
-	}
-	return out
-}
-
-func gatewayEthernetTable(id Identity, ports []Port) []map[string]any {
-	out := make([]map[string]any, 0, len(ports))
-	for _, port := range ports {
-		speed := gatewayPortSpeed(port)
-		out = append(out, map[string]any{
-			jsonKeyName:       gatewayInterfaceName(port.Index),
-			jsonKeyIfName:     gatewayInterfaceName(port.Index),
-			jsonKeyMAC:        gatewayPortMAC(id.MAC, port),
-			jsonKeyNumPort:    1,
-			jsonKeyPortIdx:    port.Index,
-			jsonKeySpeed:      speed,
-			jsonKeyMaxSpeed:   speed,
-			jsonKeyUp:         port.Up,
-			jsonKeyMedia:      port.Media,
-			jsonKeyNetworkGrp: gatewayNetworkGroup(id.Model, port),
-			jsonKeySpeedCaps:  speedCaps(speed, port.Media),
-			jsonKeyFullDuplex: true,
-			jsonKeyAutoneg:    true,
-		})
-	}
-	return out
-}
-
-func gatewayEthernetOverrides(model string, ports []Port) []map[string]any {
-	out := make([]map[string]any, 0, len(ports))
-	for _, port := range ports {
-		speed := gatewayPortSpeed(port)
-		out = append(out, map[string]any{
-			jsonKeyIfName:     gatewayInterfaceName(port.Index),
-			jsonKeyName:       port.Name,
-			jsonKeyPortIdx:    port.Index,
-			jsonKeyNetworkGrp: gatewayNetworkGroup(model, port),
-			jsonKeySpeed:      speed,
-			jsonKeyMaxSpeed:   speed,
-			jsonKeyFullDuplex: true,
-			jsonKeyAutoneg:    true,
-		})
-	}
-	return out
-}
-
-func gatewayPortOverrides(model string, ports []Port) []map[string]any {
-	out := make([]map[string]any, 0, len(ports))
-	for _, port := range ports {
-		speed := gatewayPortSpeed(port)
-		out = append(out, map[string]any{
-			jsonKeyPortIdx:    port.Index,
-			jsonKeyIfName:     gatewayInterfaceName(port.Index),
-			jsonKeyName:       port.Name,
-			jsonKeyNetworkGrp: gatewayNetworkGroup(model, port),
-			"op_mode":         payloadModeSwitch,
-			jsonKeyMedia:      port.Media,
-			jsonKeySpeed:      speed,
-			jsonKeyMaxSpeed:   speed,
-			jsonKeySpeedCaps:  speedCaps(speed, port.Media),
-			jsonKeyEnable:     true,
-			jsonKeyUp:         port.Up,
-			jsonKeyFullDuplex: true,
-			jsonKeyAutoneg:    true,
 		})
 	}
 	return out
@@ -817,30 +846,6 @@ func gatewayNetworkTable(id Identity, ports []Port) []map[string]any {
 			entry["host_table"] = hosts
 		}
 		out = append(out, entry)
-	}
-	return out
-}
-
-func gatewayReportedNetworks(id Identity, ports []Port) []map[string]any {
-	out := make([]map[string]any, 0, len(ports))
-	for _, port := range ports {
-		ip := gatewayInterfaceIP(id, port)
-		netmask := gatewayInterfaceNetmask(port)
-		address := interfaceAddressCIDR(ip, netmask)
-		out = append(out, map[string]any{
-			jsonKeyName:       gatewayInterfaceName(port.Index),
-			jsonKeyIfName:     gatewayInterfaceName(port.Index),
-			jsonKeyPortIdx:    port.Index,
-			jsonKeyNetworkGrp: gatewayNetworkGroup(id.Model, port),
-			"ip":              ip,
-			jsonKeyNetmask:    netmask,
-			"address":         address,
-			"addresses": []string{
-				address,
-			},
-			jsonKeyUp:       port.Up,
-			jsonKeySourceIf: port.Interface,
-		})
 	}
 	return out
 }

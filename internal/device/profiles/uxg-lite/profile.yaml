@@ -1,0 +1,29 @@
+order: 120
+name: uxg-lite
+model: UXG
+model_display: UniFi Gateway Lite
+device_type: uxg
+version: 5.0.16.30689
+ports: 2
+port_groups:
+  - count: 1
+    speed: 1000
+    media: GE
+  - count: 1
+    speed: 1000
+    media: GE
+    uplink: true
+port_names:
+  - LAN
+  - WAN
+port_roles:
+  - lan
+  - wan
+port_network_groups:
+  - LAN
+  - WAN
+port_speed: 1000
+uplink_speed: 1000
+port_media: GE
+uplink_media: GE
+description: experimental 2-port Gateway Lite with WAN and LAN

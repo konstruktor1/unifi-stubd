@@ -184,12 +184,16 @@ Fuer den MVP:
   `5.0.16.30689`, zwei 1G-RJ45-Ports `WAN` und `LAN` sowie zwei 10G-SFP+-
   Ports `WAN2` und `LAN2`. Der Default-Uplink bleibt `WAN`; SFP+-Internet-
   Labs werden ueber `uplink_port` und `port_overrides` remapped.
+- `UCGF`: experimentelles UniFi-Cloud-Gateway-Fiber-Identitaetsprofil,
+  verfuegbar ueber das Profil `ucg-fiber`. Es meldet Device-Type `udm`,
+  Firmware `5.0.16`, vier 2.5G-RJ45-LAN-Ports, einen 10G-RJ45-Port `WAN2`,
+  einen 10G-SFP+-Port `WAN` und einen 10G-SFP+-LAN-Port.
 
-`UGW3`, `UXG` und `UXGPRO` sind in diesem Release nur
+`UGW3`, `UXG`, `UXGPRO` und `UCGF` sind in diesem Release nur
 Identitaets-/Profil-Stubs. Fuer einen vollstaendigen Gateway-Payload fehlen
 weiterhin WAN/LAN-State, Routing, DHCP, Firewall, DPI und Health-Felder. Der
-aktuelle UXG-Pro-Payload sendet Gateway-Tabellen wie `reported_networks` und
-`uplink`, aber der Controller kann Gateway-Ports weiterhin aus seinem internen
-Modell rendern, statt eine Switch-artige `port_table` zu uebernehmen.
-Gateway-Modelle wie `UGW4`, Cloud-Gateway-Geraete und EFG erst spaeter
+aktuelle Gateway-Payload sendet Gateway-Tabellen wie `network_table`, `uplink`
+und `uplink_table`, aber der Controller kann Gateway-Ports weiterhin aus seinem
+internen Modell rendern statt aus einer Switch-artigen `port_table`.
+Gateway-Modelle wie `UGW4`, andere Cloud-Gateway-Geraete und EFG erst spaeter
 pruefen.

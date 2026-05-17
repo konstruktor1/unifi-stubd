@@ -1,0 +1,12 @@
+order: 20
+name: us8p60
+model: US8P60
+model_display: UniFi Switch 8 60W
+device_type: usw
+version: 7.4.1.16850
+ports: 8
+port_speed: 1000
+uplink_speed: 1000
+port_media: GE
+uplink_media: GE
+description: 8-port UniFi Switch with PoE

@@ -1,0 +1,47 @@
+order: 110
+name: ucg-fiber
+model: UCGF
+model_display: UniFi Cloud Gateway Fiber
+device_type: udm
+version: 5.0.16
+ports: 7
+port_groups:
+  - count: 4
+    speed: 2500
+    media: GE
+  - count: 1
+    speed: 10000
+    media: GE
+  - count: 2
+    speed: 10000
+    media: SFP+
+    uplink: true
+port_names:
+  - LAN 1
+  - LAN 2
+  - LAN 3
+  - LAN 4
+  - WAN 2
+  - WAN
+  - LAN 5
+port_roles:
+  - lan
+  - lan
+  - lan
+  - lan
+  - wan2
+  - wan
+  - lan
+port_network_groups:
+  - LAN
+  - LAN
+  - LAN
+  - LAN
+  - WAN2
+  - WAN
+  - LAN
+port_speed: 2500
+uplink_speed: 10000
+port_media: GE
+uplink_media: SFP+
+description: experimental Cloud Gateway Fiber with 2.5G LAN, 10G RJ45 WAN2, and 10G SFP+ WAN/LAN

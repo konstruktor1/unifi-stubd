@@ -24,6 +24,7 @@ Implemented:
 - Experimental stub-only `UGW3` gateway identity profile.
 - Experimental stub-only `UXG` Gateway Lite identity profile.
 - Experimental stub-only `UXGPRO` 10G gateway identity profile.
+- Experimental stub-only `UCGF` Cloud Gateway Fiber identity profile.
 - Built-in SSH shim for advanced adoption commands.
 - YAML configuration under `/etc/unifi-stubd/config.yaml`.
 - OpenRC and systemd service definitions.
@@ -65,6 +66,11 @@ the original gateway-style layout: WAN1 on 1G RJ45, LAN on 1G RJ45, WAN2 on
 10G SFP+, and LAN2 on 10G SFP+. Like `ugw3`, it is an identity and
 status-payload stub only. Use `uplink_port` and `port_overrides` when a lab
 uses the SFP+ port as the active WAN.
+
+The `ucg-fiber` profile reports a UniFi Cloud Gateway Fiber identity with four
+2.5G RJ45 LAN ports, one 10G RJ45 WAN2 port, one 10G SFP+ WAN port, and one
+10G SFP+ LAN port. It uses the Cloud Gateway `udm` device type and is
+stub-only; it does not run UniFi OS or any controller applications.
 
 Profiles describe hardware. Use YAML `port_overrides` to map lab assignments
 such as WAN, LAN, or backup WAN onto those profile ports via `role` and
