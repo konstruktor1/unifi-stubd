@@ -42,7 +42,7 @@ research/firmware/uxgpro-5.0.16/simulation/fixtures/decoded-gateway-inform-sampl
 Snapshot window:
 
 ```text
-2026-05-17T13:53:44Z through 2026-05-17T14:00:26Z
+2026-05-17T14:48:00Z through 2026-05-17T14:53:05Z
 ```
 
 The useful device-originated traffic had this shape:
@@ -57,29 +57,48 @@ The useful device-originated traffic had this shape:
 | Packet magic | `TNBU` |
 | Packet version | `0` |
 | Payload version | `1` |
-| Device MAC in packet header | `00:00:00:00:00:00` |
-| Request body size range | `1312` to `1763` bytes |
-| TNBU payload size range | `1272` to `1723` bytes |
+| Device MAC in packet header | `00:15:6d:de:ad:00` |
+| Device MAC in decoded payload | `00:15:6d:de:ad:00` |
+| Device serial in decoded payload | `00156DDEAD00` |
+| Request body size range | `1329` to `1930` bytes |
+| TNBU payload size range | `1289` to `1890` bytes |
 
 Observed TNBU flag distribution in the snapshot:
 
 | Flags | Count |
 | --- | ---: |
-| `3` | `113` |
-| `11` | `230` |
+| `3` | `120` |
+| `11` | `179` |
 
-The controller returned empty responses with HTTP `404` during this run. That
-means the firmware, MITM, and controller network path is working, but the UniFi
-Network Application had not yet reached a state where it handles this lab
+Earlier simulation runs reported `00:00:00:00:00:00` as the top-level device
+MAC. That was caused by a zero serial in the mocked `/proc/ubnthal` board and
+system metadata. Setting both `serial` and `serialno` to `00156DDEAD00` made
+`mcad` emit a stable top-level MAC and serial in both the TNBU packet header
+and decoded payload.
+
+The controller still returned empty responses with HTTP `404` for the real
+UXG-Pro firmware `POST /inform` stream. Direct invalid requests to `/inform`
+returned `400`, so the controller HTTP path exists; the current Dockerized
+UniFi Network Application still does not accept this simulated real-gateway
 inform stream as an adopted or adoptable device.
 
-After the controller setup flow was completed through the local API, `GET
-/inform` returned `400`, confirming that the inform route was present. Firmware
-`POST /inform` requests still returned `404` because the real firmware payload
-continues to report a zero top-level device MAC in both the TNBU packet header
-and decoded payload. The decoded payload still makes the gateway reporting
-shape visible: WAN/LAN state appears in `if_table` and `network_table`, not in
-the switch-style `port_table`.
+The decoded payload makes the gateway reporting shape visible. Gateway
+interfaces are reported through `if_table` and `network_table`; `port_table`
+remains `null` and was not observed in this gateway inform stream. The lab
+currently reports four interfaces:
+
+| Interface | Address | MAC | Source table |
+| --- | --- | --- | --- |
+| `eth0` | `172.31.240.20/24` | `00:15:6d:de:ad:00` | `if_table`, `network_table` |
+| `eth1` | `192.0.2.2/24` | `00:15:6d:de:ad:01` | `if_table`, `network_table` |
+| `eth2` | `198.51.100.2/24` | `00:15:6d:de:ad:02` | `network_table` |
+| `eth3` | `203.0.113.2/24` | `00:15:6d:de:ad:03` | `network_table` |
+
+`mcad` repeatedly tries to log in to the local `udapi-bridge` as `root`, but
+the bridge reports `RESTAPI login failed for user root`. Direct UDAPI probing
+showed `/user/check` returning an `A12` error while `/system/users` still lists
+`root`. Because of that bridge authentication failure, UDAPI-derived blocks are
+not present in the inform payload yet.
 
 ## Local Raw Files
 

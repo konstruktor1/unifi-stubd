@@ -26,8 +26,11 @@ services:
     cap_add:
       - DAC_OVERRIDE
       - FOWNER
+      - AUDIT_WRITE
       - NET_ADMIN
       - NET_RAW
+      - SETGID
+      - SETUID
     security_opt:
       - no-new-privileges:true
     environment:
@@ -35,6 +38,7 @@ services:
       UXGPRO_SIM_STATIC_ADDRESS: ${UNIFI_LAB_FIRMWARE_IP:-172.31.240.20}/24
       UXGPRO_SIM_START_DROPBEAR: "1"
       UXGPRO_SIM_DUMMY_INTERFACES: ${UXGPRO_SIM_DUMMY_INTERFACES-eth1,00:15:6d:de:ad:01,192.0.2.2/24;eth2,00:15:6d:de:ad:02,198.51.100.2/24;eth3,00:15:6d:de:ad:03,203.0.113.2/24}
+      UXGPRO_SIM_BRIDGE_REDIRECT_DEBUG: ${UXGPRO_SIM_BRIDGE_REDIRECT_DEBUG:-}
     volumes:
       - type: bind
         source: ${SIM_DIR:-/tmp/unifi-fw-sim}

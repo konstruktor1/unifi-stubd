@@ -49,6 +49,7 @@ services:
       - |
         apt-get update
         apt-get install -y --no-install-recommends gcc libc6-dev
-        gcc -shared -fPIC -Wall -Wextra -O2 -ldl \
+        gcc -shared -fPIC -Wall -Wextra -O2 \
           -o /mock/libubnthal_redirect.so \
-          /mock/ubnthal_redirect.c
+          /mock/ubnthal_redirect.c \
+          -ldl

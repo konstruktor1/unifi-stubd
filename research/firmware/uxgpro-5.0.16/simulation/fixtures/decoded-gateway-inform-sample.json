@@ -1,33 +1,36 @@
 {
   "schema": "unifi-stubd/decoded-gateway-inform-sample/v1",
   "source": "UXG-Pro 5.0.16 firmware mcad through controller-lab MITM",
-  "captured_at": "2026-05-17T14:13:34Z",
+  "captured_at": "2026-05-17T14:52:48Z",
   "raw_body": "omitted",
   "decode_key": "UniFi default inform key",
   "controller_response": {
     "status_code": 404,
-    "meaning": "The lab controller route is reachable, but the real firmware payload still reports a zero top-level device MAC and is not accepted for adoption."
+    "meaning": "The lab controller route is reachable, but the Dockerized UniFi Network Application does not accept this simulated real-gateway inform stream for adoption yet."
   },
   "packet": {
     "magic": "TNBU",
-    "mac": "00:00:00:00:00:00",
+    "mac": "00:15:6d:de:ad:00",
     "packet_version": 0,
     "payload_version": 1,
-    "flags": 3,
+    "flags": 11,
     "encrypted": true,
     "zlib": true,
-    "encrypted_gcm": false,
-    "payload_bytes": 1856,
-    "decoded_bytes": 5698
+    "snappy": false,
+    "encrypted_gcm": true,
+    "payload_bytes": 1880,
+    "decoded_bytes": 5706
   },
   "payload": {
-    "mac": "00:00:00:00:00:00",
+    "mac": "00:15:6d:de:ad:00",
+    "serial": "00156DDEAD00",
     "model": "UXGPRO",
     "model_display": "Gateway Pro",
     "version": "5.0.16.30689",
     "default": true,
     "state": 1,
     "inform_url": "http://unifi:8080/inform",
+    "inform_ip": "172.31.240.12",
     "last_error": "Not Adopted (http://unifi:8080/inform)",
     "if_table": [
       {
@@ -35,28 +38,34 @@
         "comment": "WAN",
         "ip": "172.31.240.20",
         "netmask": "255.255.255.0",
+        "mac": null,
         "num_port": 1,
         "physical_ports": [
           1
         ],
         "up": true,
-        "rx_bytes": 47446,
-        "tx_bytes": 313627,
-        "rx_packets": 550,
-        "tx_packets": 823
+        "enable": null,
+        "speed": null,
+        "rx_bytes": 98525,
+        "tx_bytes": 704194,
+        "rx_packets": 1142,
+        "tx_packets": 1726
       },
       {
         "name": "eth1",
         "comment": "LAN",
+        "ip": null,
+        "netmask": null,
         "mac": "00:15:6d:de:ad:01",
         "num_port": 3,
+        "physical_ports": null,
         "up": true,
         "enable": false,
         "speed": 10,
         "rx_bytes": 0,
-        "tx_bytes": 1182,
+        "tx_bytes": 9474,
         "rx_packets": 0,
-        "tx_packets": 11
+        "tx_packets": 50
       }
     ],
     "network_table": [
@@ -109,6 +118,7 @@
       }
     ],
     "port_table": null,
+    "udapi_blocks": null,
     "gateway_tables_observed": {
       "if_table": true,
       "network_table": true,

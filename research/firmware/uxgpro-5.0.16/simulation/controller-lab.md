@@ -146,6 +146,45 @@ go run ./research/firmware/uxgpro-5.0.16/simulation/tools/decode-inform \
   "$RESEARCH/simulation/captures/<event-id>-request.bin"
 ```
 
+## Current Analysis Findings
+
+The lab now makes the firmware telegrams visible end to end:
+
+- `mcad` sends repeated `POST http://unifi:8080/inform` requests through the
+  MITM.
+- The TNBU packet header and decoded payload report MAC
+  `00:15:6d:de:ad:00` and serial `00156DDEAD00`.
+- Gateway interface state is visible in `if_table` and `network_table`; the
+  switch-style `port_table` remains `null`.
+- The controller still answers the real UXG-Pro firmware inform stream with
+  HTTP `404`, so the device is not adopted yet.
+- `udapi-bridge` repeatedly logs `RESTAPI login failed for user root`, and
+  direct UDAPI probing showed `/user/check` returning `A12`. Until that local
+  bridge login path is understood, UDAPI-derived payload blocks stay missing.
+
+Quick status summary from the firmware container:
+
+```sh
+SIM_DIR="$SIM" docker compose \
+  -f "$RESEARCH/simulation/controller-lab.compose.yaml" \
+  exec firmware /usr/bin/mca-ctrl -t dump | \
+  jq '{mac,serial,model,version,default,state,inform_url,last_error,network_table_len:(.network_table|length),port_table}'
+```
+
+Useful MITM and bridge checks:
+
+```sh
+tail -20 "$RESEARCH/simulation/captures/events.jsonl"
+
+SIM_DIR="$SIM" docker compose \
+  -f "$RESEARCH/simulation/controller-lab.compose.yaml" \
+  logs -f inform-mitm
+
+SIM_DIR="$SIM" docker compose \
+  -f "$RESEARCH/simulation/controller-lab.compose.yaml" \
+  exec firmware tail -80 /tmp/unifi-fw-sim/udapi-bridge.run.err
+```
+
 ## Inspect
 
 ```sh

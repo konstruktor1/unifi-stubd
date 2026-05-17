@@ -123,9 +123,10 @@ Application and MongoDB so the firmware wrapper can talk to
 ## Source Availability
 
 No complete public source tree for `mcad`, `udapi-bridge`, or
-`ubios-udapi-server` was found. The binaries in the image are stripped and
-proprietary. Ubiquiti's public GitHub organization currently does not publish
-the UXG-Pro firmware agent sources.
+`ubios-udapi-server` was found during the 2026-05-17 online and firmware
+inventory pass. The binaries in the image are stripped and proprietary.
+Ubiquiti's public GitHub organization currently does not publish the UXG-Pro
+firmware agent sources.
 
 GPL-covered components may require a source request to Ubiquiti support. That
 does not provide the proprietary UniFi agent source.

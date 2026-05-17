@@ -117,7 +117,7 @@ model_short=UXG Pro
 model_number=UXG-PRO
 model_description=Gateway Pro
 model_url=http://ui.com
-serial=000000000000
+serial=00156DDEAD00
 hwaddrbbase=00:15:6d:de:ad:00
 hwaddrbase=00:15:6d:de:ad:00
 EOF
@@ -131,12 +131,12 @@ vendorid=0777
 systemid=ea19
 shortname=UXGPRO
 boardrevision=1
-serialno=000000000000
+serialno=00156DDEAD00
 manufid=003d
 mfgweek=202607
 qrid=SIMULATED
 cpu_rev_id=00010000
-macaddr=02:00:00:00:00:01
+macaddr=00:15:6d:de:ad:00
 eth0.macaddr=00:15:6d:de:ad:00
 firmware=5.0.16
 EOF
@@ -163,9 +163,10 @@ docker run --rm --platform linux/arm64 \
   debian:bullseye \
   sh -lc 'apt-get update &&
     apt-get install -y --no-install-recommends gcc libc6-dev &&
-    gcc -shared -fPIC -Wall -Wextra -O2 -ldl \
+    gcc -shared -fPIC -Wall -Wextra -O2 \
       -o /mock/libubnthal_redirect.so \
-      /mock/ubnthal_redirect.c'
+      /mock/ubnthal_redirect.c \
+      -ldl'
 ```
 
 ## Start Networkless Firmware Container
@@ -270,7 +271,8 @@ Start the REST bridge:
 docker exec uxgpro-fw-fullsim /bin/bash --noprofile --norc -lc '
   : > /tmp/udapi-bridge.run.log
   : > /tmp/udapi-bridge.run.err
-  nohup /usr/bin/udapi-bridge \
+  nohup env LD_PRELOAD=/mock/libubnthal_redirect.so \
+    /usr/bin/udapi-bridge \
     -m UXGPRO \
     -M 00:15:6d:de:ad:00 \
     --rest-api-port 1080 \

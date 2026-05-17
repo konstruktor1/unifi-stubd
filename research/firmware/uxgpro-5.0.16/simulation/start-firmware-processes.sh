@@ -83,7 +83,15 @@ if [[ "${UXGPRO_SIM_START_DROPBEAR:-0}" == "1" ]]; then
     dropbear_pid=$!
 fi
 
-/usr/bin/udapi-bridge \
+bridge_env=(
+    "LD_PRELOAD=$preload"
+)
+if [[ -n "${UXGPRO_SIM_BRIDGE_REDIRECT_DEBUG:-}" ]]; then
+    bridge_env+=("UBNTHAL_REDIRECT_DEBUG=$UXGPRO_SIM_BRIDGE_REDIRECT_DEBUG")
+fi
+
+env "${bridge_env[@]}" \
+    /usr/bin/udapi-bridge \
     -m UXGPRO \
     -M 00:15:6d:de:ad:00 \
     --rest-api-port 1080 \
