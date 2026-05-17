@@ -1,8 +1,9 @@
 # UDM Pro SE Firmware 5.0.16 Research
 
 Status: rootfs identified and simulation wrapper prepared. The local wrapper
-now reaches the UbiOS UDAPI server socket with a deterministic RTL8370-style
-switch mock. Controller adoption has not been completed for this profile yet.
+now reaches the UbiOS UDAPI server socket and `mca-ctrl -t dump` with a
+deterministic RTL8370-style switch mock. Controller adoption has not been
+completed for this profile yet.
 
 This profile tracks the official UniFi Dream Machine Special Edition firmware
 image for local research. Keep the downloaded image, extracted SquashFS,
@@ -113,15 +114,19 @@ Observed startup path:
   `Listening on UNIX socket /var/run/ubnt-udapi-server.sock`.
 - `udapi-bridge` can connect to that socket and sends internal UDAPI requests
   such as `/vpn/wireguard/servers` and `/qos/fw/queues`.
-- `mca-ctrl -t dump` still needs a follow-up pass because the current wrapper
-  has not yet proven stable `mcad` control data for controller adoption.
+- `mcad` creates `/tmp/.mcad`, and `mca-ctrl -t dump` returns a usable local
+  management dump with the mocked identity.
+- A sanitized summary is committed at
+  `lab/gateway-profiles/udm-pro-se/fixtures/mca-dump-summary.json`.
+- `if_table` and `network_table` are still empty because the networkless
+  wrapper does not yet provide deterministic `switch0` and `eth0` through
+  `eth10` netdevs.
 
 When `UNIFI_FW_SIM_ALLOW_PARTIAL=1`, the startup wrapper keeps the container
 alive after a firmware process exits so logs remain inspectable.
 
 This profile is not yet a complete controller adoption lab. Keep it networkless
-until `mca-ctrl -t dump` works with deterministic mock hardware data and a
-sanitized controller/MITM run confirms the adopted inform path.
+until a sanitized controller/MITM run confirms the adopted inform path.
 
 ## Working Hypothesis
 
@@ -130,8 +135,8 @@ but the Alpine AL324 platform needs the switch-driver layer to exist before
 `ubios-udapi-server` reaches normal socket bind. The current lab approach is to
 mock the userspace `swconfig` interface instead of emulating RTL8370 registers.
 The next debug step is to add deterministic Linux netdev and netlink behavior
-for `switch0` and `eth0` through `eth10`, then check whether `mcad` exposes a
-stable local control socket.
+for `switch0` and `eth0` through `eth10`, then attach the profile to a
+controller/MITM lab.
 
 ## Source Availability
 

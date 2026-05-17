@@ -73,7 +73,7 @@ profiles:
       - lab/gateway-profiles/ucg-fiber/source-inventory.md
       - lab/gateway-profiles/ucg-fiber/docker-howto.md
   - id: udm-pro-se-5.0.16
-    status: partial-userspace-simulation
+    status: mca-control-simulation
     product: UniFi Dream Machine Special Edition
     device_type: udm
     model: UDMPROSE
@@ -93,13 +93,14 @@ profiles:
     simulation_wrapper: lab/gateway-profiles/udm-pro-se/Dockerfile
     start_command: /usr/local/bin/udm-pro-se-sim-start
     start_style: ubios-udapi-server + udapi-bridge + mcad
-    current_blocker: ubios-udapi-server reaches /var/run/ubnt-udapi-server.sock with the RTL8370-style swconfig mock; mca-ctrl and controller adoption still need deterministic mcad control data.
+    current_blocker: ubios-udapi-server and mca-ctrl run with the RTL8370-style swconfig mock; controller adoption and deterministic switch0/eth0-through-eth10 netdev data are still pending.
     committed_findings:
       - research/firmware/udm-pro-se-5.0.16/README.md
       - research/firmware/udm-pro-se-5.0.16/source-inventory.md
       - lab/gateway-profiles/udm-pro-se/firmware.md
       - lab/gateway-profiles/udm-pro-se/source-inventory.md
       - lab/gateway-profiles/udm-pro-se/docker-howto.md
+      - lab/gateway-profiles/udm-pro-se/fixtures/mca-dump-summary.json
   - id: ugw3-4.4.57
     status: qemu-mcad-simulation
     product: UniFi Security Gateway 3P

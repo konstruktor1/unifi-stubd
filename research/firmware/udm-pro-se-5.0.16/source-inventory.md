@@ -11,6 +11,7 @@ The committed project-owned files for this profile are:
 research/firmware/udm-pro-se-5.0.16/README.md
 research/firmware/udm-pro-se-5.0.16/source-inventory.md
 lab/gateway-profiles/udm-pro-se/
+lab/gateway-profiles/udm-pro-se/fixtures/mca-dump-summary.json
 ```
 
 ## Local Vendor Artifacts

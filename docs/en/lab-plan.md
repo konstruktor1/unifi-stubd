@@ -162,7 +162,8 @@ Current gateway firmware labs:
 - `lab/gateway-profiles/ucg-fiber/`: ARM64 UbiOS userspace wrapper; partial
   simulation.
 - `lab/gateway-profiles/udm-pro-se/`: ARM64 UbiOS userspace wrapper; reaches
-  the UDAPI socket with a deterministic RTL8370-style switch mock.
+  the UDAPI socket and `mca-ctrl -t dump` with a deterministic RTL8370-style
+  switch mock.
 
 Run a firmware simulation:
 

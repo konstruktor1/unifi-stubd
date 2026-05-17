@@ -13,7 +13,8 @@ Current profile directories:
 - `uxg-lite/`: ARM64 UbiOS userspace wrapper; partial simulation.
 - `uxgpro/`: ARM64 UbiOS userspace wrapper; includes controller lab helpers.
 - `ucg-fiber/`: ARM64 UbiOS userspace wrapper prepared for startup analysis.
-- `udm-pro-se/`: ARM64 UbiOS userspace wrapper prepared for startup analysis.
+- `udm-pro-se/`: ARM64 UbiOS userspace wrapper; reaches UDAPI and
+  `mca-ctrl` through a deterministic RTL8370-style switch mock.
 
 Typical per-profile files:
 

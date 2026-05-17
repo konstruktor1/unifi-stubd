@@ -165,7 +165,8 @@ Aktuelle Gateway-Firmware-Labs:
 - `lab/gateway-profiles/ucg-fiber/`: ARM64-UbiOS-Userspace-Wrapper; teilweise
   Simulation.
 - `lab/gateway-profiles/udm-pro-se/`: ARM64-UbiOS-Userspace-Wrapper; erreicht
-  den UDAPI-Socket mit einem deterministischen RTL8370-artigen Switch-Mock.
+  den UDAPI-Socket und `mca-ctrl -t dump` mit einem deterministischen
+  RTL8370-artigen Switch-Mock.
 
 Firmware-Simulation starten:
 

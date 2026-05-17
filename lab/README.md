@@ -78,8 +78,8 @@ Current profiles:
   lab helpers.
 - `gateway-profiles/ucg-fiber/`: ARM64 UbiOS userspace wrapper; partial
   simulation.
-- `gateway-profiles/udm-pro-se/`: ARM64 UbiOS userspace wrapper; partial
-  simulation.
+- `gateway-profiles/udm-pro-se/`: ARM64 UbiOS userspace wrapper; reaches UDAPI
+  and `mca-ctrl` through a deterministic RTL8370-style switch mock.
 
 Run a firmware simulation through the profile's own Compose file:
 

@@ -14,7 +14,8 @@ Current state:
 - Docker wrapper and networkless Compose simulation are prepared.
 - `ubios-udapi-server` reaches `/var/run/ubnt-udapi-server.sock` through the
   deterministic RTL8370-style `swconfig` mock.
-- Simulation remains partial until local `mca-ctrl` access and controller
+- `mca-ctrl -t dump` returns local management data through `/tmp/.mcad`.
+- Simulation remains partial until deterministic lab netdevs and controller
   adoption are proven.
 
 Use `docker-howto.md` for the local import and startup steps.

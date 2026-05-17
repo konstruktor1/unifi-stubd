@@ -1,8 +1,9 @@
 # UDM Pro SE Firmware 5.0.16 Research
 
 Status: rootfs identified and lab simulation wrapper prepared. The local
-wrapper reaches the UbiOS UDAPI server socket with a deterministic RTL8370-style
-switch mock. No adopted controller run has been completed for this profile yet.
+wrapper reaches the UbiOS UDAPI server socket and `mca-ctrl -t dump` with a
+deterministic RTL8370-style switch mock. No adopted controller run has been
+completed for this profile yet.
 
 This profile tracks the official UniFi Dream Machine Special Edition firmware
 image for local research. Keep the downloaded image, extracted filesystems,
@@ -93,8 +94,12 @@ Safe board summary:
   can configure a lab-local switch model without mutating host networking.
 - A startup run reaches `/var/run/ubnt-udapi-server.sock`; `udapi-bridge`
   connects and exchanges internal UDAPI requests.
-- `mca-ctrl -t dump` and controller adoption still need a follow-up pass with
-  deterministic local `mcad` control data.
+- `mcad` creates `/tmp/.mcad`, and `mca-ctrl -t dump` returns a usable local
+  management dump with the mocked identity.
+- A sanitized dump summary is committed at
+  `lab/gateway-profiles/udm-pro-se/fixtures/mca-dump-summary.json`.
+- `if_table` and `network_table` are empty until the lab provides
+  deterministic `switch0` and `eth0` through `eth10` netdevs.
 - No UDM Pro SE controller adoption lab has been completed yet.
 
 ## Source Availability
@@ -109,6 +114,5 @@ unless Ubiquiti publishes a matching archive.
 
 - Add deterministic Linux netdev and netlink behavior for `switch0` and `eth0`
   through `eth10`.
-- Prove stable `mcad` local control data with `mca-ctrl -t dump`.
-- Only then attach this profile to a controller/MITM lab and sanitize the
-  adoption findings before committing them.
+- Attach this profile to a controller/MITM lab and sanitize the adoption
+  findings before committing them.

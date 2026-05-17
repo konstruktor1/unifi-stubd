@@ -214,6 +214,9 @@ docker compose -f "$PROFILE/compose.yaml" exec firmware \
 
 docker compose -f "$PROFILE/compose.yaml" exec firmware \
   tail -80 /tmp/ubios-udapi-server.run.log
+
+docker compose -f "$PROFILE/compose.yaml" exec firmware \
+  timeout 20 /usr/bin/mca-ctrl -t dump
 ```
 
 Stop:
@@ -229,9 +232,10 @@ SIM_DIR="$SIM" docker compose \
 This wrapper now starts far enough to prove that the firmware reads the mocked
 board identity, writes redirected sysctl values, initializes mocked MTD/sysfs
 paths, configures the RTL8370-style switch through the userspace `swconfig`
-ABI, and creates `/var/run/ubnt-udapi-server.sock`.
+ABI, creates `/var/run/ubnt-udapi-server.sock`, and returns a local
+`mca-ctrl -t dump` through `/tmp/.mcad`.
 
 The RTL8370 is not emulated at register or kernel-driver level. The shim only
 mocks the `libsw.so` API surface used by the firmware. Treat this as a
-startup-analysis profile until `mca-ctrl -t dump` works with deterministic lab
-values and a controller/MITM run proves the adopted inform path.
+startup-analysis profile until deterministic lab netdevs are added and a
+controller/MITM run proves the adopted inform path.

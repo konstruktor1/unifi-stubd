@@ -163,8 +163,8 @@ Next research steps:
 
 ## udm-pro-se-5.0.16
 
-Status: Docker wrapper reaches the UbiOS UDAPI socket with a deterministic
-RTL8370-style switch mock.
+Status: Docker wrapper reaches the UbiOS UDAPI socket and `mca-ctrl -t dump`
+with a deterministic RTL8370-style switch mock.
 
 - Device type: `udm`
 - Model: `UDMPROSE`
@@ -192,6 +192,8 @@ Committed profile artifacts:
   simulation.
 - `lab/gateway-profiles/udm-pro-se/docker-howto.md`: rootfs import, mock
   hardware, shim build, and startup instructions.
+- `lab/gateway-profiles/udm-pro-se/fixtures/mca-dump-summary.json`: sanitized
+  local `mca-ctrl -t dump` summary.
 
 Current finding summary:
 
@@ -214,15 +216,18 @@ Current finding summary:
   deterministic userspace `libsw.so`/OpenWrt `swconfig` ABI mock.
 - `ubios-udapi-server` creates `/var/run/ubnt-udapi-server.sock`, and
   `udapi-bridge` exchanges internal UDAPI requests through it.
+- `mcad` creates `/tmp/.mcad`, and `mca-ctrl -t dump` returns a usable local
+  management dump with the mocked identity.
+- `if_table` and `network_table` are still empty until the lab provides
+  deterministic `switch0` and `eth0` through `eth10` netdevs.
 - No controller adoption lab has been completed for this profile yet.
 
 Next research steps:
 
 - Add deterministic Linux netdev and netlink behavior for `switch0` and `eth0`
   through `eth10`.
-- Prove stable `mcad` local control data with `mca-ctrl -t dump`.
-- Attach the profile to a controller/MITM lab only after local control data is
-  stable.
+- Attach the profile to a controller/MITM lab and sanitize the adoption
+  findings before committing them.
 
 ## ugw3-4.4.57
 

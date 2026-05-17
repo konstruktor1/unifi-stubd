@@ -12,6 +12,7 @@ firmware paths. It is intentionally structural only.
 - `firmware.md`
 - `README.md`
 - `ubnthal_redirect.c`
+- `fixtures/mca-dump-summary.json`
 
 ## Observed Vendor Components
 
