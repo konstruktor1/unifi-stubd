@@ -11,7 +11,7 @@ import (
 func TestParseControllerResponseInfoExtractsMgmtCFG(t *testing.T) {
 	info, err := adoption.ParseControllerResponseInfo([]byte(`{
   "_type": "setparam",
-  "mgmt_cfg": "cfgversion=abc123\nauthkey=secret-test-key\ninform_url=http://192.0.2.10:8080/inform\nuse_aes_gcm=true\nreport_crash=true\n"
+  "mgmt_cfg": "cfgversion=abc123\nauthkey=test-auth-key-placeholder\ninform_url=http://192.0.2.10:8080/inform\nuse_aes_gcm=true\nreport_crash=true\n"
 }`))
 	if err != nil {
 		t.Fatal(err)
@@ -22,7 +22,7 @@ func TestParseControllerResponseInfoExtractsMgmtCFG(t *testing.T) {
 	if info.Store.CFGVersion != "abc123" {
 		t.Fatalf("CFGVERSION = %q", info.Store.CFGVersion)
 	}
-	if info.Store.AuthKey != "secret-test-key" {
+	if info.Store.AuthKey != "test-auth-key-placeholder" {
 		t.Fatalf("AuthKey = %q", info.Store.AuthKey)
 	}
 	if info.Store.InformURL != "http://192.0.2.10:8080/inform" {
@@ -36,7 +36,7 @@ func TestParseControllerResponseInfoExtractsMgmtCFG(t *testing.T) {
 func TestParseControllerResponseInfoSummarizesSystemCFGOnly(t *testing.T) {
 	info, err := adoption.ParseControllerResponseInfo([]byte(`{
   "_type": "setparam",
-  "system_cfg": "{\"udapi\":{\"users\":{\"agent\":\"secret\"}},\"ubntconf\":{\"token\":\"do-not-copy\"}}"
+  "system_cfg": "{\"udapi\":{\"users\":{\"agent\":\"redacted-user\"}},\"ubntconf\":{\"field\":\"do-not-copy\"}}"
 }`))
 	if err != nil {
 		t.Fatal(err)
@@ -54,7 +54,7 @@ func TestParseControllerResponseInfoSummarizesSystemCFGOnly(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if strings.Contains(string(data), "secret") || strings.Contains(string(data), "do-not-copy") {
+	if strings.Contains(string(data), "redacted-user") || strings.Contains(string(data), "do-not-copy") {
 		t.Fatalf("system_cfg content leaked into summary: %s", data)
 	}
 }
