@@ -39,6 +39,11 @@ uplink_neighbor:
   mac: 02:aa:bb:cc:dd:01
   vlan: 1
   type: usw
+port_neighbors:
+  - port: 2
+    mac: 28:70:4e:c3:b7:b8
+    vlan: 1
+    type: usw
 port_overrides:
   - port: 2
     speed: 1000
@@ -76,6 +81,12 @@ status_path: /tmp/unifi-stubd/status.json
 	}
 	if cfg.UplinkNeighbor.MAC != "02:aa:bb:cc:dd:01" || cfg.UplinkNeighbor.VLAN != 1 || cfg.UplinkNeighbor.Type != "usw" {
 		t.Fatalf("UplinkNeighbor = %+v", cfg.UplinkNeighbor)
+	}
+	if len(cfg.PortNeighbors) != 1 {
+		t.Fatalf("len(PortNeighbors) = %d, want 1", len(cfg.PortNeighbors))
+	}
+	if cfg.PortNeighbors[0].Port != 2 || cfg.PortNeighbors[0].MAC != "28:70:4e:c3:b7:b8" {
+		t.Fatalf("first PortNeighbor = %+v", cfg.PortNeighbors[0])
 	}
 	if len(cfg.PortOverrides) != 2 {
 		t.Fatalf("len(PortOverrides) = %d, want 2", len(cfg.PortOverrides))

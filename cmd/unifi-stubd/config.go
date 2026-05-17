@@ -65,6 +65,7 @@ func applyConfig(cfg appconfig.Config, changed map[string]bool, flags *runtimeFl
 		*flags.uplinkPort = cfg.UplinkPort
 	}
 	flags.uplinkNeighbor = configUplinkNeighbor(cfg.UplinkNeighbor)
+	flags.portNeighbors = configPortNeighbors(cfg.PortNeighbors)
 	flags.portOverrides = configPortOverrides(cfg.PortOverrides)
 	if !changed["observe-interface"] {
 		*flags.observeInterface = cfg.ObserveInterface
@@ -111,25 +112,33 @@ func configUplinkNeighbor(neighbor *appconfig.UplinkNeighbor) *device.MacTableEn
 	if neighbor == nil || strings.TrimSpace(neighbor.MAC) == "" {
 		return nil
 	}
-	age := neighbor.Age
-	if age == 0 {
-		age = 4
-	}
-	uptime := neighbor.Uptime
-	if uptime == 0 {
-		uptime = 1200
-	}
-	neighborType := strings.TrimSpace(neighbor.Type)
-	if neighborType == "" {
-		neighborType = "usw"
-	}
 	return &device.MacTableEntry{
 		MAC:    strings.TrimSpace(neighbor.MAC),
-		Age:    age,
-		Uptime: uptime,
+		Age:    defaultNeighborAge(neighbor.Age),
+		Uptime: defaultNeighborUptime(neighbor.Uptime),
 		VLAN:   neighbor.VLAN,
-		Type:   neighborType,
+		Type:   defaultNeighborType(neighbor.Type),
 	}
+}
+
+func configPortNeighbors(neighbors []appconfig.PortNeighbor) []device.PortNeighbor {
+	out := make([]device.PortNeighbor, 0, len(neighbors))
+	for _, neighbor := range neighbors {
+		if strings.TrimSpace(neighbor.MAC) == "" {
+			continue
+		}
+		out = append(out, device.PortNeighbor{
+			Port: neighbor.Port,
+			Entry: device.MacTableEntry{
+				MAC:    strings.TrimSpace(neighbor.MAC),
+				Age:    defaultNeighborAge(neighbor.Age),
+				Uptime: defaultNeighborUptime(neighbor.Uptime),
+				VLAN:   neighbor.VLAN,
+				Type:   defaultNeighborType(neighbor.Type),
+			},
+		})
+	}
+	return out
 }
 
 func configPortOverrides(overrides []appconfig.PortOverride) []device.PortOverride {
@@ -144,6 +153,28 @@ func configPortOverrides(overrides []appconfig.PortOverride) []device.PortOverri
 		})
 	}
 	return out
+}
+
+func defaultNeighborAge(age int) int {
+	if age == 0 {
+		return 4
+	}
+	return age
+}
+
+func defaultNeighborUptime(uptime int) int {
+	if uptime == 0 {
+		return 1200
+	}
+	return uptime
+}
+
+func defaultNeighborType(neighborType string) string {
+	neighborType = strings.TrimSpace(neighborType)
+	if neighborType == "" {
+		return "usw"
+	}
+	return neighborType
 }
 
 func cloneBoolPointer(value *bool) *bool {

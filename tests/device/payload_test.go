@@ -144,6 +144,150 @@ func TestSwitchPortsWithAggregationProPortGroups(t *testing.T) {
 	assertPort(32, 25000, "SFP28", false)
 }
 
+func TestGatewayProfileReportsDeviceTypeAndPortNames(t *testing.T) {
+	profile, ok := device.LookupProfile("ugw3")
+	if !ok {
+		t.Fatal("profile not found")
+	}
+	ports := device.SwitchPortsWithOptions(profile.Ports, profile.PortOptions())
+	payload, err := device.MinimalSwitchPayload(device.Identity{
+		MAC:          "02:11:22:33:44:61",
+		IP:           "192.0.2.50",
+		Hostname:     "unifi-stubd-router",
+		Model:        profile.Model,
+		ModelDisplay: profile.ModelDisplay,
+		DeviceType:   profile.DeviceType,
+		Version:      profile.Version,
+		Serial:       "021122334461",
+		InformURL:    "http://10.10.0.30:8080/inform",
+	}, ports)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var doc struct {
+		DeviceType string           `json:"type"`
+		NumPort    int              `json:"num_port"`
+		PortTable  []map[string]any `json:"port_table"`
+	}
+	if err := json.Unmarshal(payload, &doc); err != nil {
+		t.Fatal(err)
+	}
+	if doc.DeviceType != "ugw" {
+		t.Fatalf("type = %q, want ugw", doc.DeviceType)
+	}
+	if doc.NumPort != 3 {
+		t.Fatalf("num_port = %d, want 3", doc.NumPort)
+	}
+	names := []string{"WAN 1", "LAN 1", "WAN 2 / LAN 2"}
+	for index, name := range names {
+		if got := doc.PortTable[index]["name"].(string); got != name {
+			t.Fatalf("port %d name = %q, want %q", index+1, got, name)
+		}
+	}
+}
+
+func TestTenGigGatewayProfileReportsPortLayout(t *testing.T) {
+	profile, ok := device.LookupProfile("uxgpro")
+	if !ok {
+		t.Fatal("profile not found")
+	}
+	ports := device.SwitchPortsWithOptions(profile.Ports, profile.PortOptions())
+	payload, err := device.MinimalSwitchPayload(device.Identity{
+		MAC:          "02:11:22:33:44:62",
+		IP:           "192.0.2.50",
+		Hostname:     "unifi-stubd-uxg",
+		Model:        profile.Model,
+		ModelDisplay: profile.ModelDisplay,
+		DeviceType:   profile.DeviceType,
+		Version:      profile.Version,
+		Serial:       "021122334462",
+		InformURL:    "http://10.10.0.30:8080/inform",
+	}, ports)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var doc struct {
+		DeviceType        string           `json:"type"`
+		NumPort           int              `json:"num_port"`
+		Uplink            string           `json:"uplink"`
+		ConfigPortTable   []map[string]any `json:"config_port_table"`
+		EthernetOverrides []map[string]any `json:"ethernet_overrides"`
+		EthernetTable     []map[string]any `json:"ethernet_table"`
+		IfTable           []map[string]any `json:"if_table"`
+		NetworkTable      []map[string]any `json:"network_table"`
+		PortOverrides     []map[string]any `json:"port_overrides"`
+		PortTable         []map[string]any `json:"port_table"`
+		UplinkTable       []map[string]any `json:"uplink_table"`
+	}
+	if err := json.Unmarshal(payload, &doc); err != nil {
+		t.Fatal(err)
+	}
+	if doc.DeviceType != "uxg" {
+		t.Fatalf("type = %q, want uxg", doc.DeviceType)
+	}
+	if doc.NumPort != 4 {
+		t.Fatalf("num_port = %d, want 4", doc.NumPort)
+	}
+	if len(doc.IfTable) != 4 {
+		t.Fatalf("if_table length = %d, want 4", len(doc.IfTable))
+	}
+	if got := int(doc.IfTable[2]["speed"].(float64)); got != 10000 {
+		t.Fatalf("if_table eth2 speed = %d, want 10000", got)
+	}
+	if len(doc.ConfigPortTable) != 4 {
+		t.Fatalf("config_port_table length = %d, want 4", len(doc.ConfigPortTable))
+	}
+	if len(doc.EthernetTable) != 4 {
+		t.Fatalf("ethernet_table length = %d, want 4", len(doc.EthernetTable))
+	}
+	if len(doc.EthernetOverrides) != 4 {
+		t.Fatalf("ethernet_overrides length = %d, want 4", len(doc.EthernetOverrides))
+	}
+	if len(doc.PortOverrides) != 4 {
+		t.Fatalf("port_overrides length = %d, want 4", len(doc.PortOverrides))
+	}
+	if len(doc.UplinkTable) != 1 {
+		t.Fatalf("uplink_table length = %d, want 1", len(doc.UplinkTable))
+	}
+	if doc.Uplink != "eth2" {
+		t.Fatalf("uplink = %q, want eth2", doc.Uplink)
+	}
+	if got := doc.ConfigPortTable[2]["name"].(string); got != "wan2" {
+		t.Fatalf("config_port_table port 3 name = %q, want wan2", got)
+	}
+	if got := doc.EthernetOverrides[2]["networkgroup"].(string); got != "WAN2" {
+		t.Fatalf("ethernet_overrides port 3 networkgroup = %q, want WAN2", got)
+	}
+	if got := doc.EthernetOverrides[3]["networkgroup"].(string); got != "LAN" {
+		t.Fatalf("ethernet_overrides port 4 networkgroup = %q, want LAN", got)
+	}
+	if len(doc.NetworkTable) != 4 {
+		t.Fatalf("network_table length = %d, want 4", len(doc.NetworkTable))
+	}
+	assertPort := func(index int, name string, speed int, media string, uplink bool) {
+		t.Helper()
+		port := doc.PortTable[index-1]
+		if got := port["name"].(string); got != name {
+			t.Fatalf("port %d name = %q, want %q", index, got, name)
+		}
+		if got := int(port["speed"].(float64)); got != speed {
+			t.Fatalf("port %d speed = %d, want %d", index, got, speed)
+		}
+		if got := port["media"].(string); got != media {
+			t.Fatalf("port %d media = %q, want %q", index, got, media)
+		}
+		if got := port["is_uplink"].(bool); got != uplink {
+			t.Fatalf("port %d is_uplink = %v, want %v", index, got, uplink)
+		}
+	}
+	assertPort(1, "WAN", 1000, "GE", false)
+	assertPort(2, "LAN", 1000, "GE", false)
+	assertPort(3, "WAN2", 10000, "SFP+", true)
+	assertPort(4, "LAN2", 10000, "SFP+", false)
+}
+
 func TestSwitchPortsCanOverrideAggregationUplinkToTenGigPort(t *testing.T) {
 	profile, ok := device.LookupProfile("usaggpro")
 	if !ok {
@@ -227,6 +371,37 @@ func TestApplyUplinkNeighborAddsConfiguredNeighbor(t *testing.T) {
 	}
 	if entry.Age == 0 || entry.Uptime == 0 {
 		t.Fatalf("uplink neighbor missing defaults: %+v", entry)
+	}
+}
+
+func TestApplyPortNeighborsAddsConfiguredMacTableEntry(t *testing.T) {
+	profile, ok := device.LookupProfile("ugw3")
+	if !ok {
+		t.Fatal("profile not found")
+	}
+	ports := device.ApplyPortNeighbors(device.SwitchPortsWithOptions(profile.Ports, profile.PortOptions()), []device.PortNeighbor{
+		{
+			Port: 2,
+			Entry: device.MacTableEntry{
+				MAC:  "28:70:4e:c3:b7:b8",
+				VLAN: 1,
+				Type: "usw",
+			},
+		},
+	})
+
+	if len(ports[1].MACs) != 1 {
+		t.Fatalf("port 2 MAC table length = %d, want 1", len(ports[1].MACs))
+	}
+	entry := ports[1].MACs[0]
+	if entry.MAC != "28:70:4e:c3:b7:b8" || entry.VLAN != 1 || entry.Type != "usw" {
+		t.Fatalf("port 2 neighbor = %+v", entry)
+	}
+	if entry.Age == 0 || entry.Uptime == 0 {
+		t.Fatalf("port 2 neighbor missing defaults: %+v", entry)
+	}
+	if len(ports[0].MACs) == 0 {
+		t.Fatal("port 1 lost its generated uplink MAC table")
 	}
 }
 

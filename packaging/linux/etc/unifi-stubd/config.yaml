@@ -21,6 +21,15 @@ uplink_neighbor:
   mac: ""
   vlan: 1
   type: usw
+# Optional fake neighbors on specific ports. These entries populate
+# port_table[].mac_table and can model downstream switches or lab hosts.
+# Example:
+# port_neighbors:
+#   - port: 2
+#     mac: 02:aa:bb:cc:dd:02
+#     vlan: 1
+#     type: usw
+port_neighbors: []
 # Optional per-port overrides applied after profile and observation data.
 # Example:
 # port_overrides:

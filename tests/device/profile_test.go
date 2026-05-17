@@ -87,6 +87,50 @@ func TestLargestControllerKnownTenGigProfile(t *testing.T) {
 	}
 }
 
+func TestGatewayProfile(t *testing.T) {
+	profile, ok := device.LookupProfile("ugw3")
+	if !ok {
+		t.Fatal("profile not found")
+	}
+	if profile.Model != "UGW3" {
+		t.Fatalf("Model = %q, want UGW3", profile.Model)
+	}
+	if profile.DeviceType != "ugw" {
+		t.Fatalf("DeviceType = %q, want ugw", profile.DeviceType)
+	}
+	if profile.Ports != 3 {
+		t.Fatalf("Ports = %d, want 3", profile.Ports)
+	}
+	if profile.PortSpeed != 1000 {
+		t.Fatalf("PortSpeed = %d, want 1000", profile.PortSpeed)
+	}
+}
+
+func TestTenGigGatewayProfile(t *testing.T) {
+	profile, ok := device.LookupProfile("uxgpro")
+	if !ok {
+		t.Fatal("profile not found")
+	}
+	if profile.Model != "UXGPRO" {
+		t.Fatalf("Model = %q, want UXGPRO", profile.Model)
+	}
+	if profile.DeviceType != "uxg" {
+		t.Fatalf("DeviceType = %q, want uxg", profile.DeviceType)
+	}
+	if profile.Ports != 4 {
+		t.Fatalf("Ports = %d, want 4", profile.Ports)
+	}
+	if profile.PortSpeed != 1000 {
+		t.Fatalf("PortSpeed = %d, want 1000", profile.PortSpeed)
+	}
+	if profile.UplinkSpeed != 10000 {
+		t.Fatalf("UplinkSpeed = %d, want 10000", profile.UplinkSpeed)
+	}
+	if profile.UplinkMedia != "SFP+" {
+		t.Fatalf("UplinkMedia = %q, want SFP+", profile.UplinkMedia)
+	}
+}
+
 func TestAutoMACIsStableAndProfileSensitive(t *testing.T) {
 	first := device.AutoMAC("host|us16p150")
 	second := device.AutoMAC("host|us16p150")

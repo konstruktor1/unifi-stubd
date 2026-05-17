@@ -25,6 +25,7 @@ type runtimeFlags struct {
 	uplinkSpeed      *string
 	uplinkPort       *int
 	uplinkNeighbor   *device.MacTableEntry
+	portNeighbors    []device.PortNeighbor
 	portOverrides    []device.PortOverride
 	observeInterface *string
 	observeBridge    *string

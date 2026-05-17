@@ -48,6 +48,7 @@
 - [x] systemd unit.
 - [x] YAML configuration wired into the daemon.
 - [x] Package builders for Debian, RPM, Arch Linux, and tgz.
+- [x] Stub-only FreeBSD/OPNsense tgz and rc.d artifact.
 - [ ] Rotating debug log.
 - [x] Healthcheck/status command.
 - [ ] README with Proxmox lab example.
@@ -57,6 +58,7 @@
 - [x] Built-in SSH adoption for `syswrapper.sh set-adopt` and `mca-cli-op set-inform`.
 - [ ] Active macvlan/ipvlan lifecycle after the dry-run plan is proven.
 - [ ] Passive LLDP import from `lldpd`.
-- [ ] Gateway profile `UGW3`/`UXG`.
+- [x] Experimental gateway identity profiles `UGW3` and `UXGPRO`.
+- [ ] Full gateway status payload for `UGW3`/`UXG`.
 - [ ] Synthesize DPI fields from NetFlow/OPNsense/ntopng.
 - [ ] Compatibility matrix per UniFi Network version.

@@ -1,7 +1,8 @@
 # Betriebsmodi
 
 `unifi-stubd` zielt zuerst auf Linux-Lab-Hosts, also Proxmox, Alpine und
-UTM-Linux-VMs.
+UTM-Linux-VMs. FreeBSD/OPNsense wird als Stub-only-Ziel unterstuetzt; native
+Observation ist dort noch nicht implementiert.
 
 ## Aktuell validierter Stand
 
@@ -19,12 +20,22 @@ Das validierte Live-Lab-Geraet ist:
 experimentell, weil der aktuelle Lab-Controller es nicht als bekanntes Pending-
 Adoption-Modell angenommen hat.
 
+`UGW3` ist als experimentelles Gateway-Identitaetsprofil verfuegbar. Es meldet
+das Legacy-UniFi-Security-Gateway-Modell und drei 1G-Ports, bleibt aber
+Stub-only und emuliert noch keine Router-Dienste.
+
+`UXGPRO` ist als experimentelles 10G-Gateway-Identitaetsprofil verfuegbar. Es
+meldet zwei 1G-RJ45-Ports und zwei 10G-SFP+-Ports; fuer Lab-Tests kann `WAN2`
+die synthetische 10G-Internet-Seite und `LAN2` die synthetische
+10G-Downlink-Seite darstellen.
+
 ## Modi
 
 ### `stub`
 
 Default-Modus. Der Dienst sendet Discovery- und Inform-Payloads nur aus den
 Profildaten. Er liest keinen Host-Bridge-State und aendert kein Host-Netzwerk.
+Das ist der unterstuetzte FreeBSD-/OPNsense-Modus.
 
 ### `observe`
 
@@ -55,6 +66,12 @@ uplink_neighbor:
   vlan: 1
   type: usw
 
+port_neighbors:
+  - port: 2
+    mac: 28:70:4e:c3:b7:b8
+    vlan: 1
+    type: usw
+
 port_overrides:
   - port: 2
     speed: 1000
@@ -65,6 +82,10 @@ port_overrides:
   - port: 5
     up: false
 ```
+
+`port_neighbors` fuellt `port_table[].mac_table` auf bestimmten Ports. Das ist
+nuetzlich, wenn der Controller eine Downstream-Switch- oder Host-MAC auf einem
+Nicht-Uplink-Port sehen soll.
 
 `uplink_neighbor` ist fuer reine Stubs und virtuelle Lab-Ports gedacht, bei
 denen es keinen physischen Linkpartner gibt. Der Eintrag fuegt eine konfigurierte

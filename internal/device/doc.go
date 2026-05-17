@@ -1,2 +1,2 @@
-// Package device builds fake UniFi device identities, profiles, links, and switch payloads.
+// Package device builds fake UniFi device identities, profiles, links, and payloads.
 package device

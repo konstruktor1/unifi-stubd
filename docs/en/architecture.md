@@ -60,6 +60,11 @@ stateDiagram-v2
 
 A switch profile mainly needs ports, interface state, MAC tables, and counters. A gateway profile needs WAN/LAN state, routing, DHCP, DPI, firewall, health, and more controller-specific fields. The switch MVP is therefore much more robust.
 
+The built-in `ugw3` profile is intentionally narrower than a full gateway
+implementation. It reports the legacy USG model identity and port labels, but
+the payload still behaves like a minimal stub and does not model routing or
+firewall state yet.
+
 ### No Real Provisioning
 
 Controller commands are interpreted and persisted first, but not applied to the host. Anything that would mutate the host belongs in logs or debug output until it is explicitly implemented.

@@ -1,0 +1,38 @@
+#!/bin/sh
+#
+# PROVIDE: unifi_stubd
+# REQUIRE: NETWORKING
+# KEYWORD: shutdown
+#
+# Add these lines to /etc/rc.conf or OPNsense tunables:
+#
+# unifi_stubd_enable="YES"
+# unifi_stubd_config="/usr/local/etc/unifi-stubd/config.yaml"
+
+. /etc/rc.subr
+
+name="unifi_stubd"
+rcvar="unifi_stubd_enable"
+
+load_rc_config "$name"
+
+: "${unifi_stubd_enable:=NO}"
+: "${unifi_stubd_config:=/usr/local/etc/unifi-stubd/config.yaml}"
+: "${unifi_stubd_logfile:=/var/log/unifi-stubd.log}"
+: "${unifi_stubd_pidfile:=/var/run/unifi-stubd.pid}"
+
+pidfile="${unifi_stubd_pidfile}"
+required_files="${unifi_stubd_config}"
+procname="/usr/local/bin/unifi-stubd"
+command="/usr/sbin/daemon"
+command_args="-p ${pidfile} -o ${unifi_stubd_logfile} -t unifi-stubd ${procname} -config ${unifi_stubd_config}"
+start_precmd="unifi_stubd_prestart"
+
+unifi_stubd_prestart()
+{
+	install -d -m 0755 /usr/local/etc/unifi-stubd /var/db/unifi-stubd
+	touch "${unifi_stubd_logfile}"
+	chmod 0644 "${unifi_stubd_logfile}"
+}
+
+run_rc_command "$1"

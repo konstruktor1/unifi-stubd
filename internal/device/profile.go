@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-// Profile defines a built-in UniFi switch profile.
+// Profile defines a built-in UniFi device profile.
 type Profile struct {
 	// Name is the short CLI and config name.
 	Name string
@@ -15,12 +15,16 @@ type Profile struct {
 	Model string
 	// ModelDisplay is the human-readable UniFi model name.
 	ModelDisplay string
+	// DeviceType is the controller-facing UniFi device family.
+	DeviceType string
 	// Version is the firmware version reported by this profile.
 	Version string
-	// Ports is the number of switch ports.
+	// Ports is the number of reported Ethernet ports.
 	Ports int
 	// PortGroups describe non-uniform physical port layouts.
 	PortGroups []PortGroup
+	// PortNames optionally override one-based port display labels.
+	PortNames []string
 	// PortSpeed is the default access port speed in Mbps.
 	PortSpeed int
 	// UplinkSpeed is the uplink port speed in Mbps.
@@ -35,6 +39,11 @@ type Profile struct {
 
 const (
 	defaultFirmwareVersion = "7.4.1.16850"
+	defaultGatewayVersion  = "4.4.57.5578372"
+	defaultUXGVersion      = "5.0.16"
+	deviceTypeUSW          = "usw"
+	deviceTypeUGW          = "ugw"
+	deviceTypeUXG          = "uxg"
 	mediaSFPPlus           = "SFP+"
 	mediaSFP28             = "SFP28"
 )
@@ -44,6 +53,7 @@ var profiles = []Profile{
 		Name:         "us8",
 		Model:        "US8",
 		ModelDisplay: "UniFi Switch 8",
+		DeviceType:   deviceTypeUSW,
 		Version:      defaultFirmwareVersion,
 		Ports:        8,
 		PortSpeed:    1000,
@@ -56,6 +66,7 @@ var profiles = []Profile{
 		Name:         "us8p60",
 		Model:        "US8P60",
 		ModelDisplay: "UniFi Switch 8 60W",
+		DeviceType:   deviceTypeUSW,
 		Version:      defaultFirmwareVersion,
 		Ports:        8,
 		PortSpeed:    1000,
@@ -68,6 +79,7 @@ var profiles = []Profile{
 		Name:         "us16p150",
 		Model:        "US16P150",
 		ModelDisplay: "UniFi Switch 16 POE-150W",
+		DeviceType:   deviceTypeUSW,
 		Version:      defaultFirmwareVersion,
 		Ports:        16,
 		PortSpeed:    1000,
@@ -80,6 +92,7 @@ var profiles = []Profile{
 		Name:         "us16xg",
 		Model:        "US16XG",
 		ModelDisplay: "UniFi Switch 16 XG",
+		DeviceType:   deviceTypeUSW,
 		Version:      defaultFirmwareVersion,
 		Ports:        16,
 		PortSpeed:    10000,
@@ -92,6 +105,7 @@ var profiles = []Profile{
 		Name:         "usaggpro",
 		Model:        "USAGGPRO",
 		ModelDisplay: "UniFi Switch Aggregation PRO",
+		DeviceType:   deviceTypeUSW,
 		Version:      defaultFirmwareVersion,
 		Ports:        32,
 		PortGroups: []PortGroup{
@@ -108,6 +122,7 @@ var profiles = []Profile{
 		Name:         "usw-pro-xg-48",
 		Model:        "USWProXG48",
 		ModelDisplay: "UniFi Pro XG 48",
+		DeviceType:   deviceTypeUSW,
 		Version:      defaultFirmwareVersion,
 		Ports:        52,
 		PortGroups: []PortGroup{
@@ -125,6 +140,7 @@ var profiles = []Profile{
 		Name:         "us24p250",
 		Model:        "US24P250",
 		ModelDisplay: "UniFi Switch 24 POE-250W",
+		DeviceType:   deviceTypeUSW,
 		Version:      defaultFirmwareVersion,
 		Ports:        24,
 		PortSpeed:    1000,
@@ -137,6 +153,7 @@ var profiles = []Profile{
 		Name:         "us48p500",
 		Model:        "US48P500",
 		ModelDisplay: "UniFi Switch 48 POE-500W",
+		DeviceType:   deviceTypeUSW,
 		Version:      defaultFirmwareVersion,
 		Ports:        48,
 		PortSpeed:    1000,
@@ -144,6 +161,38 @@ var profiles = []Profile{
 		PortMedia:    "GE",
 		UplinkMedia:  "GE",
 		Description:  "48-port UniFi Switch with PoE",
+	},
+	{
+		Name:         "ugw3",
+		Model:        "UGW3",
+		ModelDisplay: "UniFi Security Gateway 3P",
+		DeviceType:   deviceTypeUGW,
+		Version:      defaultGatewayVersion,
+		Ports:        3,
+		PortNames:    []string{"WAN 1", "LAN 1", "WAN 2 / LAN 2"},
+		PortSpeed:    1000,
+		UplinkSpeed:  1000,
+		PortMedia:    "GE",
+		UplinkMedia:  "GE",
+		Description:  "experimental 3-port UniFi Security Gateway stub",
+	},
+	{
+		Name:         "uxgpro",
+		Model:        "UXGPRO",
+		ModelDisplay: "UniFi Next-Generation Gateway Pro",
+		DeviceType:   deviceTypeUXG,
+		Version:      defaultUXGVersion,
+		Ports:        4,
+		PortGroups: []PortGroup{
+			{Count: 2, Speed: 1000, Media: "GE"},
+			{Count: 2, Speed: 10000, Media: mediaSFPPlus, Uplink: true},
+		},
+		PortNames:   []string{"WAN", "LAN", "WAN2", "LAN2"},
+		PortSpeed:   1000,
+		UplinkSpeed: 10000,
+		PortMedia:   "GE",
+		UplinkMedia: mediaSFPPlus,
+		Description: "experimental UXG-Pro gateway with 1G RJ45 and 10G SFP+ ports",
 	},
 }
 
@@ -153,6 +202,7 @@ func Profiles() []Profile {
 	copy(out, profiles)
 	for i := range out {
 		out[i].PortGroups = clonePortGroups(out[i].PortGroups)
+		out[i].PortNames = cloneStrings(out[i].PortNames)
 	}
 	return out
 }
@@ -177,6 +227,7 @@ func (p Profile) PortOptions() PortOptions {
 		UplinkMedia: p.UplinkMedia,
 		UplinkPort:  0,
 		PortGroups:  clonePortGroups(p.PortGroups),
+		PortNames:   cloneStrings(p.PortNames),
 	}
 }
 
@@ -186,6 +237,15 @@ func clonePortGroups(groups []PortGroup) []PortGroup {
 	}
 	out := make([]PortGroup, len(groups))
 	copy(out, groups)
+	return out
+}
+
+func cloneStrings(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	out := make([]string, len(values))
+	copy(out, values)
 	return out
 }
 
@@ -210,8 +270,9 @@ func ProfileNames() string {
 func FormatProfiles() string {
 	var b strings.Builder
 	for _, profile := range profiles {
-		fmt.Fprintf(&b, "%-15s %-15s ports=%-2d speed=%-5d version=%s  %s\n",
+		fmt.Fprintf(&b, "%-15s %-6s %-15s ports=%-2d speed=%-5d version=%s  %s\n",
 			profile.Name,
+			deviceTypeOrDefault(profile.DeviceType),
 			profile.Model,
 			profile.Ports,
 			firstNonZero(profile.PortSpeed, 1000),
@@ -220,6 +281,14 @@ func FormatProfiles() string {
 		)
 	}
 	return b.String()
+}
+
+func deviceTypeOrDefault(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return deviceTypeUSW
+	}
+	return value
 }
 
 func firstNonZero(values ...int) int {

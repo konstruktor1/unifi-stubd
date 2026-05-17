@@ -2,7 +2,7 @@
 
 `unifi-stubd` is a lab-focused UniFi device stub. It makes a Linux host,
 Proxmox bridge, firewall VM, or similar non-UniFi system appear as a minimal
-UniFi switch in a UniFi Network Controller without allowing the controller to
+UniFi device in a UniFi Network Controller without allowing the controller to
 provision the host.
 
 Documentation: [English](docs/en/README.md) | [Deutsch](docs/de/README.md)
@@ -20,11 +20,14 @@ Implemented:
 
 - UniFi discovery packet builder and sender.
 - Inform packet encode/decode foundation.
-- Minimal fake switch payloads with selectable switch profiles.
+- Minimal fake device payloads with selectable device profiles.
+- Experimental stub-only `UGW3` gateway identity profile.
+- Experimental stub-only `UXGPRO` 10G gateway identity profile.
 - Built-in SSH shim for advanced adoption commands.
 - YAML configuration under `/etc/unifi-stubd/config.yaml`.
 - OpenRC and systemd service definitions.
 - Package builders for Debian, RPM, Arch Linux, and `.tar.gz`.
+- Stub-only FreeBSD/OPNsense tarball with rc.d service artifact.
 
 Not goals:
 
@@ -46,6 +49,15 @@ List built-in profiles:
 ```sh
 go run ./cmd/unifi-stubd -list-profiles
 ```
+
+The `ugw3` profile reports a legacy UniFi Security Gateway identity with three
+1G ports. It is useful for gateway-profile experiments, but it is still a
+stub-only identity profile and does not implement routing, DHCP, firewall, DPI,
+or WAN health behavior.
+
+The `uxgpro` profile reports a UniFi Next-Generation Gateway Pro identity with
+two 1G RJ45 ports and two 10G SFP+ ports. Like `ugw3`, it is an identity and
+status-payload stub only.
 
 Send discovery traffic in a lab:
 
@@ -123,6 +135,12 @@ synthetic. The `observe` mode is read-only and can merge Linux bridge FDB and
 sysfs counters into the switch payload when `observe_interface` and/or
 `observe_bridge` are configured.
 
+FreeBSD/OPNsense support is documented in
+[English](docs/en/freebsd.md) and [Deutsch](docs/de/freebsd.md). It is
+currently stub-only: discovery, inform, adoption SSH, profiles, port overrides,
+uplink overrides, and configured uplink neighbors are supported; Linux
+observation and macvlan modes are not.
+
 ## Services
 
 OpenRC:
@@ -157,7 +175,11 @@ make package-deb
 make package-rpm
 make package-arch
 make package-tgz
+make package-freebsd-tgz
 ```
+
+FreeBSD/OPNsense package builds default to `amd64`; set
+`PKG_FREEBSD_GOARCH=arm64` for ARM FreeBSD hosts.
 
 Common overrides:
 

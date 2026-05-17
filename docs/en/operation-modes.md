@@ -1,7 +1,8 @@
 # Operation Modes
 
 `unifi-stubd` currently targets Linux lab hosts first, including Proxmox,
-Alpine, and UTM Linux VMs.
+Alpine, and UTM Linux VMs. FreeBSD/OPNsense is supported as a stub-only target;
+native observation is not implemented there yet.
 
 ## Current Validated State
 
@@ -19,12 +20,21 @@ The validated live lab device is:
 experimental because the current lab controller did not accept it as a known
 pending adoption model.
 
+`UGW3` is available as an experimental gateway identity profile. It reports the
+legacy UniFi Security Gateway model and three 1G ports, but remains stub-only
+and does not emulate router services yet.
+
+`UXGPRO` is available as an experimental 10G gateway identity profile. It
+reports two 1G RJ45 ports and two 10G SFP+ ports; use `WAN2` for a synthetic
+10G internet side and `LAN2` for a synthetic 10G downlink side in lab tests.
+
 ## Modes
 
 ### `stub`
 
 Default mode. The daemon sends discovery and inform payloads from profile data
 only. It does not read host bridge state and does not change host networking.
+This is the supported FreeBSD/OPNsense mode.
 
 ### `observe`
 
@@ -55,6 +65,12 @@ uplink_neighbor:
   vlan: 1
   type: usw
 
+port_neighbors:
+  - port: 2
+    mac: 28:70:4e:c3:b7:b8
+    vlan: 1
+    type: usw
+
 port_overrides:
   - port: 2
     speed: 1000
@@ -65,6 +81,10 @@ port_overrides:
   - port: 5
     up: false
 ```
+
+`port_neighbors` populates `port_table[].mac_table` on specific ports. It is
+useful when the controller needs to see a downstream switch or host MAC on a
+non-uplink port.
 
 `uplink_neighbor` is useful for pure stubs and virtual lab ports where there is
 no physical link partner. It adds a configured MAC-table entry to the current

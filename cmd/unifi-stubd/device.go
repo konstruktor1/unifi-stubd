@@ -23,6 +23,7 @@ func payloadForIdentity(
 	informURL string,
 	store adoption.Store,
 	flags runtimeFlags,
+	profile device.Profile,
 	ports []device.Port,
 ) ([]byte, error) {
 	return buildPayload(device.Identity{
@@ -31,6 +32,7 @@ func payloadForIdentity(
 		Hostname:     hostname,
 		Model:        *flags.model,
 		ModelDisplay: *flags.modelDisplay,
+		DeviceType:   profile.DeviceType,
 		Version:      *flags.version,
 		Serial:       serialFromMAC(mac),
 		InformURL:    informURL,
@@ -45,7 +47,7 @@ func buildPayload(id device.Identity, store adoption.Store, ports []device.Port)
 	}
 	payload, err := device.MinimalSwitchPayload(id, ports)
 	if err != nil {
-		return nil, fmt.Errorf("build switch payload: %w", err)
+		return nil, fmt.Errorf("build device payload: %w", err)
 	}
 	return payload, nil
 }

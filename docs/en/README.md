@@ -4,6 +4,7 @@
 - [Protocol Notes](protocol-notes.md)
 - [Architecture](architecture.md)
 - [Operation Modes](operation-modes.md)
+- [FreeBSD and OPNsense](freebsd.md)
 - [Roadmap](roadmap.md)
 - [Lab Plan](lab-plan.md)
 - [Release Checklist](release.md)

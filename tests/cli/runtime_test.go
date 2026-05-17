@@ -23,6 +23,11 @@ uplink_neighbor:
   mac: 02:aa:bb:cc:dd:01
   vlan: 1
   type: usw
+port_neighbors:
+  - port: 2
+    mac: 28:70:4e:c3:b7:b8
+    vlan: 1
+    type: usw
 port_overrides:
   - port: 2
     speed: 1000
@@ -54,6 +59,9 @@ port_overrides:
 	}
 	if !strings.Contains(output, `uplink_neighbor: mac=02:aa:bb:cc:dd:01`) {
 		t.Fatalf("output did not contain uplink neighbor:\n%s", output)
+	}
+	if !strings.Contains(output, `port_neighbor: port=2 mac=28:70:4e:c3:b7:b8`) {
+		t.Fatalf("output did not contain port neighbor:\n%s", output)
 	}
 	if !strings.Contains(output, `port_override: port=2 speed=1000`) {
 		t.Fatalf("output did not contain port override:\n%s", output)

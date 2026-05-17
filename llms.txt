@@ -1,6 +1,6 @@
 # unifi-stubd
 
-> Go lab tool that makes a Linux host, VM, or bridge appear as a minimal UniFi switch to a UniFi Network Controller without allowing blind host provisioning.
+> Go lab tool that makes a lab host, VM, or bridge appear as a minimal UniFi device to a UniFi Network Controller without allowing blind host provisioning.
 
 `unifi-stubd` is experimental, unofficial, and intended only for isolated lab or
 management networks.
@@ -19,8 +19,9 @@ models. It is not the coding-agent instruction source. Coding agents should read
 - [English docs index](docs/en/README.md): Main English documentation entry point.
 - [German docs index](docs/de/README.md): Main German documentation entry point.
 - [Packaged Linux config](packaging/linux/etc/unifi-stubd/config.yaml): Default config installed as `/etc/unifi-stubd/config.yaml`.
+- [Packaged FreeBSD config](packaging/freebsd/usr/local/etc/unifi-stubd/config.yaml): Stub-only config installed as `/usr/local/etc/unifi-stubd/config.yaml`.
 - [Lab switch identities](lab/README.md): Device identities, shell commands, and payload fixture.
-- [Installed Linux files](packaging/installed-files.md): Mapping from repository sources to installed Linux paths.
+- [Installed package files](packaging/installed-files.md): Mapping from repository sources to installed Linux and FreeBSD paths.
 
 ## Architecture And Protocol
 
@@ -33,7 +34,7 @@ models. It is not the coding-agent instruction source. Coding agents should read
 
 - [Command entry point](cmd/unifi-stubd/main.go): CLI entry point.
 - [Switch emulation](cmd/unifi-stubd/switch_emulation.go): Discovery, inform, and adoption SSH service wiring.
-- [Device profiles](internal/device/): Fake switch profiles, link speed, and payload model.
+- [Device profiles](internal/device/): Fake switch profiles, experimental `UGW3` and `UXGPRO` gateway identity profiles, link speed, and payload model.
 - [Discovery](internal/discovery/): UniFi discovery TLV packet building.
 - [Inform](internal/inform/): Inform packet framing and client behavior.
 - [Adoption SSH](internal/adoptionssh/): Built-in SSH shim for advanced adoption commands.

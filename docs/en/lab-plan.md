@@ -154,6 +154,7 @@ make package-deb
 make package-rpm
 make package-arch
 make package-tgz
+make package-freebsd-tgz
 ```
 
 Override version, release, or target architecture:
@@ -163,7 +164,7 @@ PKG_VERSION=0.1.0 PKG_RELEASE=1 PKG_GOARCH=amd64 \
   PKG_MAINTAINER='Name <email@example.com>' make package
 ```
 
-Output files are written to `dist/packages/`. Native Debian, RPM, and Arch Linux packages are built with nFPM from `packaging/nfpm.yaml`; the `.tar.gz` package is built from the same staging tree.
+Output files are written to `dist/packages/`. Native Debian, RPM, and Arch Linux packages are built with nFPM from `packaging/nfpm.yaml`; the Linux and FreeBSD `.tar.gz` packages are built from their OS-specific staging trees. FreeBSD/OPNsense is currently stub-only.
 
 Layout:
 
@@ -174,4 +175,4 @@ Layout:
 - Logs: `/var/log/unifi-stubd.log`, `/var/log/unifi-stubd.err`
 
 Use `lab/` for lab switch identities, or inspect
-`packaging/installed-files.md` for the packaged Linux file tree.
+`packaging/installed-files.md` for the packaged Linux and FreeBSD file trees.

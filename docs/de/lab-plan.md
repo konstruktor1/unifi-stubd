@@ -154,6 +154,7 @@ make package-deb
 make package-rpm
 make package-arch
 make package-tgz
+make package-freebsd-tgz
 ```
 
 Version, Release oder Zielarchitektur ueberschreiben:
@@ -163,7 +164,7 @@ PKG_VERSION=0.1.0 PKG_RELEASE=1 PKG_GOARCH=amd64 \
   PKG_MAINTAINER='Name <email@example.com>' make package
 ```
 
-Die Ausgaben landen unter `dist/packages/`. Native Debian-, RPM- und Arch-Linux-Pakete werden mit nFPM aus `packaging/nfpm.yaml` gebaut; das `.tar.gz` entsteht aus derselben Staging-Struktur.
+Die Ausgaben landen unter `dist/packages/`. Native Debian-, RPM- und Arch-Linux-Pakete werden mit nFPM aus `packaging/nfpm.yaml` gebaut; die Linux- und FreeBSD-`.tar.gz`-Pakete entstehen aus ihren OS-spezifischen Staging-Baeumen. FreeBSD/OPNsense ist aktuell Stub-only.
 
 Layout:
 
@@ -174,4 +175,4 @@ Layout:
 - Logs: `/var/log/unifi-stubd.log`, `/var/log/unifi-stubd.err`
 
 Lab-Switch-Identitaeten liegen unter `lab/`; der paketierte Linux-Dateibaum
-ist in `packaging/installed-files.md` beschrieben.
+und FreeBSD-Dateibaum ist in `packaging/installed-files.md` beschrieben.

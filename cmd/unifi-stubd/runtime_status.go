@@ -33,6 +33,7 @@ type statusIdentity struct {
 	Serial     string `json:"serial"`
 	Model      string `json:"model"`
 	ModelName  string `json:"model_name"`
+	DeviceType string `json:"device_type"`
 	Profile    string `json:"profile"`
 	Ports      int    `json:"ports"`
 	UplinkPort int    `json:"uplink_port"`
@@ -48,6 +49,7 @@ type statusConfig struct {
 	StatePath      string                `json:"state_path"`
 	StatusPath     string                `json:"status_path"`
 	UplinkNeighbor *statusUplinkNeighbor `json:"uplink_neighbor,omitempty"`
+	PortNeighbors  []statusPortNeighbor  `json:"port_neighbors,omitempty"`
 	PortOverrides  []statusPortOverride  `json:"port_overrides,omitempty"`
 }
 
@@ -65,6 +67,15 @@ type statusPortOverride struct {
 	Speed int    `json:"speed,omitempty"`
 	Media string `json:"media,omitempty"`
 	Up    *bool  `json:"up,omitempty"`
+}
+
+type statusPortNeighbor struct {
+	Port   int    `json:"port"`
+	MAC    string `json:"mac"`
+	VLAN   int    `json:"vlan,omitempty"`
+	Type   string `json:"type,omitempty"`
+	Age    int    `json:"age,omitempty"`
+	Uptime int    `json:"uptime,omitempty"`
 }
 
 type statusAdoption struct {
@@ -134,6 +145,7 @@ func buildLocalStatus(flags runtimeFlags, profile device.Profile, mac net.Hardwa
 			Serial:     serialFromMAC(mac),
 			Model:      *flags.model,
 			ModelName:  *flags.modelDisplay,
+			DeviceType: profile.DeviceType,
 			Profile:    profile.Name,
 			Ports:      len(ports),
 			UplinkPort: uplinkPortIndex(ports),
@@ -148,6 +160,7 @@ func buildLocalStatus(flags runtimeFlags, profile device.Profile, mac net.Hardwa
 			StatePath:      *flags.sshState,
 			StatusPath:     *flags.statusPath,
 			UplinkNeighbor: statusUplinkNeighborEntry(flags.uplinkNeighbor),
+			PortNeighbors:  statusPortNeighbors(flags.portNeighbors),
 			PortOverrides:  statusPortOverrides(flags.portOverrides),
 		},
 		Adoption: statusAdoption{
@@ -231,6 +244,7 @@ func printHumanStatus(status localStatus) {
 	fmt.Printf("operation_mode: %s\n", status.Config.OperationMode)
 	fmt.Printf("profile: %s (%s)\n", status.Identity.Profile, status.Identity.Model)
 	fmt.Printf("model_name: %s\n", status.Identity.ModelName)
+	fmt.Printf("device_type: %s\n", valueOrDash(status.Identity.DeviceType))
 	fmt.Printf("mac: %s\n", status.Identity.MAC)
 	fmt.Printf("ip: %s\n", status.Identity.IP)
 	fmt.Printf("hostname: %s\n", status.Identity.Hostname)
@@ -246,6 +260,14 @@ func printHumanStatus(status localStatus) {
 			status.Config.UplinkNeighbor.MAC,
 			status.Config.UplinkNeighbor.VLAN,
 			valueOrDash(status.Config.UplinkNeighbor.Type),
+		)
+	}
+	for _, neighbor := range status.Config.PortNeighbors {
+		fmt.Printf("port_neighbor: port=%d mac=%s vlan=%d type=%s\n",
+			neighbor.Port,
+			neighbor.MAC,
+			neighbor.VLAN,
+			valueOrDash(neighbor.Type),
 		)
 	}
 	for _, override := range status.Config.PortOverrides {
@@ -284,6 +306,21 @@ func statusUplinkNeighborEntry(neighbor *device.MacTableEntry) *statusUplinkNeig
 		Age:    neighbor.Age,
 		Uptime: neighbor.Uptime,
 	}
+}
+
+func statusPortNeighbors(neighbors []device.PortNeighbor) []statusPortNeighbor {
+	out := make([]statusPortNeighbor, 0, len(neighbors))
+	for _, neighbor := range neighbors {
+		out = append(out, statusPortNeighbor{
+			Port:   neighbor.Port,
+			MAC:    neighbor.Entry.MAC,
+			VLAN:   neighbor.Entry.VLAN,
+			Type:   neighbor.Entry.Type,
+			Age:    neighbor.Entry.Age,
+			Uptime: neighbor.Entry.Uptime,
+		})
+	}
+	return out
 }
 
 func statusPortOverrides(overrides []device.PortOverride) []statusPortOverride {

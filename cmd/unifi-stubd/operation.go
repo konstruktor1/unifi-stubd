@@ -74,6 +74,17 @@ func validatePortOverrides(flags runtimeFlags) error {
 			return fmt.Errorf("invalid uplink_neighbor vlan %d; use 0 or a positive VLAN ID", flags.uplinkNeighbor.VLAN)
 		}
 	}
+	for _, neighbor := range flags.portNeighbors {
+		if neighbor.Port < 1 || neighbor.Port > *flags.portCount {
+			return fmt.Errorf("invalid port neighbor %d; use 1..%d", neighbor.Port, *flags.portCount)
+		}
+		if _, err := net.ParseMAC(neighbor.Entry.MAC); err != nil {
+			return fmt.Errorf("invalid port neighbor mac %q on port %d: %w", neighbor.Entry.MAC, neighbor.Port, err)
+		}
+		if neighbor.Entry.VLAN < 0 {
+			return fmt.Errorf("invalid port neighbor vlan %d on port %d; use 0 or a positive VLAN ID", neighbor.Entry.VLAN, neighbor.Port)
+		}
+	}
 	for _, override := range flags.portOverrides {
 		if override.Port < 1 || override.Port > *flags.portCount {
 			return fmt.Errorf("invalid port override %d; use 1..%d", override.Port, *flags.portCount)
@@ -101,6 +112,7 @@ func portsForRuntime(flags runtimeFlags, portOptions device.PortOptions) []devic
 	mode := normalizeMode(*flags.operationMode)
 	if mode != operationModeObserve && mode != operationModeHostDirect {
 		ports = device.ApplyPortOverrides(ports, flags.portOverrides)
+		ports = device.ApplyPortNeighbors(ports, flags.portNeighbors)
 		return device.ApplyUplinkNeighbor(ports, flags.uplinkNeighbor)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), observeTimeout)
@@ -114,6 +126,7 @@ func portsForRuntime(flags runtimeFlags, portOptions device.PortOptions) []devic
 		log.Printf("passive observation warning: %v", err)
 	}
 	ports = device.ApplyPortOverrides(observe.Apply(ports, snapshot), flags.portOverrides)
+	ports = device.ApplyPortNeighbors(ports, flags.portNeighbors)
 	return device.ApplyUplinkNeighbor(ports, flags.uplinkNeighbor)
 }
 
@@ -121,6 +134,7 @@ func printRuntimePlan(flags runtimeFlags, profile device.Profile, macText, ipTex
 	mode := normalizeMode(*flags.operationMode)
 	fmt.Printf("operation_mode: %s\n", mode)
 	fmt.Printf("profile: %s (%s)\n", profile.Name, profile.Model)
+	fmt.Printf("device_type: %s\n", profile.DeviceType)
 	fmt.Printf("mac: %s\n", macText)
 	fmt.Printf("ip: %s\n", ipText)
 	fmt.Printf("hostname: %s\n", hostname)
@@ -130,6 +144,14 @@ func printRuntimePlan(flags runtimeFlags, profile device.Profile, macText, ipTex
 			flags.uplinkNeighbor.MAC,
 			flags.uplinkNeighbor.VLAN,
 			strings.TrimSpace(flags.uplinkNeighbor.Type),
+		)
+	}
+	for _, neighbor := range flags.portNeighbors {
+		fmt.Printf("port_neighbor: port=%d mac=%s vlan=%d type=%q\n",
+			neighbor.Port,
+			neighbor.Entry.MAC,
+			neighbor.Entry.VLAN,
+			strings.TrimSpace(neighbor.Entry.Type),
 		)
 	}
 	for _, override := range flags.portOverrides {

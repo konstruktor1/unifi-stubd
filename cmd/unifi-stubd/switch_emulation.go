@@ -78,7 +78,7 @@ func serveSwitchEmulation() error {
 	}
 
 	ports := portsForRuntime(flags, portOptions)
-	payload, err := payloadForIdentity(mac, ip, resolvedHostname, *flags.controller, adoption.Store{}, flags, ports)
+	payload, err := payloadForIdentity(mac, ip, resolvedHostname, *flags.controller, adoption.Store{}, flags, profile, ports)
 	if err != nil {
 		return err
 	}
@@ -100,6 +100,7 @@ func serveSwitchEmulation() error {
 
 	return maintainControllerPresence(controllerPresence{
 		flags:            flags,
+		profile:          profile,
 		mac:              mac,
 		ip:               ip,
 		hostname:         resolvedHostname,
@@ -112,6 +113,7 @@ func serveSwitchEmulation() error {
 
 type controllerPresence struct {
 	flags            runtimeFlags
+	profile          device.Profile
 	mac              net.HardwareAddr
 	ip               net.IP
 	hostname         string
@@ -135,7 +137,7 @@ func maintainControllerPresence(cfg controllerPresence) error {
 		store := loadAdoptionState(*cfg.flags.sshState)
 		informURL := effectiveInformURL(*cfg.flags.controller, store)
 		ports := portsForRuntime(cfg.flags, cfg.portOptions)
-		payload, err := payloadForIdentity(cfg.mac, cfg.ip, cfg.hostname, informURL, store, cfg.flags, ports)
+		payload, err := payloadForIdentity(cfg.mac, cfg.ip, cfg.hostname, informURL, store, cfg.flags, cfg.profile, ports)
 		if err != nil {
 			return err
 		}

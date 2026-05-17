@@ -1,0 +1,38 @@
+# unifi-stubd packaged FreeBSD/OPNsense runtime config.
+# Installed as /usr/local/etc/unifi-stubd/config.yaml.
+
+# Replace 192.0.2.10 and 192.0.2.50 with addresses from an isolated lab.
+operation_mode: stub
+controller_url: http://192.0.2.10:8080/inform
+profile: us16p150
+mac: auto
+ip: 192.0.2.50
+hostname: auto
+
+# FreeBSD support is stub-only for now. Keep passive Linux observation disabled.
+link_speed: 0
+uplink_speed: profile
+uplink_port: 0
+uplink_neighbor:
+  mac: ""
+  vlan: 1
+  type: usw
+port_neighbors: []
+port_overrides: []
+
+observe_interface: ""
+observe_bridge: ""
+lldp_source: off
+traffic_source: off
+
+interval_seconds: 10
+no_discovery: false
+
+ssh_listen: 0.0.0.0:22
+ssh_user: ubnt
+# Use the controller's expected advanced-adoption credentials only in a lab.
+ssh_password: ubnt
+ssh_host_key_path: /usr/local/etc/unifi-stubd/ssh_host_rsa_key
+
+state_path: /var/db/unifi-stubd/adoption.env
+status_path: /var/db/unifi-stubd/status.json

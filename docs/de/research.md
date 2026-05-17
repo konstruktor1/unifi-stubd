@@ -26,6 +26,9 @@ haben.
 - [Tamarack: Reverse Engineering the UniFi Inform Protocol](https://tamarack.cloud/blog/reverse-engineering-unifi-inform-protocol)
 - [Ubiquiti: UniFi Required Ports Reference](https://help.ui.com/hc/en-us/articles/218506997-UniFi-Network-Required-Ports-Reference)
 - [Ubiquiti: Remote Adoption / Layer 3](https://help.ui.com/hc/en-us/articles/204909754-Remote-Adoption-Layer-3)
+- [Ubiquiti: UniFi Security Gateway Datasheet](https://dl.ui.com/datasheets/unifi/UniFi_Security_Gateway_DS.pdf)
+- [Ubiquiti: UniFi Security Gateway Quick Start Guide](https://dl.ui.com/qsg/USG/USG_EN.html)
+- [Ubiquiti: UXG-Pro Tech Specs](https://techspecs.ui.com/unifi/advanced-hosting/uxg-pro?s=me)
 
 ## Attribution-Grenze
 

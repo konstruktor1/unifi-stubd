@@ -18,6 +18,7 @@ jobs:
           path: ~/go/pkg/mod
           key: go-mod-${{ hashFiles('go.sum') }}
       - run: make check
+      - run: make build-freebsd
 
   package:
     needs: check

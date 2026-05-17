@@ -60,6 +60,11 @@ stateDiagram-v2
 
 Ein Switch-Profil braucht hauptsaechlich Ports, Interface-Status, MAC-Tabellen und Zaehler. Ein Gateway-Profil braucht WAN/LAN, Routing, DHCP, DPI, Firewall, Health und haeufig mehr Controller-spezifische Erwartungen. Deshalb ist der Switch-MVP deutlich robuster.
 
+Das eingebaute `ugw3`-Profil ist absichtlich enger gefasst als eine
+vollstaendige Gateway-Implementierung. Es meldet die Legacy-USG-Identitaet und
+Portnamen, aber der Payload bleibt ein minimaler Stub und modelliert noch keinen
+Routing- oder Firewall-State.
+
 ### Keine echte Provisionierung
 
 Controller-Kommandos werden zuerst nur interpretiert und persistiert, nicht auf den Host angewandt. Alles, was den Host veraendern wuerde, landet in Logs oder in einer Debug-Ausgabe.

@@ -140,5 +140,14 @@ For the MVP:
   model databases, with 28 10G SFP+ and four 25G SFP28 ports.
 - `USW-Pro-XG-48`: largest built-in 10G access switch profile, with mixed 2.5G,
   10G, and 25G SFP28 port groups.
+- `UGW3`: experimental legacy UniFi Security Gateway identity profile. It
+  reports device type `ugw`, model `UGW3`, and three 1G ports named `WAN 1`,
+  `LAN 1`, and `WAN 2 / LAN 2`.
+- `UXGPRO`: experimental UniFi Next-Generation Gateway Pro identity profile. It
+  reports device type `uxg`, model `UXGPRO`, two 1G RJ45 ports named `WAN` and
+  `LAN`, and two 10G SFP+ ports named `WAN2` and `LAN2`.
 
-Gateway models such as `UGW3`, `UGW4`, or `UXG` should be checked later.
+`UGW3` and `UXGPRO` are only identity/profile stubs in this release. A full
+gateway payload still needs WAN/LAN state, routing, DHCP, firewall, DPI, and
+health fields. Gateway models such as `UGW4`, Cloud Gateway devices, and EFG
+should be checked later.

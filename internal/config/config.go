@@ -40,6 +40,8 @@ type Config struct {
 	UplinkPort int `yaml:"uplink_port"`
 	// UplinkNeighbor adds a configured fake neighbor to the selected uplink.
 	UplinkNeighbor *UplinkNeighbor `yaml:"uplink_neighbor"`
+	// PortNeighbors adds configured fake neighbors to specific ports.
+	PortNeighbors []PortNeighbor `yaml:"port_neighbors"`
 	// PortOverrides applies per-port runtime overrides after profile generation.
 	PortOverrides []PortOverride `yaml:"port_overrides"`
 	// ObserveInterface is the host interface used for passive link data.
@@ -86,6 +88,7 @@ func Default() Config {
 		UplinkSpeed:      automaticValue,
 		UplinkPort:       0,
 		UplinkNeighbor:   nil,
+		PortNeighbors:    nil,
 		PortOverrides:    nil,
 		ObserveInterface: "",
 		ObserveBridge:    "",
@@ -106,6 +109,22 @@ func Default() Config {
 // UplinkNeighbor describes a configured fake upstream neighbor.
 type UplinkNeighbor struct {
 	// MAC is the neighbor MAC address to expose on the uplink port.
+	MAC string `yaml:"mac"`
+	// VLAN is the optional VLAN associated with the neighbor.
+	VLAN int `yaml:"vlan"`
+	// Type is the controller-facing neighbor type.
+	Type string `yaml:"type"`
+	// Age is the controller-facing MAC-table age counter.
+	Age int `yaml:"age"`
+	// Uptime is the number of seconds the neighbor has been visible.
+	Uptime int `yaml:"uptime"`
+}
+
+// PortNeighbor describes a configured fake neighbor on a specific port.
+type PortNeighbor struct {
+	// Port is the one-based switch port index.
+	Port int `yaml:"port"`
+	// MAC is the neighbor MAC address to expose on the port.
 	MAC string `yaml:"mac"`
 	// VLAN is the optional VLAN associated with the neighbor.
 	VLAN int `yaml:"vlan"`
