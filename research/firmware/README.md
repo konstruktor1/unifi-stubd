@@ -60,71 +60,97 @@ Next research steps:
 - Extract additional safe gateway status fields from adopted informs.
 - Keep raw adopted captures local only.
 
-## uxg-lite-real-firmware
+## uxg-lite-5.0.16
 
-Status: planned.
+Status: partial UbiOS userspace simulation; blocked before `mcad` control
+socket.
 
 - Stub profile: `uxg-lite`
 - Device type: `uxg`
 - Model: `UXG`
+- Firmware: `5.0.16.30689`
+- Architecture: `arm64`
 
-Research folder target:
+Research folder:
 
 ```text
-research/firmware/uxg-lite-<version>/
+research/firmware/uxg-lite-5.0.16/
 ```
 
-Before simulation:
+Committed profile artifacts:
 
-- Download the matching public firmware image into an ignored `artifacts/`
-  directory.
-- Record product, firmware filename, header, SHA-256, architecture, and rootfs
-  format.
-- Inventory the boot/service chain and confirm whether it uses the same
-  UbiOS `mcad`/UDAPI process model as UXG-Pro.
-- If compatible, reuse the generic firmware wrapper variables:
-  `UNIFI_FW_SIM_MODEL`, `UNIFI_FW_SIM_MAC`,
-  `UNIFI_FW_SIM_STATIC_ADDRESS`, and `UNIFI_FW_SIM_DUMMY_INTERFACES`.
-- If not compatible, create a profile-specific wrapper instead of forcing the
-  UXG-Pro start flow.
+- `README.md`: firmware image inventory, rootfs metadata, service chain,
+  current simulation result, and source availability notes.
+- `source-inventory.md`: project-owned helper source vs observed vendor files.
+- `simulation/Dockerfile`: wrapper around the imported local firmware rootfs
+  image.
+- `simulation/start-firmware-processes.sh`: starts the UbiOS processes while
+  allowing the currently partial startup path to remain inspectable.
+- `simulation/compose.yaml`: networkless ARM64 simulation.
+- `simulation/docker-howto.md`: rootfs import, mock hardware, shim build, and
+  startup instructions.
 
-Expected committed artifacts:
+Current finding summary:
 
-- `README.md`: firmware image inventory and findings.
-- `source-inventory.md`: observed vendor files and project-owned helpers.
-- `simulation/`: only project-owned wrapper files and docs.
-- `simulation/fixtures/`: sanitized JSON summaries only.
+- UXG-Lite uses the same broad UbiOS `ubios-udapi-server` ->
+  `udapi-bridge` -> `mcad` architecture as UXG-Pro.
+- The local wrapper can start `ubios-udapi-server`, `udapi-bridge`, and
+  `mcad`.
+- In the current containerized run, `ubios-udapi-server` creates the bridge
+  event notifier socket but not `/var/run/ubnt-udapi-server.sock`.
+- Because that socket is missing, `mcad` does not expose `/tmp/.mcad` yet, so
+  this profile is not ready for controller adoption.
 
-## ugw3-real-firmware
+Next research steps:
 
-Status: planned.
+- Add ARM64 `strace` or broader shim tracing to identify the missing runtime
+  dependency before the UDAPI server socket bind.
+- Extend the mock hardware/sysctl set only with deterministic lab values.
+- Do not connect this profile to a controller until `mca-ctrl -t dump` works.
+
+## ugw3-4.4.57
+
+Status: QEMU-MIPS chroot simulation starts `mcad` and supports `mca-ctrl`.
 
 - Stub profile: `ugw3`
 - Device type: `ugw`
 - Model: `UGW3`
+- Firmware: `4.4.57.5578372`
+- Architecture: `mips` userspace under QEMU
 
-Research folder target:
+Research folder:
 
 ```text
-research/firmware/ugw3-<version>/
+research/firmware/ugw3-4.4.57/
 ```
 
-Before simulation:
+Committed profile artifacts:
 
-- Download the matching public firmware image into an ignored `artifacts/`
-  directory.
-- Record product, firmware filename, header, SHA-256, architecture, and rootfs
-  format.
-- Inventory the agent stack. This profile may use a legacy USG/EdgeOS flow
-  rather than the newer UbiOS `mcad`/UDAPI chain.
-- Identify the inform/adoption process names and local control sockets before
-  writing any wrapper.
-- Keep extracted configs and raw rootfs files out of Git.
+- `README.md`: firmware tar inventory, rootfs metadata, legacy service chain,
+  current simulation result, and source availability notes.
+- `source-inventory.md`: project-owned helper source vs observed vendor files.
+- `simulation/Dockerfile`: Debian/QEMU-MIPS runner.
+- `simulation/start-ugw3-qemu.sh`: chroots into the extracted rootfs and starts
+  legacy `mcad`.
+- `simulation/compose.yaml`: runner using the external
+  `unifi-ugw3-rootfs` Docker volume.
+- `simulation/docker-howto.md`: extraction and runtime commands.
 
-Expected committed artifacts:
+Current finding summary:
 
-- `README.md`: firmware image inventory and findings.
-- `source-inventory.md`: observed vendor files and project-owned helpers.
-- `simulation/`: profile-specific wrapper only after the service chain is
-  known.
-- `simulation/fixtures/`: sanitized discovery, inform, and adoption summaries.
+- UGW3 is not UbiOS. It uses the legacy USG/EdgeOS `mcad`, `mca-monitor`,
+  `linkcheck`, `syswrapper.sh`, and Vyatta stack.
+- The imported rootfs cannot be launched directly as a Docker image on the
+  current host because the userspace is 32-bit big-endian MIPS.
+- The committed Debian/QEMU runner starts `mcad` and creates `/tmp/.mcad`.
+- `mca-ctrl -t dump` works and shows default inform behavior toward
+  `http://unifi:8080/inform`.
+- Hardware identity is still placeholder data until a legacy board and
+  interface mock is added.
+
+Next research steps:
+
+- Add deterministic board, serial, MAC, and interface mocks for UGW3.
+- Attach the runner to the disposable controller/MITM lab only after identity
+  fields are stable.
+- Capture only sanitized inform summaries.

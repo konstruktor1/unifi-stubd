@@ -26,25 +26,42 @@ profiles:
     committed_findings:
       - research/firmware/uxgpro-5.0.16/simulation/fixtures/adoption-mitm-timeline.json
       - research/firmware/uxgpro-5.0.16/simulation/fixtures/adopted-system-config-summary.json
-  - id: uxg-lite-real-firmware
-    status: planned
+  - id: uxg-lite-5.0.16
+    status: partial-userspace-simulation
     product: UniFi Gateway Lite
     stub_profile: uxg-lite
     device_type: uxg
     model: UXG
-    required_before_simulation:
-      - Download the matching public firmware image into an ignored artifacts directory.
-      - Inventory the firmware header, architecture, rootfs format, and service chain.
-      - Confirm whether it uses the UbiOS mcad/UDAPI chain or needs a different wrapper.
-      - Add only checksums, notes, and project-owned helper code to Git.
-  - id: ugw3-real-firmware
-    status: planned
+    model_short: UXG Lite
+    firmware_version: 5.0.16.30689
+    architecture: arm64
+    firmware_image_name: dad0-UXG-5.0.16-996c83e4-42a4-4dc7-bfa3-26894dc59cd7.bin
+    firmware_sha256: e2e361fc9b4296628f1b4fa10280449695c9df8fb8da95a440a7462044a4765c
+    local_base_image: uxg-lite-fw:5.0.16
+    simulation_wrapper: research/firmware/uxg-lite-5.0.16/simulation/Dockerfile
+    start_command: /usr/local/bin/uxg-lite-sim-start
+    start_style: ubios-udapi-server + udapi-bridge + mcad
+    current_blocker: ubios-udapi-server does not create /var/run/ubnt-udapi-server.sock under the current mock wrapper, so mcad does not expose /tmp/.mcad.
+    committed_findings:
+      - research/firmware/uxg-lite-5.0.16/README.md
+      - research/firmware/uxg-lite-5.0.16/source-inventory.md
+      - research/firmware/uxg-lite-5.0.16/simulation/docker-howto.md
+  - id: ugw3-4.4.57
+    status: qemu-mcad-simulation
     product: UniFi Security Gateway 3P
     stub_profile: ugw3
     device_type: ugw
     model: UGW3
-    required_before_simulation:
-      - Download the matching public firmware image into an ignored artifacts directory.
-      - Inventory the firmware header, architecture, rootfs format, and service chain.
-      - Build a separate wrapper if the firmware uses the legacy EdgeOS/USG agent stack instead of UbiOS.
-      - Add only checksums, notes, and project-owned helper code to Git.
+    firmware_version: 4.4.57.5578372
+    architecture: mips
+    firmware_image_name: 7920-UGW3-4.4.57-803dc5671c6745dbb68c8dfa10145a8f.tar
+    firmware_sha256: 08a35a626e9733018b2e49af92aa3474255136bb0178e0697f44c6d8042cdd74
+    local_rootfs_volume: unifi-ugw3-rootfs
+    simulation_wrapper: research/firmware/ugw3-4.4.57/simulation/Dockerfile
+    start_command: /usr/local/bin/ugw3-qemu-start
+    start_style: Debian qemu-mips-static chroot running legacy mcad
+    current_blocker: Hardware identity is placeholder-only until a legacy board and interface mock is added.
+    committed_findings:
+      - research/firmware/ugw3-4.4.57/README.md
+      - research/firmware/ugw3-4.4.57/source-inventory.md
+      - research/firmware/ugw3-4.4.57/simulation/docker-howto.md
