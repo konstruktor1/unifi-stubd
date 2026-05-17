@@ -122,6 +122,9 @@ The Inform body is usually a binary `TNBU` packet and may contain adoption
 keys or controller state once decrypted by a device. Treat the capture folder
 as sensitive lab data.
 
+Sanitized findings from one local run are documented in
+`inform-mitm-analysis.md`.
+
 Watch live MITM logs:
 
 ```sh
