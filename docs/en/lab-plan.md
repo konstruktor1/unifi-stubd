@@ -148,7 +148,7 @@ The `stub` service builds the root `Dockerfile` and passes
 `${UNIFI_STUB_PROFILE:-us8}` at runtime. The default emulated UniFi profile is
 `us8`; the Docker path and container identity remain `stub`.
 
-For gateway firmware simulation, use the per-profile Docker labs under
+For gateway firmware simulation, use the per-profile labs under
 `lab/gateway-profiles/`. Those directories are real firmware wrappers, not
 `internal/device` stub profile copies.
 
@@ -164,6 +164,10 @@ Current gateway firmware labs:
 - `lab/gateway-profiles/udm-pro-se/`: ARM64 UbiOS userspace wrapper; reaches
   the UDAPI socket and `mca-ctrl -t dump` with a deterministic RTL8370-style
   switch mock.
+- `lab/gateway-profiles/udm-pro-se-vm/`: real `qemu-system-aarch64` VM boot
+  profile using copied local UDM Pro SE firmware artifacts. The direct vendor
+  kernel hangs before serial output on QEMU `virt`; the foreign-kernel
+  `udm-systemd` path reaches UDM firmware `systemd` and a serial login prompt.
 
 Run a firmware simulation:
 
@@ -173,6 +177,22 @@ docker compose -f lab/gateway-profiles/uxg-lite/compose.yaml up -d --build
 docker compose -f lab/gateway-profiles/uxgpro/compose.yaml up -d --build
 docker compose -f lab/gateway-profiles/ucg-fiber/compose.yaml up -d --build
 docker compose -f lab/gateway-profiles/udm-pro-se/compose.yaml up -d --build
+```
+
+Run the UDM Pro SE VM profile:
+
+```sh
+lab/gateway-profiles/udm-pro-se-vm/scripts/prepare-vm.sh
+lab/gateway-profiles/udm-pro-se-vm/scripts/run-direct-kernel.sh
+```
+
+Run the UDM Pro SE VM path that reaches firmware `systemd`:
+
+```sh
+lab/gateway-profiles/udm-pro-se-vm/scripts/fetch-foreign-kernel.sh
+lab/gateway-profiles/udm-pro-se-vm/scripts/build-lab-initramfs.sh
+UDM_PRO_SE_FOREIGN_MODE=udm-systemd \
+  lab/gateway-profiles/udm-pro-se-vm/scripts/run-foreign-kernel.sh
 ```
 
 Run the UXG-Pro controller/MITM lab:

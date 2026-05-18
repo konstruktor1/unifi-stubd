@@ -1,6 +1,6 @@
 # Gateway Firmware Simulation Profiles
 
-This directory is for real firmware simulation containers. Do not place
+This directory is for real firmware simulation profiles. Do not place
 `internal/device` stub profile data here.
 
 Only `lab/stub/` is the generic `unifi-stubd` stub lab. The gateway profile
@@ -15,23 +15,45 @@ Current profile directories:
 - `ucg-fiber/`: ARM64 UbiOS userspace wrapper prepared for startup analysis.
 - `udm-pro-se/`: ARM64 UbiOS userspace wrapper; reaches UDAPI and
   `mca-ctrl` through a deterministic RTL8370-style switch mock.
+- `udm-pro-se-vm/`: real `qemu-system-aarch64` VM boot profile using copied
+  local UDM Pro SE firmware artifacts. The direct vendor kernel hangs before
+  serial output on QEMU `virt`; the foreign-kernel `udm-systemd` path reaches
+  UDM firmware `systemd` and a serial login prompt.
 
 Typical per-profile files:
 
 - `Dockerfile`: project-owned wrapper around a local firmware rootfs or runner.
-- `compose.yaml`: isolated simulation startup.
+- `compose.yaml`: isolated simulation startup for Compose-backed profiles.
 - `docker-howto.md`: local firmware import and runtime steps.
 - `start-*.sh`: project-owned process startup wrapper.
 - `firmware.md`: safe firmware inventory and findings.
 - `source-inventory.md`: attribution and source boundary notes.
+- `scripts/`: extraction, preparation, and VM runner helpers for profiles that
+  do not use Compose.
 
 Firmware images, extracted rootfs trees, raw captures, keys, tokens,
 certificates, and private controller data must not be committed.
 
-Run a profile through its own compose file, for example:
+Run a Compose-backed profile through its own compose file, for example:
 
 ```sh
 docker compose -f lab/gateway-profiles/ugw3/compose.yaml up -d --build
+```
+
+Run the UDM Pro SE VM profile through its scripts:
+
+```sh
+lab/gateway-profiles/udm-pro-se-vm/scripts/prepare-vm.sh
+lab/gateway-profiles/udm-pro-se-vm/scripts/run-direct-kernel.sh
+```
+
+Run the UDM Pro SE VM path that reaches firmware `systemd`:
+
+```sh
+lab/gateway-profiles/udm-pro-se-vm/scripts/fetch-foreign-kernel.sh
+lab/gateway-profiles/udm-pro-se-vm/scripts/build-lab-initramfs.sh
+UDM_PRO_SE_FOREIGN_MODE=udm-systemd \
+  lab/gateway-profiles/udm-pro-se-vm/scripts/run-foreign-kernel.sh
 ```
 
 To recreate the local Docker inputs and run every committed lab container stack

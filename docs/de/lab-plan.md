@@ -150,7 +150,7 @@ Der `stub`-Service baut das Root-`Dockerfile` und uebergibt
 `${UNIFI_STUB_PROFILE:-us8}` zur Laufzeit. Das emulierte UniFi-Profil ist
 standardmaessig `us8`; Docker-Pfad und Container-Identitaet bleiben `stub`.
 
-Fuer Gateway-Firmware-Simulation gibt es die profilbezogenen Docker-Labs unter
+Fuer Gateway-Firmware-Simulation gibt es die profilbezogenen Labs unter
 `lab/gateway-profiles/`. Diese Verzeichnisse sind echte Firmware-Wrapper, keine
 Kopien von `internal/device` Stub-Profilen.
 
@@ -167,6 +167,11 @@ Aktuelle Gateway-Firmware-Labs:
 - `lab/gateway-profiles/udm-pro-se/`: ARM64-UbiOS-Userspace-Wrapper; erreicht
   den UDAPI-Socket und `mca-ctrl -t dump` mit einem deterministischen
   RTL8370-artigen Switch-Mock.
+- `lab/gateway-profiles/udm-pro-se-vm/`: echtes `qemu-system-aarch64`
+  VM-Boot-Profil mit kopierten lokalen UDM-Pro-SE-Firmware-Artefakten. Der
+  direkte Vendor-Kernel haengt auf QEMU `virt` vor serieller Ausgabe; der
+  Foreign-Kernel-Pfad `udm-systemd` erreicht das UDM-Firmware-`systemd` und
+  einen seriellen Login-Prompt.
 
 Firmware-Simulation starten:
 
@@ -176,6 +181,22 @@ docker compose -f lab/gateway-profiles/uxg-lite/compose.yaml up -d --build
 docker compose -f lab/gateway-profiles/uxgpro/compose.yaml up -d --build
 docker compose -f lab/gateway-profiles/ucg-fiber/compose.yaml up -d --build
 docker compose -f lab/gateway-profiles/udm-pro-se/compose.yaml up -d --build
+```
+
+UDM-Pro-SE-VM-Profil starten:
+
+```sh
+lab/gateway-profiles/udm-pro-se-vm/scripts/prepare-vm.sh
+lab/gateway-profiles/udm-pro-se-vm/scripts/run-direct-kernel.sh
+```
+
+UDM-Pro-SE-VM-Pfad starten, der Firmware-`systemd` erreicht:
+
+```sh
+lab/gateway-profiles/udm-pro-se-vm/scripts/fetch-foreign-kernel.sh
+lab/gateway-profiles/udm-pro-se-vm/scripts/build-lab-initramfs.sh
+UDM_PRO_SE_FOREIGN_MODE=udm-systemd \
+  lab/gateway-profiles/udm-pro-se-vm/scripts/run-foreign-kernel.sh
 ```
 
 UXG-Pro Controller/MITM-Lab starten:
