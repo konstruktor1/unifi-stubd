@@ -28,6 +28,9 @@ The firmware stacks require local ignored inputs:
 - `research/firmware/ucg-fiber-5.0.16/artifacts/rootfs.squashfs`
 - `research/firmware/udm-pro-se-5.0.16/artifacts/rootfs.squashfs`
 - mock hardware directories under `/tmp/unifi-fw-sim*`
+- UDM Pro SE shared kernel payload under
+  `lab/gateway-profiles/udm-pro-se-vm/artifacts/deploy/kernel/` when the UDM
+  Pro SE Docker profile should log the same kernel inputs as the VM reference.
 
 The UXG-Pro rootfs slice can be recreated from the official firmware image
 using the offsets in `lab/gateway-profiles/uxgpro/docker-howto.md`.
@@ -120,6 +123,16 @@ docker run --rm \
   | docker import --platform linux/arm64 - udm-pro-se-fw:5.0.16
 ```
 
+For the UDM Pro SE profile, also stage the shared mock and kernel inputs:
+
+```sh
+lab/gateway-profiles/udm-pro-se-vm/scripts/prepare-vm.sh
+lab/gateway-profiles/udm-pro-se-vm/scripts/fetch-foreign-kernel.sh
+lab/gateway-profiles/udm-pro-se-vm/scripts/prepare-mocks.sh
+lab/gateway-profiles/udm-pro-se-vm/scripts/build-lab-initramfs.sh
+lab/gateway-profiles/udm-pro-se-vm/scripts/deploy-kernel-artifacts.sh
+```
+
 ## Build Firmware Wrapper Images
 
 ```sh
@@ -159,6 +172,17 @@ docker compose -f lab/gateway-profiles/ucg-fiber/compose.yaml \
 
 SIM_DIR=/tmp/unifi-fw-sim-udm-pro-se \
 docker compose -f lab/gateway-profiles/udm-pro-se/compose.yaml \
+  up -d --no-build firmware
+```
+
+Start the UDM Pro SE webportal override only when you want the partial UniFi OS
+setup UI instead of the networkless firmware process command:
+
+```sh
+SIM_DIR=/tmp/unifi-fw-sim-udm-pro-se \
+docker compose \
+  -f lab/gateway-profiles/udm-pro-se/compose.yaml \
+  -f lab/gateway-profiles/udm-pro-se/webportal.compose.yaml \
   up -d --no-build firmware
 ```
 

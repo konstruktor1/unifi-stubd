@@ -1,0 +1,13 @@
+board.sysid=0xea2c
+board.name=UDMPROSE
+board.shortname=UDMPROSE
+board.storename=UDMPROSE
+board.subtype=
+board.reboot=30
+board.upgrade=150
+board.cpu.id=410fd034-00000000
+board.uuid=73194688-47d7-31ae-a40d-bf5dd963c999
+board.bom=113-00000-01
+board.hwrev=0x0001
+board.serialno=02156D00EA2C
+board.qrid=SIMULATED

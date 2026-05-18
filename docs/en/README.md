@@ -1,12 +1,16 @@
 # Documentation
 
 - [Research](research.md)
+- [Project Status](project-status.md)
 - [Protocol Notes](protocol-notes.md)
 - [Architecture](architecture.md)
 - [Operation Modes](operation-modes.md)
 - [FreeBSD and OPNsense](freebsd.md)
 - [Roadmap](roadmap.md)
 - [Lab Plan](lab-plan.md)
+- [Gateway Firmware Profiles](../../lab/gateway-profiles/README.md)
+- [UDM Pro SE Docker Profile](../../lab/gateway-profiles/udm-pro-se/README.md)
+- [UDM Pro SE QEMU/UTM Profile](../../lab/gateway-profiles/udm-pro-se-vm/README.md)
 - [Release Checklist](release.md)
 - [Security Notes](security.md)
 - [Sources, Credits, and Licensing](sources.md)

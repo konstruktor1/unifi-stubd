@@ -1,0 +1,206 @@
+#!/bin/sh
+# Lab-scoped systemctl shim for application lifecycle calls from UniFi Core.
+log_dir="${UNIFI_FW_SIM_WEB_LOG_DIR:-/tmp/udm-pro-se-webportal}"
+log_file="$log_dir/systemctl-wrapper.log"
+network_app_stub="${UNIFI_FW_SIM_NETWORK_APP_STUB:-/usr/local/lib/udm-pro-se-network-app/index.cjs}"
+cmd=""
+services=""
+start_now=0
+quiet=0
+
+mkdir -p "$log_dir"
+printf '%s systemctl %s\n' "$(date -Iseconds)" "$*" >>"$log_file"
+
+say() {
+    [ "$quiet" -eq 1 ] || printf '%s\n' "$1"
+}
+
+start_network_stub() {
+    # UniFi Core still uses systemctl to manage the Network application. In the
+    # container that maps to the project-owned HTTP/API stub process.
+    if ss -ltn 2>/dev/null | grep -q '127[.]0[.]0[.]1:8081'; then
+        return 0
+    fi
+
+    nohup /usr/bin/node24 "$network_app_stub" \
+        >"$log_dir/network-app-stub.stdout" \
+        2>"$log_dir/network-app-stub.stderr" &
+}
+
+is_network_active() {
+    ss -ltn 2>/dev/null | grep -q '127[.]0[.]0[.]1:8081'
+}
+
+prepare_nginx_runtime() {
+    mkdir -p /var/log/nginx /var/cache/nginx /data/unifi-core/logs
+    chown -R nginx:nginx /var/cache/nginx 2>/dev/null || true
+    chown -R unifi-core:unifi-core /data/unifi-core/logs 2>/dev/null || true
+}
+
+is_nginx_active() {
+    [ -f /var/run/nginx.pid ] && kill -0 "$(cat /var/run/nginx.pid)" 2>/dev/null
+}
+
+start_or_reload_nginx() {
+    # nginx is a real process in this profile, but it is launched without a
+    # systemd unit. Treat start/reload as idempotent process management.
+    prepare_nginx_runtime
+    nginx -t >/dev/null || return 1
+
+    if is_nginx_active; then
+        nginx -s reload >/dev/null 2>&1 || nginx
+        return 0
+    fi
+
+    nginx
+}
+
+normalize_service() {
+    service="$1"
+    service="${service%.service}"
+    printf '%s\n' "$service"
+}
+
+for arg in "$@"; do
+    case "$arg" in
+        is-system-running|daemon-reload|reset-failed|enable|disable|start|stop|restart|try-restart|reload|is-active|is-enabled|status|kill)
+            if [ -z "$cmd" ]; then
+                cmd="$arg"
+            fi
+            ;;
+        --now)
+            start_now=1
+            ;;
+        -q|--quiet)
+            quiet=1
+            ;;
+        -*)
+            ;;
+        *)
+            services="$services $(normalize_service "$arg")"
+            ;;
+    esac
+done
+
+case "$cmd" in
+    is-system-running)
+        say "running"
+        exit 0
+        ;;
+    daemon-reload|reset-failed)
+        exit 0
+        ;;
+esac
+
+for service in $services; do
+    case "$service" in
+        unifi)
+            # "unifi" means the Network application service from the firmware's
+            # perspective, not this repository's Go stub daemon.
+            case "$cmd" in
+                enable|start|restart|try-restart|reload)
+                    [ "$cmd" = "enable" ] && [ "$start_now" -ne 1 ] && exit 0
+                    start_network_stub
+                    exit 0
+                    ;;
+                is-active|status)
+                    if is_network_active; then
+                        say "active"
+                        exit 0
+                    fi
+                    say "inactive"
+                    exit 3
+                    ;;
+                is-enabled)
+                    say "enabled"
+                    exit 0
+                    ;;
+                stop|disable|kill)
+                    exit 0
+                    ;;
+            esac
+            ;;
+        nginx)
+            case "$cmd" in
+                enable)
+                    [ "$start_now" -eq 1 ] && start_or_reload_nginx
+                    exit 0
+                    ;;
+                start|restart|try-restart|reload)
+                    start_or_reload_nginx
+                    exit $?
+                    ;;
+                is-active|status)
+                    if is_nginx_active; then
+                        say "active"
+                        exit 0
+                    fi
+                    say "inactive"
+                    exit 3
+                    ;;
+                is-enabled)
+                    say "enabled"
+                    exit 0
+                    ;;
+                stop|disable|kill)
+                    nginx -s quit >/dev/null 2>&1 || true
+                    exit 0
+                    ;;
+            esac
+            ;;
+        udapi-server)
+            case "$cmd" in
+                start|restart|try-restart|reload|enable)
+                    exit 0
+                    ;;
+                is-active|status)
+                    if [ -S /var/run/ubnt-udapi-server.sock ]; then
+                        say "active"
+                        exit 0
+                    fi
+                    say "inactive"
+                    exit 3
+                    ;;
+                is-enabled)
+                    say "enabled"
+                    exit 0
+                    ;;
+                stop|disable|kill)
+                    exit 0
+                    ;;
+            esac
+            ;;
+        unifi-protect|unifi-access|unifi-talk|unifi-talk-relay|unifi-connect|unifi-drive|unifi-innerspace|apollo|uid-agent|ulp-go)
+            # Optional UniFi OS applications are reported as installed enough for
+            # support-bundle and status calls, but they are not actually started.
+            case "$cmd" in
+                enable|start|restart|try-restart|reload|stop|disable|kill)
+                    printf 'mocked systemctl %s %s\n' "$cmd" "$service" >>"$log_file"
+                    exit 0
+                    ;;
+                is-active|status)
+                    say "inactive"
+                    exit 3
+                    ;;
+                is-enabled)
+                    say "disabled"
+                    exit 1
+                    ;;
+            esac
+            ;;
+    esac
+done
+
+case "$cmd" in
+    is-active|status)
+        say "inactive"
+        exit 3
+        ;;
+    is-enabled)
+        say "disabled"
+        exit 1
+        ;;
+esac
+
+printf 'unsupported mocked systemctl command: %s\n' "$*" >&2
+exit 1

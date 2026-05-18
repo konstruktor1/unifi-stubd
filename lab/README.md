@@ -21,6 +21,18 @@ by packages automatically.
 - `us16xg-single-inform.sh`: Send one US-16-XG inform cycle.
 - `minimal-switch-payload.json`: Minimal payload fixture for protocol work.
 
+## Directory Map
+
+- `stub/`: generic Docker Compose lab for the Go `unifi-stubd` service. It
+  owns the `compose.yaml` that starts the stub, controller, MongoDB, and MITM
+  containers. Its ignored `captures/` directory is local output only.
+- `gateway-profiles/`: real firmware simulation wrappers. These are separate
+  from the Go stub profiles and may use Docker, QEMU, or UTM depending on the
+  device family.
+- `openrc/`: OpenRC service files for the observe-bridge fixture.
+- `local.d/`: Alpine/OpenRC `local.d` start/stop hooks for the same
+  observe-bridge fixture.
+
 ## Docker Stub Lab
 
 `stub/compose.yaml` starts a private Docker lab with:

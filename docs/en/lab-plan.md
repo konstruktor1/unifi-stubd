@@ -152,6 +152,9 @@ For gateway firmware simulation, use the per-profile labs under
 `lab/gateway-profiles/`. Those directories are real firmware wrappers, not
 `internal/device` stub profile copies.
 
+For the current repository status and the UDM Pro SE VM reference summary, see
+`project-status.md`.
+
 Current gateway firmware labs:
 
 - `lab/gateway-profiles/ugw3/`: QEMU-MIPS runner for an extracted UGW3 rootfs.
@@ -163,11 +166,15 @@ Current gateway firmware labs:
   simulation.
 - `lab/gateway-profiles/udm-pro-se/`: ARM64 UbiOS userspace wrapper; reaches
   the UDAPI socket and `mca-ctrl -t dump` with a deterministic RTL8370-style
-  switch mock.
+  switch mock. The optional Docker webportal override exposes a partial UniFi
+  OS setup surface through modular `network-app/` and `systemd-dbus/`
+  CommonJS facades.
 - `lab/gateway-profiles/udm-pro-se-vm/`: real `qemu-system-aarch64` VM boot
   profile using copied local UDM Pro SE firmware artifacts. The direct vendor
   kernel hangs before serial output on QEMU `virt`; the foreign-kernel
-  `udm-systemd` path reaches UDM firmware `systemd` and a serial login prompt.
+  `udm-systemd` path reaches UDM firmware `systemd`, applies userspace hardware
+  mocks, completes `network-init.service`, starts `ubios-udapi-server`,
+  exercises `/firewall/nat`, and reaches a serial login prompt.
 
 Run a firmware simulation:
 
@@ -179,6 +186,26 @@ docker compose -f lab/gateway-profiles/ucg-fiber/compose.yaml up -d --build
 docker compose -f lab/gateway-profiles/udm-pro-se/compose.yaml up -d --build
 ```
 
+For the UDM Pro SE Docker webportal inspection path, prepare the shared kernel
+payload and start the override:
+
+```sh
+lab/gateway-profiles/udm-pro-se-vm/scripts/prepare-vm.sh
+lab/gateway-profiles/udm-pro-se-vm/scripts/fetch-foreign-kernel.sh
+lab/gateway-profiles/udm-pro-se-vm/scripts/prepare-mocks.sh
+lab/gateway-profiles/udm-pro-se-vm/scripts/build-lab-initramfs.sh
+lab/gateway-profiles/udm-pro-se-vm/scripts/deploy-kernel-artifacts.sh
+SIM_DIR=/tmp/unifi-fw-sim-udm-pro-se \
+  docker compose \
+    -f lab/gateway-profiles/udm-pro-se/compose.yaml \
+    -f lab/gateway-profiles/udm-pro-se/webportal.compose.yaml \
+    up -d --build firmware
+```
+
+That path is documented in `lab/gateway-profiles/udm-pro-se/docker-howto.md`.
+It is a setup/API inspection wrapper; native firmware boot behavior belongs to
+the QEMU/UTM VM profile.
+
 Run the UDM Pro SE VM profile:
 
 ```sh
@@ -189,11 +216,55 @@ lab/gateway-profiles/udm-pro-se-vm/scripts/run-direct-kernel.sh
 Run the UDM Pro SE VM path that reaches firmware `systemd`:
 
 ```sh
+lab/gateway-profiles/udm-pro-se-vm/scripts/prepare-vm.sh
 lab/gateway-profiles/udm-pro-se-vm/scripts/fetch-foreign-kernel.sh
+lab/gateway-profiles/udm-pro-se-vm/scripts/prepare-mocks.sh
 lab/gateway-profiles/udm-pro-se-vm/scripts/build-lab-initramfs.sh
+lab/gateway-profiles/udm-pro-se-vm/scripts/deploy-kernel-artifacts.sh
 UDM_PRO_SE_FOREIGN_MODE=udm-systemd \
   lab/gateway-profiles/udm-pro-se-vm/scripts/run-foreign-kernel.sh
 ```
+
+The direct QEMU runner can use one transparent `vmnet-bridged` LAN NIC. The UTM
+profile uses two NICs that map closer to the UDM Pro SE front panel: UTM
+`Shared` / NAT becomes guest `eth9` for the first SFP+ WAN role, and UTM `Host`
+becomes guest `eth8` for the 2.5G RJ45 LAN role attached to `br0`. The guest
+keeps `br0` on `192.168.1.1/24` and adds `192.168.128.2/24` for host-only
+access. The versioned UTM inputs live in
+`lab/gateway-profiles/udm-pro-se-vm/utm/`; the generated UTM bundle remains
+local. The shared kernel deployment payload is staged under
+`lab/gateway-profiles/udm-pro-se-vm/artifacts/deploy/kernel/` and is mounted by
+the Docker profile read-only for comparison. After nginx starts in the guest,
+check the web path from an isolated lab segment with:
+
+```sh
+curl -k https://192.168.1.1/
+```
+
+In UTM Shared/NAT mode, first verify the guest address assigned by UTM and test
+that address directly:
+
+```sh
+curl -k https://<utm-shared-guest-ip>/
+curl -k https://<utm-shared-guest-ip>/api/system
+```
+
+The profile also writes a UTM `Network:0:PortForward` entry that is intended to
+publish guest `443` on the Mac as:
+
+```text
+https://127.0.0.1:10443/
+```
+
+The latest observed UTM CLI run did not bind `127.0.0.1:10443` natively even
+though the plist entry was present. If that URL works, check whether it is
+UTM's own forward or an explicit local TCP helper before treating it as a UTM
+feature.
+
+The lab initramfs uses the vendor setup nginx template for this QEMU path and
+keeps WAN ingress explicit. The older QEMU user-mode forwarding path remains
+available explicitly with `UDM_PRO_SE_VM_NET=user-lan`, but it is not the
+preferred VM reference path.
 
 Run the UXG-Pro controller/MITM lab:
 

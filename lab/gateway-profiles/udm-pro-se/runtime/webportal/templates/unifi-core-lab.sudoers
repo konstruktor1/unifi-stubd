@@ -1,0 +1,1 @@
+unifi-core ALL=SETENV: NOPASSWD: /usr/bin/systemctl, /bin/systemctl

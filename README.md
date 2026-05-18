@@ -5,7 +5,9 @@ Proxmox bridge, firewall VM, or similar non-UniFi system appear as a minimal
 UniFi device in a UniFi Network Controller without allowing the controller to
 provision the host.
 
-Documentation: [English](docs/en/README.md) | [Deutsch](docs/de/README.md)
+Documentation: [English](docs/en/README.md) | [Deutsch](docs/de/README.md) |
+[Project Status](docs/en/project-status.md) |
+[Projektstand](docs/de/project-status.md)
 
 Coding-agent instructions live in [AGENTS.md](AGENTS.md). Tool-specific bridge
 files only point back to that file. [llms.txt](llms.txt) is a public project
@@ -30,6 +32,31 @@ Implemented:
 - OpenRC and systemd service definitions.
 - Package builders for Debian, RPM, Arch Linux, and `.tar.gz`.
 - Stub-only FreeBSD/OPNsense tarball with rc.d service artifact.
+
+Lab/research status:
+
+- Gateway firmware simulation profiles live under `lab/gateway-profiles/` and
+  are intentionally separate from `internal/device` stub profile data.
+- The UDM Pro SE VM reference under `lab/gateway-profiles/udm-pro-se-vm/`
+  reaches the UDM firmware `systemd` path with a foreign QEMU-virt-capable
+  ARM64 kernel, UDM initramfs/rootfs, a lab initramfs, and project-owned
+  userspace hardware mocks. The current UTM profile uses Shared/NAT as the
+  SFP+ WAN role and Host networking as the 2.5G LAN role; direct guest HTTPS
+  works, while native UTM localhost forwarding still needs verification.
+- The UDM Pro SE C mock is split into modules under
+  `lab/gateway-profiles/udm-pro-se/mock/ldpreload/`, and the VM/rootfs payloads
+  injected by the lab initramfs live under
+  `lab/gateway-profiles/udm-pro-se-vm/initramfs/`.
+- The UDM Pro SE Docker webportal path is documented as a partial UniFi OS
+  setup surface. Its project-owned CommonJS helpers are split under
+  `lab/gateway-profiles/udm-pro-se/network-app/` and
+  `lab/gateway-profiles/udm-pro-se/systemd-dbus/`.
+- The QEMU/UTM profile can stage a shared ignored kernel deployment payload
+  under `lab/gateway-profiles/udm-pro-se-vm/artifacts/deploy/kernel/`; UTM uses
+  it for boot inputs and the Docker firmware profile mounts it read-only for
+  comparison.
+- The UDM Pro SE VM is a firmware reference for understanding native behavior;
+  it is not the Go stub and it is not a supported UniFi OS replacement.
 
 Not goals:
 

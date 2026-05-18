@@ -1,0 +1,32 @@
+#!/bin/sh
+# Minimal lab shim for unifi-core transient commands inside a non-systemd container.
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --wait|--pipe|--collect|--quiet|--same-dir)
+            shift
+            ;;
+        --unit=*|--property=*|--description=*|--service-type=*)
+            shift
+            ;;
+        --unit|--property|--description|--service-type|-p)
+            shift 2
+            ;;
+        --)
+            shift
+            break
+            ;;
+        -*)
+            shift
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+if [ "$#" -eq 0 ]; then
+    printf 'mocked systemd-run received no command\n' >&2
+    exit 1
+fi
+
+exec "$@"

@@ -1,0 +1,29 @@
+#!/bin/sh
+# Early QEMU storage/network module loader.
+#
+# The UDM initramfs expects vendor hardware. In the VM path the actual kernel is
+# a QEMU-virt-capable foreign kernel, so its storage, bridge, and netfilter
+# modules must be loaded before the vendor mount scripts wait for partitions.
+set +e
+
+kver=$(uname -r)
+base="/usr/lib/modules/$kver/kernel"
+module_list="/etc/unifi-stubd-vm/qemu-storage-modules.txt"
+
+load_module() {
+    module=$1
+    [ -f "$module" ] || return 0
+    insmod "$module" >/dev/null 2>&1 || true
+}
+
+[ -f "$module_list" ] || exit 0
+
+while IFS= read -r module; do
+    case "$module" in
+        ""|\#*) continue ;;
+    esac
+    load_module "$base/$module"
+done < "$module_list"
+
+udevadm trigger --type=devices --action=add >/dev/null 2>&1 || true
+udevadm settle --timeout=10 >/dev/null 2>&1 || true

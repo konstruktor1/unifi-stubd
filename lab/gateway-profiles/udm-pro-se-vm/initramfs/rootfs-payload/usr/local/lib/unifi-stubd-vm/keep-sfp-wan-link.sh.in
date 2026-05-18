@@ -1,0 +1,20 @@
+#!/bin/sh
+# Keep the QEMU NAT NIC online as the first SFP+ WAN port.
+set +e
+
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+
+iface="@UNIFI_STUBD_VM_SFP_WAN_IFACE@"
+[ -n "$iface" ] || exit 0
+
+while :; do
+    if [ -d "/sys/class/net/$iface" ]; then
+        ip link set "$iface" up >/dev/null 2>&1 || true
+        if ! ip -4 addr show dev "$iface" 2>/dev/null | grep -q 'inet '; then
+            if command -v udhcpc >/dev/null 2>&1; then
+                udhcpc -q -n -t 3 -i "$iface" >/dev/null 2>&1 || true
+            fi
+        fi
+    fi
+    sleep 10
+done

@@ -1,0 +1,10 @@
+[Unit]
+Description=Prepare QEMU lab network devices for UDM services
+DefaultDependencies=no
+After=systemd-udevd.service systemd-udev-trigger.service
+Before=network-init.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/lib/unifi-stubd-vm/prepare-netdevs.sh

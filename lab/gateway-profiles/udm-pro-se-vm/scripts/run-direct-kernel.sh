@@ -21,7 +21,7 @@ common_args="
   -M virt,gic-version=3,highmem=off
   -cpu max
   -smp ${UDM_PRO_SE_VM_SMP:-4}
-  -m ${UDM_PRO_SE_VM_MEMORY:-2048}
+  -m ${UDM_PRO_SE_VM_MEMORY:-4096}
   -nographic
   -no-reboot
   -serial mon:stdio

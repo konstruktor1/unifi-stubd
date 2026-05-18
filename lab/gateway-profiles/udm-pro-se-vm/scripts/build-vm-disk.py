@@ -183,9 +183,10 @@ def main() -> None:
     make_ext4(parts / "recovery.ext4", "recovery", 96)
     make_ext4(parts / "root.ext4", "root", 1400, staging / "root")
     make_ext4(parts / "config.ext4", "config", 32)
+    make_ext4(parts / "data.ext4", "data", 4096)
     make_ext4(parts / "log.ext4", "log", 256)
     make_ext4(parts / "persistent.ext4", "persistent", 512)
-    make_ext4(parts / "overlay.ext4", "overlay", 1024)
+    make_ext4(parts / "overlay.ext4", "overlay", 2048)
 
     build_disk(
         artifacts / "vm-disk.raw",
@@ -194,6 +195,7 @@ def main() -> None:
             ("recovery", parts / "recovery.ext4"),
             ("root", parts / "root.ext4"),
             ("config", parts / "config.ext4"),
+            ("data", parts / "data.ext4"),
             ("log", parts / "log.ext4"),
             ("persistent", parts / "persistent.ext4"),
             ("overlay", parts / "overlay.ext4"),

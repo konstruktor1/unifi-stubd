@@ -1,0 +1,1 @@
+earlycon=pl011,mmio32,0x09000000 console=ttyAMA0,115200n8 loglevel=8 ignore_loglevel keep_bootcon boot=ubnt sysid=ea2c root=rootfs rootdelay=2 no_reboot panic=-1 systemd.log_target=console systemd.show_status=1

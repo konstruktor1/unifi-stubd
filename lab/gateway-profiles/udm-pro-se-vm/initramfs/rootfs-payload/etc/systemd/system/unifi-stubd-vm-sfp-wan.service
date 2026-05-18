@@ -1,0 +1,15 @@
+[Unit]
+Description=Keep QEMU SFP+ WAN link online
+After=network-init.service
+Before=unifi.service unifi-core.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/lib/unifi-stubd-vm/keep-sfp-wan-link.sh
+Restart=always
+RestartSec=2s
+StandardOutput=journal+console
+StandardError=journal+console
+
+[Install]
+WantedBy=multi-user.target

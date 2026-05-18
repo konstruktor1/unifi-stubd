@@ -1,0 +1,32 @@
+#!/bin/sh
+# Accept tar exit code 1 for readable support archives with changing log files.
+log_file="${UNIFI_FW_SIM_WEB_LOG_DIR:-/tmp/udm-pro-se-webportal}/tar-wrapper.log"
+err_file="${UNIFI_FW_SIM_WEB_LOG_DIR:-/tmp/udm-pro-se-webportal}/tar-wrapper.err"
+archive=""
+next_is_archive=0
+
+mkdir -p "$(dirname "$log_file")"
+printf 'tar %s\n' "$*" >>"$log_file"
+
+for arg in "$@"; do
+    if [ "$next_is_archive" = 1 ]; then
+        archive="$arg"
+        next_is_archive=0
+        continue
+    fi
+    case "$arg" in
+        -f|-*f)
+            next_is_archive=1
+            ;;
+    esac
+done
+
+/bin/tar "$@" 2>>"$err_file"
+status=$?
+if [ "$status" -eq 1 ] && [ -n "$archive" ] && [ -s "$archive" ]; then
+    if /bin/tar -tzf "$archive" >/dev/null 2>>"$err_file"; then
+        printf 'accepted tar exit 1 for readable archive %s\n' "$archive" >>"$log_file"
+        exit 0
+    fi
+fi
+exit "$status"

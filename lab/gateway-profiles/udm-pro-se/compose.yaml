@@ -17,8 +17,9 @@ services:
         apt-get update
         apt-get install -y --no-install-recommends gcc libc6-dev
         gcc -shared -fPIC -Wall -Wextra -O2 \
+          -I /mock/ldpreload \
           -o /mock/libubnthal_redirect.so \
-          /mock/ubnthal_redirect.c \
+          /mock/ldpreload/*.c \
           -ldl
 
   firmware:
@@ -46,10 +47,12 @@ services:
       UNIFI_FW_SIM_ALLOW_PARTIAL: "1"
       UNIFI_FW_SIM_TRACE: ${UNIFI_FW_SIM_TRACE:-0}
       UNIFI_FW_SIM_UDAPI_WAIT_SECONDS: ${UNIFI_FW_SIM_UDAPI_WAIT_SECONDS:-180}
+      UNIFI_FW_SIM_KERNEL_DIR: /opt/unifi-fw-sim/kernel
       UBNTHAL_REDIRECT_DEBUG: ${UBNTHAL_REDIRECT_DEBUG:-0}
       UBNTHAL_REDIRECT_TRACE_ALL: ${UBNTHAL_REDIRECT_TRACE_ALL:-0}
     volumes:
       - ${SIM_DIR:-/tmp/unifi-fw-sim-udm-pro-se}:/mock
+      - ${UDM_PRO_SE_KERNEL_DEPLOY_DIR:-../udm-pro-se-vm/artifacts/deploy/kernel}:/opt/unifi-fw-sim/kernel:ro
     tmpfs:
       - /tmp:exec,nosuid,nodev
       - /run:exec,nosuid,nodev

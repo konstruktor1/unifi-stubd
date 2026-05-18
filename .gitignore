@@ -30,3 +30,4 @@ lab/gateway-profiles/**/captures/
 lab/gateway-profiles/**/controller-data/
 lab/gateway-profiles/**/.env
 lab/gateway-profiles/**/*.env
+!lab/gateway-profiles/udm-pro-se-vm/utm/defaults.env

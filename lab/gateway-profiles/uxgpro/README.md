@@ -12,6 +12,14 @@ telegram samples.
 Use `tools/decode-inform` to decode local raw `TNBU` capture bodies with a
 known inform key.
 
+Directory map:
+
+- `tools/`: small project-owned helpers for local UXG-Pro research.
+- `tools/decode-inform/`: Go command that decodes one captured UniFi inform
+  packet body using the repository inform decoder.
+- `captures/`: ignored local MITM output directory. Do not commit raw private
+  captures.
+
 `ubnthal_redirect.c` is an LD_PRELOAD shim. It lets selected firmware binaries
 read mock hardware data from `/mock` instead of host kernel paths and no-ops a
 small set of system-management calls that are not meaningful in the container.

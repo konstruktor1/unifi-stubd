@@ -16,8 +16,16 @@ models. It is not the coding-agent instruction source. Coding agents should read
 ## Project Documentation
 
 - [README](README.md): Overview, quick start, configuration, service setup, packaging, and development commands.
+- [Project status](docs/en/project-status.md): Current implementation status, UDM Pro SE QEMU/UTM reference state, full-test notes, mock layout, and remaining gaps.
+- [UDM Pro SE Docker profile](lab/gateway-profiles/udm-pro-se/README.md): Docker firmware wrapper, webportal path, source layout, validation result, and safety boundary.
+- [UDM Pro SE Docker how-to](lab/gateway-profiles/udm-pro-se/docker-howto.md): Rootfs import, mock setup, kernel payload staging, webportal startup, and validation commands/results.
+- [UDM Pro SE source inventory](lab/gateway-profiles/udm-pro-se/source-inventory.md): Project-owned Docker, CommonJS, C mock, and vendor-boundary inventory.
+- [UDM Pro SE runtime helpers](lab/gateway-profiles/udm-pro-se/runtime/README.md): Split startup modules, wrapper scripts, nginx snippets, AWK filters, and templates.
+- [UDM Pro SE VM profile](lab/gateway-profiles/udm-pro-se-vm/README.md): QEMU/UTM VM runbook, observed web/API behavior, and project-owned VM source layout.
+- [UDM Pro SE VM source inventory](lab/gateway-profiles/udm-pro-se-vm/source-inventory.md): VM scripts, initramfs payload, UTM installer, and generated-artifact boundaries.
 - [English docs index](docs/en/README.md): Main English documentation entry point.
 - [German docs index](docs/de/README.md): Main German documentation entry point.
+- [UDM Pro SE kernel deployment](lab/gateway-profiles/udm-pro-se-vm/kernel/README.md): Shared ignored kernel payload staged for UTM boot inputs and Docker inspection.
 - [Packaged Linux config](packaging/linux/etc/unifi-stubd/config.yaml): Default config installed as `/etc/unifi-stubd/config.yaml`.
 - [Packaged FreeBSD config](packaging/freebsd/usr/local/etc/unifi-stubd/config.yaml): Stub-only config installed as `/usr/local/etc/unifi-stubd/config.yaml`.
 - [Lab switch identities](lab/README.md): Device identities, shell commands, and payload fixture.
@@ -51,4 +59,5 @@ models. It is not the coding-agent instruction source. Coding agents should read
 ## Optional
 
 - [Lab plan](docs/en/lab-plan.md): Local lab setup ideas and validation workflow.
+- [UDM Pro SE UTM profile files](lab/gateway-profiles/udm-pro-se-vm/utm/README.md): Versioned UTM defaults, boot arguments, port-forward caveats, and generated-bundle boundaries for the QEMU/UTM reference VM.
 - [Package config](packaging/nfpm.yaml): nFPM packaging metadata for Debian, RPM, Arch Linux, and tarball builds.
