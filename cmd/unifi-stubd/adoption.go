@@ -28,6 +28,15 @@ func effectiveInformURL(fallback string, store adoption.Store) string {
 }
 
 func updateAdoptionState(path string, store adoption.Store, response adoption.ControllerResponse, usedGCM bool) adoption.Store {
+	if response.ResetRequested {
+		resetStore, err := adoption.ResetEnv(path)
+		if err != nil {
+			log.Printf("adoption state reset failed: %v", err)
+			return store
+		}
+		log.Printf("controller reset applied to stub adoption state only: %s", response.ResetReason)
+		return resetStore
+	}
 	update := response.Store
 	if !response.HasStateUpdate {
 		if usedGCM && store.AuthKey != "" && !store.UseAESGCM {
@@ -67,6 +76,18 @@ func logInformResponse(resp *inform.Response, response adoption.ControllerRespon
 				response.HasSystemCFG,
 				response.SystemCFGBytes,
 				response.Ignored,
+				cipherStatusText(cipher),
+			)
+			return
+		}
+		if response.ResetRequested {
+			log.Printf(
+				"inform response status=%d type=%s reset_requested=true reset_applied=%t reason=%q state=%q cipher=%s",
+				resp.StatusCode,
+				response.Type,
+				response.ResetApplied,
+				response.ResetReason,
+				store.State,
 				cipherStatusText(cipher),
 			)
 			return

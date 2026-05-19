@@ -104,6 +104,7 @@ Observed UXG-Pro 5.0.16 controller-lab flow:
 | Key switch | Firmware immediately sends the next inform with the adopted key and AES-GCM. | Use the adopted key for all later inform traffic. |
 | Adopted inform | Firmware reports `default=false`, then `state=2`. | Treat the device as connected once the controller returns `noop`. |
 | System config | Controller sends another `_type: "setparam"` containing `system_cfg`. | Record safe metadata only; do not apply host users, firewall, routes, certificates, tokens, or secrets. |
+| Forget/reset | Controller sends a forget, delete, remove, or restore-default command. | Clear only local adoption state, return to factory/default inform, and never reset the host. |
 | Steady state | Controller returns `_type: "noop"` with `interval` and `include_blocks`. | Continue inform on the requested interval; a 10-second interval was observed. |
 
 The first `mgmt_cfg` observed in the lab contained `cfgversion`, `stun_url`,

@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strings"
 	"time"
 
 	"github.com/konstruktor1/unifi-stubd/internal/adoption"
@@ -23,25 +24,62 @@ func serveSwitchEmulation() error {
 		fmt.Println(version)
 		return nil
 	}
-	if *flags.listProfiles {
-		fmt.Print(device.FormatProfiles())
-		return nil
+	if strings.TrimSpace(*flags.profileTemplate) != "" {
+		return printProfileTemplate(*flags.profileTemplate)
+	}
+	if strings.TrimSpace(*flags.profileValidate) != "" {
+		return validateProfilePath(*flags.profileValidate)
 	}
 
 	cfg, err := loadConfig(*flags.configPath, changed["config"])
 	if err != nil {
+		if *flags.validate {
+			return withExitCode(2, err)
+		}
 		return err
 	}
 	applyConfig(cfg, changed, &flags)
+
+	registry, err := loadProfileRegistry(flags)
+	if err != nil {
+		if *flags.validate {
+			return withExitCode(profileErrorExitCode(err), err)
+		}
+		return err
+	}
+	if *flags.listProfiles {
+		fmt.Print(registry.FormatProfiles())
+		return nil
+	}
+	if strings.TrimSpace(*flags.profileExport) != "" {
+		return printProfileExport(registry, *flags.profileExport)
+	}
 	if err := validateOperationFlags(flags); err != nil {
+		if *flags.validate {
+			return withExitCode(1, err)
+		}
 		return err
 	}
 
-	profile, ok := device.LookupProfile(*flags.profileName)
+	profile, ok := registry.LookupProfile(*flags.profileName)
 	if !ok {
-		log.Fatalf("unknown profile %q; known profiles: %s", *flags.profileName, device.ProfileNames())
+		err := fmt.Errorf("unknown profile %q; known profiles: %s", *flags.profileName, registry.ProfileNames())
+		if *flags.validate {
+			return withExitCode(1, err)
+		}
+		return err
 	}
 	applyProfile(profile, flags.model, flags.modelDisplay, flags.version, flags.portCount)
+	if *flags.validate {
+		if err := validateIdentityFlags(flags); err != nil {
+			return withExitCode(1, err)
+		}
+		if err := validatePortOverrides(flags); err != nil {
+			return withExitCode(1, err)
+		}
+		fmt.Printf("configuration valid: profile=%s source=%s payload=%s\n", profile.Name, profile.Source, profile.Payload.Kind)
+		return nil
+	}
 	flags.portOverrides = enrichPortOverridesFromInterfaces(flags.portOverrides)
 	if err := validatePortOverrides(flags); err != nil {
 		return err
@@ -52,7 +90,7 @@ func serveSwitchEmulation() error {
 	mac := resolveMAC(*flags.macText, resolvedHostname, profile, *flags.model, *flags.operationMode, *flags.observeInterface)
 	ip := net.ParseIP(*flags.ipText).To4()
 	if ip == nil {
-		log.Fatalf("invalid IPv4 address: %q", *flags.ipText)
+		return fmt.Errorf("invalid IPv4 address: %q", *flags.ipText)
 	}
 	if *flags.dryRunPlan {
 		printRuntimePlan(flags, profile, mac.String(), ip.String(), resolvedHostname)
@@ -204,6 +242,9 @@ func sendInformHeartbeat(mac net.HardwareAddr, informURL, statePath, statusPath 
 			log.Printf("controller response parse failed: %v", parseErr)
 		} else {
 			store = updateAdoptionState(statePath, store, controllerResponse, cipher.UsedAESGCM)
+			if controllerResponse.ResetRequested && store.State == adoption.StateFactory && store.AuthKey == "" {
+				controllerResponse.ResetApplied = true
+			}
 			last.ControllerState = adoptionStateText(store)
 			last.CFGVersion = store.CFGVersion
 			last.Version = store.Version
@@ -221,6 +262,9 @@ func applyControllerResponseStatus(last *lastInformStatus, response adoption.Con
 	last.ResponseType = response.Type
 	last.IntervalSeconds = response.IntervalSeconds
 	last.IncludeBlocks = cloneStrings(response.IncludeBlocks)
+	last.ResetRequested = response.ResetRequested
+	last.ResetApplied = response.ResetApplied
+	last.ResetReason = response.ResetReason
 	last.HasMgmtCFG = response.HasMgmtCFG
 	last.HasSystemCFG = response.HasSystemCFG
 	last.SystemCFGBytes = response.SystemCFGBytes

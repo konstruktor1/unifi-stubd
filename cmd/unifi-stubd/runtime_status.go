@@ -140,6 +140,9 @@ type lastInformStatus struct {
 	JSONBytes       int      `json:"json_bytes,omitempty"`
 	IntervalSeconds int      `json:"interval_seconds,omitempty"`
 	IncludeBlocks   []string `json:"include_blocks,omitempty"`
+	ResetRequested  bool     `json:"reset_requested,omitempty"`
+	ResetApplied    bool     `json:"reset_applied,omitempty"`
+	ResetReason     string   `json:"reset_reason,omitempty"`
 	HasMgmtCFG      bool     `json:"has_mgmt_cfg,omitempty"`
 	HasSystemCFG    bool     `json:"has_system_cfg,omitempty"`
 	SystemCFGBytes  int      `json:"system_cfg_bytes,omitempty"`
@@ -428,6 +431,11 @@ func printLastInform(last lastInformStatus) {
 	}
 	for _, block := range last.IncludeBlocks {
 		fmt.Printf("last_inform_include_block: %s\n", block)
+	}
+	if last.ResetRequested {
+		fmt.Println("last_inform_reset_requested: true")
+		fmt.Printf("last_inform_reset_applied: %t\n", last.ResetApplied)
+		fmt.Printf("last_inform_reset_reason: %s\n", valueOrDash(last.ResetReason))
 	}
 	if last.HasMgmtCFG {
 		fmt.Println("last_inform_has_mgmt_cfg: true")

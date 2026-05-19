@@ -27,6 +27,15 @@ type PortOverride = payloadpkg.PortOverride
 // PortNeighbor describes one configured MAC-table entry on a specific port.
 type PortNeighbor = payloadpkg.PortNeighbor
 
+// BuildPayload returns a JSON inform payload using profile-driven renderer metadata.
+func BuildPayload(profile Profile, id Identity, ports []Port) ([]byte, error) {
+	data, err := payloadpkg.BuildPayload(payloadProfile(profile.PayloadOptions()), id, ports)
+	if err != nil {
+		return nil, fmt.Errorf("build device payload: %w", err)
+	}
+	return data, nil
+}
+
 // MinimalSwitchPayload returns a JSON inform payload with a switch-shaped port table.
 func MinimalSwitchPayload(id Identity, ports []Port) ([]byte, error) {
 	data, err := payloadpkg.MinimalSwitchPayload(id, ports)
@@ -59,4 +68,14 @@ func ApplyUplinkNeighbor(ports []Port, neighbor *MacTableEntry) []Port {
 // ApplyPortNeighbors adds configured MAC-table entries to their target ports.
 func ApplyPortNeighbors(ports []Port, neighbors []PortNeighbor) []Port {
 	return payloadpkg.ApplyPortNeighbors(ports, neighbors)
+}
+
+func payloadProfile(profile PayloadProfile) payloadpkg.Profile {
+	return payloadpkg.Profile{
+		Kind:                   profile.Kind,
+		RequiredVersion:        profile.RequiredVersion,
+		ManagementInterface:    profile.ManagementInterface,
+		GatewayInterfacePrefix: profile.GatewayInterfacePrefix,
+		HasDPI:                 profile.HasDPI,
+	}
 }

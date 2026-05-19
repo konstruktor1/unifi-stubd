@@ -15,6 +15,7 @@
 - [Release-Checkliste](release.md)
 - [Security Notes](security.md)
 - [Konfigurationsschema](../schema/config.schema.json)
+- [Profilschema](../schema/profile.schema.json)
 - [Quellen, Credits und Lizenzierung](sources.md)
 - [AI-Agent-Instruktionen](../../AGENTS.md)
 - [LLM-Index](../../llms.txt)

@@ -282,6 +282,9 @@ func (h *Handler) executeOne(command string) (string, int) {
 	case "ubntbox":
 		h.saveState("", "", strings.Join(args, " "))
 		return okOutput, 0
+	case "reset2defaults", "restore-default":
+		h.resetState(strings.Join(args, " "))
+		return "Factory reset accepted\n", 0
 	case "hostname":
 		return h.config.Identity.Hostname + "\n", 0
 	case "uname":
@@ -325,6 +328,9 @@ func (h *Handler) handleSyswrapper(args []string) (string, int) {
 		return h.handleSetInform(args)
 	case commandInfo, "status", "get-info":
 		return h.info(), 0
+	case "restore-default", "reset2defaults":
+		h.resetState(strings.Join(args, " "))
+		return "Factory reset accepted\n", 0
 	default:
 		h.saveState("", "", strings.Join(args, " "))
 		return okOutput, 0
@@ -421,6 +427,23 @@ func (h *Handler) saveState(informURL, authKey, command string) {
 	}
 	if command != "" {
 		log.Printf("adoption state command accepted at %s: %s", time.Now().UTC().Format(time.RFC3339), command)
+	}
+}
+
+func (h *Handler) resetState(command string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	statePath := h.config.StatePath
+	if statePath == "" {
+		statePath = defaultStatePath
+	}
+	if _, err := adoption.ResetEnv(statePath); err != nil {
+		log.Printf("adoption state reset failed: %v", err)
+		return
+	}
+	if command != "" {
+		log.Printf("adoption state reset accepted at %s: %s", time.Now().UTC().Format(time.RFC3339), command)
 	}
 }
 

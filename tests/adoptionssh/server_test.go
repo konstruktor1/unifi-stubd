@@ -3,6 +3,8 @@ package adoptionssh_test
 
 import (
 	"net"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -47,6 +49,47 @@ func TestInfoOutputMatchesUniFiCLIShape(t *testing.T) {
 		if !strings.Contains(output, want) {
 			t.Fatalf("info output missing %q:\n%s", want, output)
 		}
+	}
+}
+
+func TestRestoreDefaultCommandResetsState(t *testing.T) {
+	dir := t.TempDir()
+	statePath := filepath.Join(dir, "adoption.env")
+	if err := os.WriteFile(statePath, []byte(`STATE=connected
+INFORM_URL=http://192.0.2.10:8080/inform
+AUTHKEY=0123456789abcdef
+CFGVERSION=abc123
+USE_AES_GCM=true
+VERSION=5.0.17.1
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	server, err := adoptionssh.Start(adoptionssh.Config{
+		Listen:      "127.0.0.1:0",
+		User:        "ubnt",
+		Password:    "ubnt",
+		HostKeyPath: filepath.Join(dir, "ssh_host_rsa_key"),
+		StatePath:   statePath,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := server.Close(); err != nil {
+			t.Fatalf("server close: %v", err)
+		}
+	}()
+
+	output := runSSHCommand(t, server.Addr().String(), "syswrapper.sh restore-default")
+	if !strings.Contains(output, "Factory reset accepted") {
+		t.Fatalf("reset output = %q", output)
+	}
+	data, err := os.ReadFile(statePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.TrimSpace(string(data)) != "STATE=factory" {
+		t.Fatalf("state after reset = %q", data)
 	}
 }
 

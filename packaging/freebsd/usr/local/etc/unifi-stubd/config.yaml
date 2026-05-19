@@ -5,6 +5,9 @@
 operation_mode: stub
 controller_url: http://192.0.2.10:8080/inform
 profile: us16p150
+# Optional external lab profiles. Built-in profiles remain the tested defaults.
+profile_file: ""
+profile_dir: ""
 mac: auto
 ip: 192.0.2.50
 hostname: auto

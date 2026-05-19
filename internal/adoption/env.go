@@ -74,6 +74,15 @@ func SaveEnv(path string, store Store) error {
 	return nil
 }
 
+// ResetEnv clears adoption data and persists the stub in factory state.
+func ResetEnv(path string) (Store, error) {
+	store := Store{State: StateFactory}
+	if err := SaveEnv(path, store); err != nil {
+		return store, err
+	}
+	return store, nil
+}
+
 // Merge applies non-empty fields from update to base and reports changes.
 func Merge(base, update Store) (Store, bool) {
 	changed := false
@@ -156,6 +165,13 @@ func ParseControllerResponseInfo(data []byte) (ControllerResponse, error) {
 		response.IntervalSeconds = jsonInt(raw["interval"])
 		response.IncludeBlocks = jsonStringSlice(raw["include_blocks"])
 	default:
+		if isResetControllerCommand(response.Type) || responseHasResetCommand(raw) {
+			response.Store = Store{State: StateFactory}
+			response.HasStateUpdate = true
+			response.ResetRequested = true
+			response.ResetReason = resetReason(response.Type)
+			return response, nil
+		}
 		if isUnsafeControllerCommand(response.Type) {
 			response.Store = Store{State: StateProvisioning}
 			response.HasStateUpdate = true
@@ -271,4 +287,57 @@ func isUnsafeControllerCommand(responseType string) bool {
 	default:
 		return false
 	}
+}
+
+func isResetControllerCommand(responseType string) bool {
+	switch strings.TrimSpace(responseType) {
+	case "delete", "forget", "remove", "restore-default":
+		return true
+	default:
+		return false
+	}
+}
+
+func responseHasResetCommand(raw map[string]json.RawMessage) bool {
+	for key, value := range raw {
+		if key == "_type" {
+			continue
+		}
+		if jsonRawContainsResetCommand(value) {
+			return true
+		}
+	}
+	return false
+}
+
+func jsonRawContainsResetCommand(raw json.RawMessage) bool {
+	if len(raw) == 0 {
+		return false
+	}
+	var text string
+	if err := json.Unmarshal(raw, &text); err == nil {
+		return textContainsResetCommand(text)
+	}
+	var values []string
+	if err := json.Unmarshal(raw, &values); err == nil {
+		for _, value := range values {
+			if textContainsResetCommand(value) {
+				return true
+			}
+		}
+	}
+	return textContainsResetCommand(string(raw))
+}
+
+func textContainsResetCommand(value string) bool {
+	value = strings.ToLower(value)
+	return strings.Contains(value, "restore-default") || strings.Contains(value, "reset2defaults")
+}
+
+func resetReason(responseType string) string {
+	responseType = strings.TrimSpace(responseType)
+	if responseType == "" {
+		return "controller reset command"
+	}
+	return "controller " + responseType + " command"
 }

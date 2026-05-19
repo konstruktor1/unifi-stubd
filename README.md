@@ -79,6 +79,15 @@ List built-in profiles:
 go run ./cmd/unifi-stubd -list-profiles
 ```
 
+External lab profiles can be loaded with `profile_file` or `profile_dir`.
+Validate them before use:
+
+```sh
+go run ./cmd/unifi-stubd -profile-template switch > lab-switch.yaml
+go run ./cmd/unifi-stubd -profile-validate lab-switch.yaml
+go run ./cmd/unifi-stubd -validate -config packaging/linux/etc/unifi-stubd/config.yaml
+```
+
 The `ugw3` profile reports a legacy UniFi Security Gateway identity with three
 1G ports. It is useful for gateway-profile experiments, but it is still a
 stub-only identity profile and does not implement routing, DHCP, firewall, DPI,
@@ -164,9 +173,10 @@ The systemd unit runs as the dedicated `unifi-stubd` user and grants only
 `CAP_NET_BIND_SERVICE` so the lab SSH shim can keep UniFi-compatible port 22
 without running the daemon as root.
 
-The configuration schema is in `docs/schema/config.schema.json`. `management_vlan`
-is metadata only: it is reported to the controller and status output, but it
-does not create host VLAN interfaces.
+The configuration schema is in `docs/schema/config.schema.json`; the profile
+schema is in `docs/schema/profile.schema.json`. `management_vlan` is metadata
+only: it is reported to the controller and status output, but it does not
+create host VLAN interfaces.
 
 Local health/status output:
 

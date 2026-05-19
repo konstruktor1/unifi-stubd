@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/konstruktor1/unifi-stubd/internal/inform"
 )
 
 func TestDryRunPlanHonorsOperationModeOverride(t *testing.T) {
@@ -110,6 +112,111 @@ func TestLLDPSourceIsRejectedUntilImplemented(t *testing.T) {
 	}
 	if !strings.Contains(string(out), "lldpd is planned but not implemented yet") {
 		t.Fatalf("output did not contain LLDP validation:\n%s", out)
+	}
+}
+
+func TestValidateAcceptsPackagedConfigs(t *testing.T) {
+	for _, path := range []string{
+		"../../packaging/linux/etc/unifi-stubd/config.yaml",
+		"../../packaging/freebsd/usr/local/etc/unifi-stubd/config.yaml",
+	} {
+		t.Run(path, func(t *testing.T) {
+			output := runStubdStdout(t, "-validate", "-config", path)
+			if !strings.Contains(output, "configuration valid: profile=us16p150") {
+				t.Fatalf("validate output = %q", output)
+			}
+		})
+	}
+}
+
+func TestProfileValidateTemplateAndExport(t *testing.T) {
+	dir := t.TempDir()
+	templatePath := filepath.Join(dir, "gateway.yaml")
+	template := runStubdStdout(t, "-profile-template", "gateway")
+	if err := os.WriteFile(templatePath, []byte(template), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	output := runStubdStdout(t, "-profile-validate", templatePath)
+	if !strings.Contains(output, "profiles valid") {
+		t.Fatalf("profile validate output = %q", output)
+	}
+
+	exportPath := filepath.Join(dir, "us8.yaml")
+	exported := runStubdStdout(t, "-profile-export", "us8")
+	if err := os.WriteFile(exportPath, []byte(exported), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	output = runStubdStdout(t, "-profile-validate", exportPath)
+	if !strings.Contains(output, "profiles valid") {
+		t.Fatalf("exported profile validate output = %q", output)
+	}
+}
+
+func TestValidateUsesExternalProfile(t *testing.T) {
+	dir := t.TempDir()
+	profilePath := filepath.Join(dir, "lab-switch.yaml")
+	if err := os.WriteFile(profilePath, []byte(`schema_version: 1
+name: lab-switch
+model: LABSW
+model_display: Lab Switch
+device_type: usw
+version: 7.4.1.16850
+ports: 4
+port_speed: 1000
+uplink_speed: 1000
+port_media: GE
+uplink_media: GE
+stability: external
+payload:
+  kind: switch
+description: external lab switch
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	configPath := filepath.Join(dir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte(`operation_mode: stub
+profile: lab-switch
+profile_file: `+profilePath+`
+mac: auto
+ip: 192.0.2.50
+hostname: auto
+uplink_speed: profile
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	output := runStubdStdout(t, "-validate", "-config", configPath)
+	if !strings.Contains(output, "configuration valid: profile=lab-switch") || !strings.Contains(output, "payload=switch") {
+		t.Fatalf("validate output = %q", output)
+	}
+}
+
+func TestProfileValidateRejectsSemanticError(t *testing.T) {
+	dir := t.TempDir()
+	profilePath := filepath.Join(dir, "bad.yaml")
+	if err := os.WriteFile(profilePath, []byte(`schema_version: 1
+name: bad-switch
+model: BADSW
+device_type: usw
+ports: 4
+port_groups:
+  - count: 3
+    speed: 1000
+payload:
+  kind: switch
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cmd := stubdCommand("-profile-validate", profilePath)
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("command succeeded; output:\n%s", out)
+	}
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) || exitErr.ExitCode() != 1 {
+		t.Fatalf("exit = %v, want code 1; output:\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "port_groups total 3 != ports 4") {
+		t.Fatalf("output did not contain profile error:\n%s", out)
 	}
 }
 
@@ -383,6 +490,85 @@ func TestInformCipherFallbackStatusIsRecorded(t *testing.T) {
 	}
 	if !doc.LastInform.AttemptedAESGCM || doc.LastInform.UsedAESGCM || !doc.LastInform.FallbackToCBC {
 		t.Fatalf("cipher status = %+v", doc.LastInform)
+	}
+}
+
+func TestControllerRestoreDefaultResetsAdoptionState(t *testing.T) {
+	dir := t.TempDir()
+	statePath := filepath.Join(dir, "adoption.env")
+	statusPath := filepath.Join(dir, "status.json")
+	if err := os.WriteFile(statePath, []byte(`STATE=connected
+AUTHKEY=0123456789abcdef
+CFGVERSION=abc123
+USE_AES_GCM=true
+VERSION=5.0.17.1
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Errorf("read request body: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		if len(body) < 14 {
+			http.Error(w, "short inform packet", http.StatusBadRequest)
+			return
+		}
+		packet, err := inform.EncodeJSON(body[8:14], []byte("0123456789abcdef"), []byte(`{"_type":"restore-default"}`), inform.Options{Zlib: true})
+		if err != nil {
+			t.Errorf("encode response: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		if _, err := w.Write(packet); err != nil {
+			t.Errorf("write response: %v", err)
+		}
+	}))
+	defer server.Close()
+
+	_ = runStubd(t,
+		"-once",
+		"-no-discovery",
+		"-controller", server.URL+"/inform",
+		"-ssh-state", statePath,
+		"-status-path", statusPath,
+		"-profile", "us8",
+		"-ip", "192.0.2.50",
+		"-hostname", "reset-host",
+		"-uplink-speed", "profile",
+	)
+
+	state, err := os.ReadFile(statePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.TrimSpace(string(state)) != "STATE=factory" {
+		t.Fatalf("state after reset = %q", state)
+	}
+	data, err := os.ReadFile(statusPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		LastInform struct {
+			ResetRequested  bool   `json:"reset_requested"`
+			ResetApplied    bool   `json:"reset_applied"`
+			ResetReason     string `json:"reset_reason"`
+			ControllerState string `json:"controller_state"`
+		} `json:"last_inform"`
+	}
+	if err := json.Unmarshal(data, &doc); err != nil {
+		t.Fatalf("status JSON invalid: %v\n%s", err, data)
+	}
+	if !doc.LastInform.ResetRequested || !doc.LastInform.ResetApplied || doc.LastInform.ControllerState != "factory" {
+		t.Fatalf("reset status = %+v", doc.LastInform)
+	}
+	if !strings.Contains(doc.LastInform.ResetReason, "restore-default") {
+		t.Fatalf("reset reason = %q", doc.LastInform.ResetReason)
 	}
 }
 

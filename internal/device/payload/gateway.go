@@ -9,14 +9,14 @@ import (
 )
 
 // applyGatewayPayload fills the gateway-specific tables expected by UniFi.
-func applyGatewayPayload(payload map[string]any, id Identity, ports []Port) {
+func applyGatewayPayload(payload map[string]any, profile Profile, id Identity, ports []Port) {
 	applyGatewayTelemetry(payload, id)
-	payload["if_table"] = gatewayIfTable(id, ports)
-	payload["network_table"] = gatewayNetworkTable(id, ports)
-	payload["uplink"] = gatewayInterfaceName(gatewayUplinkPortIndex(ports))
-	payload["uplink_table"] = gatewayUplinkTable(id, ports)
+	payload["if_table"] = gatewayIfTable(profile, id, ports)
+	payload["network_table"] = gatewayNetworkTable(profile, id, ports)
+	payload["uplink"] = gatewayInterfaceName(profile, gatewayUplinkPortIndex(ports))
+	payload["uplink_table"] = gatewayUplinkTable(profile, id, ports)
 	payload["has_eth1"] = len(ports) > 1
-	payload["has_dpi"] = false
+	payload["has_dpi"] = profile.HasDPI
 	payload["config_network_wan"] = map[string]any{jsonKeyType: "dhcp"}
 	if len(ports) > 2 {
 		payload["config_network_wan2"] = map[string]any{jsonKeyType: "dhcp"}
@@ -34,7 +34,7 @@ func gatewayUplinkPortIndex(ports []Port) int {
 }
 
 // gatewayIfTable renders physical interfaces for gateway inform payloads.
-func gatewayIfTable(id Identity, ports []Port) []map[string]any {
+func gatewayIfTable(profile Profile, id Identity, ports []Port) []map[string]any {
 	out := make([]map[string]any, 0, len(ports))
 	for _, port := range ports {
 		speed := port.Speed
@@ -43,9 +43,10 @@ func gatewayIfTable(id Identity, ports []Port) []map[string]any {
 		}
 		ip := gatewayInterfaceIP(id, port)
 		netmask := gatewayInterfaceNetmask(port)
+		ifaceName := gatewayInterfaceName(profile, port.Index)
 		row := map[string]any{
-			jsonKeyName:       gatewayInterfaceName(port.Index),
-			jsonKeyIfName:     gatewayInterfaceName(port.Index),
+			jsonKeyName:       ifaceName,
+			jsonKeyIfName:     ifaceName,
 			"comment":         port.Name,
 			jsonKeyPortIdx:    port.Index,
 			jsonKeyMAC:        gatewayPortMAC(id.MAC, port),
@@ -58,7 +59,7 @@ func gatewayIfTable(id Identity, ports []Port) []map[string]any {
 			jsonKeyMaxSpeed:   speed,
 			jsonKeySpeedCaps:  speedCaps(speed, port.Media),
 			jsonKeyMedia:      port.Media,
-			jsonKeyNetworkGrp: gatewayNetworkGroup(id.Model, port),
+			jsonKeyNetworkGrp: gatewayNetworkGroup(port),
 			jsonKeyFullDuplex: true,
 			jsonKeyRXBytes:    port.RXBytes,
 			jsonKeyTXBytes:    port.TXBytes,
@@ -77,19 +78,20 @@ func gatewayIfTable(id Identity, ports []Port) []map[string]any {
 }
 
 // gatewayNetworkTable renders the routed network view for each gateway port.
-func gatewayNetworkTable(id Identity, ports []Port) []map[string]any {
+func gatewayNetworkTable(profile Profile, id Identity, ports []Port) []map[string]any {
 	out := make([]map[string]any, 0, len(ports))
 	for _, port := range ports {
 		speed := gatewayPortSpeed(port)
 		ip := gatewayInterfaceIP(id, port)
 		netmask := gatewayInterfaceNetmask(port)
 		address := interfaceAddressCIDR(ip, netmask)
+		ifaceName := gatewayInterfaceName(profile, port.Index)
 		entry := map[string]any{
-			jsonKeyName:       gatewayInterfaceName(port.Index),
-			jsonKeyIfName:     gatewayInterfaceName(port.Index),
+			jsonKeyName:       ifaceName,
+			jsonKeyIfName:     ifaceName,
 			jsonKeyPortIdx:    port.Index,
 			jsonKeyMAC:        gatewayPortMAC(id.MAC, port),
-			jsonKeyNetworkGrp: gatewayNetworkGroup(id.Model, port),
+			jsonKeyNetworkGrp: gatewayNetworkGroup(port),
 			"ip":              ip,
 			jsonKeyNetmask:    netmask,
 			"address":         address,
@@ -140,16 +142,17 @@ func gatewayHostTable(port Port) []map[string]any {
 }
 
 // gatewayUplinkTable renders the controller-facing uplink entry.
-func gatewayUplinkTable(id Identity, ports []Port) []map[string]any {
+func gatewayUplinkTable(profile Profile, id Identity, ports []Port) []map[string]any {
 	uplinkIndex := gatewayUplinkPortIndex(ports)
 	for _, port := range ports {
 		if port.Index != uplinkIndex {
 			continue
 		}
 		speed := gatewayPortSpeed(port)
+		ifaceName := gatewayInterfaceName(profile, port.Index)
 		row := map[string]any{
-			jsonKeyName:       gatewayInterfaceName(port.Index),
-			jsonKeyIfName:     gatewayInterfaceName(port.Index),
+			jsonKeyName:       ifaceName,
+			jsonKeyIfName:     ifaceName,
 			jsonKeyPortIdx:    port.Index,
 			jsonKeyMAC:        gatewayPortMAC(id.MAC, port),
 			jsonKeySpeed:      speed,
@@ -174,30 +177,10 @@ func gatewayUplinkTable(id Identity, ports []Port) []map[string]any {
 	return nil
 }
 
-// gatewayPortRole returns profile defaults unless a port override supplied a role.
-func gatewayPortRole(model string, port Port) string {
+// gatewayPortRole returns profile or override data before generic fallback roles.
+func gatewayPortRole(port Port) string {
 	if role := normalizeGatewayRole(port.Role); role != "" {
 		return role
-	}
-	if strings.EqualFold(model, "UXG") {
-		switch port.Index {
-		case 1:
-			return gatewayPortRoleLAN
-		case 2:
-			return gatewayPortRoleWAN
-		}
-	}
-	if strings.EqualFold(model, "UXGPRO") {
-		switch port.Index {
-		case 1:
-			return gatewayPortRoleWAN
-		case 2:
-			return gatewayPortRoleLAN
-		case 3:
-			return gatewayPortRoleWAN2
-		case 4:
-			return gatewayPortRoleLAN2
-		}
 	}
 	switch port.Index {
 	case 1:
@@ -212,29 +195,11 @@ func gatewayPortRole(model string, port Port) string {
 }
 
 // gatewayNetworkGroup maps a gateway role into the UniFi network group label.
-func gatewayNetworkGroup(model string, port Port) string {
+func gatewayNetworkGroup(port Port) string {
 	if networkGroup := normalizeGatewayNetworkGroup(port.NetworkGroup); networkGroup != "" {
 		return networkGroup
 	}
-	if strings.EqualFold(model, "UXG") {
-		switch port.Index {
-		case 2:
-			return gatewayNetworkGroupWAN
-		default:
-			return gatewayNetworkGroupLAN
-		}
-	}
-	if strings.EqualFold(model, "UXGPRO") {
-		switch port.Index {
-		case 1:
-			return gatewayNetworkGroupWAN
-		case 3:
-			return gatewayNetworkGroupWAN2
-		default:
-			return gatewayNetworkGroupLAN
-		}
-	}
-	switch gatewayPortRole(model, port) {
+	switch gatewayPortRole(port) {
 	case gatewayPortRoleWAN:
 		return gatewayNetworkGroupWAN
 	case gatewayPortRoleWAN2:
@@ -263,12 +228,16 @@ func gatewayPortSpeed(port Port) int {
 	return speed
 }
 
-// gatewayInterfaceName maps a one-based port index to an ethN name.
-func gatewayInterfaceName(portIndex int) string {
+// gatewayInterfaceName maps a one-based port index to a profile-selected interface prefix.
+func gatewayInterfaceName(profile Profile, portIndex int) string {
 	if portIndex < 1 {
 		portIndex = 1
 	}
-	return "eth" + strconv.Itoa(portIndex-1)
+	prefix := strings.TrimSpace(profile.GatewayInterfacePrefix)
+	if prefix == "" {
+		prefix = "eth"
+	}
+	return prefix + strconv.Itoa(portIndex-1)
 }
 
 // gatewayPortMAC returns a configured port MAC or derives one from the device MAC.
@@ -295,7 +264,7 @@ func gatewayInterfaceIP(id Identity, port Port) string {
 	if ip := strings.TrimSpace(port.IP); ip != "" {
 		return ip
 	}
-	switch gatewayPortRole(id.Model, port) {
+	switch gatewayPortRole(port) {
 	case gatewayPortRoleLAN, gatewayPortRoleLAN2:
 		return id.IP
 	case gatewayPortRoleWAN, gatewayPortRoleWAN2:

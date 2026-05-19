@@ -98,6 +98,32 @@ func TestParseControllerResponseInfoUpgradeIsIgnoredButVersionCaptured(t *testin
 	}
 }
 
+func TestParseControllerResponseInfoRestoreDefaultRequestsReset(t *testing.T) {
+	info, err := adoption.ParseControllerResponseInfo([]byte(`{"_type":"restore-default"}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !info.ResetRequested || info.Store.State != adoption.StateFactory || !info.HasStateUpdate {
+		t.Fatalf("response summary = %+v", info)
+	}
+	if !strings.Contains(info.ResetReason, "restore-default") {
+		t.Fatalf("ResetReason = %q", info.ResetReason)
+	}
+}
+
+func TestParseControllerResponseInfoCommandRestoreDefaultRequestsReset(t *testing.T) {
+	info, err := adoption.ParseControllerResponseInfo([]byte(`{
+  "_type": "cmd",
+  "cmd": "/usr/bin/syswrapper.sh restore-default"
+}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !info.ResetRequested || info.Store.State != adoption.StateFactory {
+		t.Fatalf("response summary = %+v", info)
+	}
+}
+
 func FuzzParseControllerResponseInfo(f *testing.F) {
 	f.Add([]byte(`{"_type":"noop","interval":10}`))
 	f.Add([]byte(`{"_type":"setparam","mgmt_cfg":"cfgversion=abc\nauthkey=0123456789abcdef\nuse_aes_gcm=true\n"}`))

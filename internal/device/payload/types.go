@@ -1,5 +1,19 @@
 package payload
 
+// Profile contains profile-driven inform payload rendering metadata.
+type Profile struct {
+	// Kind selects the generic payload renderer: switch or gateway.
+	Kind string
+	// RequiredVersion is reported in the inform payload.
+	RequiredVersion string
+	// ManagementInterface is the controller-facing management interface name.
+	ManagementInterface string
+	// GatewayInterfacePrefix prefixes generated gateway interface names.
+	GatewayInterfacePrefix string
+	// HasDPI reports whether gateway DPI capability should be advertised.
+	HasDPI bool
+}
+
 // Identity contains the device attributes reported in inform payloads.
 type Identity struct {
 	// MAC is the fake device MAC address in controller-facing text form.

@@ -22,7 +22,7 @@ PKG_ENV_NONFPM := PKG_VERSION='$(PKG_VERSION)' \
 PKG_ENV := NFPM='$(NFPM)' \
   $(PKG_ENV_NONFPM)
 
-.PHONY: build build-freebsd check clean-dist coverage fmt help lint package package-arch package-deb package-freebsd-tgz package-rpm package-tgz policy switch-emulation switch-payload test
+.PHONY: build build-freebsd check clean-dist coverage fmt help lint package package-arch package-deb package-freebsd-tgz package-rpm package-tgz policy switch-emulation switch-payload test validate-config
 
 help:
 	@printf '%s\n' \
@@ -32,6 +32,7 @@ help:
 		'  make coverage     Generate HTML coverage report in dist/coverage.html' \
 		'  make lint         Run golangci-lint and repository policy checks' \
 		'  make test         Run all Go tests' \
+		'  make validate-config  Validate packaged configs and example profiles' \
 		'  make switch-payload  Print discovery and inform payloads' \
 		'  make switch-emulation  Start the lab switch emulator' \
 		'  make package      Build deb, rpm, archlinux, and tgz packages' \
@@ -45,7 +46,7 @@ build-freebsd:
 	mkdir -p dist
 	CGO_ENABLED=0 GOOS=freebsd GOARCH='$(PKG_FREEBSD_GOARCH)' $(GO) build -trimpath -ldflags='$(BUILD_LDFLAGS)' -o dist/unifi-stubd_freebsd_$(PKG_FREEBSD_GOARCH) ./cmd/unifi-stubd
 
-check: lint test
+check: lint validate-config test
 
 lint:
 	$(GOLANGCI_LINT) config verify
@@ -57,6 +58,11 @@ policy:
 
 test:
 	$(GO) test ./...
+
+validate-config:
+	$(GO) run ./cmd/unifi-stubd -validate -config packaging/linux/etc/unifi-stubd/config.yaml
+	$(GO) run ./cmd/unifi-stubd -validate -config packaging/freebsd/usr/local/etc/unifi-stubd/config.yaml
+	$(GO) run ./cmd/unifi-stubd -profile-validate tests/fixtures/profiles
 
 coverage:
 	$(GO) test -coverprofile=dist/cover.out ./...

@@ -4,6 +4,7 @@ package payload
 
 import (
 	"net"
+	"strconv"
 	"strings"
 )
 
@@ -32,7 +33,7 @@ func portTable(ports []Port) []map[string]any {
 		}
 		out = append(out, map[string]any{
 			jsonKeyPortIdx:    p.Index,
-			jsonKeyIfName:     gatewayInterfaceName(p.Index),
+			jsonKeyIfName:     switchInterfaceName(p.Index),
 			jsonKeyName:       p.Name,
 			jsonKeyMedia:      media,
 			jsonKeyEnable:     true,
@@ -67,6 +68,13 @@ func portTable(ports []Port) []map[string]any {
 		})
 	}
 	return out
+}
+
+func switchInterfaceName(portIndex int) string {
+	if portIndex < 1 {
+		portIndex = 1
+	}
+	return "eth" + strconv.Itoa(portIndex-1)
 }
 
 // speedCaps returns controller speed capabilities implied by speed and media.

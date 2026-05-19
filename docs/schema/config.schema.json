@@ -15,6 +15,12 @@
     "profile": {
       "type": "string"
     },
+    "profile_file": {
+      "type": "string"
+    },
+    "profile_dir": {
+      "type": "string"
+    },
     "mac": {
       "type": "string"
     },

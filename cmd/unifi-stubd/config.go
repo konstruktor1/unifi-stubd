@@ -31,6 +31,12 @@ func applyConfig(cfg appconfig.Config, changed map[string]bool, flags *runtimeFl
 	if !changed["profile"] {
 		*flags.profileName = cfg.Profile
 	}
+	if !changed["profile-file"] {
+		*flags.profileFile = cfg.ProfileFile
+	}
+	if !changed["profile-dir"] {
+		*flags.profileDir = cfg.ProfileDir
+	}
 	if !changed["operation-mode"] {
 		*flags.operationMode = cfg.OperationMode
 	}

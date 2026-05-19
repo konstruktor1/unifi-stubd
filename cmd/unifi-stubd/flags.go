@@ -12,7 +12,13 @@ type runtimeFlags struct {
 	configPath         *string
 	operationMode      *string
 	profileName        *string
+	profileFile        *string
+	profileDir         *string
 	listProfiles       *bool
+	validate           *bool
+	profileValidate    *string
+	profileExport      *string
+	profileTemplate    *string
 	macText            *string
 	ipText             *string
 	hostname           *string
@@ -55,7 +61,13 @@ func parseRuntimeFlags(defaults appconfig.Config) (runtimeFlags, map[string]bool
 		configPath:         flag.String("config", appconfig.DefaultPath, "YAML config file path; default path is optional when absent"),
 		operationMode:      flag.String("operation-mode", defaults.OperationMode, "runtime mode: stub, observe, host-direct, or macvlan"),
 		profileName:        flag.String("profile", defaults.Profile, "device profile to emulate; use -list-profiles to show options"),
+		profileFile:        flag.String("profile-file", defaults.ProfileFile, "optional external device profile YAML file"),
+		profileDir:         flag.String("profile-dir", defaults.ProfileDir, "optional directory with external device profile YAML files"),
 		listProfiles:       flag.Bool("list-profiles", false, "list known device profiles and exit"),
+		validate:           flag.Bool("validate", false, "validate config, profiles, and runtime constraints without starting the stub"),
+		profileValidate:    flag.String("profile-validate", "", "validate one external profile YAML file or directory and exit"),
+		profileExport:      flag.String("profile-export", "", "export a built-in or loaded profile as canonical YAML and exit"),
+		profileTemplate:    flag.String("profile-template", "", "print a starter profile YAML template: switch or gateway"),
 		macText:            flag.String("mac", defaults.MAC, "fake device MAC address, or auto to derive one from hostname and profile"),
 		ipText:             flag.String("ip", defaults.IP, "fake device IPv4 address"),
 		hostname:           flag.String("hostname", defaults.Hostname, "fake device hostname, or auto to use the OS hostname"),

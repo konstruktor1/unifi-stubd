@@ -20,6 +20,10 @@ type Config struct {
 	ControllerURL string `yaml:"controller_url"`
 	// Profile selects the device profile to emulate.
 	Profile string `yaml:"profile"`
+	// ProfileFile loads one external device profile YAML file.
+	ProfileFile string `yaml:"profile_file"`
+	// ProfileDir loads external device profile YAML files from a directory.
+	ProfileDir string `yaml:"profile_dir"`
 	// MAC is the fake device MAC address or auto for a derived address.
 	MAC string `yaml:"mac"`
 	// IP is the IPv4 address reported to the controller.
@@ -84,6 +88,8 @@ func Default() Config {
 		OperationMode:      "stub",
 		ControllerURL:      "",
 		Profile:            "us16p150",
+		ProfileFile:        "",
+		ProfileDir:         "",
 		MAC:                automaticValue,
 		IP:                 "192.168.1.50",
 		Hostname:           automaticValue,

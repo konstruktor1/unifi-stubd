@@ -668,6 +668,70 @@ func TestUXGGatewayPayloadUsesInterfaceOverrideData(t *testing.T) {
 	}
 }
 
+func TestCustomGatewayPayloadUsesProfileRolesWithoutModelSpecialCase(t *testing.T) {
+	profile := device.Profile{
+		Name:         "custom-gateway",
+		Model:        "CUSTOMGW",
+		ModelDisplay: "Custom Gateway",
+		DeviceType:   "uxg",
+		Version:      "5.0.16.30689",
+		Ports:        2,
+		PortNames:    []string{"LAN", "WAN"},
+		PortRoles:    []string{"lan", "wan"},
+		PortNetworkGroups: []string{
+			"LAN",
+			"WAN",
+		},
+		PortSpeed:   1000,
+		UplinkSpeed: 1000,
+		PortMedia:   "GE",
+		UplinkMedia: "GE",
+		Payload: device.PayloadProfile{
+			Kind:                   "gateway",
+			RequiredVersion:        "5.0.0",
+			ManagementInterface:    "eth0",
+			GatewayInterfacePrefix: "eth",
+		},
+	}
+	ports := device.SwitchPortsWithOptions(profile.Ports, profile.PortOptions())
+	payload, err := device.BuildPayload(profile, device.Identity{
+		MAC:          "02:00:5e:00:53:70",
+		IP:           "192.0.2.70",
+		Hostname:     "custom-gateway",
+		Model:        profile.Model,
+		ModelDisplay: profile.ModelDisplay,
+		DeviceType:   profile.DeviceType,
+		Version:      profile.Version,
+		Serial:       "02005E005370",
+	}, ports)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		IfTable      []map[string]any `json:"if_table"`
+		NetworkTable []map[string]any `json:"network_table"`
+		Uplink       string           `json:"uplink"`
+	}
+	if err := json.Unmarshal(payload, &doc); err != nil {
+		t.Fatal(err)
+	}
+	if doc.Uplink != "eth0" {
+		t.Fatalf("uplink = %q, want eth0", doc.Uplink)
+	}
+	if got := doc.IfTable[0]["networkgroup"]; got != "LAN" {
+		t.Fatalf("port 1 networkgroup = %v, want LAN", got)
+	}
+	if got := doc.IfTable[1]["networkgroup"]; got != "WAN" {
+		t.Fatalf("port 2 networkgroup = %v, want WAN", got)
+	}
+	if got := doc.NetworkTable[0]["ip"]; got != "192.0.2.70" {
+		t.Fatalf("LAN ip = %v, want management IP", got)
+	}
+	if got := doc.NetworkTable[1]["ip"]; got != "192.0.2.2" {
+		t.Fatalf("WAN ip = %v, want documentation WAN IP", got)
+	}
+}
+
 func TestApplyUplinkNeighborAddsConfiguredNeighbor(t *testing.T) {
 	profile, ok := device.LookupProfile("usaggpro")
 	if !ok {

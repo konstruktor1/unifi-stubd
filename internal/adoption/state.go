@@ -54,6 +54,12 @@ type ControllerResponse struct {
 	IntervalSeconds int `json:"interval_seconds,omitempty"`
 	// IncludeBlocks lists controller-requested status blocks when present.
 	IncludeBlocks []string `json:"include_blocks,omitempty"`
+	// ResetRequested reports that the controller asked the device to forget or factory-reset.
+	ResetRequested bool `json:"reset_requested,omitempty"`
+	// ResetApplied reports that only the local stub adoption state was reset.
+	ResetApplied bool `json:"reset_applied,omitempty"`
+	// ResetReason explains the controller reset command that was handled.
+	ResetReason string `json:"reset_reason,omitempty"`
 	// Ignored reports that a controller command was intentionally not applied.
 	Ignored bool `json:"ignored,omitempty"`
 	// IgnoredReason explains why a command was not applied to the host.

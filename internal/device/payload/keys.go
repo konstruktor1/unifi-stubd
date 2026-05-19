@@ -40,5 +40,7 @@ const (
 	gatewayPortRoleLAN2     = "lan2"
 	gatewayPortRoleWAN      = "wan"
 	gatewayPortRoleWAN2     = "wan2"
+	payloadKindGateway      = "gateway"
+	payloadKindSwitch       = "switch"
 	payloadModeSwitch       = "switch"
 )

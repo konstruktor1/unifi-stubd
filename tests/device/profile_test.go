@@ -2,6 +2,8 @@
 package device_test
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/konstruktor1/unifi-stubd/internal/device"
@@ -27,6 +29,37 @@ func TestLookupProfileByModel(t *testing.T) {
 	}
 	if profile.Name != "us8p60" {
 		t.Fatalf("Name = %q, want us8p60", profile.Name)
+	}
+}
+
+func TestExternalProfileRegistryLoadsDerivedProfile(t *testing.T) {
+	dir := t.TempDir()
+	profilePath := filepath.Join(dir, "derived.yaml")
+	if err := os.WriteFile(profilePath, []byte(`schema_version: 1
+extends: us8
+name: lab-us8
+model: LABUS8
+model_display: Lab US8
+stability: external
+payload:
+  kind: switch
+description: derived lab profile
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	registry := device.NewProfileRegistry()
+	if err := registry.LoadProfilePath(profilePath); err != nil {
+		t.Fatal(err)
+	}
+	profile, ok := registry.LookupProfile("lab-us8")
+	if !ok {
+		t.Fatal("derived profile not found")
+	}
+	if profile.Ports != 8 || profile.PortSpeed != 1000 {
+		t.Fatalf("derived profile did not inherit base port data: %+v", profile)
+	}
+	if profile.SourceType != "external" || profile.Payload.Kind != "switch" {
+		t.Fatalf("derived profile metadata = %+v", profile)
 	}
 }
 

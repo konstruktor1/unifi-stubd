@@ -1,0 +1,144 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/konstruktor1/unifi-stubd/docs/schema/profile.schema.json",
+  "title": "unifi-stubd device profile",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "type": "integer",
+      "const": 1
+    },
+    "extends": {
+      "type": "string"
+    },
+    "allow_builtin_override": {
+      "type": "boolean"
+    },
+    "order": {
+      "type": "integer"
+    },
+    "name": {
+      "type": "string"
+    },
+    "model": {
+      "type": "string"
+    },
+    "model_display": {
+      "type": "string"
+    },
+    "device_type": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string"
+    },
+    "ports": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "port_groups": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/port_group"
+      }
+    },
+    "port_names": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "port_roles": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["", "wan", "lan", "wan2", "lan2"]
+      }
+    },
+    "port_network_groups": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "port_speed": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "uplink_speed": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "port_media": {
+      "type": "string"
+    },
+    "uplink_media": {
+      "type": "string"
+    },
+    "stability": {
+      "type": "string"
+    },
+    "recommended": {
+      "type": "boolean"
+    },
+    "validated_controller_versions": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "payload": {
+      "$ref": "#/$defs/payload"
+    },
+    "description": {
+      "type": "string"
+    }
+  },
+  "$defs": {
+    "port_group": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "count": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "speed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "media": {
+          "type": "string"
+        },
+        "uplink": {
+          "type": "boolean"
+        }
+      },
+      "required": ["count"]
+    },
+    "payload": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "type": "string",
+          "enum": ["switch", "gateway"]
+        },
+        "required_version": {
+          "type": "string"
+        },
+        "management_interface": {
+          "type": "string"
+        },
+        "gateway_interface_prefix": {
+          "type": "string"
+        },
+        "has_dpi": {
+          "type": "boolean"
+        }
+      },
+      "required": ["kind"]
+    }
+  }
+}

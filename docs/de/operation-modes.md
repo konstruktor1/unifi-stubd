@@ -74,6 +74,12 @@ Speed-/Mediengruppen, Default-Portnamen und Default-Gateway-Rollen.
 `port_overrides` setzt danach lab-spezifische Zuweisungen und einzelne
 Portzustaende:
 
+Externe Profile koennen mit `profile_file` oder `profile_dir` eingelesen werden.
+Behandle sie als Lab-Daten, bis sie gegen eine konkrete UniFi-Network-Version
+validiert wurden. `-profile-template`, `-profile-validate`, `-profile-export`
+und `-validate` erzeugen und pruefen YAML-Profile ohne Discovery- oder
+Inform-Traffic.
+
 ```yaml
 uplink_neighbor:
   mac: 02:aa:bb:cc:dd:01

@@ -31,6 +31,8 @@ func TestLoadMergesWithDefaults(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.yaml")
 	if err := os.WriteFile(path, []byte(`controller_url: http://192.0.2.10:8080/inform
 profile: us16p150
+profile_file: /etc/unifi-stubd/profiles/lab.yaml
+profile_dir: /etc/unifi-stubd/profiles.d
 operation_mode: observe
 observe_interface: eth0
 observe_bridge: vmbr0
@@ -77,6 +79,12 @@ status_path: /tmp/unifi-stubd/status.json
 	}
 	if cfg.OperationMode != "observe" {
 		t.Fatalf("OperationMode = %q", cfg.OperationMode)
+	}
+	if cfg.ProfileFile != "/etc/unifi-stubd/profiles/lab.yaml" {
+		t.Fatalf("ProfileFile = %q", cfg.ProfileFile)
+	}
+	if cfg.ProfileDir != "/etc/unifi-stubd/profiles.d" {
+		t.Fatalf("ProfileDir = %q", cfg.ProfileDir)
 	}
 	if cfg.ObserveInterface != "eth0" {
 		t.Fatalf("ObserveInterface = %q", cfg.ObserveInterface)

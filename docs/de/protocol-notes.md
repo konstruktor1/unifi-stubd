@@ -104,6 +104,7 @@ Beobachteter UXG-Pro-5.0.16-Ablauf im Controller-Lab:
 | Key-Wechsel | Firmware sendet den naechsten Inform sofort mit Adopted-Key und AES-GCM. | Fuer alle weiteren Informs den Adopted-Key verwenden. |
 | Adopted Inform | Firmware meldet `default=false`, danach `state=2`. | Geraet als connected behandeln, sobald der Controller `noop` liefert. |
 | System-Konfiguration | Controller sendet ein weiteres `_type: "setparam"` mit `system_cfg`. | Nur sichere Metadaten erfassen; keine Host-User, Firewall, Routen, Zertifikate, Tokens oder Secrets anwenden. |
+| Forget/Reset | Controller sendet ein Forget-, Delete-, Remove- oder Restore-Default-Kommando. | Nur lokalen Adoption-State loeschen, wieder factory/default informieren und niemals den Host zuruecksetzen. |
 | Steady State | Controller antwortet mit `_type: "noop"`, `interval` und `include_blocks`. | Mit dem geforderten Intervall weiter informieren; beobachtet wurden 10 Sekunden. |
 
 Das erste im Lab beobachtete `mgmt_cfg` enthielt `cfgversion`, `stun_url`,

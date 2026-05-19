@@ -10,8 +10,16 @@ import (
 	"time"
 )
 
+const defaultRequiredVersion = "5.0.0"
+
 // MinimalSwitchPayload returns a JSON inform payload with a switch-shaped port table.
 func MinimalSwitchPayload(id Identity, ports []Port) ([]byte, error) {
+	return BuildPayload(defaultPayloadProfile(id), id, ports)
+}
+
+// BuildPayload returns a JSON inform payload using profile-driven renderer metadata.
+func BuildPayload(profile Profile, id Identity, ports []Port) ([]byte, error) {
+	profile = normalizePayloadProfile(profile, id)
 	now := time.Now().Unix()
 	numPorts := len(ports)
 	informURL := id.InformURL
@@ -42,7 +50,7 @@ func MinimalSwitchPayload(id Identity, ports []Port) ([]byte, error) {
 		"adopted":            id.Adopted,
 		"default":            !id.Adopted,
 		"discovery_response": true,
-		"required_version":   "5.0.0",
+		"required_version":   profile.RequiredVersion,
 		"cfgversion":         cfgVersion,
 		jsonKeyUptime:        1,
 		"time":               now,
@@ -56,10 +64,10 @@ func MinimalSwitchPayload(id Identity, ports []Port) ([]byte, error) {
 	if id.InformIP != "" {
 		payload["inform_ip"] = id.InformIP
 	}
-	if isGatewayDeviceType(deviceType) {
-		applyGatewayPayload(payload, id, ports)
+	if profile.Kind == payloadKindGateway {
+		applyGatewayPayload(payload, profile, id, ports)
 	} else {
-		applySwitchPayload(payload, id, ports, numPorts, ifSpeed)
+		applySwitchPayload(payload, profile, id, ports, numPorts, ifSpeed)
 	}
 	data, err := json.MarshalIndent(payload, "", "  ")
 	if err != nil {
@@ -69,9 +77,10 @@ func MinimalSwitchPayload(id Identity, ports []Port) ([]byte, error) {
 }
 
 // applySwitchPayload fills the tables expected by UniFi switch devices.
-func applySwitchPayload(payload map[string]any, id Identity, ports []Port, numPorts int, ifSpeed int) {
+func applySwitchPayload(payload map[string]any, profile Profile, id Identity, ports []Port, numPorts int, ifSpeed int) {
+	ifaceName := profile.ManagementInterface
 	iface := map[string]any{
-		jsonKeyName:       "eth0",
+		jsonKeyName:       ifaceName,
 		jsonKeyMAC:        id.MAC,
 		"ip":              id.IP,
 		jsonKeyNumPort:    numPorts,
@@ -83,7 +92,7 @@ func applySwitchPayload(payload map[string]any, id Identity, ports []Port, numPo
 	payload["if_table"] = []map[string]any{iface}
 	payload["ethernet_table"] = []map[string]any{
 		{
-			jsonKeyName:    "eth0",
+			jsonKeyName:    ifaceName,
 			jsonKeyMAC:     id.MAC,
 			jsonKeyNumPort: numPorts,
 		},
@@ -118,6 +127,38 @@ func isGatewayDeviceType(deviceType string) bool {
 	default:
 		return false
 	}
+}
+
+func defaultPayloadProfile(id Identity) Profile {
+	profile := Profile{Kind: payloadKindSwitch}
+	if isGatewayDeviceType(deviceTypeOrDefault(id.DeviceType)) {
+		profile.Kind = payloadKindGateway
+	}
+	return normalizePayloadProfile(profile, id)
+}
+
+func normalizePayloadProfile(profile Profile, id Identity) Profile {
+	profile.Kind = strings.ToLower(strings.TrimSpace(profile.Kind))
+	if profile.Kind == "" {
+		if isGatewayDeviceType(deviceTypeOrDefault(id.DeviceType)) {
+			profile.Kind = payloadKindGateway
+		} else {
+			profile.Kind = payloadKindSwitch
+		}
+	}
+	if profile.Kind != payloadKindGateway {
+		profile.Kind = payloadKindSwitch
+	}
+	if strings.TrimSpace(profile.RequiredVersion) == "" {
+		profile.RequiredVersion = defaultRequiredVersion
+	}
+	if strings.TrimSpace(profile.ManagementInterface) == "" {
+		profile.ManagementInterface = "eth0"
+	}
+	if strings.TrimSpace(profile.GatewayInterfacePrefix) == "" {
+		profile.GatewayInterfacePrefix = "eth"
+	}
+	return profile
 }
 
 // deviceTypeOrDefault keeps older switch payloads usable when no type is configured.

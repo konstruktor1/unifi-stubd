@@ -72,6 +72,12 @@ groups, default port names, and default gateway roles. Use `port_overrides`
 for lab-specific assignments after profile and observation data have been
 applied:
 
+External profiles can extend built-in defaults with `profile_file` or
+`profile_dir`. Treat them as lab data until validated against a concrete UniFi
+Network version. Use `-profile-template`, `-profile-validate`, `-profile-export`,
+and `-validate` to create and check YAML profiles without sending discovery or
+inform traffic.
+
 ```yaml
 uplink_neighbor:
   mac: 02:aa:bb:cc:dd:01

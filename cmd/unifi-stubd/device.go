@@ -39,16 +39,16 @@ func payloadForIdentity(
 		InformURL:      informURL,
 		InformIP:       resolveInformIP(informURL),
 		ManagementVLAN: *flags.managementVLAN,
-	}, store, ports)
+	}, profile, store, ports)
 }
 
-func buildPayload(id device.Identity, store adoption.Store, ports []device.Port) ([]byte, error) {
+func buildPayload(id device.Identity, profile device.Profile, store adoption.Store, ports []device.Port) ([]byte, error) {
 	id.CFGVersion = store.CFGVersion
 	id.Adopted = store.AuthKey != ""
 	if store.Version != "" {
 		id.Version = store.Version
 	}
-	payload, err := device.MinimalSwitchPayload(id, ports)
+	payload, err := device.BuildPayload(profile, id, ports)
 	if err != nil {
 		return nil, fmt.Errorf("build device payload: %w", err)
 	}

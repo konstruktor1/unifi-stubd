@@ -1,0 +1,9 @@
+schema_version: 1
+extends: us8
+name: lab-us8
+model: LABUS8
+model_display: Lab US8
+stability: external
+payload:
+  kind: switch
+description: derived lab switch profile for validation tests
