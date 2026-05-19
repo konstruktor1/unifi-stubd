@@ -9,6 +9,9 @@ import (
 	"time"
 )
 
+// DefaultMaxResponseBytes is the default controller response body limit.
+const DefaultMaxResponseBytes int64 = 4 * 1024 * 1024
+
 // Client sends UniFi inform packets to a controller.
 type Client struct {
 	// URL is the controller inform endpoint.
@@ -21,6 +24,8 @@ type Client struct {
 	HTTPClient *http.Client
 	// Options controls inform packet encoding.
 	Options Options
+	// MaxResponseBytes limits the controller response body. The default is 4 MiB.
+	MaxResponseBytes int64
 }
 
 // Response contains the raw and decoded controller response.
@@ -74,7 +79,11 @@ func (c Client) Send(payload []byte) (*Response, error) {
 		_ = httpResp.Body.Close()
 	}()
 
-	raw, err := io.ReadAll(httpResp.Body)
+	maxResponseBytes := c.MaxResponseBytes
+	if maxResponseBytes <= 0 {
+		maxResponseBytes = DefaultMaxResponseBytes
+	}
+	raw, err := readLimitedBody(httpResp.Body, maxResponseBytes)
 	if err != nil {
 		return nil, fmt.Errorf("read inform response body: %w", err)
 	}
@@ -93,4 +102,16 @@ func (c Client) Send(payload []byte) (*Response, error) {
 	resp.Packet = packet
 	resp.JSONBody = decoded
 	return resp, nil
+}
+
+func readLimitedBody(r io.Reader, maxBytes int64) ([]byte, error) {
+	limited := &io.LimitedReader{R: r, N: maxBytes + 1}
+	data, err := io.ReadAll(limited)
+	if err != nil {
+		return nil, fmt.Errorf("read response body: %w", err)
+	}
+	if int64(len(data)) > maxBytes {
+		return nil, fmt.Errorf("inform response body exceeds %d bytes", maxBytes)
+	}
+	return data, nil
 }

@@ -36,7 +36,7 @@ flowchart LR
 | --- | --- |
 | `/usr/local/bin/unifi-stubd` | Programmcode/Binary |
 | `/etc/unifi-stubd/config.yaml` | Betriebsconfig fuer Controller, Profil, MAC/IP, SSH-Adoption und Port-Speed |
-| `/etc/unifi-stubd/ssh_host_rsa_key` | SSH-Hostkey fuer die Fake-Adoption |
+| `/var/lib/unifi-stubd/ssh_host_rsa_key` | SSH-Hostkey fuer die Fake-Adoption |
 | `/var/lib/unifi-stubd/adoption.env` | persistenter Controller-State, Authkey, CFG-Version und Inform-URL |
 
 ## State Machine

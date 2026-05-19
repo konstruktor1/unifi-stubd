@@ -332,7 +332,7 @@ Layout:
 
 - Code: `/usr/local/bin/unifi-stubd`
 - Config: `/etc/unifi-stubd/config.yaml`
-- Adoption SSH key: `/etc/unifi-stubd/ssh_host_rsa_key`
+- Adoption SSH key: `/var/lib/unifi-stubd/ssh_host_rsa_key`
 - Runtime state: `/var/lib/unifi-stubd/adoption.env`
 - Logs: `/var/log/unifi-stubd.log`, `/var/log/unifi-stubd.err`
 

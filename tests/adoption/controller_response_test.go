@@ -97,3 +97,14 @@ func TestParseControllerResponseInfoUpgradeIsIgnoredButVersionCaptured(t *testin
 		t.Fatalf("IgnoredReason = %q", info.IgnoredReason)
 	}
 }
+
+func FuzzParseControllerResponseInfo(f *testing.F) {
+	f.Add([]byte(`{"_type":"noop","interval":10}`))
+	f.Add([]byte(`{"_type":"setparam","mgmt_cfg":"cfgversion=abc\nauthkey=0123456789abcdef\nuse_aes_gcm=true\n"}`))
+	f.Add([]byte(`{"_type":"setparam","system_cfg":"{\"udapi\":{},\"ubntconf\":{}}"}`))
+	f.Add([]byte{})
+
+	f.Fuzz(func(_ *testing.T, data []byte) {
+		_, _ = adoption.ParseControllerResponseInfo(data)
+	})
+}

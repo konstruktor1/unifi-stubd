@@ -43,7 +43,7 @@ func gatewayIfTable(id Identity, ports []Port) []map[string]any {
 		}
 		ip := gatewayInterfaceIP(id, port)
 		netmask := gatewayInterfaceNetmask(port)
-		out = append(out, map[string]any{
+		row := map[string]any{
 			jsonKeyName:       gatewayInterfaceName(port.Index),
 			jsonKeyIfName:     gatewayInterfaceName(port.Index),
 			"comment":         port.Name,
@@ -67,7 +67,11 @@ func gatewayIfTable(id Identity, ports []Port) []map[string]any {
 			jsonKeyRXErrors:   port.RXErrors,
 			jsonKeyTXErrors:   port.TXErrors,
 			jsonKeySourceIf:   port.Interface,
-		})
+		}
+		if port.Index == gatewayUplinkPortIndex(ports) {
+			addManagementVLAN(row, id.ManagementVLAN)
+		}
+		out = append(out, row)
 	}
 	return out
 }
@@ -143,29 +147,29 @@ func gatewayUplinkTable(id Identity, ports []Port) []map[string]any {
 			continue
 		}
 		speed := gatewayPortSpeed(port)
-		return []map[string]any{
-			{
-				jsonKeyName:       gatewayInterfaceName(port.Index),
-				jsonKeyIfName:     gatewayInterfaceName(port.Index),
-				jsonKeyPortIdx:    port.Index,
-				jsonKeyMAC:        gatewayPortMAC(id.MAC, port),
-				jsonKeySpeed:      speed,
-				jsonKeyMaxSpeed:   speed,
-				jsonKeySpeedCaps:  speedCaps(speed, port.Media),
-				jsonKeyType:       "wire",
-				jsonKeyMedia:      port.Media,
-				jsonKeyUp:         port.Up,
-				jsonKeyEnable:     true,
-				jsonKeyFullDuplex: true,
-				jsonKeyRXBytes:    port.RXBytes,
-				jsonKeyTXBytes:    port.TXBytes,
-				jsonKeyRXPackets:  firstNonZeroInt64(port.RXPackets, 1),
-				jsonKeyTXPackets:  firstNonZeroInt64(port.TXPackets, 1),
-				jsonKeyRXErrors:   port.RXErrors,
-				jsonKeyTXErrors:   port.TXErrors,
-				jsonKeySourceIf:   port.Interface,
-			},
+		row := map[string]any{
+			jsonKeyName:       gatewayInterfaceName(port.Index),
+			jsonKeyIfName:     gatewayInterfaceName(port.Index),
+			jsonKeyPortIdx:    port.Index,
+			jsonKeyMAC:        gatewayPortMAC(id.MAC, port),
+			jsonKeySpeed:      speed,
+			jsonKeyMaxSpeed:   speed,
+			jsonKeySpeedCaps:  speedCaps(speed, port.Media),
+			jsonKeyType:       "wire",
+			jsonKeyMedia:      port.Media,
+			jsonKeyUp:         port.Up,
+			jsonKeyEnable:     true,
+			jsonKeyFullDuplex: true,
+			jsonKeyRXBytes:    port.RXBytes,
+			jsonKeyTXBytes:    port.TXBytes,
+			jsonKeyRXPackets:  firstNonZeroInt64(port.RXPackets, 1),
+			jsonKeyTXPackets:  firstNonZeroInt64(port.TXPackets, 1),
+			jsonKeyRXErrors:   port.RXErrors,
+			jsonKeyTXErrors:   port.TXErrors,
+			jsonKeySourceIf:   port.Interface,
 		}
+		addManagementVLAN(row, id.ManagementVLAN)
+		return []map[string]any{row}
 	}
 	return nil
 }

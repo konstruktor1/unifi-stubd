@@ -45,18 +45,20 @@ type statusIdentity struct {
 
 // statusConfig contains non-secret runtime configuration selected for status output.
 type statusConfig struct {
-	OperationMode    string                `json:"operation_mode"`
-	ControllerURL    string                `json:"controller_url,omitempty"`
-	InformURL        string                `json:"inform_url,omitempty"`
-	Interval         string                `json:"interval"`
-	NoDiscovery      bool                  `json:"no_discovery"`
-	DiscoveryTargets []string              `json:"discovery_targets,omitempty"`
-	SSHListen        string                `json:"ssh_listen,omitempty"`
-	StatePath        string                `json:"state_path"`
-	StatusPath       string                `json:"status_path"`
-	UplinkNeighbor   *statusUplinkNeighbor `json:"uplink_neighbor,omitempty"`
-	PortNeighbors    []statusPortNeighbor  `json:"port_neighbors,omitempty"`
-	PortOverrides    []statusPortOverride  `json:"port_overrides,omitempty"`
+	OperationMode      string                `json:"operation_mode"`
+	ControllerURL      string                `json:"controller_url,omitempty"`
+	InformURL          string                `json:"inform_url,omitempty"`
+	Interval           string                `json:"interval"`
+	NoDiscovery        bool                  `json:"no_discovery"`
+	DiscoveryInterface string                `json:"discovery_interface,omitempty"`
+	DiscoveryTargets   []string              `json:"discovery_targets,omitempty"`
+	ManagementVLAN     int                   `json:"management_vlan,omitempty"`
+	SSHListen          string                `json:"ssh_listen,omitempty"`
+	StatePath          string                `json:"state_path"`
+	StatusPath         string                `json:"status_path"`
+	UplinkNeighbor     *statusUplinkNeighbor `json:"uplink_neighbor,omitempty"`
+	PortNeighbors      []statusPortNeighbor  `json:"port_neighbors,omitempty"`
+	PortOverrides      []statusPortOverride  `json:"port_overrides,omitempty"`
 }
 
 // statusUplinkNeighbor summarizes the configured uplink MAC-table neighbor.
@@ -131,7 +133,9 @@ type lastInformStatus struct {
 	ControllerState string   `json:"controller_state,omitempty"`
 	CFGVersion      string   `json:"cfgversion,omitempty"`
 	Version         string   `json:"version,omitempty"`
+	AttemptedAESGCM bool     `json:"attempted_aes_gcm,omitempty"`
 	UsedAESGCM      bool     `json:"used_aes_gcm,omitempty"`
+	FallbackToCBC   bool     `json:"fallback_to_cbc,omitempty"`
 	RawBytes        int      `json:"raw_bytes,omitempty"`
 	JSONBytes       int      `json:"json_bytes,omitempty"`
 	IntervalSeconds int      `json:"interval_seconds,omitempty"`
@@ -178,18 +182,20 @@ func buildLocalStatus(flags runtimeFlags, profile device.Profile, mac net.Hardwa
 			UplinkPort: uplinkPortIndex(ports),
 		},
 		Config: statusConfig{
-			OperationMode:    *flags.operationMode,
-			ControllerURL:    *flags.controller,
-			InformURL:        informURL,
-			Interval:         flags.interval.String(),
-			NoDiscovery:      *flags.noDiscovery,
-			DiscoveryTargets: cloneStrings(flags.discoveryTargets),
-			SSHListen:        *flags.sshListen,
-			StatePath:        *flags.sshState,
-			StatusPath:       *flags.statusPath,
-			UplinkNeighbor:   statusUplinkNeighborEntry(flags.uplinkNeighbor),
-			PortNeighbors:    statusPortNeighbors(flags.portNeighbors),
-			PortOverrides:    statusPortOverrides(flags.portOverrides),
+			OperationMode:      *flags.operationMode,
+			ControllerURL:      *flags.controller,
+			InformURL:          informURL,
+			Interval:           flags.interval.String(),
+			NoDiscovery:        *flags.noDiscovery,
+			DiscoveryInterface: strings.TrimSpace(*flags.discoveryInterface),
+			DiscoveryTargets:   cloneStrings(flags.discoveryTargets),
+			ManagementVLAN:     *flags.managementVLAN,
+			SSHListen:          *flags.sshListen,
+			StatePath:          *flags.sshState,
+			StatusPath:         *flags.statusPath,
+			UplinkNeighbor:     statusUplinkNeighborEntry(flags.uplinkNeighbor),
+			PortNeighbors:      statusPortNeighbors(flags.portNeighbors),
+			PortOverrides:      statusPortOverrides(flags.portOverrides),
 		},
 		Adoption: statusAdoption{
 			State:      adoptionStateText(store),
@@ -283,6 +289,10 @@ func printHumanStatus(status localStatus) {
 	fmt.Printf("inform_url: %s\n", valueOrDash(status.Config.InformURL))
 	fmt.Printf("interval: %s\n", status.Config.Interval)
 	fmt.Printf("no_discovery: %t\n", status.Config.NoDiscovery)
+	fmt.Printf("management_vlan: %d\n", status.Config.ManagementVLAN)
+	if status.Config.DiscoveryInterface != "" {
+		fmt.Printf("discovery_interface: %s\n", status.Config.DiscoveryInterface)
+	}
 	for _, target := range status.Config.DiscoveryTargets {
 		fmt.Printf("discovery_target: %s\n", target)
 	}
@@ -408,7 +418,9 @@ func printLastInform(last lastInformStatus) {
 	fmt.Printf("last_inform_state: %s\n", valueOrDash(last.ControllerState))
 	fmt.Printf("last_inform_cfgversion: %s\n", valueOrDash(last.CFGVersion))
 	fmt.Printf("last_inform_version: %s\n", valueOrDash(last.Version))
+	fmt.Printf("last_inform_attempted_aes_gcm: %t\n", last.AttemptedAESGCM)
 	fmt.Printf("last_inform_used_aes_gcm: %t\n", last.UsedAESGCM)
+	fmt.Printf("last_inform_fallback_to_cbc: %t\n", last.FallbackToCBC)
 	fmt.Printf("last_inform_raw_bytes: %d\n", last.RawBytes)
 	fmt.Printf("last_inform_json_bytes: %d\n", last.JSONBytes)
 	if last.IntervalSeconds > 0 {

@@ -6,10 +6,14 @@ that represent installed FreeBSD/OPNsense config live under `packaging/freebsd/`
 
 ## Linux Packaged Files
 
+Linux packages create a dedicated `unifi-stubd` service user for the systemd
+unit. The unit grants `CAP_NET_BIND_SERVICE` so the lab SSH shim can bind port
+22 without running the daemon as root.
+
 | Linux path | Repository source | Notes |
 | --- | --- | --- |
 | `/etc/unifi-stubd/config.yaml` | `packaging/linux/etc/unifi-stubd/config.yaml` | Main service config, packaged as config/noreplace |
-| `/etc/unifi-stubd/ssh_host_rsa_key` | generated at first SSH adoption start | Host key for the built-in adoption SSH shim |
+| `/var/lib/unifi-stubd/ssh_host_rsa_key` | generated at first SSH adoption start | Host key for the built-in adoption SSH shim |
 | `/var/lib/unifi-stubd/adoption.env` | generated at runtime | Persisted adoption state from controller responses |
 | `/var/lib/unifi-stubd/status.json` | generated at runtime | Non-sensitive status snapshot for health checks |
 | `/usr/local/bin/unifi-stubd` | built from `cmd/unifi-stubd` | Static Linux binary |

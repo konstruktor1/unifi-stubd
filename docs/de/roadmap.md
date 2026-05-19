@@ -4,7 +4,7 @@
 
 - [x] Controller-bekanntes 10G-Profil validieren: `USAGGPRO` online/adopted.
 - [x] Betriebsmodi und aktuellen Live-Lab-Stand dokumentieren.
-- [ ] UniFi Network Controller Version auswaehlen und dokumentieren.
+- [x] UniFi-Network-Kompatibilitaetsmatrix starten.
 - [x] Controller in isoliertem Lab betreiben.
 - [ ] Eine echte UniFi-Switch-Inform-Sequenz mitschneiden, falls Hardware vorhanden ist.
 - [ ] Controller-Logs fuer `inform`, `discover`, `devmgr` auf Debug stellen.
@@ -61,4 +61,6 @@
 - [x] Experimentelle Gateway-Identitaetsprofile `UGW3`, `UXG` und `UXGPRO`.
 - [ ] Vollstaendiger Gateway-Statuspayload fuer `UGW3`/`UXG`.
 - [ ] DPI-Felder aus NetFlow/OPNsense/ntopng synthetisieren.
-- [ ] Kompatibilitaetsmatrix pro UniFi Network Version.
+- [ ] Grosse Firmware-Research-Labs in Companion-Repo oder klar getrenntes Research-Paket verschieben.
+- [x] Kompatibilitaetsmatrix pro UniFi Network Version.
+- [x] JSON-Schema fuer YAML-Konfiguration.

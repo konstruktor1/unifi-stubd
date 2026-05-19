@@ -23,7 +23,9 @@ contents:
     dst: /etc/unifi-stubd/config.yaml
     type: config|noreplace
     file_info:
-      mode: 0600
+      mode: 0640
+      owner: root
+      group: unifi-stubd
 
   - src: ./dist/stage/pkgroot/etc/init.d/unifi-stubd
     dst: /etc/init.d/unifi-stubd
@@ -67,11 +69,15 @@ contents:
     type: dir
     file_info:
       mode: 0755
+      owner: root
+      group: unifi-stubd
 
   - dst: /var/lib/unifi-stubd
     type: dir
     file_info:
       mode: 0755
+      owner: unifi-stubd
+      group: unifi-stubd
 
   - dst: /usr/share/doc/unifi-stubd
     type: dir
@@ -81,3 +87,6 @@ contents:
 archlinux:
   packager: "@PKG_MAINTAINER@"
   pkgbase: unifi-stubd
+
+scripts:
+  preinstall: ./packaging/linux/scripts/preinstall.sh

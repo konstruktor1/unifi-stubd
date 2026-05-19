@@ -120,6 +120,40 @@ func TestMinimalSwitchPayloadReportsTenGigUplink(t *testing.T) {
 	}
 }
 
+func TestMinimalSwitchPayloadReportsManagementVLAN(t *testing.T) {
+	payload, err := device.MinimalSwitchPayload(device.Identity{
+		MAC:            "02:11:22:33:44:65",
+		IP:             "192.0.2.50",
+		Hostname:       "unifi-stubd-lab",
+		Model:          "US8",
+		ModelDisplay:   "UniFi Switch 8",
+		Version:        "7.4.1.16850",
+		Serial:         "021122334465",
+		InformURL:      "http://192.0.2.10:8080/inform",
+		ManagementVLAN: 42,
+	}, device.SwitchPorts(8))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var doc struct {
+		ManagementVLAN int              `json:"management_vlan"`
+		IfTable        []map[string]any `json:"if_table"`
+	}
+	if err := json.Unmarshal(payload, &doc); err != nil {
+		t.Fatal(err)
+	}
+	if doc.ManagementVLAN != 42 {
+		t.Fatalf("management_vlan = %d, want 42", doc.ManagementVLAN)
+	}
+	if got := int(doc.IfTable[0]["management_vlan"].(float64)); got != 42 {
+		t.Fatalf("if_table management_vlan = %d, want 42", got)
+	}
+	if got := int(doc.IfTable[0]["vlan"].(float64)); got != 42 {
+		t.Fatalf("if_table vlan = %d, want 42", got)
+	}
+}
+
 func TestSwitchPortsWithProfilePortGroups(t *testing.T) {
 	profile, ok := device.LookupProfile("usw-pro-xg-48")
 	if !ok {
@@ -295,6 +329,50 @@ func TestTenGigGatewayProfileReportsPortLayout(t *testing.T) {
 	}
 	if got := doc.NetworkTable[2]["networkgroup"].(string); got != "WAN2" {
 		t.Fatalf("network_table port 3 networkgroup = %q, want WAN2", got)
+	}
+}
+
+func TestGatewayPayloadReportsManagementVLANOnUplink(t *testing.T) {
+	profile, ok := device.LookupProfile("uxgpro")
+	if !ok {
+		t.Fatal("profile not found")
+	}
+	ports := device.SwitchPortsWithOptions(profile.Ports, profile.PortOptions())
+	payload, err := device.MinimalSwitchPayload(device.Identity{
+		MAC:            "02:11:22:33:44:66",
+		IP:             "192.0.2.50",
+		Hostname:       "unifi-stubd-uxg",
+		Model:          profile.Model,
+		ModelDisplay:   profile.ModelDisplay,
+		DeviceType:     profile.DeviceType,
+		Version:        profile.Version,
+		Serial:         "021122334466",
+		InformURL:      "http://192.0.2.10:8080/inform",
+		ManagementVLAN: 99,
+	}, ports)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var doc struct {
+		ManagementVLAN int              `json:"management_vlan"`
+		IfTable        []map[string]any `json:"if_table"`
+		UplinkTable    []map[string]any `json:"uplink_table"`
+	}
+	if err := json.Unmarshal(payload, &doc); err != nil {
+		t.Fatal(err)
+	}
+	if doc.ManagementVLAN != 99 {
+		t.Fatalf("management_vlan = %d, want 99", doc.ManagementVLAN)
+	}
+	if got := int(doc.IfTable[0]["management_vlan"].(float64)); got != 99 {
+		t.Fatalf("gateway uplink if_table management_vlan = %d, want 99", got)
+	}
+	if _, ok := doc.IfTable[1]["management_vlan"]; ok {
+		t.Fatalf("non-uplink if_table has management_vlan: %+v", doc.IfTable[1])
+	}
+	if got := int(doc.UplinkTable[0]["management_vlan"].(float64)); got != 99 {
+		t.Fatalf("uplink_table management_vlan = %d, want 99", got)
 	}
 }
 

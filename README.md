@@ -135,7 +135,7 @@ Install a YAML config for service usage:
 ```sh
 sudo install -m 0755 ./unifi-stubd /usr/local/bin/unifi-stubd
 sudo install -d -m 0755 /etc/unifi-stubd /var/lib/unifi-stubd
-sudo install -m 0600 packaging/linux/etc/unifi-stubd/config.yaml /etc/unifi-stubd/config.yaml
+sudo install -m 0640 packaging/linux/etc/unifi-stubd/config.yaml /etc/unifi-stubd/config.yaml
 sudo /usr/local/bin/unifi-stubd
 ```
 
@@ -144,7 +144,7 @@ Runtime layout:
 ```text
 /usr/local/bin/unifi-stubd
 /etc/unifi-stubd/config.yaml
-/etc/unifi-stubd/ssh_host_rsa_key
+/var/lib/unifi-stubd/ssh_host_rsa_key
 /var/lib/unifi-stubd/adoption.env
 /var/lib/unifi-stubd/status.json
 /var/log/unifi-stubd.log
@@ -160,6 +160,13 @@ The packaged Linux config source is
 `packaging/linux/etc/unifi-stubd/config.yaml`. Lab switch identities and
 commands live in `lab/`, and installed Linux paths are documented in
 `packaging/installed-files.md`.
+The systemd unit runs as the dedicated `unifi-stubd` user and grants only
+`CAP_NET_BIND_SERVICE` so the lab SSH shim can keep UniFi-compatible port 22
+without running the daemon as root.
+
+The configuration schema is in `docs/schema/config.schema.json`. `management_vlan`
+is metadata only: it is reported to the controller and status output, but it
+does not create host VLAN interfaces.
 
 Local health/status output:
 

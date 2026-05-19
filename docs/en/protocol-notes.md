@@ -14,6 +14,10 @@ For those cases `discovery_targets` can set explicit UDP targets such as the
 LAN broadcast address, for example `192.0.2.255:10001`. Empty
 `discovery_targets` keeps the defaults above.
 
+`discovery_interface` can pin the local source interface for discovery sends.
+It is explicit on purpose; the daemon does not guess which lab or management
+network should see discovery traffic.
+
 Packet shape:
 
 ```text
@@ -139,6 +143,7 @@ Important fields:
 | `uptime` | status/connected state |
 | `time` | device time |
 | `if_table` | management interface |
+| `if_table[].management_vlan` | optional configured management VLAN metadata |
 | `ethernet_table` | controller-side Ethernet/port-count table |
 | `port_table` | switch ports |
 | `port_table[].speed` | port speed in Mbps, e.g. `1000` or `10000` |
@@ -154,6 +159,10 @@ uses the selected uplink port speed.
 Profiles should stay hardware-shaped. Lab assignments such as "this port is
 WAN", "this port is LAN", or "this port represents backup WAN" belong in
 `port_overrides[].role` and `port_overrides[].network_group`.
+
+`management_vlan` is modeled as safe payload metadata first. It reports the
+management VLAN to the controller but does not create tagged host interfaces or
+apply VLAN changes received through controller provisioning.
 
 Older lab runs showed controller issues when `uptime` in `mac_table` was missing or too small. Each MAC table entry should therefore include plausible `uptime`.
 

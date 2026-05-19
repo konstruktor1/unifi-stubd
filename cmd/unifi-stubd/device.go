@@ -28,16 +28,17 @@ func payloadForIdentity(
 	ports []device.Port,
 ) ([]byte, error) {
 	return buildPayload(device.Identity{
-		MAC:          mac.String(),
-		IP:           ip.String(),
-		Hostname:     hostname,
-		Model:        *flags.model,
-		ModelDisplay: *flags.modelDisplay,
-		DeviceType:   profile.DeviceType,
-		Version:      *flags.version,
-		Serial:       serialFromMAC(mac),
-		InformURL:    informURL,
-		InformIP:     resolveInformIP(informURL),
+		MAC:            mac.String(),
+		IP:             ip.String(),
+		Hostname:       hostname,
+		Model:          *flags.model,
+		ModelDisplay:   *flags.modelDisplay,
+		DeviceType:     profile.DeviceType,
+		Version:        *flags.version,
+		Serial:         serialFromMAC(mac),
+		InformURL:      informURL,
+		InformIP:       resolveInformIP(informURL),
+		ManagementVLAN: *flags.managementVLAN,
 	}, store, ports)
 }
 

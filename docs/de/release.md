@@ -19,6 +19,9 @@ Nutze diese Checkliste vor einem veroeffentlichten Tag oder Paket-Set.
    Code, Pakete oder Tools hinzukommen.
 8. Pruefen, dass `packaging/linux/etc/unifi-stubd/config.yaml` und `lab/` nur
    Dokumentationsadressen oder neutrale Defaults enthalten.
+9. Fuer oeffentliche Releases Pakete oder Checksums mit dem Projekt-Release-Key
+   signieren, sobald dieser existiert; stabile Releases nicht als unsignierte
+   Artefakte veroeffentlichen.
 
 ## Tag setzen
 

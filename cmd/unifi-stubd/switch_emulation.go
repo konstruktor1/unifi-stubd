@@ -100,30 +100,32 @@ func serveSwitchEmulation() error {
 	}()
 
 	return maintainControllerPresence(controllerPresence{
-		flags:            flags,
-		profile:          profile,
-		mac:              mac,
-		ip:               ip,
-		hostname:         resolvedHostname,
-		portOptions:      portOptions,
-		announcement:     ann,
-		discoveryPacket:  packet,
-		discoverySkipped: flags.noDiscovery,
-		discoveryTargets: flags.discoveryTargets,
+		flags:              flags,
+		profile:            profile,
+		mac:                mac,
+		ip:                 ip,
+		hostname:           resolvedHostname,
+		portOptions:        portOptions,
+		announcement:       ann,
+		discoveryPacket:    packet,
+		discoverySkipped:   flags.noDiscovery,
+		discoveryInterface: *flags.discoveryInterface,
+		discoveryTargets:   flags.discoveryTargets,
 	})
 }
 
 type controllerPresence struct {
-	flags            runtimeFlags
-	profile          device.Profile
-	mac              net.HardwareAddr
-	ip               net.IP
-	hostname         string
-	portOptions      device.PortOptions
-	announcement     discovery.Announcement
-	discoveryPacket  []byte
-	discoverySkipped *bool
-	discoveryTargets []string
+	flags              runtimeFlags
+	profile            device.Profile
+	mac                net.HardwareAddr
+	ip                 net.IP
+	hostname           string
+	portOptions        device.PortOptions
+	announcement       discovery.Announcement
+	discoveryPacket    []byte
+	discoverySkipped   *bool
+	discoveryInterface string
+	discoveryTargets   []string
 }
 
 func maintainControllerPresence(cfg controllerPresence) error {
@@ -145,7 +147,7 @@ func maintainControllerPresence(cfg controllerPresence) error {
 			return err
 		}
 
-		sendDiscovery(packet, cfg.hostname, cfg.mac, *cfg.discoverySkipped, cfg.discoveryTargets)
+		sendDiscovery(packet, cfg.hostname, cfg.mac, *cfg.discoverySkipped, cfg.discoveryInterface, cfg.discoveryTargets)
 		sendInformHeartbeat(cfg.mac, informURL, *cfg.flags.sshState, *cfg.flags.statusPath, store, payload)
 
 		if *cfg.flags.once {
@@ -167,11 +169,11 @@ func maintainControllerPresence(cfg controllerPresence) error {
 	}
 }
 
-func sendDiscovery(packet []byte, hostname string, mac net.HardwareAddr, skip bool, targets []string) {
+func sendDiscovery(packet []byte, hostname string, mac net.HardwareAddr, skip bool, iface string, targets []string) {
 	if skip {
 		return
 	}
-	if err := discovery.SendTo(packet, targets); err != nil {
+	if err := discovery.SendToInterface(packet, targets, iface); err != nil {
 		log.Printf("discovery send failed: %v", err)
 		return
 	}
@@ -182,15 +184,17 @@ func sendInformHeartbeat(mac net.HardwareAddr, informURL, statePath, statusPath 
 	if informURL == "" {
 		return
 	}
-	resp, usedGCM, err := sendInform(mac, informURL, store, payload)
+	resp, cipher, err := sendInform(mac, informURL, store, payload)
 	if err != nil {
-		recordLastInform(statusPath, newLastInformStatus(informURL, store), 0, "", usedGCM, 0, 0, err)
+		recordLastInform(statusPath, newLastInformStatus(informURL, store), 0, "", cipher, 0, 0, err)
 		log.Printf("inform send failed: %v", err)
 		return
 	}
 	last := newLastInformStatus(informURL, store)
 	last.StatusCode = resp.StatusCode
-	last.UsedAESGCM = usedGCM
+	last.AttemptedAESGCM = cipher.AttemptedAESGCM
+	last.UsedAESGCM = cipher.UsedAESGCM
+	last.FallbackToCBC = cipher.FallbackToCBC
 	last.RawBytes = len(resp.RawBody)
 	last.JSONBytes = len(resp.JSONBody)
 	if len(resp.JSONBody) > 0 {
@@ -199,18 +203,18 @@ func sendInformHeartbeat(mac net.HardwareAddr, informURL, statePath, statusPath 
 			last.Error = parseErr.Error()
 			log.Printf("controller response parse failed: %v", parseErr)
 		} else {
-			store = updateAdoptionState(statePath, store, controllerResponse, usedGCM)
+			store = updateAdoptionState(statePath, store, controllerResponse, cipher.UsedAESGCM)
 			last.ControllerState = adoptionStateText(store)
 			last.CFGVersion = store.CFGVersion
 			last.Version = store.Version
 			applyControllerResponseStatus(&last, controllerResponse)
-			logInformResponse(resp, controllerResponse, store)
+			logInformResponse(resp, controllerResponse, store, cipher)
 		}
-		recordLastInform(statusPath, last, resp.StatusCode, last.ResponseType, usedGCM, len(resp.RawBody), len(resp.JSONBody), nil)
+		recordLastInform(statusPath, last, resp.StatusCode, last.ResponseType, cipher, len(resp.RawBody), len(resp.JSONBody), nil)
 		return
 	}
-	recordLastInform(statusPath, last, resp.StatusCode, "", usedGCM, len(resp.RawBody), 0, nil)
-	log.Printf("inform response status=%d raw_bytes=%d", resp.StatusCode, len(resp.RawBody))
+	recordLastInform(statusPath, last, resp.StatusCode, "", cipher, len(resp.RawBody), 0, nil)
+	log.Printf("inform response status=%d raw_bytes=%d cipher=%s", resp.StatusCode, len(resp.RawBody), cipherStatusText(cipher))
 }
 
 func applyControllerResponseStatus(last *lastInformStatus, response adoption.ControllerResponse) {
@@ -225,10 +229,12 @@ func applyControllerResponseStatus(last *lastInformStatus, response adoption.Con
 	last.IgnoredReason = response.IgnoredReason
 }
 
-func recordLastInform(statusPath string, last lastInformStatus, statusCode int, responseType string, usedGCM bool, rawBytes, jsonBytes int, err error) {
+func recordLastInform(statusPath string, last lastInformStatus, statusCode int, responseType string, cipher informCipherStatus, rawBytes, jsonBytes int, err error) {
 	last.StatusCode = statusCode
 	last.ResponseType = responseType
-	last.UsedAESGCM = usedGCM
+	last.AttemptedAESGCM = cipher.AttemptedAESGCM
+	last.UsedAESGCM = cipher.UsedAESGCM
+	last.FallbackToCBC = cipher.FallbackToCBC
 	last.RawBytes = rawBytes
 	last.JSONBytes = jsonBytes
 	if err != nil {

@@ -88,7 +88,13 @@ func applyConfig(cfg appconfig.Config, changed map[string]bool, flags *runtimeFl
 	if !changed["no-discovery"] {
 		*flags.noDiscovery = cfg.NoDiscovery
 	}
+	if !changed["discovery-interface"] {
+		*flags.discoveryInterface = cfg.DiscoveryInterface
+	}
 	flags.discoveryTargets = cloneStrings(cfg.DiscoveryTargets)
+	if !changed["management-vlan"] {
+		*flags.managementVLAN = cfg.ManagementVLAN
+	}
 	if !changed["ssh-listen"] {
 		*flags.sshListen = cfg.SSHListen
 	}

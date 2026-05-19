@@ -149,7 +149,12 @@ Macvlan-Kommandos, fuehrt sie aber nicht aus.
 
 ## Passive Quellen
 
-LLDP wird aktuell als `lldp_source: off` oder `lldp_source: lldpd` akzeptiert,
-aber nur `off` hat heute Runtime-Verhalten. Traffic-Metadaten sind aktuell nur
-`traffic_source: off`; Packet Capture und DPI sind fuer die erste
-Observation-Wave absichtlich nicht Teil des Scopes.
+LLDP ist aktuell nur `lldp_source: off`. `lldpd` ist als Quelle geplant, wird
+zur Laufzeit aber abgelehnt, bis die Implementierung vorhanden ist.
+Traffic-Metadaten sind aktuell nur `traffic_source: off`; Packet Capture und
+DPI sind fuer die erste Observation-Wave absichtlich nicht Teil des Scopes.
+
+`management_vlan` ist nur controller-seitige Metadaten. Werte `1..4094` werden
+im Inform-Payload und im Status ausgegeben, `0` laesst das Feld ungesetzt. Der
+Dienst legt keine VLAN-Interfaces an und wendet keine Controller-Provisionierung
+auf dem Host an.

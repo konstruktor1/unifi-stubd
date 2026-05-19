@@ -58,8 +58,12 @@ type Config struct {
 	IntervalSeconds int `yaml:"interval_seconds"`
 	// NoDiscovery disables UDP discovery announcements.
 	NoDiscovery bool `yaml:"no_discovery"`
+	// DiscoveryInterface selects the local interface used for UDP discovery sends.
+	DiscoveryInterface string `yaml:"discovery_interface"`
 	// DiscoveryTargets adds explicit UDP discovery targets.
 	DiscoveryTargets []string `yaml:"discovery_targets"`
+	// ManagementVLAN is the optional controller-facing management VLAN ID.
+	ManagementVLAN int `yaml:"management_vlan"`
 	// SSHListen enables the built-in adoption SSH server when set.
 	SSHListen string `yaml:"ssh_listen"`
 	// SSHUser is the username accepted by the adoption SSH server.
@@ -77,35 +81,37 @@ type Config struct {
 // Default returns the built-in runtime defaults.
 func Default() Config {
 	return Config{
-		OperationMode:    "stub",
-		ControllerURL:    "",
-		Profile:          "us16p150",
-		MAC:              automaticValue,
-		IP:               "192.168.1.50",
-		Hostname:         automaticValue,
-		Model:            "",
-		ModelDisplay:     "",
-		Ports:            0,
-		LinkSpeed:        0,
-		UplinkSpeed:      automaticValue,
-		UplinkPort:       0,
-		UplinkNeighbor:   nil,
-		PortNeighbors:    nil,
-		PortOverrides:    nil,
-		ObserveInterface: "",
-		ObserveBridge:    "",
-		LLDPSource:       "off",
-		TrafficSource:    "off",
-		Version:          "",
-		IntervalSeconds:  10,
-		NoDiscovery:      false,
-		DiscoveryTargets: nil,
-		SSHListen:        "",
-		SSHUser:          "ubnt",
-		SSHPassword:      "ubnt",
-		SSHHostKeyPath:   "/etc/unifi-stubd/ssh_host_rsa_key",
-		StatePath:        "/var/lib/unifi-stubd/adoption.env",
-		StatusPath:       "/var/lib/unifi-stubd/status.json",
+		OperationMode:      "stub",
+		ControllerURL:      "",
+		Profile:            "us16p150",
+		MAC:                automaticValue,
+		IP:                 "192.168.1.50",
+		Hostname:           automaticValue,
+		Model:              "",
+		ModelDisplay:       "",
+		Ports:              0,
+		LinkSpeed:          0,
+		UplinkSpeed:        automaticValue,
+		UplinkPort:         0,
+		UplinkNeighbor:     nil,
+		PortNeighbors:      nil,
+		PortOverrides:      nil,
+		ObserveInterface:   "",
+		ObserveBridge:      "",
+		LLDPSource:         "off",
+		TrafficSource:      "off",
+		Version:            "",
+		IntervalSeconds:    10,
+		NoDiscovery:        false,
+		DiscoveryInterface: "",
+		DiscoveryTargets:   nil,
+		ManagementVLAN:     0,
+		SSHListen:          "",
+		SSHUser:            "ubnt",
+		SSHPassword:        "ubnt",
+		SSHHostKeyPath:     "/var/lib/unifi-stubd/ssh_host_rsa_key",
+		StatePath:          "/var/lib/unifi-stubd/adoption.env",
+		StatusPath:         "/var/lib/unifi-stubd/status.json",
 	}
 }
 

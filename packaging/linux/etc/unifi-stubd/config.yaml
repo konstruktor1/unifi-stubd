@@ -61,15 +61,24 @@ traffic_source: off
 
 interval_seconds: 10
 no_discovery: false
+# Optional local interface used as the source for UDP discovery sends. Leave
+# empty to let the OS route the default broadcast and multicast targets.
+discovery_interface: ""
 # Optional explicit UDP discovery targets for routed labs where the default
 # broadcast or multicast target is not usable.
 discovery_targets: []
 
+# Optional controller-facing management VLAN metadata. 0 leaves it unset and
+# never creates host VLAN interfaces.
+management_vlan: 0
+
+# This lab shim intentionally listens like a factory-default UniFi device.
+# Use only in isolated lab or management networks.
 ssh_listen: 0.0.0.0:22
 ssh_user: ubnt
 # Use the controller's expected advanced-adoption credentials only in a lab.
 ssh_password: ubnt
-ssh_host_key_path: /etc/unifi-stubd/ssh_host_rsa_key
+ssh_host_key_path: /var/lib/unifi-stubd/ssh_host_rsa_key
 
 state_path: /var/lib/unifi-stubd/adoption.env
 status_path: /var/lib/unifi-stubd/status.json

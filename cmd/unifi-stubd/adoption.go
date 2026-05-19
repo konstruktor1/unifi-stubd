@@ -53,11 +53,11 @@ func updateAdoptionState(path string, store adoption.Store, response adoption.Co
 	return store
 }
 
-func logInformResponse(resp *inform.Response, response adoption.ControllerResponse, store adoption.Store) {
+func logInformResponse(resp *inform.Response, response adoption.ControllerResponse, store adoption.Store, cipher informCipherStatus) {
 	if response.Type != "" {
 		if response.Type == "setparam" {
 			log.Printf(
-				"inform response status=%d setparam cfgversion=%q inform_url=%q use_aes_gcm=%t authkey_set=%t mgmt_cfg=%t system_cfg=%t system_cfg_bytes=%d ignored=%t",
+				"inform response status=%d setparam cfgversion=%q inform_url=%q use_aes_gcm=%t authkey_set=%t mgmt_cfg=%t system_cfg=%t system_cfg_bytes=%d ignored=%t cipher=%s",
 				resp.StatusCode,
 				store.CFGVersion,
 				store.InformURL,
@@ -67,30 +67,46 @@ func logInformResponse(resp *inform.Response, response adoption.ControllerRespon
 				response.HasSystemCFG,
 				response.SystemCFGBytes,
 				response.Ignored,
+				cipherStatusText(cipher),
 			)
 			return
 		}
 		if response.Ignored {
 			log.Printf(
-				"inform response status=%d type=%s ignored=true reason=%q state=%q version=%q",
+				"inform response status=%d type=%s ignored=true reason=%q state=%q version=%q cipher=%s",
 				resp.StatusCode,
 				response.Type,
 				response.IgnoredReason,
 				store.State,
 				store.Version,
+				cipherStatusText(cipher),
 			)
 			return
 		}
 		log.Printf(
-			"inform response status=%d type=%s state=%q version=%q interval=%d include_blocks=%v",
+			"inform response status=%d type=%s state=%q version=%q interval=%d include_blocks=%v cipher=%s",
 			resp.StatusCode,
 			response.Type,
 			store.State,
 			store.Version,
 			response.IntervalSeconds,
 			response.IncludeBlocks,
+			cipherStatusText(cipher),
 		)
 		return
 	}
-	log.Printf("inform response status=%d decoded_json_bytes=%d type=unknown", resp.StatusCode, len(resp.JSONBody))
+	log.Printf("inform response status=%d decoded_json_bytes=%d type=unknown cipher=%s", resp.StatusCode, len(resp.JSONBody), cipherStatusText(cipher))
+}
+
+func cipherStatusText(cipher informCipherStatus) string {
+	switch {
+	case cipher.UsedAESGCM:
+		return "aes-gcm"
+	case cipher.FallbackToCBC:
+		return "aes-cbc-fallback"
+	case cipher.AttemptedAESGCM:
+		return "aes-cbc-after-gcm-attempt"
+	default:
+		return "aes-cbc"
+	}
 }

@@ -47,8 +47,7 @@ make package
 ```
 
 `make check` is the normal pre-merge command. It verifies the golangci-lint
-configuration, runs lint, enforces repository policy, and runs tests under
-`tests/...`.
+configuration, runs lint, enforces repository policy, and runs `go test ./...`.
 
 The repository uses:
 

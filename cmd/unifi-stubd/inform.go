@@ -11,7 +11,13 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/inform"
 )
 
-func sendInform(mac net.HardwareAddr, url string, store adoption.Store, payload []byte) (*inform.Response, bool, error) {
+type informCipherStatus struct {
+	AttemptedAESGCM bool
+	UsedAESGCM      bool
+	FallbackToCBC   bool
+}
+
+func sendInform(mac net.HardwareAddr, url string, store adoption.Store, payload []byte) (*inform.Response, informCipherStatus, error) {
 	key, err := authKeyBytes(store.AuthKey)
 	if err != nil {
 		log.Printf("invalid adoption authkey, falling back to default key: %v", err)
@@ -19,6 +25,7 @@ func sendInform(mac net.HardwareAddr, url string, store adoption.Store, payload 
 	}
 
 	options := []inform.Options{{Zlib: true}}
+	status := informCipherStatus{}
 	if store.AuthKey != "" {
 		if store.UseAESGCM {
 			options = []inform.Options{{Zlib: true, GCM: true}}
@@ -28,11 +35,11 @@ func sendInform(mac net.HardwareAddr, url string, store adoption.Store, payload 
 				{Zlib: true},
 			}
 		}
+		status.AttemptedAESGCM = true
 	}
 
 	var lastErr error
 	var lastResp *inform.Response
-	var lastUsedGCM bool
 	for _, opts := range options {
 		resp, err := inform.Client{
 			URL:     url,
@@ -42,18 +49,19 @@ func sendInform(mac net.HardwareAddr, url string, store adoption.Store, payload 
 		}.Send(payload)
 		if err == nil {
 			lastResp = resp
-			lastUsedGCM = opts.GCM
+			status.UsedAESGCM = opts.GCM
+			status.FallbackToCBC = status.AttemptedAESGCM && !opts.GCM
 			if resp.StatusCode == http.StatusOK {
-				return resp, opts.GCM, nil
+				return resp, status, nil
 			}
 			continue
 		}
 		lastErr = err
 	}
 	if lastResp != nil {
-		return lastResp, lastUsedGCM, nil
+		return lastResp, status, nil
 	}
-	return nil, false, lastErr
+	return nil, status, lastErr
 }
 
 func authKeyBytes(authKey string) ([]byte, error) {

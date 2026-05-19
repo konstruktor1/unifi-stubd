@@ -24,6 +24,8 @@ type Identity struct {
 	InformIP string
 	// CFGVersion is the controller configuration version applied to the device.
 	CFGVersion string
+	// ManagementVLAN is the optional controller-facing management VLAN ID.
+	ManagementVLAN int
 	// Adopted reports whether the stub should present itself as adopted.
 	Adopted bool
 }

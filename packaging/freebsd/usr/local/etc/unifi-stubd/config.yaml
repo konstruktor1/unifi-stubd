@@ -48,10 +48,13 @@ traffic_source: off
 
 interval_seconds: 10
 no_discovery: false
+discovery_interface: ""
 # Optional explicit UDP discovery targets for routed or FreeBSD labs where
 # 255.255.255.255 is not usable. Leave empty for the default broadcast and
 # multicast targets.
 discovery_targets: []
+
+management_vlan: 0
 
 ssh_listen: 0.0.0.0:22
 ssh_user: ubnt

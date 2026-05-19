@@ -1,8 +1,12 @@
 package cli_test
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"errors"
+	"io"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,6 +23,8 @@ mac: auto
 ip: 192.0.2.50
 hostname: config-host
 uplink_speed: profile
+management_vlan: 42
+discovery_interface: eth0
 uplink_neighbor:
   mac: 02:aa:bb:cc:dd:01
   vlan: 1
@@ -59,6 +65,12 @@ port_overrides:
 	if !strings.Contains(output, "uplink_port: 1") {
 		t.Fatalf("output did not contain uplink override:\n%s", output)
 	}
+	if !strings.Contains(output, "management_vlan: 42") {
+		t.Fatalf("output did not contain management VLAN:\n%s", output)
+	}
+	if !strings.Contains(output, "discovery_interface: eth0") {
+		t.Fatalf("output did not contain discovery interface:\n%s", output)
+	}
 	if !strings.Contains(output, `uplink_neighbor: mac=02:aa:bb:cc:dd:01`) {
 		t.Fatalf("output did not contain uplink neighbor:\n%s", output)
 	}
@@ -70,6 +82,34 @@ port_overrides:
 	}
 	if !strings.Contains(output, `role="lan"`) || !strings.Contains(output, `network_group="LAN"`) {
 		t.Fatalf("output did not contain port assignment override:\n%s", output)
+	}
+}
+
+func TestInvalidManagementVLANIsRejected(t *testing.T) {
+	cmd := stubdCommand("-dry-run-plan",
+		"-profile", "usaggpro",
+		"-management-vlan", "4095",
+	)
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("command succeeded; output:\n%s", out)
+	}
+	if !strings.Contains(string(out), "invalid -management-vlan 4095") {
+		t.Fatalf("output did not contain management VLAN validation:\n%s", out)
+	}
+}
+
+func TestLLDPSourceIsRejectedUntilImplemented(t *testing.T) {
+	cmd := stubdCommand("-dry-run-plan",
+		"-profile", "usaggpro",
+		"-lldp-source", "lldpd",
+	)
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("command succeeded; output:\n%s", out)
+	}
+	if !strings.Contains(string(out), "lldpd is planned but not implemented yet") {
+		t.Fatalf("output did not contain LLDP validation:\n%s", out)
 	}
 }
 
@@ -182,7 +222,9 @@ USE_AES_GCM=true
     "response_type": "noop",
     "controller_state": "connected",
     "cfgversion": "abc123",
+    "attempted_aes_gcm": true,
     "used_aes_gcm": true,
+    "fallback_to_cbc": false,
     "interval_seconds": 10,
     "include_blocks": ["system-stats"],
     "has_system_cfg": true,
@@ -204,6 +246,7 @@ mac: auto
 ip: 192.0.2.50
 hostname: status-host
 uplink_speed: profile
+management_vlan: 77
 state_path: `+statePath+`
 status_path: `+statusPath+`
 `), 0o600); err != nil {
@@ -216,8 +259,9 @@ status_path: `+statusPath+`
 	}
 	var doc struct {
 		Config struct {
-			OperationMode string `json:"operation_mode"`
-			InformURL     string `json:"inform_url"`
+			OperationMode  string `json:"operation_mode"`
+			InformURL      string `json:"inform_url"`
+			ManagementVLAN int    `json:"management_vlan"`
 		} `json:"config"`
 		Adoption struct {
 			State      string `json:"state"`
@@ -229,6 +273,9 @@ status_path: `+statusPath+`
 			LastInform struct {
 				StatusCode      int      `json:"status_code"`
 				ResponseType    string   `json:"response_type"`
+				AttemptedAESGCM bool     `json:"attempted_aes_gcm"`
+				UsedAESGCM      bool     `json:"used_aes_gcm"`
+				FallbackToCBC   bool     `json:"fallback_to_cbc"`
 				IntervalSeconds int      `json:"interval_seconds"`
 				IncludeBlocks   []string `json:"include_blocks"`
 				HasSystemCFG    bool     `json:"has_system_cfg"`
@@ -248,6 +295,9 @@ status_path: `+statusPath+`
 	if doc.Config.InformURL != "http://192.0.2.10:8080/inform" {
 		t.Fatalf("InformURL = %q", doc.Config.InformURL)
 	}
+	if doc.Config.ManagementVLAN != 77 {
+		t.Fatalf("ManagementVLAN = %d", doc.Config.ManagementVLAN)
+	}
 	if !doc.Adoption.Adopted || !doc.Adoption.AuthKeySet {
 		t.Fatalf("adoption flags = %+v", doc.Adoption)
 	}
@@ -256,6 +306,9 @@ status_path: `+statusPath+`
 	}
 	if doc.Runtime.LastInform.StatusCode != 200 || doc.Runtime.LastInform.ResponseType != "noop" {
 		t.Fatalf("last inform = %+v", doc.Runtime.LastInform)
+	}
+	if !doc.Runtime.LastInform.AttemptedAESGCM || !doc.Runtime.LastInform.UsedAESGCM || doc.Runtime.LastInform.FallbackToCBC {
+		t.Fatalf("last inform cipher status = %+v", doc.Runtime.LastInform)
 	}
 	if doc.Runtime.LastInform.IntervalSeconds != 10 ||
 		len(doc.Runtime.LastInform.IncludeBlocks) != 1 ||
@@ -268,6 +321,68 @@ status_path: `+statusPath+`
 		!doc.Runtime.LastInform.Ignored ||
 		doc.Runtime.LastInform.IgnoredReason == "" {
 		t.Fatalf("last inform safe provisioning metadata = %+v", doc.Runtime.LastInform)
+	}
+}
+
+func TestInformCipherFallbackStatusIsRecorded(t *testing.T) {
+	dir := t.TempDir()
+	statePath := filepath.Join(dir, "adoption.env")
+	statusPath := filepath.Join(dir, "status.json")
+	if err := os.WriteFile(statePath, []byte(`AUTHKEY=0123456789abcdef
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Errorf("read request body: %v", err)
+			w.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		if len(body) >= 16 && binary.BigEndian.Uint16(body[14:16])&0x08 != 0 {
+			http.Error(w, "gcm unavailable", http.StatusBadRequest)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	output := runStubd(t,
+		"-once",
+		"-no-discovery",
+		"-controller", server.URL+"/inform",
+		"-ssh-state", statePath,
+		"-status-path", statusPath,
+		"-profile", "us8",
+		"-ip", "192.0.2.50",
+		"-hostname", "fallback-host",
+		"-uplink-speed", "profile",
+	)
+	if strings.Contains(output, "inform send failed") {
+		t.Fatalf("inform failed:\n%s", output)
+	}
+
+	data, err := os.ReadFile(statusPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		LastInform struct {
+			StatusCode      int  `json:"status_code"`
+			AttemptedAESGCM bool `json:"attempted_aes_gcm"`
+			UsedAESGCM      bool `json:"used_aes_gcm"`
+			FallbackToCBC   bool `json:"fallback_to_cbc"`
+		} `json:"last_inform"`
+	}
+	if err := json.Unmarshal(data, &doc); err != nil {
+		t.Fatalf("status JSON invalid: %v\n%s", err, data)
+	}
+	if doc.LastInform.StatusCode != http.StatusOK {
+		t.Fatalf("status_code = %d, want 200", doc.LastInform.StatusCode)
+	}
+	if !doc.LastInform.AttemptedAESGCM || doc.LastInform.UsedAESGCM || !doc.LastInform.FallbackToCBC {
+		t.Fatalf("cipher status = %+v", doc.LastInform)
 	}
 }
 

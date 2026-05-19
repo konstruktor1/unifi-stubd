@@ -44,9 +44,11 @@ func validateOperationFlags(flags runtimeFlags) error {
 	}
 	*flags.lldpSource = lldpSource
 	switch lldpSource {
-	case lldpSourceOff, lldpSourceLLDPD:
+	case lldpSourceOff:
+	case lldpSourceLLDPD:
+		return fmt.Errorf("invalid -lldp-source %q; lldpd is planned but not implemented yet", lldpSource)
 	default:
-		return fmt.Errorf("invalid -lldp-source %q; use off or lldpd", lldpSource)
+		return fmt.Errorf("invalid -lldp-source %q; only off is implemented", lldpSource)
 	}
 
 	trafficSource := strings.ToLower(strings.TrimSpace(*flags.trafficSource))
@@ -63,6 +65,12 @@ func validateOperationFlags(flags runtimeFlags) error {
 	}
 	if mode == operationModeMacvlan && !*flags.dryRunPlan {
 		return fmt.Errorf("operation-mode macvlan is planned only; use -dry-run-plan to inspect the non-mutating plan")
+	}
+	if iface := strings.TrimSpace(*flags.discoveryInterface); strings.Contains(iface, "/") {
+		return fmt.Errorf("invalid -discovery-interface %q", iface)
+	}
+	if *flags.managementVLAN < 0 || *flags.managementVLAN > 4094 {
+		return fmt.Errorf("invalid -management-vlan %d; use 0..4094", *flags.managementVLAN)
 	}
 	return nil
 }
@@ -215,6 +223,10 @@ func printRuntimePlan(flags runtimeFlags, profile device.Profile, macText, ipTex
 	fmt.Printf("observe_bridge: %s\n", strings.TrimSpace(*flags.observeBridge))
 	fmt.Printf("lldp_source: %s\n", strings.TrimSpace(*flags.lldpSource))
 	fmt.Printf("traffic_source: %s\n", strings.TrimSpace(*flags.trafficSource))
+	fmt.Printf("management_vlan: %d\n", *flags.managementVLAN)
+	if iface := strings.TrimSpace(*flags.discoveryInterface); iface != "" {
+		fmt.Printf("discovery_interface: %s\n", iface)
+	}
 	for _, target := range flags.discoveryTargets {
 		fmt.Printf("discovery_target: %s\n", strings.TrimSpace(target))
 	}

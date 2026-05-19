@@ -50,6 +50,20 @@ func TestInfoOutputMatchesUniFiCLIShape(t *testing.T) {
 	}
 }
 
+func FuzzCommandFields(f *testing.F) {
+	f.Add("syswrapper.sh set-adopt http://192.0.2.10:8080/inform 0123456789abcdef")
+	f.Add(`sh -c "mca-cli-op set-inform http://192.0.2.10:8080/inform"`)
+	f.Add("sudo /usr/bin/syswrapper.sh info && echo ok")
+	f.Add("")
+
+	f.Fuzz(func(t *testing.T, command string) {
+		if len(command) > 4096 {
+			t.Skip()
+		}
+		_ = adoptionssh.CommandFields(command)
+	})
+}
+
 func runSSHCommand(t *testing.T, addr, command string) string {
 	t.Helper()
 	client, err := ssh.Dial("tcp", addr, &ssh.ClientConfig{

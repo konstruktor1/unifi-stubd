@@ -50,6 +50,9 @@ func MinimalSwitchPayload(id Identity, ports []Port) ([]byte, error) {
 		"sys_stats":          sysStats(),
 		"system-stats":       map[string]any{"cpu": 1.0, "mem": 10.0, jsonKeyUptime: 1},
 	}
+	if id.ManagementVLAN > 0 {
+		payload["management_vlan"] = id.ManagementVLAN
+	}
 	if id.InformIP != "" {
 		payload["inform_ip"] = id.InformIP
 	}
@@ -67,17 +70,17 @@ func MinimalSwitchPayload(id Identity, ports []Port) ([]byte, error) {
 
 // applySwitchPayload fills the tables expected by UniFi switch devices.
 func applySwitchPayload(payload map[string]any, id Identity, ports []Port, numPorts int, ifSpeed int) {
-	payload["if_table"] = []map[string]any{
-		{
-			jsonKeyName:       "eth0",
-			jsonKeyMAC:        id.MAC,
-			"ip":              id.IP,
-			jsonKeyNumPort:    numPorts,
-			"up":              true,
-			jsonKeySpeed:      ifSpeed,
-			jsonKeyFullDuplex: true,
-		},
+	iface := map[string]any{
+		jsonKeyName:       "eth0",
+		jsonKeyMAC:        id.MAC,
+		"ip":              id.IP,
+		jsonKeyNumPort:    numPorts,
+		"up":              true,
+		jsonKeySpeed:      ifSpeed,
+		jsonKeyFullDuplex: true,
 	}
+	addManagementVLAN(iface, id.ManagementVLAN)
+	payload["if_table"] = []map[string]any{iface}
 	payload["ethernet_table"] = []map[string]any{
 		{
 			jsonKeyName:    "eth0",
@@ -90,6 +93,13 @@ func applySwitchPayload(payload map[string]any, id Identity, ports []Port, numPo
 		},
 	}
 	payload["port_table"] = portTable(ports)
+}
+
+func addManagementVLAN(row map[string]any, vlan int) {
+	if vlan > 0 {
+		row["vlan"] = vlan
+		row["management_vlan"] = vlan
+	}
 }
 
 // informState maps adoption state to the controller-facing numeric state.

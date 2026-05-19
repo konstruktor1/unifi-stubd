@@ -146,7 +146,12 @@ execute them.
 
 ## Passive Sources
 
-LLDP is currently accepted as `lldp_source: off` or `lldp_source: lldpd`, but
-only `off` has runtime behavior today. Traffic metadata is currently
+LLDP is currently `lldp_source: off` only. `lldpd` is a planned source, but the
+runtime rejects it until it is implemented. Traffic metadata is currently
 `traffic_source: off` only; packet capture and DPI are intentionally out of
 scope for the first observation wave.
+
+`management_vlan` is controller-facing metadata only. Values `1..4094` are
+reported in the inform payload and status output, while `0` leaves it unset.
+The daemon does not create VLAN interfaces or apply controller provisioning to
+the host.

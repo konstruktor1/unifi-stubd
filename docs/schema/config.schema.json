@@ -1,0 +1,237 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/konstruktor1/unifi-stubd/docs/schema/config.schema.json",
+  "title": "unifi-stubd configuration",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "operation_mode": {
+      "type": "string",
+      "enum": ["stub", "observe", "host-direct", "macvlan"]
+    },
+    "controller_url": {
+      "type": "string"
+    },
+    "profile": {
+      "type": "string"
+    },
+    "mac": {
+      "type": "string"
+    },
+    "ip": {
+      "type": "string",
+      "format": "ipv4"
+    },
+    "hostname": {
+      "type": "string"
+    },
+    "model": {
+      "type": "string"
+    },
+    "model_display": {
+      "type": "string"
+    },
+    "ports": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "link_speed": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "uplink_speed": {
+      "oneOf": [
+        {
+          "type": "string",
+          "enum": ["auto", "profile"]
+        },
+        {
+          "type": "integer",
+          "minimum": 1
+        }
+      ]
+    },
+    "uplink_port": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "uplink_neighbor": {
+      "oneOf": [
+        {
+          "$ref": "#/$defs/neighbor"
+        },
+        {
+          "type": "null"
+        }
+      ]
+    },
+    "port_neighbors": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/port_neighbor"
+      }
+    },
+    "port_overrides": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/port_override"
+      }
+    },
+    "observe_interface": {
+      "type": "string"
+    },
+    "observe_bridge": {
+      "type": "string"
+    },
+    "lldp_source": {
+      "type": "string",
+      "enum": ["off"]
+    },
+    "traffic_source": {
+      "type": "string",
+      "enum": ["off"]
+    },
+    "version": {
+      "type": "string"
+    },
+    "interval_seconds": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "no_discovery": {
+      "type": "boolean"
+    },
+    "discovery_interface": {
+      "type": "string"
+    },
+    "discovery_targets": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "management_vlan": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 4094
+    },
+    "ssh_listen": {
+      "type": "string"
+    },
+    "ssh_user": {
+      "type": "string"
+    },
+    "ssh_password": {
+      "type": "string"
+    },
+    "ssh_host_key_path": {
+      "type": "string"
+    },
+    "state_path": {
+      "type": "string"
+    },
+    "status_path": {
+      "type": "string"
+    }
+  },
+  "$defs": {
+    "neighbor": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mac": {
+          "type": "string"
+        },
+        "vlan": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4094
+        },
+        "type": {
+          "type": "string"
+        },
+        "age": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "uptime": {
+          "type": "integer",
+          "minimum": 0
+        }
+      }
+    },
+    "port_neighbor": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "port": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "mac": {
+          "type": "string"
+        },
+        "vlan": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4094
+        },
+        "type": {
+          "type": "string"
+        },
+        "age": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "uptime": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": ["port"]
+    },
+    "port_override": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "port": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "name": {
+          "type": "string"
+        },
+        "interface": {
+          "type": "string"
+        },
+        "mac": {
+          "type": "string"
+        },
+        "ip": {
+          "type": "string"
+        },
+        "netmask": {
+          "type": "string"
+        },
+        "role": {
+          "type": "string",
+          "enum": ["", "wan", "lan", "wan2", "lan2"]
+        },
+        "network_group": {
+          "type": "string"
+        },
+        "speed": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "media": {
+          "type": "string"
+        },
+        "up": {
+          "type": "boolean"
+        }
+      },
+      "required": ["port"]
+    }
+  }
+}

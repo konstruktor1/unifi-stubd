@@ -91,11 +91,24 @@ func Send(packet []byte) error {
 
 // SendTo sends packet to explicit targets or to the default discovery targets.
 func SendTo(packet []byte, targets []string) error {
+	return SendToInterface(packet, targets, "")
+}
+
+// SendToInterface sends packet through ifaceName when set.
+func SendToInterface(packet []byte, targets []string, ifaceName string) error {
 	targets = cleanTargets(targets)
 	if len(targets) == 0 {
 		targets = DefaultTargets()
 	}
-	conn, err := net.ListenPacket("udp4", ":0")
+	listenAddr := ":0"
+	if ifaceName = strings.TrimSpace(ifaceName); ifaceName != "" {
+		ip, err := interfaceIPv4(ifaceName)
+		if err != nil {
+			return err
+		}
+		listenAddr = ip.String() + ":0"
+	}
+	conn, err := net.ListenPacket("udp4", listenAddr)
 	if err != nil {
 		return fmt.Errorf("open discovery socket: %w", err)
 	}
@@ -118,6 +131,30 @@ func SendTo(packet []byte, targets []string) error {
 		return fmt.Errorf("send discovery packets: %w", err)
 	}
 	return nil
+}
+
+func interfaceIPv4(name string) (net.IP, error) {
+	if strings.Contains(name, "/") {
+		return nil, fmt.Errorf("invalid discovery interface %q", name)
+	}
+	iface, err := net.InterfaceByName(name)
+	if err != nil {
+		return nil, fmt.Errorf("find discovery interface %s: %w", name, err)
+	}
+	addrs, err := iface.Addrs()
+	if err != nil {
+		return nil, fmt.Errorf("read discovery interface %s addresses: %w", name, err)
+	}
+	for _, addr := range addrs {
+		ipNet, ok := addr.(*net.IPNet)
+		if !ok {
+			continue
+		}
+		if ip := ipNet.IP.To4(); ip != nil {
+			return ip, nil
+		}
+	}
+	return nil, fmt.Errorf("discovery interface %s has no IPv4 address", name)
 }
 
 func cleanTargets(targets []string) []string {

@@ -27,6 +27,11 @@ The controller must not blindly mutate host configuration. For the MVP:
 
 Discovery and inform belong only in the lab or management network. The project should not run on production VLANs with unrelated controllers.
 
+The packaged Linux lab config exposes the adoption SSH shim on `0.0.0.0:22`
+with UniFi factory credentials for controller compatibility. Run it only in an
+isolated lab or management VLAN, and override `ssh_listen` when that boundary is
+not guaranteed.
+
 ## Personal and Client Data
 
 MAC tables, DHCP information, DPI data, and NetFlow can contain personal metadata. Example PCAPs belong in `.gitignore` and should be anonymized before sharing.

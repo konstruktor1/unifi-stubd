@@ -14,6 +14,10 @@ Adresse senden. Fuer diese Faelle kann `discovery_targets` explizite UDP-Ziele
 setzen, zum Beispiel die LAN-Broadcast-Adresse `192.0.2.255:10001`. Leere
 `discovery_targets` behalten die Defaults oben.
 
+`discovery_interface` kann das lokale Quellinterface fuer Discovery-Sends
+festlegen. Das ist absichtlich explizit; der Dienst raet nicht, welches Lab-
+oder Management-Netz Discovery-Traffic sehen soll.
+
 Paketform:
 
 ```text
@@ -139,6 +143,7 @@ Wichtige Felder:
 | `uptime` | Status/Connected-State |
 | `time` | Device-Zeit |
 | `if_table` | Management-Interface |
+| `if_table[].management_vlan` | optionale konfigurierte Management-VLAN-Metadaten |
 | `ethernet_table` | Controller-seitige Ethernet-/Portzahl-Tabelle |
 | `port_table` | Switch-Ports |
 | `port_table[].speed` | Port-Speed in Mbps, z.B. `1000` oder `10000` |
@@ -154,6 +159,11 @@ Mixed-Speed-Switch-Profile sollten das komplette physische Portlayout in
 Profile sollen Hardware-Form behalten. Lab-Zuweisungen wie "dieser Port ist
 WAN", "dieser Port ist LAN" oder "dieser Port stellt Backup-WAN dar" gehoeren
 in `port_overrides[].role` und `port_overrides[].network_group`.
+
+`management_vlan` wird zuerst als sichere Payload-Metadaten modelliert. Es
+meldet das Management-VLAN an den Controller, legt aber keine getaggten
+Host-Interfaces an und uebernimmt keine VLAN-Aenderungen aus Controller-
+Provisioning.
 
 Bei alten Lab-Laeufen fuehrte ein fehlendes oder zu kleines `uptime` in `mac_table` zu Controller-Problemen. Deshalb sollte jeder MAC-Tabelleneintrag ein plausibles `uptime` besitzen.
 

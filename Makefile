@@ -31,7 +31,7 @@ help:
 		'  make build-freebsd  Cross-build the FreeBSD/OPNsense binary' \
 		'  make coverage     Generate HTML coverage report in dist/coverage.html' \
 		'  make lint         Run golangci-lint and repository policy checks' \
-		'  make test         Run tests under tests/' \
+		'  make test         Run all Go tests' \
 		'  make switch-payload  Print discovery and inform payloads' \
 		'  make switch-emulation  Start the lab switch emulator' \
 		'  make package      Build deb, rpm, archlinux, and tgz packages' \
@@ -56,10 +56,10 @@ policy:
 	sh scripts/check-policy.sh
 
 test:
-	$(GO) test ./tests/...
+	$(GO) test ./...
 
 coverage:
-	$(GO) test -coverprofile=dist/cover.out ./tests/...
+	$(GO) test -coverprofile=dist/cover.out ./...
 	$(GO) tool cover -html=dist/cover.out -o dist/coverage.html
 	@printf 'coverage report written to dist/coverage.html\n'
 

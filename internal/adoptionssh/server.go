@@ -248,7 +248,7 @@ func (h *Handler) Shell(rw io.ReadWriter) {
 }
 
 func (h *Handler) executeOne(command string) (string, int) {
-	args := shellFields(strings.TrimSpace(command))
+	args := CommandFields(strings.TrimSpace(command))
 	if len(args) == 0 {
 		return "", 0
 	}
@@ -437,7 +437,8 @@ func splitCommands(command string) []string {
 	return out
 }
 
-func shellFields(input string) []string {
+// CommandFields splits a shell-like command line for the adoption command shim.
+func CommandFields(input string) []string {
 	var fields []string
 	var current strings.Builder
 	var quote rune

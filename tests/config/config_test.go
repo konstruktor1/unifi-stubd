@@ -13,7 +13,7 @@ func TestDefaultSeparatesConfigAndStatePaths(t *testing.T) {
 	if cfg.OperationMode != "stub" {
 		t.Fatalf("OperationMode = %q, want stub", cfg.OperationMode)
 	}
-	if cfg.SSHHostKeyPath != "/etc/unifi-stubd/ssh_host_rsa_key" {
+	if cfg.SSHHostKeyPath != "/var/lib/unifi-stubd/ssh_host_rsa_key" {
 		t.Fatalf("SSHHostKeyPath = %q", cfg.SSHHostKeyPath)
 	}
 	if cfg.StatePath != "/var/lib/unifi-stubd/adoption.env" {
@@ -34,9 +34,11 @@ profile: us16p150
 operation_mode: observe
 observe_interface: eth0
 observe_bridge: vmbr0
+discovery_interface: eth0
 discovery_targets:
   - 192.0.2.255:10001
   - 233.89.188.1:10001
+management_vlan: 42
 uplink_port: 1
 uplink_neighbor:
   mac: 02:aa:bb:cc:dd:01
@@ -84,6 +86,12 @@ status_path: /tmp/unifi-stubd/status.json
 	}
 	if len(cfg.DiscoveryTargets) != 2 || cfg.DiscoveryTargets[0] != "192.0.2.255:10001" {
 		t.Fatalf("DiscoveryTargets = %#v", cfg.DiscoveryTargets)
+	}
+	if cfg.DiscoveryInterface != "eth0" {
+		t.Fatalf("DiscoveryInterface = %q", cfg.DiscoveryInterface)
+	}
+	if cfg.ManagementVLAN != 42 {
+		t.Fatalf("ManagementVLAN = %d", cfg.ManagementVLAN)
 	}
 	if cfg.UplinkPort != 1 {
 		t.Fatalf("UplinkPort = %d", cfg.UplinkPort)

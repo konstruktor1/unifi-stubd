@@ -19,6 +19,8 @@ Use this checklist before publishing a tag or package set.
    or tools were added.
 8. Confirm `packaging/linux/etc/unifi-stubd/config.yaml` and `lab/` contain
    documentation addresses or neutral defaults only.
+9. For public releases, sign packages or checksums with the project release key
+   once that key exists; do not publish unsigned artifacts as stable releases.
 
 ## Tagging
 
