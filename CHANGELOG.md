@@ -7,6 +7,10 @@ semantic version tags once releases are published.
 
 ## [Unreleased]
 
+No unreleased changes yet.
+
+## [0.1.0-alpha] - 2026-05-20
+
 ### Added
 
 - Minimal UniFi discovery sender.
@@ -17,7 +21,3 @@ semantic version tags once releases are published.
 - OpenRC and systemd service files.
 - Debian, RPM, Arch Linux, and `.tar.gz` package builders.
 - Repository hygiene for linting, tests, docs, and CI.
-
-## [0.1.0] - Unreleased
-
-- Initial public release target.

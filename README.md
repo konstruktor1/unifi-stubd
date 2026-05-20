@@ -1,9 +1,8 @@
-# unifi-stubd - UniFi Network Device Stub for Labs
+# unifi-stubd - UniFi Stub for Proxmox Lab Emulation
 
-`unifi-stubd` is a lab-focused UniFi Network device stub written in Go. It
-makes a Linux host, Proxmox bridge, FreeBSD system, or lab VM appear as a
-minimal UniFi switch or experimental gateway identity in a UniFi Network
-Controller without allowing controller provisioning to mutate the host.
+`unifi-stubd` is a minimal UniFi network device stub for Proxmox, Linux
+bridges, and FreeBSD. It emulates UniFi switches and gateway identities in a
+UniFi Network Controller without mutating the host.
 
 Documentation: [English](docs/en/README.md) | [Deutsch](docs/de/README.md) |
 [Wiki](docs/wiki/README.md) | [Project Status](docs/en/project-status.md) |
@@ -12,6 +11,24 @@ Documentation: [English](docs/en/README.md) | [Deutsch](docs/de/README.md) |
 Coding-agent instructions live in [AGENTS.md](AGENTS.md). Tool-specific bridge
 files only point back to that file. [llms.txt](llms.txt) is a public project
 index, not an agent instruction source.
+
+## Fake UniFi Device Emulation for Homelabs
+
+`unifi-stubd` speaks the minimal UniFi discovery, inform, and adoption flows
+needed to show a fake UniFi device in a UniFi Network Controller. It is meant
+for isolated homelab and network-lab environments where a Linux host, Proxmox
+bridge, FreeBSD system, or firewall VM should appear as a controller-visible
+UniFi switch or gateway stub.
+
+## UniFi Controller Proxmox Switch and Gateway Use Cases
+
+- Show a fake UniFi switch in UniFi Network Controller for lab topology tests.
+- Represent Proxmox bridges and Linux bridge members as read-only UniFi switch
+  ports.
+- Experiment with UGW3, UXG-Lite, UXGPRO, and UCGF gateway identities without
+  running UniFi OS.
+- Feed passive LLDP, bridge, and port-map observations into payloads without
+  controller-driven host networking changes.
 
 ## Features
 
@@ -182,6 +199,15 @@ go run ./cmd/unifi-stubd \
 
 The `192.0.2.0/24` addresses are documentation examples. Replace them with
 addresses from your isolated lab network.
+
+## Safety: Lab-Only, No Host Mutation
+
+Run `unifi-stubd` only in isolated lab or management networks. The controller
+may update local stub adoption state, but controller provisioning must not
+mutate host networking, services, packages, firewall rules, routes, or users.
+
+`unifi-stubd` is not a UniFi gateway replacement and does not reproduce full
+UniFi DPI, firewall, routing, DHCP, or WAN health behavior.
 
 ## Configuration
 
