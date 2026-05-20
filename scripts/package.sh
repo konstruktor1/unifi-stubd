@@ -153,7 +153,13 @@ build_nfpm() {
 build_tgz() {
   target="$PACKAGE_DIR/unifi-stubd_${VERSION}-${RELEASE}_${GOOS_VALUE}_${GOARCH_VALUE}.tar.gz"
   printf '== package tgz ==\n'
-  COPYFILE_DISABLE=1 tar --no-xattrs --uid 0 --gid 0 --uname root --gname wheel -C "$STAGE_DIR" -czf "$target" .
+  if tar --version 2>/dev/null | grep -qi 'gnu tar'; then
+    tar_owner_flags="--owner=0 --group=0 --numeric-owner"
+  else
+    tar_owner_flags="--no-xattrs --uid 0 --gid 0 --uname root --gname wheel"
+  fi
+  # shellcheck disable=SC2086 # tar_owner_flags is a small, controlled option list.
+  COPYFILE_DISABLE=1 tar $tar_owner_flags -C "$STAGE_DIR" -czf "$target" .
   printf 'created: %s\n' "$target"
 }
 
