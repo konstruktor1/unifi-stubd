@@ -1,0 +1,171 @@
+#!/bin/sh
+# Install VM lab compatibility files into the mounted UDM root filesystem.
+#
+# This hook runs in initramfs after the UDM root is mounted at $rootmnt, but
+# before the firmware's real /sbin/init starts. Keep it limited to deterministic
+# lab compatibility: mock hardware files, local helper scripts, and systemd
+# drop-ins. It must not execute controller-provided commands.
+set +e
+
+target="${rootmnt:-/root}"
+mock_root="/etc/unifi-stubd-vm/mock-root"
+payload="/etc/unifi-stubd-vm/rootfs-payload"
+
+[ -d "$target" ] || exit 0
+[ -d "$mock_root" ] || exit 0
+
+cp -R "$mock_root/." "$target/"
+
+shim="$target/usr/local/lib/unifi-stubd-vm/libubnthal_redirect.so"
+[ -f "$shim" ] || exit 0
+
+echo "unifi-stubd-vm-mock: installed userspace hardware mocks"
+
+systemd_dir="$target/etc/systemd/system"
+helper_dir="$target/usr/local/lib/unifi-stubd-vm"
+network_init="$target/usr/sbin/network-init"
+kernel_version=$(uname -r)
+module_src="/usr/lib/modules/$kernel_version"
+module_dst="$target/lib/modules/$kernel_version"
+
+copy_module_metadata() {
+    # The firmware root expects module metadata under /lib/modules even though
+    # the foreign kernel modules were loaded from the initramfs.
+    [ -d "$module_src" ] || return 0
+    mkdir -p "$module_dst"
+    for metadata in "$module_src"/modules.*; do
+        [ -f "$metadata" ] || continue
+        cp "$metadata" "$module_dst/${metadata##*/}"
+    done
+}
+
+remove_old_lab_payload() {
+    # Clean stale files from earlier iterations. The current payload is copied
+    # back below from a structured tree.
+    mkdir -p "$helper_dir"
+    rm -f \
+        "$systemd_dir/unifi-stubd-vm-uos-agent-api.service" \
+        "$systemd_dir/unifi-stubd-vm-web-debug.service" \
+        "$systemd_dir/unifi-stubd-vm-web-ingress.service" \
+        "$systemd_dir/multi-user.target.wants/unifi-stubd-vm-uos-agent-api.service" \
+        "$systemd_dir/multi-user.target.wants/unifi-stubd-vm-web-debug.service" \
+        "$systemd_dir/multi-user.target.wants/unifi-stubd-vm-web-ingress.service" \
+        "$helper_dir/dump-web-state.sh" \
+        "$helper_dir/install-debug-ssh.sh" \
+        "$helper_dir/open-web-ingress.sh" \
+        "$helper_dir/uos-agent-api-stub.cjs"
+}
+
+preserve_vendor_tool() {
+    tool=$1
+    [ -x "$tool" ] || return 0
+    [ ! -e "$tool.real" ] || return 0
+    mv "$tool" "$tool.real"
+}
+
+install_payload_tree() {
+    [ -d "$payload" ] || return 0
+    cp -R "$payload/." "$target/"
+
+    chmod 0755 "$target/sbin/ubnt-tools" 2>/dev/null || true
+    chmod 0755 "$target/sbin/ubnt-systool" 2>/dev/null || true
+    for helper in \
+        prepare-netdevs.sh \
+        keep-lan-forwarding-link.sh \
+        keep-sfp-wan-link.sh \
+        prepare-web-config.sh \
+        dump-web-state.sh \
+        open-web-ingress.sh \
+        install-debug-ssh.sh
+    do
+        chmod 0755 "$helper_dir/$helper" 2>/dev/null || true
+    done
+}
+
+set_lab_root_password() {
+    # The hash is fixed lab data, not copied from a real appliance.
+    [ -f "$target/etc/shadow" ] || return 0
+    tmp_shadow="$target/etc/shadow.unifi-stubd-vm"
+    awk -F: 'BEGIN { OFS = ":" } $1 == "root" { $2 = "$6$unifilab$jsm7Qo3dSoGLzqmz60nSEke0ROYn/QQM5SYi3QUWS9x/dncS9bjfurjrP0X8hsQRCznof3lF3KcZ2SSloydhb." } { print }' \
+        "$target/etc/shadow" > "$tmp_shadow" &&
+        cat "$tmp_shadow" > "$target/etc/shadow"
+    rm -f "$tmp_shadow"
+    chmod 0600 "$target/etc/shadow" 2>/dev/null || true
+}
+
+seed_lab_state() {
+    mkdir -p "$target/tmp"
+    printf '%s\n' 'ubnt' > "$target/tmp/udm-pro-se-lab-sshpasswd"
+}
+
+patch_network_init() {
+    # network-init normally reads board data from UBNTHAL. Point only this VM
+    # path at the deterministic /mock tree staged by prepare-mocks.sh.
+    [ -f "$network_init" ] || return 0
+    grep -q 'unifi-stubd-vm UBNTHAL_SYSTEM override' "$network_init" && return 0
+
+    tmp="$network_init.tmp"
+    awk '
+        {
+            print
+            if ($0 == ". \"/lib/system-init/common\"") {
+                print ""
+                print "# unifi-stubd-vm UBNTHAL_SYSTEM override"
+                print "if [ -f /mock/ubnthal/system.info ]; then"
+                print "    UBNTHAL_SYSTEM=/mock/ubnthal/system.info"
+                print "fi"
+            }
+        }
+    ' "$network_init" > "$tmp" && mv "$tmp" "$network_init"
+    chmod +x "$network_init"
+}
+
+install_shared_dropins() {
+    # Most firmware daemons only need LD_PRELOAD. Keep that common drop-in in
+    # one template file and fan it out here.
+    dropin_src="$target/usr/local/share/unifi-stubd-vm/systemd/10-unifi-stubd-vm-mock.conf"
+    [ -f "$dropin_src" ] || return 0
+
+    for service in \
+        uhwd.service \
+        usd.service \
+        usdbd.service \
+        rpsd.service \
+        udapi-server.service \
+        udapi-bridge.service \
+        network-init.service \
+        uos-agent.service \
+        ulp-go.service \
+        unifi-core.service
+    do
+        dropin_dir="$systemd_dir/$service.d"
+        mkdir -p "$dropin_dir"
+        cp "$dropin_src" "$dropin_dir/10-unifi-stubd-vm-mock.conf"
+    done
+}
+
+enable_lab_units() {
+    mkdir -p "$systemd_dir/multi-user.target.wants"
+    for unit in \
+        unifi-stubd-vm-lan-link.service \
+        unifi-stubd-vm-sfp-wan.service \
+        unifi-stubd-vm-web-config.service \
+        unifi-stubd-vm-web-debug.service \
+        unifi-stubd-vm-web-ingress.service \
+        unifi-stubd-vm-debug-ssh.service
+    do
+        [ -f "$systemd_dir/$unit" ] || continue
+        ln -sf "../$unit" "$systemd_dir/multi-user.target.wants/$unit"
+    done
+}
+
+copy_module_metadata
+remove_old_lab_payload
+preserve_vendor_tool "$target/sbin/ubnt-tools"
+preserve_vendor_tool "$target/sbin/ubnt-systool"
+install_payload_tree
+set_lab_root_password
+seed_lab_state
+patch_network_init
+install_shared_dropins
+enable_lab_units

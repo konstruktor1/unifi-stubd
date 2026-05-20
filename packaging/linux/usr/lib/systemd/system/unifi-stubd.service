@@ -1,0 +1,28 @@
+[Unit]
+Description=UniFi stub daemon
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/local/bin/unifi-stubd
+Restart=on-failure
+RestartSec=5s
+StateDirectory=unifi-stubd
+ConfigurationDirectory=unifi-stubd
+
+# The packaged config keeps the lab adoption SSH shim on port 22 for UniFi
+# compatibility. The service itself stays non-root and receives only the low
+# port bind capability needed for that listener.
+User=unifi-stubd
+Group=unifi-stubd
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
+
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ReadWritePaths=/var/lib/unifi-stubd /etc/unifi-stubd
+
+[Install]
+WantedBy=multi-user.target

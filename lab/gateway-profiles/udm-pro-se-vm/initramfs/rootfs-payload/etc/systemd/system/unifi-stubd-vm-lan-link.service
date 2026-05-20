@@ -1,0 +1,15 @@
+[Unit]
+Description=Keep QEMU LAN link attached to br0
+After=network-init.service
+Before=nginx.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/lib/unifi-stubd-vm/keep-lan-forwarding-link.sh
+Restart=always
+RestartSec=2s
+StandardOutput=journal+console
+StandardError=journal+console
+
+[Install]
+WantedBy=multi-user.target

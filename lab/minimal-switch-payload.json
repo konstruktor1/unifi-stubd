@@ -1,0 +1,34 @@
+{
+  "mac": "02:11:22:33:44:55",
+  "ip": "192.168.1.50",
+  "hostname": "proxmox-vmbr0",
+  "model": "US8",
+  "model_display": "UniFi Switch 8",
+  "version": "6.6.0",
+  "serial": "021122334455",
+  "state": 1,
+  "default": true,
+  "cfgversion": "?",
+  "uptime": 1,
+  "port_table": [
+    {
+      "port_idx": 1,
+      "name": "vmbr0-uplink",
+      "media": "GE",
+      "enable": true,
+      "up": true,
+      "is_uplink": true,
+      "speed": 1000,
+      "mac_table": [
+        {
+          "mac": "02:aa:bb:cc:dd:01",
+          "age": 4,
+          "uptime": 1200,
+          "vlan": 1,
+          "type": "usw"
+        }
+      ]
+    }
+  ]
+}
+

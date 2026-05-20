@@ -1,0 +1,33 @@
+# Project-local build output, captures, and firmware research artifacts.
+
+.DS_Store
+.utm-build/
+bin/
+dist/
+__pycache__/
+coverage.out
+*.pcap
+*.pcapng
+*.log
+/unifi-stubd
+
+# Firmware research inputs and extracted vendor artifacts are large and may be
+# proprietary. Keep only notes, manifests, and own helper source in Git.
+research/firmware/**/artifacts/
+research/firmware/**/*.bin
+research/firmware/**/*.img
+research/firmware/**/*.sqfs
+research/firmware/**/*.squashfs
+research/firmware/**/rootfs/
+research/firmware/**/.env
+research/firmware/**/*.env
+research/firmware/**/controller-data/
+research/firmware/**/captures/
+lab/captures/
+lab/gateway-profiles/**/artifacts/
+lab/gateway-profiles/**/rootfs/
+lab/gateway-profiles/**/captures/
+lab/gateway-profiles/**/controller-data/
+lab/gateway-profiles/**/.env
+lab/gateway-profiles/**/*.env
+!lab/gateway-profiles/udm-pro-se-vm/utm/defaults.env

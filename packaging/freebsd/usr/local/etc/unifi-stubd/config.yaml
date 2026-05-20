@@ -1,0 +1,107 @@
+# unifi-stubd packaged FreeBSD/OPNsense runtime config.
+# Installed as /usr/local/etc/unifi-stubd/config.yaml.
+
+# Replace 192.0.2.10 and 192.0.2.50 with addresses from an isolated lab.
+operation_mode: stub
+controller_url: http://192.0.2.10:8080/inform
+profile: us16p150
+# Optional external lab profiles. Built-in profiles remain the tested defaults.
+profile_file: ""
+profile_dir: ""
+mac: auto
+ip: 192.0.2.50
+hostname: auto
+
+# FreeBSD support is stub-only for now. Keep passive Linux observation disabled.
+link_speed: 0
+uplink_speed: profile
+uplink_port: 0
+uplink_neighbor:
+  mac: ""
+  vlan: 1
+  type: usw
+port_neighbors: []
+# Profiles describe hardware. Use port_overrides for OPNsense/FreeBSD lab
+# assignments such as WAN/LAN/backup_wan without changing the selected profile.
+# port_overrides can also name a host interface. In stub mode this is still
+# read-only; the daemon only copies MAC/IP/link state into the inform payload.
+# Example:
+# port_overrides:
+#   - port: 1
+#     name: LAN
+#     role: lan
+#     network_group: LAN
+#     interface: vtnet0
+#   - port: 2
+#     name: WAN
+#     role: wan
+#     network_group: WAN
+#     interface: ixl0
+#   - port: 3
+#     name: backup_wan
+#     role: wan2
+#     network_group: WAN2
+#     interface: vlan09
+port_overrides: []
+
+observe_interface: ""
+observe_bridge: ""
+bridge_observe:
+  bridge: ""
+  uplink_interface: ""
+  # The bridge device itself is metadata and is not mapped as a UniFi port.
+  # epair*/vnet*/tap* members are treated as downstream access ports. If
+  # available, mapped members contribute their own interface speed and counters.
+  # If uplink_interface is empty and exactly one physical-looking member exists,
+  # it is treated as the uplink candidate.
+  # Switch profiles with dedicated SFP/SFP+ uplink cages keep those profile
+  # ports. The active physical uplink_interface defaults to the last normal GE
+  # port unless uplink_port is set.
+  # MACs learned on uplink_interface are remote behind the real neighbor switch
+  # and are excluded from all local access-port MAC tables.
+  member_port_map: []
+# port-map syntax is available in the config and requires one entry per profile
+# port. Native FreeBSD bridge observation is staged separately. Use
+# disabled/unmapped entries or read-only interface fields in lab configs only.
+port_mappings: []
+# Passive LLDP uses lldpd through `lldpcli -f json show neighbors` when
+# installed. Missing lldpcli is reported as a warning and does not stop the daemon.
+lldp_source: off
+traffic_source: off
+# Optional read-only platform metadata. FreeBSD commonly uses syslog files
+# rather than journald; /proc is Linux-only and should stay off here.
+# OPNsense commonly stores system logs under /var/log/system/latest.log, which
+# is root-only by default. Keep log_source: off unless the service user can read
+# the configured path.
+log_source: off
+proc_source: off
+dbus_enabled: false
+dbus_bus: system
+syslog_path: /var/log/messages
+
+interval_seconds: 10
+no_discovery: false
+discovery_interface: ""
+# Optional explicit UDP discovery targets for routed or FreeBSD labs where
+# 255.255.255.255 is not usable. Leave empty for the default broadcast and
+# multicast targets.
+discovery_targets: []
+
+management_lan:
+  enabled: false
+  vlan: 0
+  network_name: ""
+  mode: metadata-only
+  interface: ""
+  ip: ""
+  controller_reachable: off
+  adoption_strategy: untagged-first
+
+ssh_listen: 0.0.0.0:22
+ssh_user: ubnt
+# Use the controller's expected advanced-adoption credentials only in a lab.
+ssh_password: ubnt
+ssh_host_key_path: /usr/local/etc/unifi-stubd/ssh_host_rsa_key
+
+state_path: /var/db/unifi-stubd/adoption.env
+status_path: /var/db/unifi-stubd/status.json

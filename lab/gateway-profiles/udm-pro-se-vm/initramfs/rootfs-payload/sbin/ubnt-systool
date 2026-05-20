@@ -1,0 +1,64 @@
+#!/bin/sh
+# Narrow ubnt-systool wrapper for lab-only state.
+#
+# Host-affecting commands are acknowledged as no-ops so firmware services can
+# finish setup without rebooting, upgrading, or changing host networking.
+case "${1:-}" in
+    anonid)
+        printf '%s\n' '7f2d8c16-7b60-4db9-84a1-02156d00ea2c'
+        ;;
+    anonidcontroller)
+        printf '%s\n' '00000000-0000-0000-0000-000000000000'
+        ;;
+    cpuload|cputemp)
+        printf '0\n'
+        ;;
+    hostname)
+        if [ -n "${2:-}" ]; then
+            printf '%s\n' "$2" >/tmp/udm-pro-se-lab-hostname
+        else
+            cat /tmp/udm-pro-se-lab-hostname 2>/dev/null || printf 'UDM-SE\n'
+        fi
+        ;;
+    network-speed)
+        if [ -n "${3:-}" ]; then
+            printf 'mocked ubnt-systool %s\n' "$*" >&2
+        else
+            printf '{"speed":10000,"auto-nego":"on"}\n'
+        fi
+        ;;
+    sshd)
+        if [ -n "${2:-}" ]; then
+            printf '%s\n' "$2" >/tmp/udm-pro-se-lab-sshd-enabled
+        elif [ "$(cat /tmp/udm-pro-se-lab-sshd-enabled 2>/dev/null || printf false)" = "true" ]; then
+            printf 'enabled\n'
+        else
+            printf 'disabled\n'
+        fi
+        ;;
+    sshpasswd)
+        case "${2:-}" in
+            get)
+                cat /tmp/udm-pro-se-lab-sshpasswd 2>/dev/null || true
+                ;;
+            set)
+                printf '%s\n' "${3:-}" >/tmp/udm-pro-se-lab-sshpasswd
+                ;;
+            *)
+                printf 'unsupported mocked ubnt-systool command: %s\n' "$*" >&2
+                exit 1
+                ;;
+        esac
+        ;;
+    chpasswd|fwupdate|network|poweroff|reboot|reset2defaults|synctime|timezone)
+        printf 'mocked ubnt-systool %s\n' "$*" >&2
+        ;;
+    *)
+        if [ -x /sbin/ubnt-systool.real ]; then
+            exec /sbin/ubnt-systool.real "$@"
+        fi
+        printf 'unsupported mocked ubnt-systool command: %s\n' "$*" >&2
+        exit 1
+        ;;
+esac
+exit 0

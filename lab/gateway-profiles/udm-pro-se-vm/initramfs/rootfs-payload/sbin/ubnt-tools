@@ -1,0 +1,31 @@
+#!/bin/sh
+# Minimal ubnt-tools wrapper for the QEMU lab.
+#
+# The real tool is preserved as /sbin/ubnt-tools.real. Only the board identity
+# query is overridden because the VM must expose deterministic UDM Pro SE board
+# data without reading unavailable hardware EEPROM paths.
+if [ "${1:-}" = "id" ]; then
+    cat <<'EOF'
+board.sysid=0xea2c
+board.name=UDMPROSE
+board.shortname=UDMPROSE
+board.storename=UDMPROSE
+board.subtype=
+board.reboot=30
+board.upgrade=150
+board.cpu.id=411fd073-00000000
+board.uuid=6d69219a-2336-5f04-8eca-f648c3b56ac0
+board.bom=113-00000-01
+board.hwrev=0x0001
+board.serialno=02156D00EA2C
+board.qrid=SIMULATED
+EOF
+    exit 0
+fi
+
+if [ -x /sbin/ubnt-tools.real ]; then
+    exec /sbin/ubnt-tools.real "$@"
+fi
+
+echo "ubnt-tools.real is not available" >&2
+exit 127

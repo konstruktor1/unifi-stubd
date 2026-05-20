@@ -1,0 +1,35 @@
+order: 100
+name: uxgpro
+model: UXGPRO
+model_display: UniFi Next-Generation Gateway Pro
+device_type: uxg
+version: 5.0.16.30689
+ports: 4
+port_groups:
+  - count: 2
+    speed: 1000
+    media: GE
+    uplink: true
+  - count: 2
+    speed: 10000
+    media: SFP+
+port_names:
+  - WAN
+  - LAN
+  - WAN2
+  - LAN2
+port_roles:
+  - wan
+  - lan
+  - wan2
+  - lan2
+port_network_groups:
+  - WAN
+  - LAN
+  - WAN2
+  - LAN
+port_speed: 1000
+uplink_speed: 1000
+port_media: GE
+uplink_media: GE
+description: experimental UXG-Pro gateway with 1G WAN/LAN and 10G SFP+ WAN2/LAN2

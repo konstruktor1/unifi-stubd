@@ -1,0 +1,76 @@
+#!/bin/sh
+# Deterministic ubnt-systool answers used by unifi-core in the lab container.
+case "${1:-}" in
+    anonid)
+        printf '%s\n' '7f2d8c16-7b60-4db9-84a1-02156d00ea2c'
+        ;;
+    anonidcontroller)
+        printf '%s\n' '00000000-0000-0000-0000-000000000000'
+        ;;
+    cpuload)
+        printf '0\n'
+        ;;
+    cputemp)
+        printf '0\n'
+        ;;
+    hostname)
+        if [ -n "${2:-}" ]; then
+            printf '%s\n' "$2" >/tmp/udm-pro-se-lab-hostname
+        fi
+        ;;
+    network-speed)
+        if [ -n "${3:-}" ]; then
+            printf 'mocked ubnt-systool %s\n' "$*" >&2
+        else
+            printf '{"speed":10000,"auto-nego":"on"}\n'
+        fi
+        ;;
+    support)
+        # The real tool collects many host logs. The lab version creates a small
+        # readable bundle so UniFi Core can complete its support-file workflow.
+        if [ -z "${2:-}" ]; then
+            printf 'mocked ubnt-systool support requires a destination directory\n' >&2
+            exit 1
+        fi
+        mkdir -p "$2"
+        {
+            printf 'UDM Pro SE firmware lab support placeholder\n'
+            printf 'generated_by=ubnt-systool-wrapper\n'
+            printf 'board=UDMPROSE\n'
+        } >"$2/lab-system.txt"
+        ubnt-tools id >"$2/ubnt-tools-id.txt" 2>/dev/null || true
+        ;;
+    sshd)
+        if [ -n "${2:-}" ]; then
+            printf '%s\n' "$2" >/tmp/udm-pro-se-lab-sshd-enabled
+        elif [ "$(cat /tmp/udm-pro-se-lab-sshd-enabled 2>/dev/null || printf false)" = "true" ]; then
+            printf 'enabled\n'
+        else
+            printf 'disabled\n'
+        fi
+        ;;
+    sshpasswd)
+        case "${2:-}" in
+            get)
+                cat /tmp/udm-pro-se-lab-sshpasswd 2>/dev/null || true
+                ;;
+            set)
+                printf '%s\n' "${3:-}" >/tmp/udm-pro-se-lab-sshpasswd
+                ;;
+            *)
+                printf 'unsupported mocked ubnt-systool command: %s\n' "$*" >&2
+                exit 1
+                ;;
+        esac
+        ;;
+    chpasswd|fwupdate|network|poweroff|reboot|reset2defaults|synctime|timezone)
+        # Host-mutating commands are acknowledged but never applied to the
+        # developer machine or the container's network namespace.
+        printf 'mocked ubnt-systool %s\n' "$*" >&2
+        ;;
+    *)
+        printf 'unsupported mocked ubnt-systool command: %s\n' "$*" >&2
+        exit 1
+        ;;
+esac
+exit 0

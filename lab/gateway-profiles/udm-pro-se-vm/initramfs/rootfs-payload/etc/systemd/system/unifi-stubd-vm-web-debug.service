@@ -1,0 +1,12 @@
+[Unit]
+Description=Dump UDM web diagnostics to serial
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/bin/sh -c 'sleep 90; /usr/local/lib/unifi-stubd-vm/dump-web-state.sh'
+StandardOutput=journal+console
+StandardError=journal+console
+
+[Install]
+WantedBy=multi-user.target

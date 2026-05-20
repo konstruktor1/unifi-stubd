@@ -1,0 +1,55 @@
+name: uxgpro-fw-sim
+
+services:
+  firmware:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BASE_IMAGE: ${UXGPRO_BASE_IMAGE:-uxgpro-fw:5.0.16}
+    image: ${UXGPRO_SIM_IMAGE:-uxgpro-fw-sim:5.0.16}
+    container_name: ${UXGPRO_SIM_CONTAINER:-uxgpro-fw-fullsim}
+    platform: linux/arm64
+    init: true
+    network_mode: none
+    cap_drop:
+      - ALL
+    cap_add:
+      - DAC_OVERRIDE
+      - FOWNER
+      - NET_ADMIN
+      - NET_RAW
+    security_opt:
+      - no-new-privileges:true
+    volumes:
+      - type: bind
+        source: ${SIM_DIR:-/tmp/unifi-fw-sim}
+        target: /mock
+    tmpfs:
+      - /tmp:exec,nosuid,nodev
+      - /run:exec,nosuid,nodev
+      - /var/run:exec,nosuid,nodev
+      - /var/log:nosuid,nodev
+      - /data:exec,nosuid,nodev
+    command:
+      - /usr/local/bin/uxgpro-sim-start
+
+  shim-builder:
+    image: debian:bullseye
+    platform: linux/arm64
+    profiles:
+      - build-shim
+    volumes:
+      - type: bind
+        source: ${SIM_DIR:-/tmp/unifi-fw-sim}
+        target: /mock
+    command:
+      - sh
+      - -lc
+      - |
+        apt-get update
+        apt-get install -y --no-install-recommends gcc libc6-dev
+        gcc -shared -fPIC -Wall -Wextra -O2 \
+          -o /mock/libubnthal_redirect.so \
+          /mock/ubnthal_redirect.c \
+          -ldl

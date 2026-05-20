@@ -1,0 +1,19 @@
+# UDM Pro SE firmware simulation override with localhost-only HTTPS forwarding.
+#
+# Use together with compose.yaml:
+#   docker compose -f compose.yaml -f webportal.compose.yaml up -d --build firmware
+
+services:
+  firmware:
+    network_mode: bridge
+    cap_add:
+      - AUDIT_WRITE
+      - CHOWN
+      - NET_BIND_SERVICE
+      - SETGID
+      - SETUID
+    ports:
+      - "127.0.0.1:${UDM_PRO_SE_WEB_HTTP_PORT:-9080}:80"
+      - "127.0.0.1:${UDM_PRO_SE_WEB_HTTPS_PORT:-9443}:443"
+    security_opt: !reset []
+    command: ["/usr/local/bin/udm-pro-se-webportal-start"]

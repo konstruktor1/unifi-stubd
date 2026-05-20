@@ -1,0 +1,4 @@
+#!/bin/sh
+# Route multiple firmware helper names through the shared deterministic UDAPI shim.
+tool="${UDAPI_LAB_TOOL:-$(basename "$0")}"
+exec /usr/bin/node24 /usr/local/lib/udm-pro-se-udapi-lab-shim.cjs "$tool" "$@"

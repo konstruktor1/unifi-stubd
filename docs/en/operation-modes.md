@@ -1,0 +1,308 @@
+# Operation Modes
+
+`unifi-stubd` currently targets Linux lab hosts first, including Proxmox,
+Alpine, and UTM Linux VMs. FreeBSD/OPNsense is supported conservatively through
+stub mode, explicit `port-map`, bridge FDB parsing, and read-only syslog-style
+metadata.
+
+## Current Validated State
+
+The validated live lab device is:
+
+- Host: `192.0.2.151`
+- Profile: `usaggpro`
+- Controller model: `USAGGPRO` / `USW Pro Aggregation`
+- MAC: `02:00:5e:00:53:51`
+- Controller state: online and adopted
+- Ports: 28 10G SFP+ ports and four 25G SFP28 ports
+- Uplink: port 1 by live `uplink_port` override; profile default is port 29
+
+`USAGGPRO` is the currently validated large 10G profile. `USWProXG48` remains
+experimental because the current lab controller did not accept it as a known
+pending adoption model.
+
+`UGW3` is available as an experimental gateway identity profile. It reports the
+legacy UniFi Security Gateway model and three 1G ports, but remains stub-only
+and does not emulate router services yet.
+
+`UXG` is available through the experimental `uxg-lite` gateway identity
+profile. It reports a two-port Gateway Lite layout with `LAN` and `WAN`, but
+remains stub-only and does not emulate router services yet.
+
+`UXGPRO` is available as an experimental 10G gateway identity profile. It
+keeps the original gateway-style assignment: `WAN` on the 1G RJ45 primary WAN,
+`LAN` on the 1G RJ45 LAN, `WAN2` on the 10G SFP+ secondary WAN, and `LAN2` on
+the 10G SFP+ LAN. Use `uplink_port` and `port_overrides` when a lab maps the
+active internet side to the SFP+ port.
+
+`UCGF` is available through the experimental `ucg-fiber` Cloud Gateway Fiber
+identity profile. It reports `udm` device type with four 2.5G RJ45 LAN ports,
+one 10G RJ45 `WAN2` port, one 10G SFP+ `WAN` port, and one 10G SFP+ LAN port.
+It is stub-only and does not run UniFi OS or bundled controller applications.
+
+## Modes
+
+### `stub`
+
+Default mode. The daemon sends discovery and inform payloads from profile data
+only. It does not read host bridge state and does not change host networking.
+This is the supported FreeBSD/OPNsense mode.
+
+### `bridge-observe`
+
+Read-only Linux observation mode. It keeps the same fake device identity, but
+uses passive host data when available:
+
+- `/sys/class/net/<interface>/statistics/*` for port counters
+- `/sys/class/net/<interface>/speed` for uplink speed
+- per-member interface state, speed, and counters for mapped bridge ports
+- optional `/proc/net/dev` counters when `proc_source: procfs` is enabled
+- `bridge fdb show br <bridge>` for learned MAC table entries
+- optional passive LLDP neighbors when `lldp_source: lldpd` is enabled
+
+FDB rows are grouped by bridge member and classified before port mapping.
+`bridge_observe.uplink_interface` is mapped to the current UniFi upstream link. The
+bridge device itself, for example `vmbr0` or `bridge0`, is treated as backplane
+metadata and does not consume a UniFi port. Proxmox/VM members such as `tap*`,
+`veth*`, `fwpr*`, `fwln*`, `fwbr*`, and FreeBSD-style `epair*`/`vnet*` members
+are access/downstream ports with their learned MAC tables. If no uplink
+interface is configured and exactly one physical-looking bridge member exists,
+it is treated as the uplink candidate; otherwise unknown members are mapped as
+normal ports. `bridge_observe.member_port_map` can pin a member to a specific
+UniFi port when deterministic sorting is not enough.
+
+`observe` remains accepted as a migration alias and is normalized internally to
+`bridge-observe`. Existing `observe_interface` and `observe_bridge` configs are
+still read as fallback values for `bridge_observe.uplink_interface` and
+`bridge_observe.bridge`.
+
+```yaml
+operation_mode: bridge-observe
+bridge_observe:
+  bridge: vmbr0
+  uplink_interface: eno1
+  member_port_map:
+    - member: tap101i0
+      port: 2
+```
+
+On a Proxmox host this lets `vmbr0` act as the represented switch. The uplink
+member, for example `eno1`, carries the uplink counters and link speed. MAC
+entries learned on that uplink are treated as remote devices behind the real
+neighbor switch. The daemon tracks those remote MACs first and excludes them
+from all local access-port MAC tables, even if the bridge reports a duplicate
+FDB row elsewhere. VM or container participants such as `tap101i0` and
+`veth200i0` are learned from the bridge FDB; their MAC addresses are placed
+into `port_table[].mac_table`, while their own interface speed and counters are
+used for the mapped access ports. Ports without a mapped bridge member are
+reported as disconnected instead of inheriting synthetic profile link state.
+The daemon re-reads sysfs and FDB data on each heartbeat; it does not subscribe
+to netlink events in this wave.
+
+The profile chooses the uplink port by default. Set `uplink_port` to a positive
+port number to move the uplink marker to a specific physical port while keeping
+that port's profile speed and media. For example, `uplink_port: 1` puts the
+`usaggpro` uplink on a 10G SFP+ port instead of the default 25G SFP28 uplink
+group.
+
+For switch profiles with dedicated SFP/SFP+ uplink groups, those ports remain
+the profile-defined uplink-capable cages. Separately, `bridge-observe` defaults
+an explicitly configured physical `uplink_interface` to the last normal GE port
+when `uplink_port` is unset. This makes the real host link appear as the active
+copper upstream connection without redefining the SFP/SFP+ cages. Simple switch
+profiles without a dedicated uplink group keep their profile default.
+
+If the represented host is cabled through an SFP/SFP+ link, set `uplink_port`
+explicitly to the matching profile port instead of relying on the GE fallback.
+For example, a 48-port switch profile with SFP+ cages can report the bridge
+uplink on `uplink_port: 49`, leaving port 48 disconnected and preserving the
+SFP+ media label on the active uplink.
+
+Topology direction depends on the controller's real view of the reported device
+MAC. If the stub uses the physical bridge or NIC MAC, an upstream UniFi switch
+may already report that MAC on one of its own ports. The controller can then
+prefer the real switch's observation and render the link in the wrong direction,
+even when `uplink_neighbor` is configured. A synthetic locally administered
+stub MAC avoids that collision and is usually better for pure representation
+tests. Use the physical MAC only when the goal is to intentionally test that
+controller heuristic.
+
+On Proxmox, the bridge interface itself can also have the host management IP.
+That is normal for Proxmox but not identical to a hardware UniFi switch: the
+stub's management identity then represents the host bridge IP, not an isolated
+switch management interface. A dedicated management VLAN, macvlan/ipvlan, or a
+separate test IP gives a cleaner model when the test needs to resemble a
+physical switch more closely.
+
+Profiles describe the real hardware layout: model, port count, speed/media
+groups, default port names, and default gateway roles. Use `port_overrides`
+for lab-specific assignments after profile and observation data have been
+applied:
+
+External profiles can extend built-in defaults with `profile_file` or
+`profile_dir`. Treat them as lab data until validated against a concrete UniFi
+Network version. Use `-profile-template`, `-profile-validate`, `-profile-export`,
+and `-validate` to create and check YAML profiles without sending discovery or
+inform traffic.
+
+```yaml
+uplink_neighbor:
+  mac: 02:aa:bb:cc:dd:01
+  vlan: 1
+  type: usw
+
+port_neighbors:
+  - port: 2
+    mac: 02:00:5e:00:53:03
+    vlan: 1
+    type: usw
+
+port_overrides:
+  - port: 2
+    name: lab_lan
+    role: lan
+    network_group: LAN
+    interface: eth1
+    ip: 192.0.2.51
+    netmask: 255.255.255.0
+    speed: 1000
+  - port: 3
+    name: backup_wan
+    role: wan2
+    network_group: WAN2
+    speed: 2500
+  - port: 4
+    speed: 100
+  - port: 5
+    up: false
+```
+
+`port_neighbors` populates `port_table[].mac_table` on specific ports. It is
+useful when the controller needs to see a downstream switch or host MAC on a
+non-uplink port.
+
+Gateway models report WAN/LAN assignments through `config_port_table`,
+`ethernet_overrides`, `network_table`, and `reported_networks`. Switch-style
+MAC-table neighbors may be ignored by the controller for gateway identities, so
+use `role` and `network_group` for gateway visualization instead of changing
+the hardware profile.
+
+For `UXGPRO`, the controller renders gateway ports from its gateway model and
+reported WAN/LAN state. Do not expect it to expose the same switch `port_table`
+view as a UniFi switch profile.
+
+`port_overrides[].interface` is read-only. It lets the daemon copy an existing
+host interface MAC, IPv4 address, link state, and available counter/speed data
+into that port's inform payload. This is useful for FreeBSD/OPNsense stub-only
+gateway tests where WAN/LAN should be visualized from existing interfaces
+without changing host networking.
+
+`uplink_neighbor` is useful for pure stubs and virtual lab ports where there is
+no physical link partner. It adds a configured MAC-table entry to the current
+uplink port.
+
+If any source is missing or unreadable, the daemon logs a warning and falls back
+to profile defaults. This mode must not create interfaces, assign addresses, or
+change routes.
+
+### `port-map`
+
+Read-only explicit mapping mode. Each UniFi port can be assigned one source:
+
+- `interface`: copy a physical OS interface into the payload.
+- `disabled`: report the port administratively disabled, down, with speed `0`,
+  and without learned MAC entries.
+- `unmapped`: leave the profile port without a sensor source.
+
+The validate path checks that explicitly mapped interfaces exist on the local
+host. `disabled` and `unmapped` entries are valid without an OS interface.
+Every profile port must have one `port_mappings[]` entry in this mode. Interface
+data is read through the platform facade from `net.InterfaceByName`, interface
+addresses, sysfs counters/speed/state on Linux, optional `/proc/net/dev`
+counters, and best-effort `ifconfig`/`netstat` output.
+
+```yaml
+operation_mode: port-map
+port_mappings:
+  - port: 1
+    interface: eno1
+  - port: 2
+    disabled: true
+  - port: 3
+    unmapped: true
+  # Continue until every profile port has an explicit entry.
+```
+
+### `host-direct`
+
+Direct host identity mode. It does not create a separate MAC or IP. The special
+`mac: host` value is only allowed in this mode and requires
+`observe_interface` so the daemon can read the host interface MAC explicitly.
+
+### `macvlan`
+
+Planning-only mode in this release. It is Linux-only and must be combined with
+`-dry-run-plan`. The daemon prints the planned macvlan commands, but does not
+execute them.
+
+## Passive Sources
+
+Passive sources are read-only and hang behind `internal/platform`. They enrich
+payloads or status, but never mutate host networking.
+
+```yaml
+lldp_source: lldpd
+log_source: journalctl
+proc_source: procfs
+dbus_enabled: false
+dbus_bus: system
+```
+
+`lldp_source: lldpd` runs `lldpcli -f json show neighbors` with a timeout and
+maps known local interfaces to uplink, bridge-member, `port-map`, or
+`port_overrides[].interface` ports. Missing `lldpcli` is reported as a warning
+and does not stop the daemon.
+
+LLDP is not required for adoption or for a manually configured topology hint.
+When it is available, it reduces manual `uplink_neighbor` mistakes by learning
+the upstream chassis and port from the host interface. When it is missing, keep
+`uplink_neighbor` explicit and treat topology direction as controller-derived:
+the controller may still prefer what real UniFi switches report about the same
+MAC.
+
+`log_source: journalctl` reads recent Linux unit logs through
+`journalctl --output=json`. `log_source: syslog` reads a configured syslog file,
+defaulting to `/var/log/messages` for FreeBSD-style systems. These sources are
+exposed through status/capabilities and remain read-only.
+
+`proc_source: procfs` is Linux-only and supplements interface counters from
+`/proc/net/dev`; it does not replace `/sys/class/net` for link speed or media.
+
+`dbus_enabled: true` only checks optional system or session D-Bus connectivity.
+D-Bus is not required for normal stub operation.
+
+Traffic metadata is currently `traffic_source: off` only; packet capture and
+DPI are intentionally out of scope for the first observation wave.
+
+`management_lan` is the switch management VLAN configuration. Values `1..4094`
+are reported in the inform payload and status output, while `0` leaves it
+unset:
+
+```yaml
+management_lan:
+  enabled: true
+  vlan: 20
+  network_name: Management
+  mode: preexisting-interface
+  interface: vmbr0.20
+  ip: 192.0.2.50
+  controller_reachable: off
+  adoption_strategy: untagged-first
+```
+
+`mode: metadata-only` only reports the VLAN to the controller. `mode:
+preexisting-interface` is the recommended first real mode: the VLAN interface
+must already exist, and the daemon uses its IPv4 address for the reported
+management IP, discovery source, and outbound inform source binding. `mode:
+planned-host-vlan` is dry-run-plan only. The daemon still does not create VLAN
+interfaces or apply controller provisioning to the host.

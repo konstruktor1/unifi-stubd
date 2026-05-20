@@ -1,0 +1,132 @@
+{
+  "schema": "unifi-stubd/decoded-gateway-inform-sample/v1",
+  "source": "UXG-Pro 5.0.16 firmware mcad through controller-lab MITM",
+  "captured_at": "2026-05-17T14:52:48Z",
+  "raw_body": "omitted",
+  "decode_key": "UniFi default inform key",
+  "controller_response": {
+    "status_code": 404,
+    "meaning": "Pre-adoption baseline before the portal Adopt action. The same lab later accepted the device after the admin clicked Adopt in the UniFi Network web portal."
+  },
+  "packet": {
+    "magic": "TNBU",
+    "mac": "02:15:6d:de:ad:00",
+    "packet_version": 0,
+    "payload_version": 1,
+    "flags": 11,
+    "encrypted": true,
+    "zlib": true,
+    "snappy": false,
+    "encrypted_gcm": true,
+    "payload_bytes": 1880,
+    "decoded_bytes": 5706
+  },
+  "payload": {
+    "mac": "02:15:6d:de:ad:00",
+    "serial": "02156DDEAD00",
+    "model": "UXGPRO",
+    "model_display": "Gateway Pro",
+    "version": "5.0.16.30689",
+    "default": true,
+    "state": 1,
+    "inform_url": "http://unifi:8080/inform",
+    "inform_ip": "172.31.244.12",
+    "last_error": "Not Adopted (http://unifi:8080/inform)",
+    "if_table": [
+      {
+        "name": "eth0",
+        "comment": "WAN",
+        "ip": "172.31.244.20",
+        "netmask": "255.255.255.0",
+        "mac": null,
+        "num_port": 1,
+        "physical_ports": [
+          1
+        ],
+        "up": true,
+        "enable": null,
+        "speed": null,
+        "rx_bytes": 98525,
+        "tx_bytes": 704194,
+        "rx_packets": 1142,
+        "tx_packets": 1726
+      },
+      {
+        "name": "eth1",
+        "comment": "LAN",
+        "ip": null,
+        "netmask": null,
+        "mac": "02:15:6d:de:ad:01",
+        "num_port": 3,
+        "physical_ports": null,
+        "up": true,
+        "enable": false,
+        "speed": 10,
+        "rx_bytes": 0,
+        "tx_bytes": 9474,
+        "rx_packets": 0,
+        "tx_packets": 50
+      }
+    ],
+    "network_table": [
+      {
+        "name": "eth0",
+        "address": "172.31.244.20/24",
+        "addresses": [
+          "172.31.244.20/24"
+        ],
+        "mac": "02:15:6d:de:ad:00",
+        "speed": "10000",
+        "duplex": "full",
+        "up": true
+      },
+      {
+        "name": "eth1",
+        "address": "192.0.2.2/24",
+        "addresses": [
+          "192.0.2.2/24",
+          "fe80::215:6dff:fede:ad01/64"
+        ],
+        "mac": "02:15:6d:de:ad:01",
+        "speed": "10",
+        "duplex": "half",
+        "up": true
+      },
+      {
+        "name": "eth2",
+        "address": "198.51.100.2/24",
+        "addresses": [
+          "198.51.100.2/24",
+          "fe80::215:6dff:fede:ad02/64"
+        ],
+        "mac": "02:15:6d:de:ad:02",
+        "speed": "10",
+        "duplex": "half",
+        "up": true
+      },
+      {
+        "name": "eth3",
+        "address": "203.0.113.2/24",
+        "addresses": [
+          "203.0.113.2/24",
+          "fe80::215:6dff:fede:ad03/64"
+        ],
+        "mac": "02:15:6d:de:ad:03",
+        "speed": "10",
+        "duplex": "half",
+        "up": true
+      }
+    ],
+    "port_table": null,
+    "udapi_blocks": null,
+    "gateway_tables_observed": {
+      "if_table": true,
+      "network_table": true,
+      "port_table": false,
+      "ethernet_table": false,
+      "config_port_table": false,
+      "reported_networks": false,
+      "uplink_table": false
+    }
+  }
+}

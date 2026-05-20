@@ -1,0 +1,48 @@
+// Package payload keeps controller-facing JSON keys and renderer enums
+// consistent across switch and gateway builders.
+package payload
+
+const (
+	jsonKeyAutoneg    = "autoneg"
+	jsonKeyEnable     = "enable"
+	jsonKeyFullDuplex = "full_duplex"
+	jsonKeyIfName     = "ifname"
+	jsonKeyL1Up       = "l1up"
+	jsonKeyMAC        = "mac"
+	jsonKeyMaxSpeed   = "max_speed"
+	jsonKeyMedia      = "media"
+	jsonKeyName       = "name"
+	jsonKeyNetworkGrp = "networkgroup"
+	jsonKeyNetmask    = "netmask"
+	jsonKeyNumPort    = "num_port"
+	jsonKeyPortIdx    = "port_idx"
+	jsonKeyRXBytes    = "rx_bytes"
+	jsonKeyRXErrors   = "rx_errors"
+	jsonKeyRXPackets  = "rx_packets"
+	jsonKeySpeed      = "speed"
+	jsonKeySpeedCaps  = "speed_caps"
+	jsonKeySourceIf   = "source_interface"
+	jsonKeyTXBytes    = "tx_bytes"
+	jsonKeyTXErrors   = "tx_errors"
+	jsonKeyTXPackets  = "tx_packets"
+	jsonKeyType       = "type"
+	jsonKeyUp         = "up"
+	jsonKeyUptime     = "uptime"
+
+	deviceTypeUSW = "usw"
+	deviceTypeUGW = "ugw"
+	deviceTypeUXG = "uxg"
+	deviceTypeUDM = "udm"
+	mediaSFPPlus  = "SFP+"
+
+	gatewayNetworkGroupLAN  = "LAN"
+	gatewayNetworkGroupWAN  = "WAN"
+	gatewayNetworkGroupWAN2 = "WAN2"
+	gatewayPortRoleLAN      = "lan"
+	gatewayPortRoleLAN2     = "lan2"
+	gatewayPortRoleWAN      = "wan"
+	gatewayPortRoleWAN2     = "wan2"
+	payloadKindGateway      = "gateway"
+	payloadKindSwitch       = "switch"
+	payloadModeSwitch       = "switch"
+)

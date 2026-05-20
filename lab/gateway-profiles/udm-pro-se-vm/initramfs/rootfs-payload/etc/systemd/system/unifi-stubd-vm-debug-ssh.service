@@ -1,0 +1,12 @@
+[Unit]
+Description=Install optional lab SSH debug public key
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/lib/unifi-stubd-vm/install-debug-ssh.sh
+StandardOutput=journal+console
+StandardError=journal+console
+
+[Install]
+WantedBy=multi-user.target

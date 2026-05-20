@@ -1,0 +1,40 @@
+#!/bin/sh
+# Keep the host-only QEMU NIC attached to the firmware LAN bridge.
+#
+# Network services can briefly recreate bridges during setup. This small loop
+# restores the VM LAN mapping so macOS can keep reaching the stock HTTPS
+# surface on the guest LAN address.
+set +e
+
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+
+bridge=br0
+iface="@UNIFI_STUBD_VM_LAN_IFACE@"
+cidr="@UNIFI_STUBD_VM_LAN_CIDR@"
+cidr_addr="@UNIFI_STUBD_VM_LAN_CIDR_ADDR@"
+host_cidr="@UNIFI_STUBD_VM_LAN_HOST_CIDR@"
+host_cidr_addr="@UNIFI_STUBD_VM_LAN_HOST_CIDR_ADDR@"
+reported=0
+
+while :; do
+    if [ ! -d "/sys/class/net/$bridge" ]; then
+        modprobe bridge >/dev/null 2>&1 || true
+        ip link add "$bridge" type bridge >/dev/null 2>&1 || true
+    fi
+    if [ -d "/sys/class/net/$bridge" ] && [ -d "/sys/class/net/$iface" ]; then
+        master=$(basename "$(readlink "/sys/class/net/$iface/master" 2>/dev/null)" 2>/dev/null || true)
+        [ "$master" = "$bridge" ] || ip link set dev "$iface" master "$bridge" >/dev/null 2>&1 || true
+        ip addr flush dev "$iface" >/dev/null 2>&1 || true
+        ip link set "$iface" up >/dev/null 2>&1 || true
+        ip link set "$bridge" up >/dev/null 2>&1 || true
+        ip addr show dev "$bridge" 2>/dev/null | grep -q " $cidr_addr/" ||
+            ip addr replace "$cidr" dev "$bridge" >/dev/null 2>&1 || true
+        ip addr show dev "$bridge" 2>/dev/null | grep -q " $host_cidr_addr/" ||
+            ip addr add "$host_cidr" dev "$bridge" >/dev/null 2>&1 || true
+        if [ "$reported" -eq 0 ]; then
+            echo "unifi-stubd-vm-lan-link: keeping $iface attached to $bridge at $cidr and $host_cidr for host-only LAN web access"
+            reported=1
+        fi
+    fi
+    sleep 3
+done

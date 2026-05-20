@@ -1,0 +1,14 @@
+#!/bin/sh
+runtime_dir="${UNIFI_FW_SIM_WEB_RUNTIME_DIR:-/usr/local/lib/udm-pro-se-runtime/webportal}"
+
+if [ "${1:-}" = "id" ]; then
+    # Keep the identity fixture in a normal data file so tests and docs can point
+    # at the exact value returned to UniFi Core.
+    cat "$runtime_dir/data/ubnt-tools-id.txt"
+    exit 0
+fi
+if [ -x /sbin/ubnt-tools.real ]; then
+    exec /sbin/ubnt-tools.real "$@"
+fi
+echo "ubnt-tools.real is not available" >&2
+exit 127

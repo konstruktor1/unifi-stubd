@@ -1,0 +1,20 @@
+order: 40
+name: us16xg
+model: US16XG
+model_display: UniFi Switch 16 XG
+device_type: usw
+version: 7.4.1.16850
+ports: 16
+port_groups:
+  - count: 12
+    speed: 10000
+    media: SFP+
+    uplink: true
+  - count: 4
+    speed: 10000
+    media: GE
+port_speed: 10000
+uplink_speed: 10000
+port_media: SFP+
+uplink_media: SFP+
+description: 16-port 10G aggregation switch

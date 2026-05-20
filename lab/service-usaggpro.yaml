@@ -1,0 +1,37 @@
+# Controller-known Pro Aggregation profile for an isolated lab.
+controller_url: http://192.0.2.10:8080/inform
+operation_mode: stub
+profile: usaggpro
+mac: auto
+ip: 192.0.2.50
+hostname: auto
+observe_interface: ""
+observe_bridge: ""
+lldp_source: off
+traffic_source: off
+
+link_speed: 0
+uplink_speed: profile
+uplink_port: 1
+uplink_neighbor:
+  mac: 02:aa:bb:cc:dd:01
+  vlan: 1
+  type: usw
+port_overrides:
+  - port: 2
+    speed: 1000
+  - port: 3
+    speed: 2500
+  - port: 4
+    speed: 100
+  - port: 5
+    up: false
+interval_seconds: 10
+no_discovery: false
+
+ssh_listen: 0.0.0.0:22
+ssh_user: ubnt
+ssh_password: ubnt
+ssh_host_key_path: /var/lib/unifi-stubd/ssh_host_rsa_key
+state_path: /var/lib/unifi-stubd/adoption.env
+status_path: /var/lib/unifi-stubd/status.json

@@ -1,0 +1,122 @@
+# Machine-readable firmware profile catalog for lab simulation research.
+
+schema: unifi-stubd/firmware-profile-catalog/v1
+updated: 2026-05-17
+notes:
+  - Firmware images, extracted root filesystems, controller captures, auth keys,
+    SSH keys, tokens, certificates, password hashes, and private lab addresses
+    must stay out of Git.
+  - A stub profile is enough for synthetic unifi-stubd simulation, but a real
+    firmware profile also needs a locally extracted vendor rootfs and a wrapper
+    matched to that firmware family.
+profiles:
+  - id: uxgpro-5.0.16
+    status: adopted-controller-lab
+    product: UniFi Gateway UXG-Pro
+    stub_profile: uxgpro
+    device_type: uxg
+    model: UXGPRO
+    model_short: UXG Pro
+    firmware_version: 5.0.16.30689
+    architecture: arm64
+    firmware_image_name: UXGPROV2-5.0.16.bin
+    local_base_image: uxgpro-fw:5.0.16
+    simulation_wrapper: lab/gateway-profiles/uxgpro/Dockerfile
+    controller_lab_compose: lab/gateway-profiles/uxgpro/controller-lab.compose.yaml
+    start_command: /usr/local/bin/uxgpro-sim-start
+    start_style: ubios-udapi-server + udapi-bridge + mcad
+    committed_findings:
+      - lab/gateway-profiles/uxgpro/fixtures/adoption-mitm-timeline.json
+      - lab/gateway-profiles/uxgpro/fixtures/adopted-system-config-summary.json
+  - id: uxg-lite-5.0.16
+    status: partial-userspace-simulation
+    product: UniFi Gateway Lite
+    stub_profile: uxg-lite
+    device_type: uxg
+    model: UXG
+    model_short: UXG Lite
+    firmware_version: 5.0.16.30689
+    architecture: arm64
+    firmware_image_name: dad0-UXG-5.0.16-996c83e4-42a4-4dc7-bfa3-26894dc59cd7.bin
+    firmware_sha256: e2e361fc9b4296628f1b4fa10280449695c9df8fb8da95a440a7462044a4765c
+    local_base_image: uxg-lite-fw:5.0.16
+    simulation_wrapper: lab/gateway-profiles/uxg-lite/Dockerfile
+    start_command: /usr/local/bin/uxg-lite-sim-start
+    start_style: ubios-udapi-server + udapi-bridge + mcad
+    current_blocker: ubios-udapi-server does not create /var/run/ubnt-udapi-server.sock under the current mock wrapper, so mcad does not expose /tmp/.mcad.
+    committed_findings:
+      - lab/gateway-profiles/uxg-lite/firmware.md
+      - lab/gateway-profiles/uxg-lite/source-inventory.md
+      - lab/gateway-profiles/uxg-lite/docker-howto.md
+  - id: ucg-fiber-5.0.16
+    status: partial-userspace-simulation
+    product: UniFi Cloud Gateway Fiber
+    stub_profile: ucg-fiber
+    device_type: udm
+    model: UCGF
+    model_short: UCG Fiber
+    firmware_version: 5.0.16
+    image_version_string: UCGF.ipq9574.v5.0.16.238fde6.260227.0038
+    architecture: arm64
+    firmware_image_name: ca3a-UCGF-5.0.16-109206e5-e71e-4be4-b9c8-a4d4ae2ac799.bin
+    firmware_sha256: 7c8635974513413f19b4542c85b188d93a2fef38707ad53d237ce6a657e88ce5
+    rootfs_offset: 12914826
+    rootfs_image_name: rootfs.squashfs
+    rootfs_sha256: ee244235939905984f6897c9e5e91d0c951e1fdc3a0677bc3f4f426d97a44f21
+    local_base_image: ucg-fiber-fw:5.0.16
+    simulation_wrapper: lab/gateway-profiles/ucg-fiber/Dockerfile
+    start_command: /usr/local/bin/ucg-fiber-sim-start
+    start_style: ubios-udapi-server + udapi-bridge + mcad
+    current_blocker: ubios-udapi-server does not create /var/run/ubnt-udapi-server.sock under the current mock wrapper, so mcad does not expose /tmp/.mcad.
+    committed_findings:
+      - lab/gateway-profiles/ucg-fiber/firmware.md
+      - lab/gateway-profiles/ucg-fiber/source-inventory.md
+      - lab/gateway-profiles/ucg-fiber/docker-howto.md
+  - id: udm-pro-se-5.0.16
+    status: mca-control-simulation
+    product: UniFi Dream Machine Special Edition
+    device_type: udm
+    model: UDMPROSE
+    model_short: UDM Pro SE
+    firmware_version: 5.0.16
+    image_version_string: UDMPROSE.al324.v5.0.16.238fde6.260227.0037
+    architecture: arm64
+    firmware_image_name: 473c-UDMPROSE-5.0.16-511eddc1-cb19-476d-a02d-fcaf3dbddc29.bin
+    firmware_sha256: 7cf58f4563522220716f5025a7b2954b070df6be9364d7f60af0bc644512bce4
+    firmware_size_bytes: 964689062
+    rootfs_offset: 16141142
+    rootfs_image_name: rootfs.squashfs
+    rootfs_sha256: a5f710613cfd0b5f9ccb49380d36c76a9d21143db796a43d6c70e9ef1a84e17d
+    source_url: https://fw-download.ubnt.com/data/unifi-dream/473c-UDMPROSE-5.0.16-511eddc1-cb19-476d-a02d-fcaf3dbddc29.bin
+    local_base_image: udm-pro-se-fw:5.0.16
+    local_artifact_dir: research/firmware/udm-pro-se-5.0.16/artifacts
+    simulation_wrapper: lab/gateway-profiles/udm-pro-se/Dockerfile
+    start_command: /usr/local/bin/udm-pro-se-sim-start
+    start_style: ubios-udapi-server + udapi-bridge + mcad
+    current_blocker: ubios-udapi-server and mca-ctrl run with the RTL8370-style swconfig mock; controller adoption and deterministic switch0/eth0-through-eth10 netdev data are still pending.
+    committed_findings:
+      - research/firmware/udm-pro-se-5.0.16/README.md
+      - research/firmware/udm-pro-se-5.0.16/source-inventory.md
+      - lab/gateway-profiles/udm-pro-se/firmware.md
+      - lab/gateway-profiles/udm-pro-se/source-inventory.md
+      - lab/gateway-profiles/udm-pro-se/docker-howto.md
+      - lab/gateway-profiles/udm-pro-se/fixtures/mca-dump-summary.json
+  - id: ugw3-4.4.57
+    status: qemu-mcad-simulation
+    product: UniFi Security Gateway 3P
+    stub_profile: ugw3
+    device_type: ugw
+    model: UGW3
+    firmware_version: 4.4.57.5578372
+    architecture: mips
+    firmware_image_name: 7920-UGW3-4.4.57-803dc5671c6745dbb68c8dfa10145a8f.tar
+    firmware_sha256: 08a35a626e9733018b2e49af92aa3474255136bb0178e0697f44c6d8042cdd74
+    local_rootfs_volume: unifi-ugw3-rootfs
+    simulation_wrapper: lab/gateway-profiles/ugw3/Dockerfile
+    start_command: /usr/local/bin/ugw3-qemu-start
+    start_style: Debian qemu-mips-static chroot running legacy mcad
+    current_blocker: Hardware identity is placeholder-only until a legacy board and interface mock is added.
+    committed_findings:
+      - lab/gateway-profiles/ugw3/firmware.md
+      - lab/gateway-profiles/ugw3/source-inventory.md
+      - lab/gateway-profiles/ugw3/docker-howto.md

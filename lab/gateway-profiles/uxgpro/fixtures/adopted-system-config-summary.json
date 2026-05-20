@@ -1,0 +1,184 @@
+{
+  "schema": "unifi-stubd/adopted-system-config-summary/v1",
+  "source": "Sanitized summary of UXG-Pro 5.0.16 controller setparam system_cfg",
+  "captured_at": "2026-05-17T17:01:30Z",
+  "raw_system_cfg": "omitted",
+  "secret_fields": "redacted",
+  "controller_response": {
+    "event_id": "1779037290647-73097ae3",
+    "decoded_type": "setparam",
+    "cfgversion": "87893ca41993f905",
+    "system_cfg": "present_redacted"
+  },
+  "system_cfg_shape": {
+    "top_level_keys": [
+      "ubntconf",
+      "udapi"
+    ],
+    "udapi_keys": [
+      "firewall/filter",
+      "firewall/nat",
+      "firewall/sets",
+      "firewall/settings",
+      "interfaces",
+      "routes/static",
+      "services",
+      "services/radius-profiles",
+      "system",
+      "unifi",
+      "version"
+    ],
+    "version": 1
+  },
+  "interfaces": [
+    {
+      "id": "lo",
+      "type": "loopback",
+      "enabled": true,
+      "addresses_count": 1
+    },
+    {
+      "id": "eth0",
+      "type": "ethernet",
+      "enabled": false,
+      "addresses_count": 0
+    },
+    {
+      "id": "eth1",
+      "type": "ethernet",
+      "enabled": false,
+      "addresses_count": 0
+    },
+    {
+      "id": "eth2",
+      "type": "ethernet",
+      "enabled": false,
+      "addresses_count": 0
+    },
+    {
+      "id": "eth3",
+      "type": "ethernet",
+      "enabled": false,
+      "addresses_count": 0
+    }
+  ],
+  "services": {
+    "keys": [
+      "arpInspection",
+      "bleHTTPTransport",
+      "idsIps",
+      "lldp",
+      "mdns",
+      "ntpClient",
+      "sshServer",
+      "systemLog",
+      "unifiNetwork",
+      "wifiman"
+    ],
+    "ssh_server": {
+      "enabled": true,
+      "ssh_port": 22
+    },
+    "unifi_network": {
+      "enabled": true,
+      "sitename": "default",
+      "controller_url_present": true,
+      "inform_url_present": true,
+      "token_present": true,
+      "certificate_present": true
+    }
+  },
+  "system": {
+    "hostname": "UXG-Pro",
+    "domain_name": "localdomain",
+    "dns_server_count": 1,
+    "timezone": "Europe/Zurich",
+    "users": [
+      {
+        "username": "root",
+        "aliases": [
+          "ubnt"
+        ],
+        "read_only": true,
+        "password_hash_present": true
+      }
+    ]
+  },
+  "firewall_and_routing": {
+    "nat_count": 0,
+    "sets_count": 18,
+    "static_routes_count": 0,
+    "radius_profiles_count": 1,
+    "radius_secret_present": true,
+    "filter_chains": [
+      {
+        "name": "INPUT",
+        "policy": "ACCEPT",
+        "rules_count": 1
+      },
+      {
+        "name": "FORWARD",
+        "policy": "ACCEPT",
+        "rules_count": 2
+      },
+      {
+        "name": "OUTPUT",
+        "policy": "ACCEPT",
+        "rules_count": 0
+      },
+      {
+        "name": "FORWARD_IN",
+        "policy": null,
+        "rules_count": 1
+      },
+      {
+        "name": "FORWARD_OUT",
+        "policy": null,
+        "rules_count": 1
+      },
+      {
+        "name": "LAN_LOCAL",
+        "policy": null,
+        "rules_count": 2
+      },
+      {
+        "name": "LAN_IN",
+        "policy": null,
+        "rules_count": 3
+      },
+      {
+        "name": "LAN_OUT",
+        "policy": null,
+        "rules_count": 4
+      }
+    ]
+  },
+  "ubntconf_keys": [
+    "unifi.version",
+    "unifi.anonymous_controller_id",
+    "unifi.anonymous_site_id",
+    "unifi.reporterid",
+    "unifi.siteid",
+    "unifi.idp",
+    "unifi.mcip",
+    "unifi.key",
+    "unifi.feature.always_send_crash_logs",
+    "unifi.cfgcap_info",
+    "qos.status",
+    "ebtables.status",
+    "ipset.status",
+    "redirector.status",
+    "system.analytics.status",
+    "system.monitor.memory.threshold",
+    "system.monitor.critical_memory.threshold",
+    "system.timezone",
+    "locale.timezone"
+  ],
+  "unifi_stubd_implications": [
+    "Persist authkey, cfgversion, and AES-GCM mode from mgmt_cfg.",
+    "Treat system_cfg as controller provisioning data, not as host commands.",
+    "Do not apply firewall, routes, users, password hashes, certificates, tokens, or Radius secrets to the host.",
+    "Gateway inform payloads should keep using if_table and network_table; adopted controller responses can request additional blocks such as ipv4_active_leases and gw_caps.",
+    "After adoption, steady-state controller responses can be modeled as noop with interval 10 and include_blocks."
+  ]
+}

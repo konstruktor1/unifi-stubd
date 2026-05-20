@@ -1,0 +1,535 @@
+// Runtime status reports identity, configuration, adoption, observation, and
+// last-inform state without exposing authkeys. The human and JSON outputs share
+// the same sanitized status document.
+package main
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"net"
+	"os"
+	"path/filepath"
+	"strings"
+	"time"
+
+	"github.com/konstruktor1/unifi-stubd/internal/adoption"
+	appconfig "github.com/konstruktor1/unifi-stubd/internal/config"
+	"github.com/konstruktor1/unifi-stubd/internal/device"
+	"github.com/konstruktor1/unifi-stubd/internal/observe"
+	"github.com/konstruktor1/unifi-stubd/internal/platform"
+)
+
+// localStatus is the public status document printed by --status.
+type localStatus struct {
+	ConfigPath string             `json:"config_path"`
+	Identity   statusIdentity     `json:"identity"`
+	Config     statusConfig       `json:"config"`
+	Adoption   statusAdoption     `json:"adoption"`
+	Observe    statusObservation  `json:"observe,omitempty"`
+	Platform   statusPlatform     `json:"platform"`
+	Runtime    persistedRunStatus `json:"runtime"`
+	Warnings   []string           `json:"warnings,omitempty"`
+}
+
+// statusIdentity contains the controller-facing fake device identity.
+type statusIdentity struct {
+	MAC        string `json:"mac"`
+	IP         string `json:"ip"`
+	Hostname   string `json:"hostname"`
+	Serial     string `json:"serial"`
+	Model      string `json:"model"`
+	ModelName  string `json:"model_name"`
+	DeviceType string `json:"device_type"`
+	Profile    string `json:"profile"`
+	Ports      int    `json:"ports"`
+	UplinkPort int    `json:"uplink_port"`
+}
+
+// statusConfig contains non-secret runtime configuration selected for status output.
+type statusConfig struct {
+	OperationMode      string                   `json:"operation_mode"`
+	ControllerURL      string                   `json:"controller_url,omitempty"`
+	InformURL          string                   `json:"inform_url,omitempty"`
+	Interval           string                   `json:"interval"`
+	NoDiscovery        bool                     `json:"no_discovery"`
+	DiscoveryInterface string                   `json:"discovery_interface,omitempty"`
+	DiscoveryTargets   []string                 `json:"discovery_targets,omitempty"`
+	ManagementLAN      *appconfig.ManagementLAN `json:"management_lan,omitempty"`
+	SSHListen          string                   `json:"ssh_listen,omitempty"`
+	StatePath          string                   `json:"state_path"`
+	StatusPath         string                   `json:"status_path"`
+	UplinkNeighbor     *statusUplinkNeighbor    `json:"uplink_neighbor,omitempty"`
+	PortNeighbors      []statusPortNeighbor     `json:"port_neighbors,omitempty"`
+	PortOverrides      []device.PortOverride    `json:"port_overrides,omitempty"`
+	BridgeObserve      appconfig.BridgeObserve  `json:"bridge_observe,omitempty"`
+	PortMappings       []appconfig.PortMapping  `json:"port_mappings,omitempty"`
+	LLDPSource         string                   `json:"lldp_source"`
+	TrafficSource      string                   `json:"traffic_source"`
+	LogSource          string                   `json:"log_source"`
+	ProcSource         string                   `json:"proc_source"`
+	DBusEnabled        bool                     `json:"dbus_enabled"`
+	DBusBus            string                   `json:"dbus_bus"`
+	SyslogPath         string                   `json:"syslog_path,omitempty"`
+}
+
+// statusUplinkNeighbor summarizes the configured uplink MAC-table neighbor.
+type statusUplinkNeighbor struct {
+	MAC    string `json:"mac"`
+	VLAN   int    `json:"vlan,omitempty"`
+	Type   string `json:"type,omitempty"`
+	Age    int    `json:"age,omitempty"`
+	Uptime int    `json:"uptime,omitempty"`
+}
+
+// statusPortNeighbor summarizes one configured per-port MAC-table neighbor.
+type statusPortNeighbor struct {
+	Port   int    `json:"port"`
+	MAC    string `json:"mac"`
+	VLAN   int    `json:"vlan,omitempty"`
+	Type   string `json:"type,omitempty"`
+	Age    int    `json:"age,omitempty"`
+	Uptime int    `json:"uptime,omitempty"`
+}
+
+// statusAdoption exposes adoption state without leaking the auth key.
+type statusAdoption struct {
+	State      string `json:"state"`
+	Adopted    bool   `json:"adopted"`
+	AuthKeySet bool   `json:"authkey_set"`
+	CFGVersion string `json:"cfgversion,omitempty"`
+	UseAESGCM  bool   `json:"use_aes_gcm"`
+	Version    string `json:"version,omitempty"`
+}
+
+// statusObservation reports passive Linux observation inputs and counters.
+type statusObservation struct {
+	Interface string `json:"interface,omitempty"`
+	Bridge    string `json:"bridge,omitempty"`
+	observe.InterfaceStats
+	BridgeDevices  int      `json:"bridge_devices,omitempty"`
+	LearnedMACs    int      `json:"learned_macs,omitempty"`
+	SourceWarnings []string `json:"source_warnings,omitempty"`
+}
+
+// statusPlatform reports optional OS integration capabilities.
+type statusPlatform struct {
+	Capabilities platform.CapabilityReport `json:"capabilities"`
+}
+
+// persistedRunStatus contains runtime data loaded from the status file.
+type persistedRunStatus struct {
+	LastInform lastInformStatus `json:"last_inform,omitempty"`
+}
+
+// lastInformStatus summarizes the latest controller inform exchange.
+type lastInformStatus struct {
+	Time            string   `json:"time,omitempty"`
+	URL             string   `json:"url,omitempty"`
+	StatusCode      int      `json:"status_code,omitempty"`
+	ResponseType    string   `json:"response_type,omitempty"`
+	ControllerState string   `json:"controller_state,omitempty"`
+	CFGVersion      string   `json:"cfgversion,omitempty"`
+	Version         string   `json:"version,omitempty"`
+	AttemptedAESGCM bool     `json:"attempted_aes_gcm,omitempty"`
+	UsedAESGCM      bool     `json:"used_aes_gcm,omitempty"`
+	FallbackToCBC   bool     `json:"fallback_to_cbc,omitempty"`
+	RawBytes        int      `json:"raw_bytes,omitempty"`
+	JSONBytes       int      `json:"json_bytes,omitempty"`
+	IntervalSeconds int      `json:"interval_seconds,omitempty"`
+	IncludeBlocks   []string `json:"include_blocks,omitempty"`
+	ResetRequested  bool     `json:"reset_requested,omitempty"`
+	ResetApplied    bool     `json:"reset_applied,omitempty"`
+	ResetReason     string   `json:"reset_reason,omitempty"`
+	HasMgmtCFG      bool     `json:"has_mgmt_cfg,omitempty"`
+	HasSystemCFG    bool     `json:"has_system_cfg,omitempty"`
+	SystemCFGBytes  int      `json:"system_cfg_bytes,omitempty"`
+	SystemCFGKeys   []string `json:"system_cfg_keys,omitempty"`
+	Ignored         bool     `json:"ignored,omitempty"`
+	IgnoredReason   string   `json:"ignored_reason,omitempty"`
+	Error           string   `json:"error,omitempty"`
+}
+
+func printLocalStatus(flags runtimeFlags, profile device.Profile, mac net.HardwareAddr, ip net.IP, hostname string, portOptions device.PortOptions, plt platform.Platform) error {
+	status := buildLocalStatus(flags, profile, mac, ip, hostname, portOptions, plt)
+	if flags.statusJSON {
+		data, err := json.MarshalIndent(status, "", "  ")
+		if err != nil {
+			return fmt.Errorf("marshal local status: %w", err)
+		}
+		fmt.Println(string(data))
+		return nil
+	}
+	printHumanStatus(status)
+	return nil
+}
+
+func buildLocalStatus(flags runtimeFlags, profile device.Profile, mac net.HardwareAddr, ip net.IP, hostname string, portOptions device.PortOptions, plt platform.Platform) localStatus {
+	store, adoptionWarnings := loadAdoptionStateForStatus(flags.sshState)
+	informURL := effectiveInformURL(flags.controller, store)
+	ports := device.SwitchPortsWithOptions(flags.portCount, portOptions)
+	status := localStatus{
+		ConfigPath: flags.configPath,
+		Identity: statusIdentity{
+			MAC:        mac.String(),
+			IP:         ip.String(),
+			Hostname:   hostname,
+			Serial:     serialFromMAC(mac),
+			Model:      flags.model,
+			ModelName:  flags.modelDisplay,
+			DeviceType: profile.DeviceType,
+			Profile:    profile.Name,
+			Ports:      len(ports),
+			UplinkPort: uplinkPortIndex(ports),
+		},
+		Config: statusConfig{
+			OperationMode:      flags.operationMode,
+			ControllerURL:      flags.controller,
+			InformURL:          informURL,
+			Interval:           flags.interval.String(),
+			NoDiscovery:        flags.noDiscovery,
+			DiscoveryInterface: effectiveDiscoveryInterface(flags),
+			DiscoveryTargets:   cloneStrings(flags.discoveryTargets),
+			ManagementLAN:      statusManagementLAN(flags),
+			SSHListen:          flags.sshListen,
+			StatePath:          flags.sshState,
+			StatusPath:         flags.statusPath,
+			UplinkNeighbor:     statusUplinkNeighborEntry(flags.uplinkNeighbor),
+			PortNeighbors:      statusPortNeighbors(flags.portNeighbors),
+			PortOverrides:      statusPortOverrides(flags.portOverrides),
+			BridgeObserve:      cloneBridgeObserve(flags.bridgeObserve),
+			PortMappings:       clonePortMappings(flags.portMappings),
+			LLDPSource:         flags.lldpSource,
+			TrafficSource:      flags.trafficSource,
+			LogSource:          flags.logSource,
+			ProcSource:         flags.procSource,
+			DBusEnabled:        flags.dbusEnabled,
+			DBusBus:            flags.dbusBus,
+			SyslogPath:         flags.syslogPath,
+		},
+		Adoption: statusAdoption{
+			State:      adoptionStateText(store),
+			Adopted:    store.AuthKey != "",
+			AuthKeySet: store.AuthKey != "",
+			CFGVersion: store.CFGVersion,
+			UseAESGCM:  store.UseAESGCM,
+			Version:    store.Version,
+		},
+	}
+	status.Warnings = append(status.Warnings, adoptionWarnings...)
+	if plt == nil {
+		plt = runtimePlatform(flags)
+	}
+	status.Platform = statusPlatform{Capabilities: plt.Capabilities(context.Background(), runtimePlatformConfig(flags))}
+
+	runStatus, err := loadPersistedRunStatus(flags.statusPath)
+	if err != nil {
+		status.Warnings = append(status.Warnings, fmt.Sprintf("runtime status: %v", err))
+	}
+	status.Runtime = runStatus
+
+	if shouldObserveStatus(flags.operationMode) {
+		status.Observe = buildObservationStatus(flags, ports, plt)
+	}
+	return status
+}
+
+func loadAdoptionStateForStatus(path string) (adoption.Store, []string) {
+	store, err := adoption.LoadEnv(path)
+	if err == nil {
+		return store, nil
+	}
+	if errors.Is(err, os.ErrNotExist) {
+		return adoption.Store{}, []string{"adoption state: not found"}
+	}
+	return adoption.Store{}, []string{fmt.Sprintf("adoption state: %v", err)}
+}
+
+func adoptionStateText(store adoption.Store) string {
+	if store.State != "" {
+		return string(store.State)
+	}
+	if store.AuthKey != "" {
+		return string(adoption.StateProvisioning)
+	}
+	return string(adoption.StateFactory)
+}
+
+func shouldObserveStatus(mode string) bool {
+	mode = normalizeMode(mode)
+	return mode == operationModeBridgeObserve || mode == operationModePortMap || mode == operationModeHostDirect
+}
+
+func buildObservationStatus(flags runtimeFlags, ports []device.Port, plt platform.Platform) statusObservation {
+	ctx, cancel := context.WithTimeout(context.Background(), observeTimeout)
+	defer cancel()
+
+	bridgeObserve := effectiveBridgeObserve(flags)
+	snapshot, errs := observe.HostSnapshotFromSource(ctx, plt, observe.Config{
+		Interface:     strings.TrimSpace(bridgeObserve.UplinkInterface),
+		Bridge:        strings.TrimSpace(bridgeObserve.Bridge),
+		MemberPortMap: bridgeMemberPortMap(bridgeObserve.MemberPortMap),
+	}, uplinkPortIndex(ports))
+
+	out := statusObservation{
+		Interface:      strings.TrimSpace(bridgeObserve.UplinkInterface),
+		Bridge:         strings.TrimSpace(bridgeObserve.Bridge),
+		InterfaceStats: snapshot.Stats,
+		BridgeDevices:  len(snapshot.DeviceMACs),
+		LearnedMACs:    len(snapshot.MACs),
+	}
+	for _, err := range errs {
+		out.SourceWarnings = append(out.SourceWarnings, err.Error())
+	}
+	return out
+}
+
+func printHumanStatus(status localStatus) {
+	fmt.Println("unifi-stubd status")
+	fmt.Printf("config_path: %s\n", status.ConfigPath)
+	fmt.Printf("operation_mode: %s\n", status.Config.OperationMode)
+	fmt.Printf("profile: %s (%s)\n", status.Identity.Profile, status.Identity.Model)
+	fmt.Printf("model_name: %s\n", status.Identity.ModelName)
+	fmt.Printf("device_type: %s\n", valueOrDash(status.Identity.DeviceType))
+	fmt.Printf("mac: %s\n", status.Identity.MAC)
+	fmt.Printf("ip: %s\n", status.Identity.IP)
+	fmt.Printf("hostname: %s\n", status.Identity.Hostname)
+	fmt.Printf("serial: %s\n", status.Identity.Serial)
+	fmt.Printf("ports: %d\n", status.Identity.Ports)
+	fmt.Printf("uplink_port: %d\n", status.Identity.UplinkPort)
+	fmt.Printf("controller_url: %s\n", valueOrDash(status.Config.ControllerURL))
+	fmt.Printf("inform_url: %s\n", valueOrDash(status.Config.InformURL))
+	fmt.Printf("interval: %s\n", status.Config.Interval)
+	fmt.Printf("no_discovery: %t\n", status.Config.NoDiscovery)
+	if status.Config.ManagementLAN != nil && status.Config.ManagementLAN.Enabled {
+		fmt.Printf("management_lan.mode: %s\n", status.Config.ManagementLAN.Mode)
+		fmt.Printf("management_lan.vlan: %d\n", status.Config.ManagementLAN.VLAN)
+		fmt.Printf("management_lan.interface: %s\n", valueOrDash(status.Config.ManagementLAN.Interface))
+		fmt.Printf("management_lan.ip: %s\n", valueOrDash(status.Config.ManagementLAN.IP))
+		fmt.Printf("management_lan.network_name: %s\n", valueOrDash(status.Config.ManagementLAN.NetworkName))
+		fmt.Printf("management_lan.controller_reachable: %s\n", status.Config.ManagementLAN.ControllerReachable)
+		fmt.Printf("management_lan.adoption_strategy: %s\n", status.Config.ManagementLAN.AdoptionStrategy)
+	}
+	fmt.Printf("lldp_source: %s\n", status.Config.LLDPSource)
+	fmt.Printf("traffic_source: %s\n", status.Config.TrafficSource)
+	fmt.Printf("log_source: %s\n", status.Config.LogSource)
+	fmt.Printf("proc_source: %s\n", status.Config.ProcSource)
+	fmt.Printf("dbus_enabled: %t\n", status.Config.DBusEnabled)
+	fmt.Printf("dbus_bus: %s\n", valueOrDash(status.Config.DBusBus))
+	if status.Config.SyslogPath != "" {
+		fmt.Printf("syslog_path: %s\n", status.Config.SyslogPath)
+	}
+	if status.Config.DiscoveryInterface != "" {
+		fmt.Printf("discovery_interface: %s\n", status.Config.DiscoveryInterface)
+	}
+	for _, target := range status.Config.DiscoveryTargets {
+		fmt.Printf("discovery_target: %s\n", target)
+	}
+	if status.Config.UplinkNeighbor != nil {
+		fmt.Printf("uplink_neighbor: mac=%s vlan=%d type=%s\n",
+			status.Config.UplinkNeighbor.MAC,
+			status.Config.UplinkNeighbor.VLAN,
+			valueOrDash(status.Config.UplinkNeighbor.Type),
+		)
+	}
+	for _, neighbor := range status.Config.PortNeighbors {
+		fmt.Printf("port_neighbor: port=%d mac=%s vlan=%d type=%s\n",
+			neighbor.Port,
+			neighbor.MAC,
+			neighbor.VLAN,
+			valueOrDash(neighbor.Type),
+		)
+	}
+	for _, override := range status.Config.PortOverrides {
+		fmt.Printf("port_override: port=%d interface=%s mac=%s ip=%s netmask=%s role=%s network_group=%s speed=%d media=%s up=%s name=%s\n",
+			override.Port,
+			valueOrDash(override.Interface),
+			valueOrDash(override.MAC),
+			valueOrDash(override.IP),
+			valueOrDash(override.Netmask),
+			valueOrDash(override.Role),
+			valueOrDash(override.NetworkGroup),
+			override.Speed,
+			valueOrDash(override.Media),
+			boolPointerText(override.Up),
+			valueOrDash(override.Name),
+		)
+	}
+	fmt.Printf("ssh_listen: %s\n", valueOrDash(status.Config.SSHListen))
+	fmt.Printf("state_path: %s\n", status.Config.StatePath)
+	fmt.Printf("status_path: %s\n", status.Config.StatusPath)
+	fmt.Printf("adoption_state: %s\n", status.Adoption.State)
+	fmt.Printf("adopted: %t\n", status.Adoption.Adopted)
+	fmt.Printf("authkey_set: %t\n", status.Adoption.AuthKeySet)
+	fmt.Printf("cfgversion: %s\n", valueOrDash(status.Adoption.CFGVersion))
+	fmt.Printf("use_aes_gcm: %t\n", status.Adoption.UseAESGCM)
+	fmt.Printf("version: %s\n", valueOrDash(status.Adoption.Version))
+	printObservationStatus(status.Observe)
+	printPlatformStatus(status.Platform)
+	printLastInform(status.Runtime.LastInform)
+	for _, warning := range status.Warnings {
+		fmt.Printf("warning: %s\n", warning)
+	}
+}
+
+func printPlatformStatus(status statusPlatform) {
+	if status.Capabilities.GOOS == "" {
+		return
+	}
+	fmt.Printf("platform_goos: %s\n", status.Capabilities.GOOS)
+	for _, capability := range status.Capabilities.Capabilities {
+		fmt.Printf("platform_capability: name=%s source=%s state=%s detail=%s\n",
+			capability.Name,
+			valueOrDash(capability.Source),
+			capability.State,
+			valueOrDash(capability.Detail),
+		)
+	}
+}
+
+func statusUplinkNeighborEntry(neighbor *device.MacTableEntry) *statusUplinkNeighbor {
+	if neighbor == nil {
+		return nil
+	}
+	return &statusUplinkNeighbor{
+		MAC:    neighbor.MAC,
+		VLAN:   neighbor.VLAN,
+		Type:   neighbor.Type,
+		Age:    neighbor.Age,
+		Uptime: neighbor.Uptime,
+	}
+}
+
+func statusPortNeighbors(neighbors []device.PortNeighbor) []statusPortNeighbor {
+	out := make([]statusPortNeighbor, 0, len(neighbors))
+	for _, neighbor := range neighbors {
+		out = append(out, statusPortNeighbor{
+			Port:   neighbor.Port,
+			MAC:    neighbor.Entry.MAC,
+			VLAN:   neighbor.Entry.VLAN,
+			Type:   neighbor.Entry.Type,
+			Age:    neighbor.Entry.Age,
+			Uptime: neighbor.Entry.Uptime,
+		})
+	}
+	return out
+}
+
+func statusPortOverrides(overrides []device.PortOverride) []device.PortOverride {
+	out := device.ClonePortOverrides(overrides)
+	for index := range out {
+		out[index] = device.NormalizePortOverride(out[index])
+	}
+	return out
+}
+
+func printObservationStatus(status statusObservation) {
+	if status.Interface == "" && status.Bridge == "" {
+		return
+	}
+	fmt.Printf("observe_interface: %s\n", valueOrDash(status.Interface))
+	fmt.Printf("observe_bridge: %s\n", valueOrDash(status.Bridge))
+	fmt.Printf("observe_speed_mbps: %d\n", status.SpeedMbps)
+	fmt.Printf("observe_rx_bytes: %d\n", status.RXBytes)
+	fmt.Printf("observe_tx_bytes: %d\n", status.TXBytes)
+	fmt.Printf("observe_bridge_devices: %d\n", status.BridgeDevices)
+	fmt.Printf("observe_learned_macs: %d\n", status.LearnedMACs)
+	for _, warning := range status.SourceWarnings {
+		fmt.Printf("observe_warning: %s\n", warning)
+	}
+}
+
+func printLastInform(last lastInformStatus) {
+	if last.Time == "" {
+		fmt.Println("last_inform: none")
+		return
+	}
+	fmt.Printf("last_inform_time: %s\n", last.Time)
+	fmt.Printf("last_inform_url: %s\n", valueOrDash(last.URL))
+	fmt.Printf("last_inform_status: %d\n", last.StatusCode)
+	fmt.Printf("last_inform_type: %s\n", valueOrDash(last.ResponseType))
+	fmt.Printf("last_inform_state: %s\n", valueOrDash(last.ControllerState))
+	fmt.Printf("last_inform_cfgversion: %s\n", valueOrDash(last.CFGVersion))
+	fmt.Printf("last_inform_version: %s\n", valueOrDash(last.Version))
+	fmt.Printf("last_inform_attempted_aes_gcm: %t\n", last.AttemptedAESGCM)
+	fmt.Printf("last_inform_used_aes_gcm: %t\n", last.UsedAESGCM)
+	fmt.Printf("last_inform_fallback_to_cbc: %t\n", last.FallbackToCBC)
+	fmt.Printf("last_inform_raw_bytes: %d\n", last.RawBytes)
+	fmt.Printf("last_inform_json_bytes: %d\n", last.JSONBytes)
+	if last.IntervalSeconds > 0 {
+		fmt.Printf("last_inform_interval_seconds: %d\n", last.IntervalSeconds)
+	}
+	for _, block := range last.IncludeBlocks {
+		fmt.Printf("last_inform_include_block: %s\n", block)
+	}
+	if last.ResetRequested {
+		fmt.Println("last_inform_reset_requested: true")
+		fmt.Printf("last_inform_reset_applied: %t\n", last.ResetApplied)
+		fmt.Printf("last_inform_reset_reason: %s\n", valueOrDash(last.ResetReason))
+	}
+	if last.HasMgmtCFG {
+		fmt.Println("last_inform_has_mgmt_cfg: true")
+	}
+	if last.HasSystemCFG {
+		fmt.Printf("last_inform_has_system_cfg: true\n")
+		fmt.Printf("last_inform_system_cfg_bytes: %d\n", last.SystemCFGBytes)
+		for _, key := range last.SystemCFGKeys {
+			fmt.Printf("last_inform_system_cfg_key: %s\n", key)
+		}
+	}
+	if last.Ignored {
+		fmt.Println("last_inform_ignored: true")
+		fmt.Printf("last_inform_ignored_reason: %s\n", valueOrDash(last.IgnoredReason))
+	}
+	if last.Error != "" {
+		fmt.Printf("last_inform_error: %s\n", last.Error)
+	}
+}
+
+func valueOrDash(value string) string {
+	if strings.TrimSpace(value) == "" {
+		return "-"
+	}
+	return value
+}
+
+func loadPersistedRunStatus(path string) (persistedRunStatus, error) {
+	var status persistedRunStatus
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return status, fmt.Errorf("read runtime status %s: %w", path, err)
+	}
+	if err := json.Unmarshal(data, &status); err != nil {
+		return status, fmt.Errorf("parse runtime status %s: %w", path, err)
+	}
+	return status, nil
+}
+
+func saveLastInformStatus(path string, last lastInformStatus) error {
+	if path == "" {
+		return errors.New("status path is required")
+	}
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		return fmt.Errorf("create runtime status directory: %w", err)
+	}
+	data, err := json.MarshalIndent(persistedRunStatus{LastInform: last}, "", "  ")
+	if err != nil {
+		return fmt.Errorf("marshal runtime status: %w", err)
+	}
+	data = append(data, '\n')
+	if err := os.WriteFile(path, data, 0o600); err != nil {
+		return fmt.Errorf("write runtime status %s: %w", path, err)
+	}
+	return nil
+}
+
+func newLastInformStatus(url string, store adoption.Store) lastInformStatus {
+	return lastInformStatus{
+		Time:            time.Now().Format(time.RFC3339),
+		URL:             url,
+		ControllerState: adoptionStateText(store),
+		CFGVersion:      store.CFGVersion,
+		Version:         store.Version,
+	}
+}

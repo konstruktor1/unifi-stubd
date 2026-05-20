@@ -1,0 +1,62 @@
+{
+  "source": "mca-ctrl -t dump inside the networkless UDM Pro SE firmware simulation",
+  "captured": "2026-05-17",
+  "sanitization": "Raw dump was not committed. Runtime IDs, tokens, and volatile host counters were omitted.",
+  "identity": {
+    "model": "UDMPROSE",
+    "model_display": "UniFi Dream Machine SE",
+    "hostname": "UDM-SE",
+    "mac": "02:15:6d:00:ea:2c",
+    "serial": "02156D00EA2C",
+    "version": "5.0.16.30692",
+    "architecture": "aarch64"
+  },
+  "inform": {
+    "url": "http://127.0.0.1:8080/inform",
+    "last_error": "Unreachable (http://127.0.0.1:8080/inform)",
+    "state": 1
+  },
+  "switch": {
+    "driver": "RTL8370",
+    "mock": "LD_PRELOAD libsw.so / OpenWrt swconfig ABI mock",
+    "max_aggregate_sessions": 2,
+    "max_lag_ports": 4,
+    "max_mirror_sessions": 1,
+    "max_port_restrict_entries": 32,
+    "max_storm_control_rate": 524287,
+    "lag_groups": [
+      {
+        "id": 0,
+        "ports_idx": [1, 2, 3, 4]
+      },
+      {
+        "id": 1,
+        "ports_idx": [5, 6, 7, 8]
+      }
+    ]
+  },
+  "hardware_sensors": {
+    "temperatures": [
+      {
+        "name": "CPU",
+        "type": "cpu",
+        "value": 50.0
+      },
+      {
+        "name": "Local",
+        "type": "board",
+        "value": 42.0
+      },
+      {
+        "name": "PHY",
+        "type": "board",
+        "value": 43.0
+      }
+    ]
+  },
+  "known_gaps": [
+    "if_table is empty because switch0 and eth0 through eth10 are not yet backed by deterministic lab netdevs.",
+    "network_table is empty in the networkless compose profile.",
+    "Controller adoption and MITM capture have not been run for this profile yet."
+  ]
+}

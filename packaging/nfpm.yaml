@@ -1,0 +1,92 @@
+# yaml-language-server: $schema=https://nfpm.goreleaser.com/schema.json
+name: unifi-stubd
+arch: "@PKG_ARCH@"
+platform: linux
+version: "@PKG_VERSION@"
+version_schema: semver
+release: "@PKG_RELEASE@"
+section: net
+priority: optional
+maintainer: "@PKG_MAINTAINER@"
+description: Minimal UniFi device stub for lab use.
+vendor: unifi-stubd
+homepage: https://github.com/konstruktor1/unifi-stubd
+license: "@PKG_LICENSE@"
+
+contents:
+  - src: ./dist/stage/pkgroot/usr/local/bin/unifi-stubd
+    dst: /usr/local/bin/unifi-stubd
+    file_info:
+      mode: 0755
+
+  - src: ./dist/stage/pkgroot/etc/unifi-stubd/config.yaml
+    dst: /etc/unifi-stubd/config.yaml
+    type: config|noreplace
+    file_info:
+      mode: 0640
+      owner: root
+      group: unifi-stubd
+
+  - src: ./dist/stage/pkgroot/etc/init.d/unifi-stubd
+    dst: /etc/init.d/unifi-stubd
+    file_info:
+      mode: 0755
+
+  - src: ./dist/stage/pkgroot/usr/lib/systemd/system/unifi-stubd.service
+    dst: /usr/lib/systemd/system/unifi-stubd.service
+    packager: rpm
+    file_info:
+      mode: 0644
+
+  - src: ./dist/stage/pkgroot/usr/lib/systemd/system/unifi-stubd.service
+    dst: /usr/lib/systemd/system/unifi-stubd.service
+    packager: archlinux
+    file_info:
+      mode: 0644
+
+  - src: ./dist/stage/pkgroot/usr/lib/systemd/system/unifi-stubd.service
+    dst: /lib/systemd/system/unifi-stubd.service
+    packager: deb
+    file_info:
+      mode: 0644
+
+  - src: ./dist/stage/pkgroot/usr/share/doc/unifi-stubd/LICENSE
+    dst: /usr/share/doc/unifi-stubd/LICENSE
+    file_info:
+      mode: 0644
+
+  - src: ./dist/stage/pkgroot/usr/share/doc/unifi-stubd/NOTICE.md
+    dst: /usr/share/doc/unifi-stubd/NOTICE.md
+    file_info:
+      mode: 0644
+
+  - src: ./dist/stage/pkgroot/usr/share/doc/unifi-stubd/CREDITS.md
+    dst: /usr/share/doc/unifi-stubd/CREDITS.md
+    file_info:
+      mode: 0644
+
+  - dst: /etc/unifi-stubd
+    type: dir
+    file_info:
+      mode: 0755
+      owner: root
+      group: unifi-stubd
+
+  - dst: /var/lib/unifi-stubd
+    type: dir
+    file_info:
+      mode: 0755
+      owner: unifi-stubd
+      group: unifi-stubd
+
+  - dst: /usr/share/doc/unifi-stubd
+    type: dir
+    file_info:
+      mode: 0755
+
+archlinux:
+  packager: "@PKG_MAINTAINER@"
+  pkgbase: unifi-stubd
+
+scripts:
+  preinstall: ./packaging/linux/scripts/preinstall.sh

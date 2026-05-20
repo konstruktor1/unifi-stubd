@@ -1,0 +1,14 @@
+[Unit]
+Description=Install UDM setup nginx config for QEMU LAN access
+After=network-init.service unifi-stubd-vm-lan-link.service
+Before=nginx.service unifi-core.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/lib/unifi-stubd-vm/prepare-web-config.sh
+StandardOutput=journal+console
+StandardError=journal+console
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,121 @@
+# Docker integration overlay for bridge-observe and port-map smoke tests.
+
+services:
+  stub-bridge-observe:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      args:
+        VERSION: ${UNIFI_STUBD_VERSION:-lab}
+    image: ${UNIFI_STUB_IMAGE:-unifi-stubd:lab}
+    depends_on:
+      inform-mitm:
+        condition: service_started
+    extra_hosts:
+      - "unifi:${UNIFI_STUB_LAB_MITM_IP:-172.31.242.12}"
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_ADMIN
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      lab:
+        ipv4_address: ${UNIFI_STUB_BRIDGE_IP:-172.31.242.25}
+    volumes:
+      - stub-bridge-observe-state:/var/lib/unifi-stubd
+      - type: bind
+        source: ./scripts
+        target: /usr/local/lib/unifi-stubd-lab
+        read_only: true
+    environment:
+      UNIFI_STUB_BRIDGE_PROFILE: ${UNIFI_STUB_BRIDGE_PROFILE:-us8}
+      UNIFI_STUB_BRIDGE_MAC: ${UNIFI_STUB_BRIDGE_MAC:-02:15:6d:00:08:21}
+      UNIFI_STUB_BRIDGE_IP: ${UNIFI_STUB_BRIDGE_IP:-172.31.242.25}
+      UNIFI_STUB_BRIDGE_HOSTNAME: ${UNIFI_STUB_BRIDGE_HOSTNAME:-stub-bridge-observe}
+      UNIFI_STUB_TEST_INTERVAL: ${UNIFI_STUB_TEST_INTERVAL:-2s}
+    entrypoint:
+      - /bin/sh
+      - /usr/local/lib/unifi-stubd-lab/run-bridge-observe.sh
+
+  stub-port-map:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      args:
+        VERSION: ${UNIFI_STUBD_VERSION:-lab}
+    image: ${UNIFI_STUB_IMAGE:-unifi-stubd:lab}
+    depends_on:
+      inform-mitm:
+        condition: service_started
+    extra_hosts:
+      - "unifi:${UNIFI_STUB_LAB_MITM_IP:-172.31.242.12}"
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_ADMIN
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      lab:
+        ipv4_address: ${UNIFI_STUB_PORTMAP_IP:-172.31.242.26}
+    volumes:
+      - stub-port-map-state:/var/lib/unifi-stubd
+      - type: bind
+        source: ./scripts
+        target: /usr/local/lib/unifi-stubd-lab
+        read_only: true
+    environment:
+      UNIFI_STUB_PORTMAP_PROFILE: ${UNIFI_STUB_PORTMAP_PROFILE:-us8}
+      UNIFI_STUB_PORTMAP_MAC: ${UNIFI_STUB_PORTMAP_MAC:-02:15:6d:00:08:22}
+      UNIFI_STUB_PORTMAP_IP: ${UNIFI_STUB_PORTMAP_IP:-172.31.242.26}
+      UNIFI_STUB_PORTMAP_HOSTNAME: ${UNIFI_STUB_PORTMAP_HOSTNAME:-stub-port-map}
+      UNIFI_STUB_TEST_INTERVAL: ${UNIFI_STUB_TEST_INTERVAL:-2s}
+    entrypoint:
+      - /bin/sh
+      - /usr/local/lib/unifi-stubd-lab/run-port-map.sh
+
+  stub-gateway-smoke:
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      args:
+        VERSION: ${UNIFI_STUBD_VERSION:-lab}
+    image: ${UNIFI_STUB_IMAGE:-unifi-stubd:lab}
+    depends_on:
+      inform-mitm:
+        condition: service_started
+    extra_hosts:
+      - "unifi:${UNIFI_STUB_LAB_MITM_IP:-172.31.242.12}"
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_ADMIN
+      - NET_BIND_SERVICE
+    security_opt:
+      - no-new-privileges:true
+    networks:
+      lab:
+        ipv4_address: ${UNIFI_STUB_GATEWAY_IP:-172.31.242.27}
+    volumes:
+      - stub-gateway-smoke-state:/var/lib/unifi-stubd
+      - type: bind
+        source: ./scripts
+        target: /usr/local/lib/unifi-stubd-lab
+        read_only: true
+    environment:
+      UNIFI_STUB_GATEWAY_PROFILE: ${UNIFI_STUB_GATEWAY_PROFILE:-uxg-lite}
+      UNIFI_STUB_GATEWAY_MAC: ${UNIFI_STUB_GATEWAY_MAC:-02:15:6d:00:08:23}
+      UNIFI_STUB_GATEWAY_IP: ${UNIFI_STUB_GATEWAY_IP:-172.31.242.27}
+      UNIFI_STUB_GATEWAY_HOSTNAME: ${UNIFI_STUB_GATEWAY_HOSTNAME:-stub-gateway-smoke}
+      UNIFI_STUB_TEST_INTERVAL: ${UNIFI_STUB_TEST_INTERVAL:-2s}
+    entrypoint:
+      - /bin/sh
+      - /usr/local/lib/unifi-stubd-lab/run-gateway-smoke.sh
+
+volumes:
+  stub-bridge-observe-state:
+  stub-port-map-state:
+  stub-gateway-smoke-state:

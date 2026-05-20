@@ -1,0 +1,52 @@
+name: uxg-lite-fw-simulation
+
+services:
+  shim-builder:
+    image: debian:bullseye
+    platform: linux/arm64
+    profiles:
+      - build-shim
+    volumes:
+      - ${SIM_DIR:-/tmp/unifi-fw-sim-uxg-lite}:/mock
+    command:
+      - sh
+      - -lc
+      - |
+        apt-get update
+        apt-get install -y --no-install-recommends gcc libc6-dev
+        gcc -shared -fPIC -Wall -Wextra -O2 \
+          -o /mock/libubnthal_redirect.so \
+          /mock/ubnthal_redirect.c \
+          -ldl
+
+  firmware:
+    build:
+      context: ../../../..
+      dockerfile: research/firmware/uxg-lite-5.0.16/simulation/Dockerfile
+      args:
+        BASE_IMAGE: ${UXG_LITE_BASE_IMAGE:-uxg-lite-fw:5.0.16}
+    image: uxg-lite-fw-sim:5.0.16
+    platform: linux/arm64
+    command: ["/usr/local/bin/uxg-lite-sim-start"]
+    network_mode: none
+    cap_drop:
+      - ALL
+    cap_add:
+      - DAC_OVERRIDE
+      - FOWNER
+      - NET_ADMIN
+      - NET_RAW
+    security_opt:
+      - no-new-privileges
+    environment:
+      UNIFI_FW_SIM_MODEL: UXG
+      UNIFI_FW_SIM_MAC: 00:15:6d:00:a6:77
+      UNIFI_FW_SIM_ALLOW_PARTIAL: "1"
+    volumes:
+      - ${SIM_DIR:-/tmp/unifi-fw-sim-uxg-lite}:/mock:ro
+    tmpfs:
+      - /tmp:exec,nosuid,nodev
+      - /run:exec,nosuid,nodev
+      - /var/run:exec,nosuid,nodev
+      - /var/log:nosuid,nodev
+      - /data:exec,nosuid,nodev

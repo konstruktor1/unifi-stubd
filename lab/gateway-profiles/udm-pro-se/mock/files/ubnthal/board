@@ -1,0 +1,13 @@
+format=0002
+version=0002
+boardid=ea2c
+vendorid=0777
+bomrev=00000001
+model_name=UDMPROSE
+model_short=UDM-SE
+model_number=UDM-SE
+model_description=UniFi Dream Machine SE
+model_url=http://ui.com
+serial=02156D00EA2C
+hwaddrbbase=02:15:6d:00:ea:2c
+hwaddrbase=02:15:6d:00:ea:2c

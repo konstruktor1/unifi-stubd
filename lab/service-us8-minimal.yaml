@@ -1,0 +1,17 @@
+# Minimal unifi-stubd config for an isolated lab.
+controller_url: http://192.0.2.10:8080/inform
+operation_mode: stub
+profile: us8
+mac: auto
+ip: 192.0.2.50
+hostname: auto
+observe_interface: ""
+observe_bridge: ""
+lldp_source: off
+traffic_source: off
+
+interval_seconds: 10
+ssh_listen: 0.0.0.0:22
+ssh_user: ubnt
+ssh_password: ubnt
+status_path: /var/lib/unifi-stubd/status.json

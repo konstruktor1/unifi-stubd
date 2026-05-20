@@ -1,0 +1,22 @@
+#!/bin/sh
+# Minimal timedatectl output for UniFi Core inside the non-systemd lab.
+case "${1:-}" in
+    show)
+        printf 'yes\n'
+        printf 'yes\n'
+        exit 0
+        ;;
+    set-timezone)
+        printf '%s\n' "${2:-UTC}" >/tmp/udm-pro-se-lab-timezone
+        exit 0
+        ;;
+    *)
+        printf 'Local time: lab\n'
+        printf 'Universal time: lab\n'
+        printf 'RTC time: lab\n'
+        printf 'Time zone: %s\n' "$(cat /tmp/udm-pro-se-lab-timezone 2>/dev/null || printf Europe/Zurich)"
+        printf 'System clock synchronized: yes\n'
+        printf 'NTP service: active\n'
+        exit 0
+        ;;
+esac

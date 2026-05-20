@@ -1,0 +1,20 @@
+#!/bin/sh
+# Open only the selected lab interfaces for host-side debugging.
+set +e
+
+PATH=/usr/sbin:/usr/bin:/sbin:/bin
+
+ifaces="@UNIFI_STUBD_VM_WEB_INGRESS_IFACES@"
+[ -n "$ifaces" ] || exit 0
+
+while :; do
+    for iface in $ifaces; do
+        # Re-add rules until late firmware firewall scripts settle. The check
+        # keeps this idempotent and avoids growing INPUT with duplicates.
+        for port in 22 80 443 8443; do
+            iptables -C INPUT -i "$iface" -p tcp --dport "$port" -j ACCEPT >/dev/null 2>&1 ||
+                iptables -I INPUT 1 -i "$iface" -p tcp --dport "$port" -j ACCEPT >/dev/null 2>&1 || true
+        done
+    done
+    sleep 5
+done

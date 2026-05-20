@@ -1,0 +1,46 @@
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  default: standard
+  enable:
+    - bodyclose
+    - errorlint
+    - exhaustive
+    - gocritic
+    - goconst
+    - misspell
+    - nestif
+    - nilerr
+    - prealloc
+    - revive
+    - unconvert
+    - wrapcheck
+
+  settings:
+    exhaustive:
+      default-signifies-exhaustive: true
+
+    revive:
+      severity: error
+      enable-default-rules: true
+      rules:
+        - name: exported
+
+    wrapcheck:
+      ignore-sigs:
+        - .Errorf(
+        - errors.New(
+        - errors.Unwrap(
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

@@ -1,0 +1,18 @@
+UDM Pro SE QEMU VM lab initramfs.
+
+Changes from the vendor initramfs:
+- CONFIGDEV points to /dev/disk/by-partlabel/config instead of /dev/mtdblock5.
+- Foreign-kernel modules from the comparison initrd are available for QEMU virt.
+- QEMU USB-storage modules are loaded early so the VM disk appears before the
+  UDM mount scripts wait for GPT partition labels.
+- If staged with prepare-mocks.sh, deterministic /mock hardware files and an
+  ARM64 LD_PRELOAD shim are copied into the UDM root before systemd starts.
+- The VM prepares missing QEMU lab netdevs for the UDM board profile, but it
+  does not open WAN firewall ingress rules for the web UI.
+- A QEMU-backed LAN member is kept attached to br0 so transparent QEMU
+  networking can use the stock LAN web path on guest port 443.
+- The UDM nginx setup-site template is installed when UniFi Core has not yet
+  produced dynamic HTTP config in the lab VM.
+
+The root filesystem, overlay setup, and final /sbin/init path remain the UDM
+firmware boot path.

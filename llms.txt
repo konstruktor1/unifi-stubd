@@ -1,0 +1,63 @@
+# unifi-stubd
+
+> Go lab tool that makes a lab host, VM, or bridge appear as a minimal UniFi device to a UniFi Network Controller without allowing blind host provisioning.
+
+`unifi-stubd` is experimental, unofficial, and intended only for isolated lab or
+management networks.
+
+This file is a public project index for readers, search systems, and language
+models. It is not the coding-agent instruction source. Coding agents should read
+[AGENTS.md](AGENTS.md), which is the single canonical agent file.
+
+## Agent Instructions
+
+- [AGENTS.md](AGENTS.md): Canonical coding-agent instructions, safety boundaries, commands, and repository layout.
+
+## Project Documentation
+
+- [README](README.md): Overview, quick start, configuration, service setup, packaging, and development commands.
+- [Project status](docs/en/project-status.md): Current implementation status, UDM Pro SE QEMU/UTM reference state, full-test notes, mock layout, and remaining gaps.
+- [UDM Pro SE Docker profile](lab/gateway-profiles/udm-pro-se/README.md): Docker firmware wrapper, webportal path, source layout, validation result, and safety boundary.
+- [UDM Pro SE Docker how-to](lab/gateway-profiles/udm-pro-se/docker-howto.md): Rootfs import, mock setup, kernel payload staging, webportal startup, and validation commands/results.
+- [UDM Pro SE source inventory](lab/gateway-profiles/udm-pro-se/source-inventory.md): Project-owned Docker, CommonJS, C mock, and vendor-boundary inventory.
+- [UDM Pro SE runtime helpers](lab/gateway-profiles/udm-pro-se/runtime/README.md): Split startup modules, wrapper scripts, nginx snippets, AWK filters, and templates.
+- [UDM Pro SE VM profile](lab/gateway-profiles/udm-pro-se-vm/README.md): QEMU/UTM VM runbook, observed web/API behavior, and project-owned VM source layout.
+- [UDM Pro SE VM source inventory](lab/gateway-profiles/udm-pro-se-vm/source-inventory.md): VM scripts, initramfs payload, UTM installer, and generated-artifact boundaries.
+- [English docs index](docs/en/README.md): Main English documentation entry point.
+- [German docs index](docs/de/README.md): Main German documentation entry point.
+- [UDM Pro SE kernel deployment](lab/gateway-profiles/udm-pro-se-vm/kernel/README.md): Shared ignored kernel payload staged for UTM boot inputs and Docker inspection.
+- [Packaged Linux config](packaging/linux/etc/unifi-stubd/config.yaml): Default config installed as `/etc/unifi-stubd/config.yaml`.
+- [Packaged FreeBSD config](packaging/freebsd/usr/local/etc/unifi-stubd/config.yaml): Stub-only config installed as `/usr/local/etc/unifi-stubd/config.yaml`.
+- [Lab switch identities](lab/README.md): Device identities, shell commands, and payload fixture.
+- [Installed package files](packaging/installed-files.md): Mapping from repository sources to installed Linux and FreeBSD paths.
+
+## Architecture And Protocol
+
+- [Architecture](docs/en/architecture.md): Component boundaries and runtime model.
+- [Protocol notes](docs/en/protocol-notes.md): Discovery, inform, encryption, and adoption notes.
+- [Research notes](docs/en/research.md): Research history and attribution boundary.
+- [Roadmap](docs/en/roadmap.md): Planned work and non-goals.
+
+## Source Layout
+
+- [Command entry point](cmd/unifi-stubd/main.go): CLI entry point.
+- [Switch emulation](cmd/unifi-stubd/switch_emulation.go): Discovery, inform, and adoption SSH service wiring.
+- [Device profiles](internal/device/): Fake switch profiles, experimental `UGW3` and `UXGPRO` gateway identity profiles, link speed, and payload model.
+- [Discovery](internal/discovery/): UniFi discovery TLV packet building.
+- [Inform](internal/inform/): Inform packet framing and client behavior.
+- [Adoption SSH](internal/adoptionssh/): Built-in SSH shim for advanced adoption commands.
+- [Tests](tests/): Go tests kept outside production packages.
+
+## Release, Security, And Licensing
+
+- [Release checklist](docs/en/release.md): Pre-release validation and package metadata.
+- [Security policy](SECURITY.md): Vulnerability reporting and lab-data handling.
+- [Credits](CREDITS.md): Research sources, idea provenance, license boundaries, and thanks.
+- [Notices](NOTICE.md): Third-party notices and affiliation statement.
+- [License](LICENSE): AGPL-3.0-or-later license.
+
+## Optional
+
+- [Lab plan](docs/en/lab-plan.md): Local lab setup ideas and validation workflow.
+- [UDM Pro SE UTM profile files](lab/gateway-profiles/udm-pro-se-vm/utm/README.md): Versioned UTM defaults, boot arguments, port-forward caveats, and generated-bundle boundaries for the QEMU/UTM reference VM.
+- [Package config](packaging/nfpm.yaml): nFPM packaging metadata for Debian, RPM, Arch Linux, and tarball builds.

@@ -1,0 +1,23 @@
+order: 60
+name: usw-pro-xg-48
+model: USWProXG48
+model_display: UniFi Pro XG 48
+device_type: usw
+version: 7.4.1.16850
+ports: 52
+port_groups:
+  - count: 16
+    speed: 2500
+    media: GE
+  - count: 32
+    speed: 10000
+    media: GE
+  - count: 4
+    speed: 25000
+    media: SFP28
+    uplink: true
+port_speed: 10000
+uplink_speed: 25000
+port_media: GE
+uplink_media: SFP28
+description: Pro XG 48 with 10G RJ45 and 25G SFP28 uplinks

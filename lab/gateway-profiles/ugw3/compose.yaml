@@ -1,0 +1,23 @@
+# UGW3 firmware simulation compose file for the extracted rootfs runner.
+
+name: ugw3-fw-simulation
+
+services:
+  ugw3-qemu:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: ugw3-fw-qemu:4.4.57
+    environment:
+      UGW3_ROOTFS: /firmware-rootfs
+      UGW3_MCAD_INSTANCE: "0"
+      UGW3_MCAD_DEBUG: "1"
+    volumes:
+      - unifi-ugw3-rootfs:/firmware-rootfs
+    tmpfs:
+      - /tmp:nosuid,nodev
+    command: ["/usr/local/bin/ugw3-qemu-start"]
+
+volumes:
+  unifi-ugw3-rootfs:
+    external: true

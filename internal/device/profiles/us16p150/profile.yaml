@@ -1,0 +1,20 @@
+order: 30
+name: us16p150
+model: US16P150
+model_display: UniFi Switch 16 POE-150W
+device_type: usw
+version: 7.4.1.16850
+ports: 18
+port_groups:
+  - count: 16
+    speed: 1000
+    media: GE
+  - count: 2
+    speed: 1000
+    media: SFP
+    uplink: true
+port_speed: 1000
+uplink_speed: 1000
+port_media: GE
+uplink_media: SFP
+description: 16-port UniFi Switch with PoE and 2 SFP uplinks

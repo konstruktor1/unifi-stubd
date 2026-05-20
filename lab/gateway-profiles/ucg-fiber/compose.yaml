@@ -1,0 +1,54 @@
+# UCG-Fiber firmware simulation compose file with shim build helper.
+
+name: ucg-fiber-fw-simulation
+
+services:
+  shim-builder:
+    image: debian:bullseye
+    platform: linux/arm64
+    profiles:
+      - build-shim
+    volumes:
+      - ${SIM_DIR:-/tmp/unifi-fw-sim-ucg-fiber}:/mock
+    command:
+      - sh
+      - -lc
+      - |
+        apt-get update
+        apt-get install -y --no-install-recommends gcc libc6-dev
+        gcc -shared -fPIC -Wall -Wextra -O2 \
+          -o /mock/libubnthal_redirect.so \
+          /mock/ubnthal_redirect.c \
+          -ldl
+
+  firmware:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        BASE_IMAGE: ${UCG_FIBER_BASE_IMAGE:-ucg-fiber-fw:5.0.16}
+    image: ucg-fiber-fw-sim:5.0.16
+    platform: linux/arm64
+    command: ["/usr/local/bin/ucg-fiber-sim-start"]
+    network_mode: none
+    cap_drop:
+      - ALL
+    cap_add:
+      - DAC_OVERRIDE
+      - FOWNER
+      - NET_ADMIN
+      - NET_RAW
+    security_opt:
+      - no-new-privileges
+    environment:
+      UNIFI_FW_SIM_MODEL: UCGF
+      UNIFI_FW_SIM_MAC: 02:15:6d:00:a6:a8
+      UNIFI_FW_SIM_ALLOW_PARTIAL: "1"
+    volumes:
+      - ${SIM_DIR:-/tmp/unifi-fw-sim-ucg-fiber}:/mock:ro
+    tmpfs:
+      - /tmp:exec,nosuid,nodev
+      - /run:exec,nosuid,nodev
+      - /var/run:exec,nosuid,nodev
+      - /var/log:nosuid,nodev
+      - /data:exec,nosuid,nodev

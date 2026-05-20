@@ -1,0 +1,14 @@
+[Unit]
+Description=Open lab VM web ingress on the selected host-only interface
+After=network-init.service
+
+[Service]
+Type=simple
+ExecStart=/usr/local/lib/unifi-stubd-vm/open-web-ingress.sh
+Restart=always
+RestartSec=2s
+StandardOutput=journal+console
+StandardError=journal+console
+
+[Install]
+WantedBy=multi-user.target
