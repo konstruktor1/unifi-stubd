@@ -22,6 +22,7 @@ jobs:
         with:
           go-version-file: go.mod
           go-package: ./...
+      - run: mkdir -p dist
       - uses: anchore/sbom-action@v0
         with:
           path: .
