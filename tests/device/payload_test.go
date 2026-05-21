@@ -647,6 +647,56 @@ func TestGatewayPayloadReportsHostTableClientMetadata(t *testing.T) {
 	}
 }
 
+func TestGatewayPayloadReportsDownstreamDeviceOnLANHostTable(t *testing.T) {
+	profile, ok := device.LookupProfile("uxgpro")
+	if !ok {
+		t.Fatal("profile not found")
+	}
+	ports := device.SwitchPortsWithOptions(profile.Ports, profile.PortOptions())
+	ports[3].MACs = []device.MacTableEntry{
+		{
+			MAC:      "28:70:4e:c3:b7:b8",
+			Hostname: "management-downlink",
+			IP:       "10.10.0.21",
+			VLAN:     1001,
+			Type:     "usw",
+			Static:   true,
+		},
+	}
+	payload, err := device.MinimalSwitchPayload(device.Identity{
+		MAC:          "02:17:05:10:01:21",
+		IP:           "10.10.0.29",
+		Hostname:     "opnsense",
+		Model:        profile.Model,
+		ModelDisplay: profile.ModelDisplay,
+		DeviceType:   profile.DeviceType,
+		Version:      profile.Version,
+		Serial:       "021705100121",
+		InformURL:    "http://192.0.2.10:8080/inform",
+	}, ports)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var doc struct {
+		NetworkTable []map[string]any `json:"network_table"`
+	}
+	if err := json.Unmarshal(payload, &doc); err != nil {
+		t.Fatal(err)
+	}
+	hosts, ok := doc.NetworkTable[3]["host_table"].([]any)
+	if !ok || len(hosts) != 1 {
+		t.Fatalf("LAN2 host_table = %#v", doc.NetworkTable[3]["host_table"])
+	}
+	host := hosts[0].(map[string]any)
+	if host["mac"] != "28:70:4e:c3:b7:b8" || host["ip"] != "10.10.0.21" || host["type"] != "usw" {
+		t.Fatalf("downstream host_table metadata = %#v", host)
+	}
+	if got := int(host["vlan"].(float64)); got != 1001 {
+		t.Fatalf("downstream host_table vlan = %d, want 1001", got)
+	}
+}
+
 func TestSwitchPortsCanOverrideAggregationUplinkToTenGigPort(t *testing.T) {
 	profile, ok := device.LookupProfile("usaggpro")
 	if !ok {

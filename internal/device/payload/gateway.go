@@ -95,7 +95,7 @@ func gatewayNetworkTable(_ Profile, _ Identity, ports []PortView) []map[string]a
 			"stats":         counters,
 		}
 		addFields(entry, sourceFields(view.SourceInterface))
-		if hosts := gatewayHostTable(view.Port); len(hosts) > 0 {
+		if hosts := gatewayHostTable(view.Port, view.Uplink); len(hosts) > 0 {
 			entry["host_table"] = hosts
 		}
 		out = append(out, entry)
@@ -171,12 +171,12 @@ func gatewayReportedNetworks(ports []PortView) []map[string]any {
 	return out
 }
 
-// gatewayHostTable renders learned client MACs for one gateway port.
-func gatewayHostTable(port Port) []map[string]any {
+// gatewayHostTable renders learned downstream MACs for one gateway port.
+func gatewayHostTable(port Port, uplink bool) []map[string]any {
 	out := make([]map[string]any, 0, len(port.MACs))
 	for _, entry := range port.MACs {
 		entryType := strings.TrimSpace(entry.Type)
-		if entryType != "" && entryType != "client" {
+		if uplink && entryType != "" && entryType != "client" {
 			continue
 		}
 		row := map[string]any{
@@ -194,6 +194,15 @@ func gatewayHostTable(port Port) []map[string]any {
 		}
 		if ip := strings.TrimSpace(entry.IP); ip != "" {
 			row["ip"] = ip
+		}
+		if entryType != "" {
+			row[jsonKeyType] = entryType
+		}
+		if entry.VLAN > 0 {
+			row["vlan"] = entry.VLAN
+		}
+		if entry.Static {
+			row["static"] = true
 		}
 		out = append(out, row)
 	}
