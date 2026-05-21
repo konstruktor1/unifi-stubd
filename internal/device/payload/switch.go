@@ -30,7 +30,7 @@ func portTable(ports []PortView) []map[string]any {
 			jsonKeyName:       p.Name,
 			jsonKeyEnable:     p.Enabled,
 			jsonKeyUp:         p.Up,
-			"is_uplink":       p.Uplink,
+			jsonKeyIsUplink:   p.Uplink,
 			"op_mode":         payloadModeSwitch,
 			jsonKeyFullDuplex: true,
 			jsonKeyAutoneg:    true,
@@ -44,7 +44,7 @@ func portTable(ports []PortView) []map[string]any {
 			"satisfaction":    100,
 			"stp_state":       "forwarding",
 			"stp_pathcost":    20000,
-			"mac_table":       p.MACs,
+			jsonKeyMACTable:   p.MACs,
 		}
 		addFields(row, portLinkFields(p.Speed, p.Media), portCounterFields(p.Port), portRateFields(p.Port), sourceFields(p.SourceInterface))
 		out = append(out, row)

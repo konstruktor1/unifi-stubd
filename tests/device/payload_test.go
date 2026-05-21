@@ -379,10 +379,14 @@ func TestTenGigGatewayProfileReportsPortLayout(t *testing.T) {
 		EthernetOverrides []map[string]any `json:"ethernet_overrides"`
 		IfTable           []map[string]any `json:"if_table"`
 		NetworkTable      []map[string]any `json:"network_table"`
+		PortTable         []map[string]any `json:"port_table"`
 		ReportedNetworks  []map[string]any `json:"reported_networks"`
 		UplinkTable       []map[string]any `json:"uplink_table"`
 		ConfigNetworkWAN  map[string]any   `json:"config_network_wan"`
 		ConfigNetworkWAN2 map[string]any   `json:"config_network_wan2"`
+		WAN1              map[string]any   `json:"wan1"`
+		WAN2              map[string]any   `json:"wan2"`
+		Internet          map[string]any   `json:"internet"`
 		OutletEnabled     bool             `json:"outlet_enabled"`
 		OutletOverrides   []map[string]any `json:"outlet_overrides"`
 		OutletTable       []map[string]any `json:"outlet_table"`
@@ -390,7 +394,7 @@ func TestTenGigGatewayProfileReportsPortLayout(t *testing.T) {
 	if err := json.Unmarshal(payload, &doc); err != nil {
 		t.Fatal(err)
 	}
-	for _, key := range []string{"ethernet_table", "port_overrides", "port_table"} {
+	for _, key := range []string{"ethernet_table", "port_overrides"} {
 		if _, ok := raw[key]; ok {
 			t.Fatalf("gateway payload contains switch table %q", key)
 		}
@@ -431,8 +435,23 @@ func TestTenGigGatewayProfileReportsPortLayout(t *testing.T) {
 	if len(doc.NetworkTable) != 4 {
 		t.Fatalf("network_table length = %d, want 4", len(doc.NetworkTable))
 	}
+	if len(doc.PortTable) != 4 {
+		t.Fatalf("port_table length = %d, want 4", len(doc.PortTable))
+	}
 	if got := doc.NetworkTable[2]["networkgroup"].(string); got != "WAN2" {
 		t.Fatalf("network_table port 3 networkgroup = %q, want WAN2", got)
+	}
+	if got := doc.PortTable[2]["networkgroup"].(string); got != "WAN2" {
+		t.Fatalf("port_table port 3 networkgroup = %q, want WAN2", got)
+	}
+	if got := doc.PortTable[2]["media"].(string); got != "SFP+" {
+		t.Fatalf("port_table port 3 media = %q, want SFP+", got)
+	}
+	if _, ok := doc.PortTable[2]["native_networkconf_id"]; ok {
+		t.Fatalf("port_table unexpectedly sets native_networkconf_id: %#v", doc.PortTable[2]["native_networkconf_id"])
+	}
+	if _, ok := doc.PortTable[2]["portconf_id"]; ok {
+		t.Fatalf("port_table unexpectedly sets portconf_id: %#v", doc.PortTable[2]["portconf_id"])
 	}
 	if doc.OutletEnabled {
 		t.Fatal("outlet_enabled = true, want false for gateway stub")
@@ -445,6 +464,14 @@ func TestTenGigGatewayProfileReportsPortLayout(t *testing.T) {
 	}
 	assertGatewayConfigNetwork(t, doc.ConfigNetworkWAN, "eth0", "WAN", "wan", 1)
 	assertGatewayConfigNetwork(t, doc.ConfigNetworkWAN2, "eth2", "WAN2", "wan2", 3)
+	assertGatewayWANStatus(t, doc.WAN1, "eth0", "WAN", "wan", 1)
+	assertGatewayWANStatus(t, doc.WAN2, "eth2", "WAN2", "wan2", 3)
+	if got := doc.Internet["wan_status"].(string); got != "connected" {
+		t.Fatalf("internet wan_status = %q, want connected", got)
+	}
+	if got := int(doc.Internet["port_idx"].(float64)); got != 1 {
+		t.Fatalf("internet port_idx = %d, want 1", got)
+	}
 }
 
 func TestGatewayPayloadReportsManagementVLANOnUplink(t *testing.T) {
@@ -513,10 +540,6 @@ func TestCloudGatewayFiberProfileReportsGatewayPayload(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(payload, &raw); err != nil {
-		t.Fatal(err)
-	}
 	var doc struct {
 		DeviceType        string           `json:"type"`
 		NumPort           int              `json:"num_port"`
@@ -525,6 +548,7 @@ func TestCloudGatewayFiberProfileReportsGatewayPayload(t *testing.T) {
 		EthernetOverrides []map[string]any `json:"ethernet_overrides"`
 		IfTable           []map[string]any `json:"if_table"`
 		NetworkTable      []map[string]any `json:"network_table"`
+		PortTable         []map[string]any `json:"port_table"`
 		ReportedNetworks  []map[string]any `json:"reported_networks"`
 		UplinkTable       []map[string]any `json:"uplink_table"`
 		ConfigNetworkWAN  map[string]any   `json:"config_network_wan"`
@@ -532,11 +556,6 @@ func TestCloudGatewayFiberProfileReportsGatewayPayload(t *testing.T) {
 	}
 	if err := json.Unmarshal(payload, &doc); err != nil {
 		t.Fatal(err)
-	}
-	for _, key := range []string{"port_table"} {
-		if _, ok := raw[key]; ok {
-			t.Fatalf("gateway payload contains switch table %q", key)
-		}
 	}
 	if doc.DeviceType != "udm" {
 		t.Fatalf("type = %q, want udm", doc.DeviceType)
@@ -555,6 +574,9 @@ func TestCloudGatewayFiberProfileReportsGatewayPayload(t *testing.T) {
 	}
 	if len(doc.ReportedNetworks) != 7 {
 		t.Fatalf("reported_networks length = %d, want 7", len(doc.ReportedNetworks))
+	}
+	if len(doc.PortTable) != 7 {
+		t.Fatalf("port_table length = %d, want 7", len(doc.PortTable))
 	}
 	if len(doc.UplinkTable) != 1 {
 		t.Fatalf("uplink_table length = %d, want 1", len(doc.UplinkTable))
@@ -605,7 +627,8 @@ func TestGatewayPortAssignmentsCanBeOverriddenFromConfigModel(t *testing.T) {
 	}
 
 	var doc struct {
-		NetworkTable []map[string]any `json:"network_table"`
+		ConfigPortTable []map[string]any `json:"config_port_table"`
+		NetworkTable    []map[string]any `json:"network_table"`
 	}
 	if err := json.Unmarshal(payload, &doc); err != nil {
 		t.Fatal(err)
@@ -649,7 +672,8 @@ func TestGatewayPayloadReportsHostTableClientMetadata(t *testing.T) {
 	}
 
 	var doc struct {
-		NetworkTable []map[string]any `json:"network_table"`
+		ConfigPortTable []map[string]any `json:"config_port_table"`
+		NetworkTable    []map[string]any `json:"network_table"`
 	}
 	if err := json.Unmarshal(payload, &doc); err != nil {
 		t.Fatal(err)
@@ -664,6 +688,13 @@ func TestGatewayPayloadReportsHostTableClientMetadata(t *testing.T) {
 	}
 	if hosts, ok := doc.NetworkTable[0]["host_table"].([]any); ok && len(hosts) != 0 {
 		t.Fatalf("gateway WAN host_table should not expose uplink neighbor: %#v", hosts)
+	}
+	connection := doc.ConfigPortTable[1]["last_connection"].(map[string]any)
+	if connection["hostname"] != "lab-host-2" || connection["ip"] != "192.0.2.52" {
+		t.Fatalf("config_port_table last_connection metadata = %#v", connection)
+	}
+	if got, ok := doc.ConfigPortTable[1]["connected"].(bool); !ok || !got {
+		t.Fatalf("config_port_table connected = %#v, want true", doc.ConfigPortTable[1]["connected"])
 	}
 }
 
@@ -908,6 +939,7 @@ func TestUXGGatewayPayloadUsesInterfaceOverrideData(t *testing.T) {
 		IfTable      []map[string]any `json:"if_table"`
 		NetworkTable []map[string]any `json:"network_table"`
 		UplinkTable  []map[string]any `json:"uplink_table"`
+		WAN1         map[string]any   `json:"wan1"`
 	}
 	if err := json.Unmarshal(payload, &doc); err != nil {
 		t.Fatal(err)
@@ -994,7 +1026,9 @@ func TestGatewayPayloadReportsExplicitTrafficRates(t *testing.T) {
 	var doc struct {
 		IfTable      []map[string]any `json:"if_table"`
 		NetworkTable []map[string]any `json:"network_table"`
+		PortTable    []map[string]any `json:"port_table"`
 		UplinkTable  []map[string]any `json:"uplink_table"`
+		WAN1         map[string]any   `json:"wan1"`
 	}
 	if err := json.Unmarshal(payload, &doc); err != nil {
 		t.Fatal(err)
@@ -1018,9 +1052,23 @@ func TestGatewayPayloadReportsExplicitTrafficRates(t *testing.T) {
 	if got := int64(doc.UplinkTable[0]["tx_errors"].(float64)); got != 4 {
 		t.Fatalf("uplink tx_errors = %d, want 4", got)
 	}
+	if got := int64(doc.WAN1["rx_bytes-r"].(float64)); got != 30 {
+		t.Fatalf("wan1 rx rate = %d, want 30", got)
+	}
+	if got := int64(doc.WAN1["tx_bytes"].(float64)); got != 4000 {
+		t.Fatalf("wan1 tx_bytes = %d, want 4000", got)
+	}
+	if got := int64(doc.PortTable[1]["rx_bytes-r"].(float64)); got != 30 {
+		t.Fatalf("gateway port_table WAN rx rate = %d, want 30", got)
+	}
+	if got := int64(doc.PortTable[1]["tx_bytes"].(float64)); got != 4000 {
+		t.Fatalf("gateway port_table WAN tx_bytes = %d, want 4000", got)
+	}
 	assertNoExperimentalRateFields(t, doc.IfTable[0])
 	assertNoExperimentalRateFields(t, wanStats)
+	assertNoExperimentalRateFields(t, doc.PortTable[1])
 	assertNoExperimentalRateFields(t, doc.UplinkTable[0])
+	assertNoExperimentalRateFields(t, doc.WAN1)
 }
 
 func TestGatewayPayloadSynchronizesResolvedPortTables(t *testing.T) {
@@ -1073,9 +1121,12 @@ func TestGatewayPayloadSynchronizesResolvedPortTables(t *testing.T) {
 		EthernetOverrides []map[string]any `json:"ethernet_overrides"`
 		IfTable           []map[string]any `json:"if_table"`
 		NetworkTable      []map[string]any `json:"network_table"`
+		PortTable         []map[string]any `json:"port_table"`
 		ReportedNetworks  []map[string]any `json:"reported_networks"`
 		ConfigNetworkWAN  map[string]any   `json:"config_network_wan"`
 		ConfigNetworkWAN2 map[string]any   `json:"config_network_wan2,omitempty"`
+		WAN1              map[string]any   `json:"wan1"`
+		WAN2              map[string]any   `json:"wan2,omitempty"`
 	}
 	if err := json.Unmarshal(payload, &doc); err != nil {
 		t.Fatal(err)
@@ -1090,6 +1141,7 @@ func TestGatewayPayloadSynchronizesResolvedPortTables(t *testing.T) {
 			{"ethernet_overrides", doc.EthernetOverrides[index-1]},
 			{"if_table", doc.IfTable[index-1]},
 			{"network_table", doc.NetworkTable[index-1]},
+			{"port_table", doc.PortTable[index-1]},
 			{"reported_networks", doc.ReportedNetworks[index-1]},
 		}
 		for _, item := range rows {
@@ -1110,6 +1162,7 @@ func TestGatewayPayloadSynchronizesResolvedPortTables(t *testing.T) {
 			{"ethernet_overrides", doc.EthernetOverrides[index-1]},
 			{"if_table", doc.IfTable[index-1]},
 			{"network_table", doc.NetworkTable[index-1]},
+			{"port_table", doc.PortTable[index-1]},
 		} {
 			if got := item.row["mac"].(string); got != mac {
 				t.Fatalf("%s port %d mac = %q, want %q", item.name, index, got, mac)
@@ -1126,8 +1179,12 @@ func TestGatewayPayloadSynchronizesResolvedPortTables(t *testing.T) {
 	assertGatewayPortSync(1, "eth0", "02:00:5e:00:53:11", "LAN", "vtnet0", 2500)
 	assertGatewayPortSync(2, "eth1", "02:00:5e:00:53:12", "WAN", "ixl0", 10000)
 	assertGatewayConfigNetwork(t, doc.ConfigNetworkWAN, "eth1", "WAN", "wan", 2)
+	assertGatewayWANStatus(t, doc.WAN1, "eth1", "WAN", "wan", 2)
 	if doc.ConfigNetworkWAN2 != nil {
 		t.Fatalf("config_network_wan2 = %#v, want omitted", doc.ConfigNetworkWAN2)
+	}
+	if doc.WAN2 != nil {
+		t.Fatalf("wan2 = %#v, want omitted", doc.WAN2)
 	}
 }
 
@@ -1609,5 +1666,22 @@ func assertGatewayConfigNetwork(t *testing.T, row map[string]any, ifname, networ
 	}
 	if got := int(row["port_idx"].(float64)); got != portIndex {
 		t.Fatalf("config network port_idx = %d, want %d", got, portIndex)
+	}
+}
+
+func assertGatewayWANStatus(t *testing.T, row map[string]any, ifname, networkGroup, role string, portIndex int) {
+	t.Helper()
+	if row == nil {
+		t.Fatal("wan status is nil")
+	}
+	assertGatewayConfigNetwork(t, row, ifname, networkGroup, role, portIndex)
+	if got, ok := row["up"].(bool); !ok || !got {
+		t.Fatalf("wan status up = %#v, want true", row["up"])
+	}
+	if got := int(row["uptime"].(float64)); got < 1 {
+		t.Fatalf("wan status uptime = %d, want >= 1", got)
+	}
+	if got := int(row["latency"].(float64)); got != 0 {
+		t.Fatalf("wan status latency = %d, want 0", got)
 	}
 }

@@ -18,14 +18,22 @@ func applyGatewayPayload(payload map[string]any, profile Profile, id Identity, p
 	payload["config_port_table"] = gatewayConfigPortTable(ports)
 	payload["ethernet_overrides"] = gatewayEthernetOverrides(ports)
 	payload["reported_networks"] = gatewayReportedNetworks(ports)
+	payload["port_table"] = gatewayPortTable(ports)
 	payload["uplink"] = gatewayInterfaceName(profile, gatewayUplinkPortIndex(ports))
 	payload["uplink_table"] = gatewayUplinkTable(profile, id, ports)
 	payload["has_eth1"] = len(ports) > 1
 	payload["has_dpi"] = profile.HasDPI
 	payload["config_network_wan"] = gatewayConfigNetwork(ports, gatewayPortRoleWAN)
+	if wan1 := gatewayWANStatus(ports, gatewayPortRoleWAN, uptime); len(wan1) > 0 {
+		payload["wan1"] = wan1
+	}
 	if wan2 := gatewayConfigNetwork(ports, gatewayPortRoleWAN2); len(wan2) > 1 {
 		payload["config_network_wan2"] = wan2
 	}
+	if wan2 := gatewayWANStatus(ports, gatewayPortRoleWAN2, uptime); len(wan2) > 0 {
+		payload["wan2"] = wan2
+	}
+	payload["internet"] = gatewayInternetStatus(ports, uptime)
 }
 
 // gatewayUplinkPortIndex returns the one-based uplink port index.
@@ -57,8 +65,9 @@ func gatewayIfTable(_ Profile, id Identity, ports []PortView) []map[string]any {
 			jsonKeyEnable:     view.Enabled,
 			jsonKeyNetworkGrp: iface.NetworkGroup,
 			jsonKeyFullDuplex: true,
+			"physical_ports":  []int{view.Index},
 		}
-		addFields(row, portLinkFields(view.Speed, view.Media), portCounterFields(view.Port), explicitPortRateFields(view.Port), sourceFields(view.SourceInterface))
+		addFields(row, portLinkFields(view.Speed, view.Media), portCounterFields(view.Port), explicitPortRateFields(view.Port), sourceFields(view.SourceInterface), gatewayConnectionFields(view))
 		if view.Index == uplinkIndex {
 			addManagementVLAN(row, id.ManagementVLAN)
 		}
@@ -95,7 +104,7 @@ func gatewayNetworkTable(_ Profile, _ Identity, ports []PortView) []map[string]a
 			"mtu":           "1500",
 			"stats":         counters,
 		}
-		addFields(entry, sourceFields(view.SourceInterface))
+		addFields(entry, sourceFields(view.SourceInterface), gatewayConnectedField(view))
 		if hosts := gatewayHostTable(view.Port, view.Uplink); len(hosts) > 0 {
 			entry["host_table"] = hosts
 		}
@@ -111,7 +120,7 @@ func gatewayConfigNetwork(ports []PortView, role string) map[string]any {
 		}
 		iface := view.GatewayInterface
 		row := map[string]any{
-			jsonKeyType:       "dhcp",
+			jsonKeyType:       payloadTypeDHCP,
 			jsonKeyName:       iface.NetworkGroup,
 			jsonKeyIfName:     iface.IfName,
 			jsonKeyPortIdx:    view.Index,
@@ -127,7 +136,84 @@ func gatewayConfigNetwork(ports []PortView, role string) map[string]any {
 		addFields(row, sourceFields(view.SourceInterface))
 		return row
 	}
-	return map[string]any{jsonKeyType: "dhcp"}
+	return map[string]any{jsonKeyType: payloadTypeDHCP}
+}
+
+func gatewayWANStatus(ports []PortView, role string, uptime int) map[string]any {
+	for _, view := range ports {
+		if gatewayPortRole(view.Port) != role {
+			continue
+		}
+		iface := view.GatewayInterface
+		row := map[string]any{
+			jsonKeyType:       payloadTypeDHCP,
+			jsonKeyName:       iface.NetworkGroup,
+			jsonKeyIfName:     iface.IfName,
+			jsonKeyPortIdx:    view.Index,
+			jsonKeyNetworkGrp: iface.NetworkGroup,
+			jsonKeyRole:       view.Role,
+			jsonKeyMAC:        iface.MAC,
+			"ip":              iface.IP,
+			jsonKeyNetmask:    iface.Netmask,
+			jsonKeyAddress:    iface.Address,
+			jsonKeyUp:         view.Up,
+			jsonKeyEnable:     view.Enabled,
+			jsonKeyUptime:     uptime,
+			jsonKeyLatency:    0,
+		}
+		addFields(row, portLinkFields(view.Speed, view.Media), portCounterFields(view.Port), explicitPortRateFields(view.Port), sourceFields(view.SourceInterface))
+		return row
+	}
+	return nil
+}
+
+func gatewayInternetStatus(ports []PortView, uptime int) map[string]any {
+	wan := gatewayWANStatus(ports, gatewayPortRoleWAN, uptime)
+	if len(wan) == 0 {
+		return map[string]any{"up": false, "wan_status": "disconnected"}
+	}
+	up, _ := wan[jsonKeyUp].(bool)
+	status := "disconnected"
+	if up {
+		status = "connected"
+	}
+	out := map[string]any{
+		"up":           up,
+		"wan_status":   status,
+		"ifname":       wan[jsonKeyIfName],
+		"ip":           wan["ip"],
+		"port_idx":     wan[jsonKeyPortIdx],
+		jsonKeyLatency: wan[jsonKeyLatency],
+		jsonKeyUptime:  wan[jsonKeyUptime],
+	}
+	return out
+}
+
+func gatewayConnectedField(view PortView) map[string]any {
+	return map[string]any{"connected": view.Up}
+}
+
+func gatewayConnectionFields(view PortView) map[string]any {
+	out := gatewayConnectedField(view)
+	if !view.Up || len(view.MACs) == 0 {
+		return out
+	}
+	entry := view.MACs[0]
+	connection := map[string]any{
+		jsonKeyMAC: strings.ToLower(strings.TrimSpace(entry.MAC)),
+		"source":   jsonKeyMACTable,
+	}
+	if ip := strings.TrimSpace(entry.IP); ip != "" {
+		connection["ip"] = ip
+	}
+	if hostname := strings.TrimSpace(entry.Hostname); hostname != "" {
+		connection["hostname"] = hostname
+	}
+	if entryType := strings.TrimSpace(entry.Type); entryType != "" {
+		connection[jsonKeyType] = entryType
+	}
+	out["last_connection"] = connection
+	return out
 }
 
 // gatewayConfigPortTable renders gateway WAN/LAN port assignments from the
@@ -144,9 +230,46 @@ func gatewayConfigPortTable(ports []PortView) []map[string]any {
 			jsonKeyRole:       view.Role,
 			jsonKeyUp:         view.Up,
 			jsonKeyEnable:     view.Enabled,
-			"is_uplink":       view.Uplink,
+			jsonKeyIsUplink:   view.Uplink,
 		}
-		addFields(row, portLinkFields(view.Speed, view.Media), sourceFields(view.SourceInterface))
+		addFields(row, portLinkFields(view.Speed, view.Media), sourceFields(view.SourceInterface), gatewayConnectionFields(view))
+		out = append(out, row)
+	}
+	return out
+}
+
+// gatewayPortTable renders physical gateway ports for controller views that
+// treat UXG/UDM ports as switch-like rows. It intentionally avoids port profile
+// or VLAN assignments; those remain controller-owned configuration.
+func gatewayPortTable(ports []PortView) []map[string]any {
+	out := make([]map[string]any, 0, len(ports))
+	for _, view := range ports {
+		iface := view.GatewayInterface
+		row := map[string]any{
+			jsonKeyPortIdx:    view.Index,
+			jsonKeyIfName:     iface.IfName,
+			jsonKeyName:       view.Name,
+			jsonKeyEnable:     view.Enabled,
+			jsonKeyUp:         view.Up,
+			jsonKeyNetworkGrp: iface.NetworkGroup,
+			jsonKeyRole:       view.Role,
+			jsonKeyIsUplink:   view.Uplink,
+			"op_mode":         payloadKindGateway,
+			jsonKeyFullDuplex: true,
+			jsonKeyAutoneg:    true,
+			"flowctrl_rx":     false,
+			"flowctrl_tx":     false,
+			jsonKeyMACTable:   view.MACs,
+			"rx_dropped":      0,
+			"tx_dropped":      0,
+		}
+		if iface.MAC != "" {
+			row[jsonKeyMAC] = iface.MAC
+		}
+		if iface.IP != "" {
+			row["ip"] = iface.IP
+		}
+		addFields(row, portLinkFields(view.Speed, view.Media), portCounterFields(view.Port), explicitPortRateFields(view.Port), sourceFields(view.SourceInterface), gatewayConnectionFields(view))
 		out = append(out, row)
 	}
 	return out
@@ -168,7 +291,7 @@ func gatewayEthernetOverrides(ports []PortView) []map[string]any {
 			jsonKeyUp:         view.Up,
 			jsonKeyEnable:     view.Enabled,
 		}
-		addFields(row, portLinkFields(view.Speed, view.Media), sourceFields(view.SourceInterface))
+		addFields(row, portLinkFields(view.Speed, view.Media), sourceFields(view.SourceInterface), gatewayConnectionFields(view))
 		out = append(out, row)
 	}
 	return out
@@ -192,7 +315,7 @@ func gatewayReportedNetworks(ports []PortView) []map[string]any {
 			"addresses":       []string{iface.Address},
 			jsonKeyUp:         view.Up,
 		}
-		addFields(row, sourceFields(view.SourceInterface))
+		addFields(row, sourceFields(view.SourceInterface), gatewayConnectedField(view))
 		out = append(out, row)
 	}
 	return out
@@ -254,7 +377,7 @@ func gatewayUplinkTable(_ Profile, id Identity, ports []PortView) []map[string]a
 			jsonKeyEnable:     view.Enabled,
 			jsonKeyFullDuplex: true,
 		}
-		addFields(row, portLinkFields(view.Speed, view.Media), portCounterFields(view.Port), explicitPortRateFields(view.Port), sourceFields(view.SourceInterface))
+		addFields(row, portLinkFields(view.Speed, view.Media), portCounterFields(view.Port), explicitPortRateFields(view.Port), sourceFields(view.SourceInterface), gatewayConnectionFields(view))
 		addManagementVLAN(row, id.ManagementVLAN)
 		return []map[string]any{row}
 	}

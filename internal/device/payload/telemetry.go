@@ -110,7 +110,7 @@ func formatUptime(seconds int) string {
 // gatewaySpeedtestStatus returns an idle speed-test block for gateway payloads.
 func gatewaySpeedtestStatus() map[string]any {
 	return map[string]any{
-		"latency":         0,
+		jsonKeyLatency:    0,
 		"rundate":         0,
 		"runtime":         0,
 		"server":          map[string]any{"cc": "", "city": "", "country": "", "lat": 0.0, "lon": 0.0, "provider": "", "provider_url": ""},

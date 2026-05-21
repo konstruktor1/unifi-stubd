@@ -8,8 +8,11 @@ const (
 	jsonKeyEnable      = "enable"
 	jsonKeyFullDuplex  = "full_duplex"
 	jsonKeyIfName      = "ifname"
+	jsonKeyIsUplink    = "is_uplink"
 	jsonKeyL1Up        = "l1up"
+	jsonKeyLatency     = "latency"
 	jsonKeyMAC         = "mac"
+	jsonKeyMACTable    = "mac_table"
 	jsonKeyMaxSpeed    = "max_speed"
 	jsonKeyMedia       = "media"
 	jsonKeyName        = "name"
@@ -49,4 +52,5 @@ const (
 	payloadKindGateway      = "gateway"
 	payloadKindSwitch       = "switch"
 	payloadModeSwitch       = "switch"
+	payloadTypeDHCP         = "dhcp"
 )
