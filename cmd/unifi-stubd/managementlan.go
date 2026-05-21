@@ -85,6 +85,17 @@ func managementLANSourceIP(flags runtimeFlags, ip net.IP) net.IP {
 	return ip.To4()
 }
 
+func informSourceIP(flags runtimeFlags, ip net.IP) net.IP {
+	if source := managementLANSourceIP(flags, ip); source != nil {
+		return source
+	}
+	candidate := ip.To4()
+	if candidate == nil || !hostHasIPv4(candidate) {
+		return nil
+	}
+	return candidate
+}
+
 func effectiveDiscoveryInterface(flags runtimeFlags) string {
 	if iface := strings.TrimSpace(flags.discoveryInterface); iface != "" {
 		return iface
@@ -228,6 +239,19 @@ func interfaceHasIPv4(ifaceName string, ip net.IP) bool {
 			continue
 		}
 		if current := ipNet.IP.To4(); current != nil && current.Equal(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+func hostHasIPv4(ip net.IP) bool {
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return false
+	}
+	for _, iface := range ifaces {
+		if interfaceHasIPv4(iface.Name, ip) {
 			return true
 		}
 	}

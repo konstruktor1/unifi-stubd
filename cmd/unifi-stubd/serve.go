@@ -231,7 +231,7 @@ func maintainControllerPresence(cfg controllerPresence) error {
 		}
 
 		sendDiscovery(packet, cfg.hostname, cfg.mac, cfg.discoverySkipped, cfg.discoveryInterface, cfg.discoveryTargets)
-		sendInformHeartbeat(cfg.mac, informURL, cfg.flags.sshState, cfg.flags.statusPath, store, payload, managementLANSourceIP(cfg.flags, cfg.ip))
+		sendInformHeartbeat(cfg.mac, informURL, cfg.flags.sshState, cfg.flags.statusPath, store, payload, informSourceIP(cfg.flags, cfg.ip))
 
 		if cfg.flags.once {
 			return nil
