@@ -188,7 +188,9 @@ port_overrides:
 `port_neighbors` fuellt `port_table[].mac_table` auf bestimmten Ports. Das ist
 nuetzlich, wenn der Controller eine Downstream-Switch- oder Host-MAC auf einem
 Nicht-Uplink-Port sehen soll. `hostname` und `ip` sind optionale Client-
-Metadaten; `name` wird in YAML als Alias fuer `hostname` akzeptiert.
+Metadaten; `name` wird in YAML als Alias fuer `hostname` akzeptiert. Wenn
+`type` fehlt, werden Port-Nachbarn als `client` gemeldet; `uplink_neighbor`
+bleibt standardmaessig `usw`.
 
 Im Linux-`bridge-observe`-Modus werden gelernte Bridge-FDB-MACs zusaetzlich mit
 dem lokalen `/proc/net/arp`-Cache abgeglichen, wenn dieser lesbar ist. So koennen
@@ -197,9 +199,10 @@ veraendern. Hostnamen werden nicht per DNS geraten; fuer deterministische Labels
 `hostname` oder `name` explizit setzen.
 
 Gateway-Modelle melden WAN-/LAN-Zuweisungen ueber `config_port_table`,
-`ethernet_overrides`, `network_table` und `reported_networks`.
-Switch-artige MAC-Table-Nachbarn koennen vom Controller bei Gateway-
-Identitaeten ignoriert werden. Fuer Gateway-Visualisierung daher `role` und
+`ethernet_overrides`, `network_table` und `reported_networks`. Client-
+Nachbarn werden ueber `network_table[].host_table` mit `hostname` und `ip`
+gemeldet, wenn diese konfiguriert sind; Upstream-Switch-Nachbarn werden nicht
+als Gateway-Hosts gerendert. Fuer Gateway-Visualisierung daher `role` und
 `network_group` nutzen, statt das Hardware-Profil umzubauen.
 
 Bei `UXGPRO` rendert der Controller Gateway-Ports aus seinem Gateway-Modell und

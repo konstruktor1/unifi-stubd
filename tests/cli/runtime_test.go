@@ -97,6 +97,31 @@ port_overrides:
 	}
 }
 
+func TestDryRunPlanDefaultsPortNeighborToClient(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(configPath, []byte(`profile: ugw3
+mac: auto
+ip: 192.0.2.50
+hostname: config-host
+port_neighbors:
+  - port: 2
+    mac: 02:00:5e:00:53:03
+    hostname: lab-host-2
+    ip: 192.0.2.52
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	output := runStubd(t,
+		"-config", configPath,
+		"-dry-run-plan",
+	)
+	if !strings.Contains(output, `port_neighbor: port=2 mac=02:00:5e:00:53:03`) ||
+		!strings.Contains(output, `type="client"`) {
+		t.Fatalf("output did not contain client port neighbor default:\n%s", output)
+	}
+}
+
 func TestValidatePortMapRejectsMissingMappedInterface(t *testing.T) {
 	configPath := filepath.Join(t.TempDir(), "config.yaml")
 	if err := os.WriteFile(configPath, []byte(`operation_mode: port-map

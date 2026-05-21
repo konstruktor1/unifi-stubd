@@ -642,6 +642,9 @@ func TestGatewayPayloadReportsHostTableClientMetadata(t *testing.T) {
 	if host["hostname"] != "lab-host-2" || host["ip"] != "192.0.2.52" {
 		t.Fatalf("host_table metadata = %#v", host)
 	}
+	if hosts, ok := doc.NetworkTable[0]["host_table"].([]any); ok && len(hosts) != 0 {
+		t.Fatalf("gateway WAN host_table should not expose uplink neighbor: %#v", hosts)
+	}
 }
 
 func TestSwitchPortsCanOverrideAggregationUplinkToTenGigPort(t *testing.T) {
@@ -1087,6 +1090,24 @@ func TestApplyPortNeighborsAddsConfiguredMacTableEntry(t *testing.T) {
 	}
 	if len(ports[0].MACs) == 0 {
 		t.Fatal("port 1 lost its generated uplink MAC table")
+	}
+}
+
+func TestApplyPortNeighborsDefaultsToClientType(t *testing.T) {
+	ports := device.ApplyPortNeighbors(device.SwitchPorts(4), []device.PortNeighbor{
+		{
+			Port: 2,
+			Entry: device.MacTableEntry{
+				MAC:      "02:00:5e:00:53:03",
+				Hostname: "lab-host-2",
+				IP:       "192.0.2.52",
+			},
+		},
+	})
+
+	entry := ports[1].MACs[0]
+	if entry.Type != "client" {
+		t.Fatalf("port neighbor default type = %q, want client", entry.Type)
 	}
 }
 

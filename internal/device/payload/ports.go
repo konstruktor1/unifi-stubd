@@ -41,7 +41,7 @@ func ApplyUplinkNeighbor(ports []Port, neighbor *MacTableEntry) []Port {
 	if neighbor == nil || strings.TrimSpace(neighbor.MAC) == "" {
 		return ports
 	}
-	entry := normalizeMacTableEntry(*neighbor)
+	entry := normalizeMacTableEntry(*neighbor, deviceTypeUSW)
 	for index := range ports {
 		if !ports[index].Uplink {
 			continue
@@ -67,7 +67,7 @@ func ApplyPortNeighbors(ports []Port, neighbors []PortNeighbor) []Port {
 		if neighbor.Port < 1 || neighbor.Port > len(ports) || strings.TrimSpace(neighbor.Entry.MAC) == "" {
 			continue
 		}
-		entry := normalizeMacTableEntry(neighbor.Entry)
+		entry := normalizeMacTableEntry(neighbor.Entry, "client")
 		port := &ports[neighbor.Port-1]
 		replaced := false
 		for index := range port.MACs {
@@ -100,7 +100,7 @@ func mergeMacTableEntry(observed, configured MacTableEntry) MacTableEntry {
 }
 
 // normalizeMacTableEntry fills controller-facing defaults for configured neighbors.
-func normalizeMacTableEntry(entry MacTableEntry) MacTableEntry {
+func normalizeMacTableEntry(entry MacTableEntry, defaultType string) MacTableEntry {
 	entry.MAC = strings.ToLower(strings.TrimSpace(entry.MAC))
 	entry.Hostname = strings.TrimSpace(entry.Hostname)
 	entry.IP = strings.TrimSpace(entry.IP)
@@ -111,7 +111,7 @@ func normalizeMacTableEntry(entry MacTableEntry) MacTableEntry {
 		entry.Uptime = 1200
 	}
 	if strings.TrimSpace(entry.Type) == "" {
-		entry.Type = deviceTypeUSW
+		entry.Type = defaultType
 	}
 	return entry
 }

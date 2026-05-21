@@ -175,6 +175,10 @@ func gatewayReportedNetworks(ports []PortView) []map[string]any {
 func gatewayHostTable(port Port) []map[string]any {
 	out := make([]map[string]any, 0, len(port.MACs))
 	for _, entry := range port.MACs {
+		entryType := strings.TrimSpace(entry.Type)
+		if entryType != "" && entryType != "client" {
+			continue
+		}
 		row := map[string]any{
 			jsonKeyMAC:       strings.ToLower(strings.TrimSpace(entry.MAC)),
 			"age":            entry.Age,

@@ -86,7 +86,7 @@ func configPortNeighbors(neighbors []appconfig.PortNeighbor) []device.PortNeighb
 				Uptime:   defaultNeighborUptime(neighbor.Uptime),
 				VLAN:     neighbor.VLAN,
 				Static:   neighbor.Static,
-				Type:     defaultNeighborType(neighbor.Type),
+				Type:     defaultPortNeighborType(neighbor.Type),
 			},
 		})
 	}
@@ -115,6 +115,14 @@ func defaultNeighborType(neighborType string) string {
 	neighborType = strings.TrimSpace(neighborType)
 	if neighborType == "" {
 		return "usw"
+	}
+	return neighborType
+}
+
+func defaultPortNeighborType(neighborType string) string {
+	neighborType = strings.TrimSpace(neighborType)
+	if neighborType == "" {
+		return "client"
 	}
 	return neighborType
 }

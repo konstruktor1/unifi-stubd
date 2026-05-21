@@ -228,7 +228,8 @@
           "type": "boolean"
         },
         "type": {
-          "type": "string"
+          "type": "string",
+          "description": "Neighbor type; defaults to usw for uplink_neighbor."
         },
         "age": {
           "type": "integer",
@@ -270,7 +271,8 @@
           "type": "boolean"
         },
         "type": {
-          "type": "string"
+          "type": "string",
+          "description": "Neighbor type; defaults to client for port_neighbors."
         },
         "age": {
           "type": "integer",
