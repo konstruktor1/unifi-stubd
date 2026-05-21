@@ -29,6 +29,9 @@ mac: auto
 ip: 192.0.2.50
 hostname: config-host
 uplink_speed: profile
+bridge_observe:
+  ignored_members:
+    - tap10000i0
 management_lan:
   enabled: true
   vlan: 42
@@ -80,6 +83,9 @@ port_overrides:
 	if !strings.Contains(output, "bridge_observe.bridge: br0") {
 		t.Fatalf("output did not contain bridge observe fallback:\n%s", output)
 	}
+	if !strings.Contains(output, "bridge_ignore_member: member=tap10000i0") {
+		t.Fatalf("output did not contain ignored bridge member:\n%s", output)
+	}
 	if !strings.Contains(output, "discovery_interface: eth0") {
 		t.Fatalf("output did not contain discovery interface:\n%s", output)
 	}
@@ -119,6 +125,21 @@ port_neighbors:
 	if !strings.Contains(output, `port_neighbor: port=2 mac=02:00:5e:00:53:03`) ||
 		!strings.Contains(output, `type="client"`) {
 		t.Fatalf("output did not contain client port neighbor default:\n%s", output)
+	}
+}
+
+func TestDryRunPlanReportsTrafficRatesFlag(t *testing.T) {
+	output := runStubd(t,
+		"-dry-run-plan",
+		"-no-discovery",
+		"-profile", "us8",
+		"-mac", "02:00:5e:00:53:61",
+		"-ip", "192.0.2.50",
+		"-hostname", "traffic-rates-test",
+		"-traffic-rates-enabled",
+	)
+	if !strings.Contains(output, "traffic_rates_enabled: true") {
+		t.Fatalf("output did not contain traffic rates flag:\n%s", output)
 	}
 }
 
@@ -698,6 +719,7 @@ mac: auto
 ip: 192.0.2.50
 hostname: status-host
 uplink_speed: profile
+traffic_rates_enabled: true
 management_lan:
   enabled: true
   vlan: 77
@@ -725,9 +747,10 @@ status_path: `+statusPath+`
 	}
 	var doc struct {
 		Config struct {
-			OperationMode string `json:"operation_mode"`
-			InformURL     string `json:"inform_url"`
-			ManagementLAN struct {
+			OperationMode       string `json:"operation_mode"`
+			InformURL           string `json:"inform_url"`
+			TrafficRatesEnabled bool   `json:"traffic_rates_enabled"`
+			ManagementLAN       struct {
 				Enabled bool `json:"enabled"`
 				VLAN    int  `json:"vlan"`
 			} `json:"management_lan"`
@@ -775,6 +798,9 @@ status_path: `+statusPath+`
 	}
 	if doc.Config.InformURL != "http://192.0.2.10:8080/inform" {
 		t.Fatalf("InformURL = %q", doc.Config.InformURL)
+	}
+	if !doc.Config.TrafficRatesEnabled {
+		t.Fatal("TrafficRatesEnabled = false, want true")
 	}
 	if !doc.Config.ManagementLAN.Enabled || doc.Config.ManagementLAN.VLAN != 77 {
 		t.Fatalf("ManagementLAN = %+v", doc.Config.ManagementLAN)

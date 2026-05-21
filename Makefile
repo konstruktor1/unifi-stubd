@@ -63,6 +63,10 @@ test:
 validate-config:
 	$(GO) run ./cmd/unifi-stubd -validate -config packaging/linux/etc/unifi-stubd/config.yaml
 	$(GO) run ./cmd/unifi-stubd -validate -config packaging/freebsd/usr/local/etc/unifi-stubd/config.yaml
+	$(GO) run ./cmd/unifi-stubd -dry-run-plan -config lab/stub/configs/hosts/stub/config.yaml >/dev/null
+	$(GO) run ./cmd/unifi-stubd -dry-run-plan -config lab/stub/configs/hosts/stub-bridge-observe/config.yaml >/dev/null
+	$(GO) run ./cmd/unifi-stubd -dry-run-plan -config lab/stub/configs/hosts/stub-port-map/config.yaml >/dev/null
+	$(GO) run ./cmd/unifi-stubd -dry-run-plan -config lab/stub/configs/hosts/stub-gateway-smoke/config.yaml >/dev/null
 	$(GO) run ./cmd/unifi-stubd -profile-validate tests/fixtures/profiles
 
 integration-docker:

@@ -18,6 +18,13 @@ The integration overlay `lab/stub/compose.tests.yaml` adds temporary
 are built from the current repository checkout and are removed again by the
 test harness.
 
+Project-owned lab defaults live in
+`lab/stub/configs/hosts/<hostname>/config.yaml`, with one directory per
+reported stub hostname, and are mounted read-only into the stub containers. The
+test harness still passes throwaway MAC/IP/profile/hostname values as CLI
+overrides, so these files stay stable and do not contain controller state or
+secrets.
+
 ## Smoke Test
 
 Run from the repository root:

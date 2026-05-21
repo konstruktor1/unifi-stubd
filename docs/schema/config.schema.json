@@ -106,6 +106,10 @@
       "type": "string",
       "enum": ["off"]
     },
+    "traffic_rates_enabled": {
+      "type": "boolean",
+      "default": false
+    },
     "log_source": {
       "type": "string",
       "enum": ["off", "journalctl", "syslog"]
@@ -337,6 +341,12 @@
         },
         "uplink_interface": {
           "type": "string"
+        },
+        "ignored_members": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         },
         "member_port_map": {
           "type": "array",

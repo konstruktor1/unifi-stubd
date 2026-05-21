@@ -74,7 +74,8 @@ func PortOverrideEmpty(override PortOverride) bool {
 		override.RXPackets == 0 &&
 		override.TXPackets == 0 &&
 		override.RXErrors == 0 &&
-		override.TXErrors == 0
+		override.TXErrors == 0 &&
+		!override.TrafficRatesSet
 }
 
 // NormalizePortOverride returns a copy suitable for status and plan output.
@@ -104,6 +105,7 @@ var portOverrideSetters = []portOverrideSetter{
 	setPortOverrideStrings,
 	setPortOverrideSpeed,
 	setPortOverrideCounters,
+	setPortOverrideRates,
 	setPortOverrideMedia,
 	setPortOverrideLinkState,
 	setPortOverrideDisabled,
@@ -134,6 +136,16 @@ func setPortOverrideCounters(port *Port, override PortOverride) {
 			binding.set(port, value)
 		}
 	}
+}
+
+func setPortOverrideRates(port *Port, override PortOverride) {
+	if !override.TrafficRatesSet {
+		return
+	}
+	port.RXBytesRate = override.RXBytesRate
+	port.TXBytesRate = override.TXBytesRate
+	port.TrafficRatesEnabled = true
+	port.TrafficRatesSet = true
 }
 
 type portCounterOverride struct {

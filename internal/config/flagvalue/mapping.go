@@ -12,6 +12,26 @@ import (
 	appconfig "github.com/konstruktor1/unifi-stubd/internal/config"
 )
 
+// StringList parses repeated string flags into a trimmed list.
+type StringList []string
+
+func (f *StringList) String() string {
+	if f == nil {
+		return ""
+	}
+	return strings.Join(*f, ",")
+}
+
+// Set appends one non-empty string value.
+func (f *StringList) Set(value string) error {
+	value = strings.TrimSpace(value)
+	if value == "" || strings.Contains(value, "/") {
+		return fmt.Errorf("invalid value %q", value)
+	}
+	*f = append(*f, value)
+	return nil
+}
+
 // BridgeMemberPortMap parses repeated bridge member pin flags.
 type BridgeMemberPortMap []appconfig.BridgeMemberPortMap
 

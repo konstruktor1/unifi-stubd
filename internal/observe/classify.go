@@ -31,6 +31,33 @@ func ClassifyBridgeMembers(memberMACs map[string][]device.MacTableEntry, bridge,
 	return roles
 }
 
+// ClassifyBridgeMembersWithIgnores assigns roles and then marks explicitly
+// ignored bridge members so they cannot consume a UniFi port.
+func ClassifyBridgeMembersWithIgnores(memberMACs map[string][]device.MacTableEntry, bridge, uplinkInterface string, ignoredMembers []string) map[string]BridgeMemberRole {
+	return ApplyIgnoredBridgeMembers(ClassifyBridgeMembers(memberMACs, bridge, uplinkInterface), ignoredMembers)
+}
+
+// ApplyIgnoredBridgeMembers marks configured bridge members as ignored.
+func ApplyIgnoredBridgeMembers(roles map[string]BridgeMemberRole, ignoredMembers []string) map[string]BridgeMemberRole {
+	ignored := ignoredBridgeMemberSet(ignoredMembers)
+	if len(ignored) == 0 {
+		return roles
+	}
+	out := make(map[string]BridgeMemberRole, len(roles)+len(ignored))
+	for member, role := range roles {
+		out[member] = role
+		if ignored[bridgeMemberNameKey(member)] {
+			out[member] = BridgeMemberRoleIgnored
+		}
+	}
+	for member := range ignored {
+		if _, ok := roleByLowerMember(out, member); !ok {
+			out[member] = BridgeMemberRoleIgnored
+		}
+	}
+	return out
+}
+
 // ClassifyBridgeMember classifies one Linux or FreeBSD bridge member.
 func ClassifyBridgeMember(member, bridge, uplinkInterface string) BridgeMemberRole {
 	name := strings.ToLower(strings.TrimSpace(member))
@@ -63,6 +90,36 @@ func bridgeMemberRole(roles map[string]BridgeMemberRole, member string) BridgeMe
 		}
 	}
 	return BridgeMemberRoleUnknown
+}
+
+func roleByLowerMember(roles map[string]BridgeMemberRole, member string) (BridgeMemberRole, bool) {
+	member = bridgeMemberNameKey(member)
+	for key, role := range roles {
+		if bridgeMemberNameKey(key) == member {
+			return role, true
+		}
+	}
+	return BridgeMemberRoleUnknown, false
+}
+
+func ignoredBridgeMemberSet(values []string) map[string]bool {
+	if len(values) == 0 {
+		return nil
+	}
+	out := map[string]bool{}
+	for _, value := range values {
+		if key := bridgeMemberNameKey(value); key != "" {
+			out[key] = true
+		}
+	}
+	if len(out) == 0 {
+		return nil
+	}
+	return out
+}
+
+func bridgeMemberNameKey(value string) string {
+	return strings.ToLower(strings.TrimSpace(value))
 }
 
 func isVirtualAccessBridgeMember(name string) bool {

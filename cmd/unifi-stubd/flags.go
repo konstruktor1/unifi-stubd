@@ -13,58 +13,59 @@ import (
 )
 
 type runtimeFlags struct {
-	configPath         string
-	operationMode      string
-	profileName        string
-	profileFile        string
-	profileDir         string
-	listProfiles       bool
-	validate           bool
-	profileValidate    string
-	profileExport      string
-	profileTemplate    string
-	macText            string
-	ipText             string
-	hostname           string
-	model              string
-	modelDisplay       string
-	version            string
-	binaryVersion      bool
-	portCount          int
-	linkSpeed          int
-	uplinkSpeed        string
-	uplinkPort         int
-	uplinkNeighbor     *device.MacTableEntry
-	portNeighbors      []device.PortNeighbor
-	portOverrides      []device.PortOverride
-	bridgeObserve      appconfig.BridgeObserve
-	portMappings       []appconfig.PortMapping
-	observeInterface   string
-	observeBridge      string
-	lldpSource         string
-	trafficSource      string
-	logSource          string
-	procSource         string
-	dbusEnabled        bool
-	dbusBus            string
-	syslogPath         string
-	controller         string
-	interval           time.Duration
-	dryRun             bool
-	dryRunPlan         bool
-	status             bool
-	statusJSON         bool
-	once               bool
-	noDiscovery        bool
-	discoveryInterface string
-	discoveryTargets   []string
-	managementLAN      appconfig.ManagementLAN
-	sshListen          string
-	sshUser            string
-	sshPassword        string
-	sshHostKey         string
-	sshState           string
-	statusPath         string
+	configPath          string
+	operationMode       string
+	profileName         string
+	profileFile         string
+	profileDir          string
+	listProfiles        bool
+	validate            bool
+	profileValidate     string
+	profileExport       string
+	profileTemplate     string
+	macText             string
+	ipText              string
+	hostname            string
+	model               string
+	modelDisplay        string
+	version             string
+	binaryVersion       bool
+	portCount           int
+	linkSpeed           int
+	uplinkSpeed         string
+	uplinkPort          int
+	uplinkNeighbor      *device.MacTableEntry
+	portNeighbors       []device.PortNeighbor
+	portOverrides       []device.PortOverride
+	bridgeObserve       appconfig.BridgeObserve
+	portMappings        []appconfig.PortMapping
+	observeInterface    string
+	observeBridge       string
+	lldpSource          string
+	trafficSource       string
+	trafficRatesEnabled bool
+	logSource           string
+	procSource          string
+	dbusEnabled         bool
+	dbusBus             string
+	syslogPath          string
+	controller          string
+	interval            time.Duration
+	dryRun              bool
+	dryRunPlan          bool
+	status              bool
+	statusJSON          bool
+	once                bool
+	noDiscovery         bool
+	discoveryInterface  string
+	discoveryTargets    []string
+	managementLAN       appconfig.ManagementLAN
+	sshListen           string
+	sshUser             string
+	sshPassword         string
+	sshHostKey          string
+	sshState            string
+	statusPath          string
 }
 
 func parseRuntimeFlags(defaults appconfig.Config) (runtimeFlags, map[string]bool) {
@@ -89,6 +90,7 @@ func parseRuntimeFlags(defaults appconfig.Config) (runtimeFlags, map[string]bool
 	flag.BoolVar(&flags.status, "status", false, "print local runtime status and exit")
 	flag.BoolVar(&flags.statusJSON, "status-json", false, "print local runtime status as JSON and exit")
 	flag.BoolVar(&flags.once, "once", false, "send one discovery/inform batch and exit")
+	flag.Var((*flagvalue.StringList)(&flags.bridgeObserve.IgnoredMembers), "bridge-ignore-member", "exclude bridge member from port mapping; repeatable")
 	flag.Var((*flagvalue.BridgeMemberPortMap)(&flags.bridgeObserve.MemberPortMap), "bridge-member-port", "pin bridge member to port, syntax member=PORT")
 	flag.Var((*flagvalue.PortMapping)(&flags.portMappings), "port-map", "map port source, syntax port=N,interface=eth0 or port=N,disabled=true or port=N,unmapped=true")
 	registerRuntimeSettings(&flags, defaults)

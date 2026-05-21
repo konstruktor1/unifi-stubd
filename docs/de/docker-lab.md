@@ -19,6 +19,13 @@ Services `stub-bridge-observe`, `stub-port-map` und `stub-gateway-smoke`. Sie
 werden aus dem aktuellen Repository-Checkout gebaut und vom Test-Harness wieder
 entfernt.
 
+Projekt-eigene Lab-Defaults liegen in
+`lab/stub/configs/hosts/<hostname>/config.yaml`, mit einem Verzeichnis pro
+gemeldetem Stub-Hostnamen, und werden read-only in die Stub-Container
+gemountet. Das Test-Harness uebergibt Wegwerf-MACs/-IPs, Profile und Hostnamen
+weiter als CLI-Overrides, damit diese Dateien stabil bleiben und keinen
+Controller-State oder Secrets enthalten.
+
 ## Smoke-Test
 
 Aus dem Repository-Root starten:

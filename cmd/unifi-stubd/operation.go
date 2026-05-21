@@ -150,6 +150,11 @@ func validateSourceMappings(flags runtimeFlags, live bool) error {
 		if err := validateOptionalInterfaceName("bridge_observe.uplink_interface", cfg.UplinkInterface, live); err != nil {
 			errs = append(errs, err)
 		}
+		for _, member := range cfg.IgnoredMembers {
+			if err := validateOptionalInterfaceName("bridge_observe.ignored_members", member, live); err != nil {
+				errs = append(errs, err)
+			}
+		}
 		for _, mapping := range cfg.MemberPortMap {
 			member := strings.TrimSpace(mapping.Member)
 			if member == "" || strings.Contains(member, "/") {
@@ -160,6 +165,7 @@ func validateSourceMappings(flags runtimeFlags, live bool) error {
 			}
 		}
 		errs = append(errs, validateBridgeMemberPortMap(cfg.MemberPortMap)...)
+		errs = append(errs, validateBridgeIgnoredMembers(cfg)...)
 	case operationModePortMap:
 		seenPorts := map[int]bool{}
 		for _, mapping := range flags.portMappings {
@@ -267,14 +273,19 @@ func portsForRuntime(flags runtimeFlags, portOptions device.PortOptions, plt pla
 
 	bridgeObserve := effectiveBridgeObserve(flags)
 	snapshot, errs := observe.HostSnapshotFromSource(ctx, plt, observe.Config{
-		Interface:     strings.TrimSpace(bridgeObserve.UplinkInterface),
-		Bridge:        strings.TrimSpace(bridgeObserve.Bridge),
-		MemberPortMap: bridgeMemberPortMap(bridgeObserve.MemberPortMap),
+		Interface:      strings.TrimSpace(bridgeObserve.UplinkInterface),
+		Bridge:         strings.TrimSpace(bridgeObserve.Bridge),
+		IgnoredMembers: cloneStrings(bridgeObserve.IgnoredMembers),
+		MemberPortMap:  bridgeMemberPortMap(bridgeObserve.MemberPortMap),
 	}, uplinkPortIndex(ports))
 	for _, err := range errs {
 		log.Printf("passive observation warning: %v", err)
 	}
-	ports = device.ApplyPortOverrides(observe.Apply(ports, snapshot), flags.portOverrides)
+	observedPorts := observe.Apply(ports, snapshot)
+	if flags.trafficRatesEnabled {
+		observedPorts = markTrafficRateUplinkInterface(observedPorts, bridgeObserve.UplinkInterface)
+	}
+	ports = device.ApplyPortOverrides(observedPorts, flags.portOverrides)
 	ports = applyLLDPNeighbors(ports, flags, plt)
 	ports = device.ApplyPortNeighbors(ports, flags.portNeighbors)
 	return device.ApplyUplinkNeighbor(ports, flags.uplinkNeighbor)
@@ -411,6 +422,9 @@ func printRuntimePlan(flags runtimeFlags, profile device.Profile, macText, ipTex
 	bridgeObserve := effectiveBridgeObserve(flags)
 	fmt.Printf("bridge_observe.bridge: %s\n", strings.TrimSpace(bridgeObserve.Bridge))
 	fmt.Printf("bridge_observe.uplink_interface: %s\n", strings.TrimSpace(bridgeObserve.UplinkInterface))
+	for _, member := range bridgeObserve.IgnoredMembers {
+		fmt.Printf("bridge_ignore_member: member=%s\n", strings.TrimSpace(member))
+	}
 	for _, mapping := range bridgeObserve.MemberPortMap {
 		fmt.Printf("bridge_member_port: member=%s port=%d\n", strings.TrimSpace(mapping.Member), mapping.Port)
 	}
@@ -424,6 +438,7 @@ func printRuntimePlan(flags runtimeFlags, profile device.Profile, macText, ipTex
 	}
 	fmt.Printf("lldp_source: %s\n", strings.TrimSpace(flags.lldpSource))
 	fmt.Printf("traffic_source: %s\n", strings.TrimSpace(flags.trafficSource))
+	fmt.Printf("traffic_rates_enabled: %t\n", flags.trafficRatesEnabled)
 	fmt.Printf("log_source: %s\n", strings.TrimSpace(flags.logSource))
 	fmt.Printf("proc_source: %s\n", strings.TrimSpace(flags.procSource))
 	fmt.Printf("dbus_enabled: %t\n", flags.dbusEnabled)
@@ -503,6 +518,21 @@ func uplinkPortIndex(ports []device.Port) int {
 	return 1
 }
 
+func markTrafficRateUplinkInterface(ports []device.Port, iface string) []device.Port {
+	iface = strings.TrimSpace(iface)
+	if iface == "" || len(ports) == 0 {
+		return ports
+	}
+	index := uplinkPortIndex(ports)
+	if index < 1 || index > len(ports) || strings.TrimSpace(ports[index-1].Interface) != "" {
+		return ports
+	}
+	out := make([]device.Port, len(ports))
+	copy(out, ports)
+	out[index-1].Interface = iface
+	return out
+}
+
 func effectiveBridgeObserve(flags runtimeFlags) appconfig.BridgeObserve {
 	cfg := cloneBridgeObserve(flags.bridgeObserve)
 	if strings.TrimSpace(cfg.Bridge) == "" {
@@ -547,4 +577,39 @@ func validateBridgeMemberPortMap(mappings []appconfig.BridgeMemberPortMap) []err
 		seenPorts[mapping.Port] = member
 	}
 	return errs
+}
+
+func validateBridgeIgnoredMembers(cfg appconfig.BridgeObserve) []error {
+	var errs []error
+	seen := map[string]bool{}
+	pinned := map[string]bool{}
+	for _, mapping := range cfg.MemberPortMap {
+		if key := bridgeMemberKey(mapping.Member); key != "" {
+			pinned[key] = true
+		}
+	}
+	bridgeKey := bridgeMemberKey(cfg.Bridge)
+	uplinkKey := bridgeMemberKey(cfg.UplinkInterface)
+	for _, member := range cfg.IgnoredMembers {
+		key := bridgeMemberKey(member)
+		if key == "" {
+			continue
+		}
+		switch {
+		case seen[key]:
+			errs = append(errs, fmt.Errorf("duplicate bridge_observe.ignored_members member %q", strings.TrimSpace(member)))
+		case key == bridgeKey:
+			errs = append(errs, fmt.Errorf("bridge_observe.ignored_members cannot ignore bridge %q", strings.TrimSpace(member)))
+		case key == uplinkKey:
+			errs = append(errs, fmt.Errorf("bridge_observe.ignored_members cannot ignore uplink_interface %q", strings.TrimSpace(member)))
+		case pinned[key]:
+			errs = append(errs, fmt.Errorf("bridge_observe.ignored_members member %q also appears in member_port_map", strings.TrimSpace(member)))
+		}
+		seen[key] = true
+	}
+	return errs
+}
+
+func bridgeMemberKey(value string) string {
+	return strings.ToLower(strings.TrimSpace(value))
 }

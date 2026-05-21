@@ -153,7 +153,7 @@ func (p hostPlatform) linuxBridge(ctx context.Context, cfg observe.BridgeConfig)
 			if err := observe.EnrichMACEntriesWithLocalARP(observation.MemberMACs); err != nil {
 				errs = append(errs, err)
 			}
-			observation.MemberRoles = observe.ClassifyBridgeMembers(observation.MemberMACs, observation.Bridge, observation.UplinkInterface)
+			observation.MemberRoles = observe.ClassifyBridgeMembersWithIgnores(observation.MemberMACs, observation.Bridge, observation.UplinkInterface, cfg.IgnoredMembers)
 			observation.RemoteMACs = observe.RemoteMACsByBridgeMember(observation.MemberMACs, observation.MemberRoles, observation.UplinkInterface, observation.Bridge)
 			observation.MemberPorts, errs = p.bridgeMemberObservations(ctx, observation.MemberMACs, observation.MemberRoles, errs)
 		}
@@ -174,7 +174,7 @@ func (p hostPlatform) freebsdBridge(ctx context.Context, cfg observe.BridgeConfi
 			errs = append(errs, err)
 		} else {
 			observation.MemberMACs = freeBSDMACEntriesByInterface(entries)
-			observation.MemberRoles = observe.ClassifyBridgeMembers(observation.MemberMACs, observation.Bridge, observation.UplinkInterface)
+			observation.MemberRoles = observe.ClassifyBridgeMembersWithIgnores(observation.MemberMACs, observation.Bridge, observation.UplinkInterface, cfg.IgnoredMembers)
 			observation.RemoteMACs = observe.RemoteMACsByBridgeMember(observation.MemberMACs, observation.MemberRoles, observation.UplinkInterface, observation.Bridge)
 			observation.MemberPorts, errs = p.bridgeMemberObservations(ctx, observation.MemberMACs, observation.MemberRoles, errs)
 		}

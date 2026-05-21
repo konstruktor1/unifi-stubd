@@ -59,6 +59,9 @@ bridge_observe:
   # port unless uplink_port is set.
   # MACs learned on uplink_interface are remote behind the real neighbor switch
   # and are excluded from all local access-port MAC tables.
+  # Optional members ignored entirely. This is useful when a local bridge member
+  # is already represented by an explicit physical/uplink port.
+  ignored_members: []
   member_port_map: []
 # port-map syntax is available in the config and requires one entry per profile
 # port. Native FreeBSD bridge observation is staged separately. Use
@@ -68,6 +71,9 @@ port_mappings: []
 # installed. Missing lldpcli is reported as a warning and does not stop the daemon.
 lldp_source: off
 traffic_source: off
+# Optional UniFi UI traffic rates from read-only interface counters.
+# Keep disabled unless mapped interfaces should report live RX/TX rates.
+traffic_rates_enabled: false
 # Optional read-only platform metadata. FreeBSD commonly uses syslog files
 # rather than journald; /proc is Linux-only and should stay off here.
 # OPNsense commonly stores system logs under /var/log/system/latest.log, which

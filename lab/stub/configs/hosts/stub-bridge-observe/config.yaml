@@ -1,0 +1,39 @@
+# Temporary Docker integration host for read-only bridge observation.
+operation_mode: bridge-observe
+controller_url: http://unifi:8080/inform
+profile: us8
+mac: 02:15:6d:00:08:21
+ip: 172.31.242.25
+hostname: stub-bridge-observe
+uplink_speed: profile
+interval_seconds: 2
+no_discovery: true
+
+bridge_observe:
+  bridge: stubbr0
+  uplink_interface: uplink0
+  member_port_map:
+    - member: tap101i0
+      port: 2
+    - member: tap102i0
+      port: 3
+
+port_neighbors:
+  - port: 2
+    mac: 02:00:5e:10:01:01
+    hostname: lab-client-101
+    ip: 192.0.2.101
+    vlan: 1
+    static: true
+    type: client
+  - port: 3
+    mac: 02:00:5e:10:02:01
+    hostname: lab-client-102
+    ip: 192.0.2.102
+    vlan: 1
+    static: true
+    type: client
+
+ssh_host_key_path: /var/lib/unifi-stubd/ssh_host_rsa_key
+state_path: /var/lib/unifi-stubd/adoption.env
+status_path: /var/lib/unifi-stubd/status.json

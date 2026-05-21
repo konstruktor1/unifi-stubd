@@ -1,0 +1,32 @@
+# Temporary Docker integration host for explicit read-only switch port maps.
+operation_mode: port-map
+controller_url: http://unifi:8080/inform
+profile: us8
+mac: 02:15:6d:00:08:22
+ip: 172.31.242.26
+hostname: stub-port-map
+uplink_speed: profile
+interval_seconds: 2
+no_discovery: true
+
+port_mappings:
+  - port: 1
+    interface: pmeth1
+  - port: 2
+    interface: pmeth2
+  - port: 3
+    disabled: true
+  - port: 4
+    unmapped: true
+  - port: 5
+    unmapped: true
+  - port: 6
+    unmapped: true
+  - port: 7
+    unmapped: true
+  - port: 8
+    unmapped: true
+
+ssh_host_key_path: /var/lib/unifi-stubd/ssh_host_rsa_key
+state_path: /var/lib/unifi-stubd/adoption.env
+status_path: /var/lib/unifi-stubd/status.json

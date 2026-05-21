@@ -49,29 +49,30 @@ type statusIdentity struct {
 
 // statusConfig contains non-secret runtime configuration selected for status output.
 type statusConfig struct {
-	OperationMode      string                   `json:"operation_mode"`
-	ControllerURL      string                   `json:"controller_url,omitempty"`
-	InformURL          string                   `json:"inform_url,omitempty"`
-	Interval           string                   `json:"interval"`
-	NoDiscovery        bool                     `json:"no_discovery"`
-	DiscoveryInterface string                   `json:"discovery_interface,omitempty"`
-	DiscoveryTargets   []string                 `json:"discovery_targets,omitempty"`
-	ManagementLAN      *appconfig.ManagementLAN `json:"management_lan,omitempty"`
-	SSHListen          string                   `json:"ssh_listen,omitempty"`
-	StatePath          string                   `json:"state_path"`
-	StatusPath         string                   `json:"status_path"`
-	UplinkNeighbor     *statusUplinkNeighbor    `json:"uplink_neighbor,omitempty"`
-	PortNeighbors      []statusPortNeighbor     `json:"port_neighbors,omitempty"`
-	PortOverrides      []device.PortOverride    `json:"port_overrides,omitempty"`
-	BridgeObserve      appconfig.BridgeObserve  `json:"bridge_observe,omitempty"`
-	PortMappings       []appconfig.PortMapping  `json:"port_mappings,omitempty"`
-	LLDPSource         string                   `json:"lldp_source"`
-	TrafficSource      string                   `json:"traffic_source"`
-	LogSource          string                   `json:"log_source"`
-	ProcSource         string                   `json:"proc_source"`
-	DBusEnabled        bool                     `json:"dbus_enabled"`
-	DBusBus            string                   `json:"dbus_bus"`
-	SyslogPath         string                   `json:"syslog_path,omitempty"`
+	OperationMode       string                   `json:"operation_mode"`
+	ControllerURL       string                   `json:"controller_url,omitempty"`
+	InformURL           string                   `json:"inform_url,omitempty"`
+	Interval            string                   `json:"interval"`
+	NoDiscovery         bool                     `json:"no_discovery"`
+	DiscoveryInterface  string                   `json:"discovery_interface,omitempty"`
+	DiscoveryTargets    []string                 `json:"discovery_targets,omitempty"`
+	ManagementLAN       *appconfig.ManagementLAN `json:"management_lan,omitempty"`
+	SSHListen           string                   `json:"ssh_listen,omitempty"`
+	StatePath           string                   `json:"state_path"`
+	StatusPath          string                   `json:"status_path"`
+	UplinkNeighbor      *statusUplinkNeighbor    `json:"uplink_neighbor,omitempty"`
+	PortNeighbors       []statusPortNeighbor     `json:"port_neighbors,omitempty"`
+	PortOverrides       []device.PortOverride    `json:"port_overrides,omitempty"`
+	BridgeObserve       appconfig.BridgeObserve  `json:"bridge_observe,omitempty"`
+	PortMappings        []appconfig.PortMapping  `json:"port_mappings,omitempty"`
+	LLDPSource          string                   `json:"lldp_source"`
+	TrafficSource       string                   `json:"traffic_source"`
+	TrafficRatesEnabled bool                     `json:"traffic_rates_enabled"`
+	LogSource           string                   `json:"log_source"`
+	ProcSource          string                   `json:"proc_source"`
+	DBusEnabled         bool                     `json:"dbus_enabled"`
+	DBusBus             string                   `json:"dbus_bus"`
+	SyslogPath          string                   `json:"syslog_path,omitempty"`
 }
 
 // statusUplinkNeighbor summarizes the configured uplink MAC-table neighbor.
@@ -190,29 +191,30 @@ func buildLocalStatus(flags runtimeFlags, profile device.Profile, mac net.Hardwa
 			UplinkPort: uplinkPortIndex(ports),
 		},
 		Config: statusConfig{
-			OperationMode:      flags.operationMode,
-			ControllerURL:      flags.controller,
-			InformURL:          informURL,
-			Interval:           flags.interval.String(),
-			NoDiscovery:        flags.noDiscovery,
-			DiscoveryInterface: effectiveDiscoveryInterface(flags),
-			DiscoveryTargets:   cloneStrings(flags.discoveryTargets),
-			ManagementLAN:      statusManagementLAN(flags),
-			SSHListen:          flags.sshListen,
-			StatePath:          flags.sshState,
-			StatusPath:         flags.statusPath,
-			UplinkNeighbor:     statusUplinkNeighborEntry(flags.uplinkNeighbor),
-			PortNeighbors:      statusPortNeighbors(flags.portNeighbors),
-			PortOverrides:      statusPortOverrides(flags.portOverrides),
-			BridgeObserve:      cloneBridgeObserve(flags.bridgeObserve),
-			PortMappings:       clonePortMappings(flags.portMappings),
-			LLDPSource:         flags.lldpSource,
-			TrafficSource:      flags.trafficSource,
-			LogSource:          flags.logSource,
-			ProcSource:         flags.procSource,
-			DBusEnabled:        flags.dbusEnabled,
-			DBusBus:            flags.dbusBus,
-			SyslogPath:         flags.syslogPath,
+			OperationMode:       flags.operationMode,
+			ControllerURL:       flags.controller,
+			InformURL:           informURL,
+			Interval:            flags.interval.String(),
+			NoDiscovery:         flags.noDiscovery,
+			DiscoveryInterface:  effectiveDiscoveryInterface(flags),
+			DiscoveryTargets:    cloneStrings(flags.discoveryTargets),
+			ManagementLAN:       statusManagementLAN(flags),
+			SSHListen:           flags.sshListen,
+			StatePath:           flags.sshState,
+			StatusPath:          flags.statusPath,
+			UplinkNeighbor:      statusUplinkNeighborEntry(flags.uplinkNeighbor),
+			PortNeighbors:       statusPortNeighbors(flags.portNeighbors),
+			PortOverrides:       statusPortOverrides(flags.portOverrides),
+			BridgeObserve:       cloneBridgeObserve(flags.bridgeObserve),
+			PortMappings:        clonePortMappings(flags.portMappings),
+			LLDPSource:          flags.lldpSource,
+			TrafficSource:       flags.trafficSource,
+			TrafficRatesEnabled: flags.trafficRatesEnabled,
+			LogSource:           flags.logSource,
+			ProcSource:          flags.procSource,
+			DBusEnabled:         flags.dbusEnabled,
+			DBusBus:             flags.dbusBus,
+			SyslogPath:          flags.syslogPath,
 		},
 		Adoption: statusAdoption{
 			State:      adoptionStateText(store),
@@ -273,9 +275,10 @@ func buildObservationStatus(flags runtimeFlags, ports []device.Port, plt platfor
 
 	bridgeObserve := effectiveBridgeObserve(flags)
 	snapshot, errs := observe.HostSnapshotFromSource(ctx, plt, observe.Config{
-		Interface:     strings.TrimSpace(bridgeObserve.UplinkInterface),
-		Bridge:        strings.TrimSpace(bridgeObserve.Bridge),
-		MemberPortMap: bridgeMemberPortMap(bridgeObserve.MemberPortMap),
+		Interface:      strings.TrimSpace(bridgeObserve.UplinkInterface),
+		Bridge:         strings.TrimSpace(bridgeObserve.Bridge),
+		IgnoredMembers: cloneStrings(bridgeObserve.IgnoredMembers),
+		MemberPortMap:  bridgeMemberPortMap(bridgeObserve.MemberPortMap),
 	}, uplinkPortIndex(ports))
 
 	out := statusObservation{
@@ -319,6 +322,7 @@ func printHumanStatus(status localStatus) {
 	}
 	fmt.Printf("lldp_source: %s\n", status.Config.LLDPSource)
 	fmt.Printf("traffic_source: %s\n", status.Config.TrafficSource)
+	fmt.Printf("traffic_rates_enabled: %t\n", status.Config.TrafficRatesEnabled)
 	fmt.Printf("log_source: %s\n", status.Config.LogSource)
 	fmt.Printf("proc_source: %s\n", status.Config.ProcSource)
 	fmt.Printf("dbus_enabled: %t\n", status.Config.DBusEnabled)

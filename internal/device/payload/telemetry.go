@@ -55,6 +55,8 @@ func applyGatewayTelemetry(payload map[string]any, id Identity, now time.Time, u
 	payload["locating"] = false
 	payload["manufacturer_id"] = 61
 	payload["netmask"] = "255.255.255.0"
+	payload["outlet_enabled"] = false
+	payload["outlet_overrides"] = []map[string]any{}
 	payload["outlet_table"] = []map[string]any{}
 	payload["pingtest-status"] = []map[string]any{}
 	payload["qrid"] = ""

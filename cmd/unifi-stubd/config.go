@@ -39,6 +39,9 @@ func applyConfig(cfg appconfig.Config, changed map[string]bool, flags *runtimeFl
 	if !changed["bridge-member-port"] {
 		flags.bridgeObserve.MemberPortMap = cloneBridgeMemberPortMaps(cfg.BridgeObserve.MemberPortMap)
 	}
+	if !changed["bridge-ignore-member"] {
+		flags.bridgeObserve.IgnoredMembers = cloneStrings(cfg.BridgeObserve.IgnoredMembers)
+	}
 	if !changed["port-map"] {
 		flags.portMappings = clonePortMappings(cfg.PortMappings)
 	}
@@ -139,6 +142,7 @@ func cloneStrings(values []string) []string {
 }
 
 func cloneBridgeObserve(value appconfig.BridgeObserve) appconfig.BridgeObserve {
+	value.IgnoredMembers = cloneStrings(value.IgnoredMembers)
 	value.MemberPortMap = cloneBridgeMemberPortMaps(value.MemberPortMap)
 	return value
 }

@@ -132,6 +132,7 @@ standardmaessiger Container-Name, Hostname und persistentes Volume sind als
 
 ```text
 lab/stub/compose.yaml
+lab/stub/configs/hosts/stub/config.yaml
 services.stub
 container_name: stub
 hostname: stub
@@ -149,6 +150,8 @@ docker compose -f lab/stub/compose.yaml up -d --build stub
 Der `stub`-Service baut das Root-`Dockerfile` und uebergibt
 `${UNIFI_STUB_PROFILE:-us8}` zur Laufzeit. Das emulierte UniFi-Profil ist
 standardmaessig `us8`; Docker-Pfad und Container-Identitaet bleiben `stub`.
+Gemeinsame Lab-Defaults fuer den generischen und die temporaeren Test-Hosts
+liegen unter `lab/stub/configs/hosts/<hostname>/config.yaml`.
 
 Fuer Gateway-Firmware-Simulation gibt es die profilbezogenen Labs unter
 `lab/gateway-profiles/`. Diese Verzeichnisse sind echte Firmware-Wrapper, keine

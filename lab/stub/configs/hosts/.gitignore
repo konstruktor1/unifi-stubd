@@ -1,0 +1,8 @@
+# Real-network host snapshots can contain private IPs, MACs, controller URLs,
+# adoption state paths, or site-specific interface names. Keep them local.
+*/real/*
+*/temp/*
+
+# Keep optional per-host notes visible if a host directory needs documentation.
+!*/real/README.md
+!*/temp/README.md

@@ -22,9 +22,9 @@ func applyGatewayPayload(payload map[string]any, profile Profile, id Identity, p
 	payload["uplink_table"] = gatewayUplinkTable(profile, id, ports)
 	payload["has_eth1"] = len(ports) > 1
 	payload["has_dpi"] = profile.HasDPI
-	payload["config_network_wan"] = map[string]any{jsonKeyType: "dhcp"}
-	if len(ports) > 2 {
-		payload["config_network_wan2"] = map[string]any{jsonKeyType: "dhcp"}
+	payload["config_network_wan"] = gatewayConfigNetwork(ports, gatewayPortRoleWAN)
+	if wan2 := gatewayConfigNetwork(ports, gatewayPortRoleWAN2); len(wan2) > 1 {
+		payload["config_network_wan2"] = wan2
 	}
 }
 
@@ -58,7 +58,7 @@ func gatewayIfTable(_ Profile, id Identity, ports []PortView) []map[string]any {
 			jsonKeyNetworkGrp: iface.NetworkGroup,
 			jsonKeyFullDuplex: true,
 		}
-		addFields(row, portLinkFields(view.Speed, view.Media), portCounterFields(view.Port), sourceFields(view.SourceInterface))
+		addFields(row, portLinkFields(view.Speed, view.Media), portCounterFields(view.Port), explicitPortRateFields(view.Port), sourceFields(view.SourceInterface))
 		if view.Index == uplinkIndex {
 			addManagementVLAN(row, id.ManagementVLAN)
 		}
@@ -73,6 +73,7 @@ func gatewayNetworkTable(_ Profile, _ Identity, ports []PortView) []map[string]a
 	for _, view := range ports {
 		iface := view.GatewayInterface
 		counters := portCounterFields(view.Port)
+		addFields(counters, explicitPortRateFields(view.Port))
 		entry := map[string]any{
 			jsonKeyName:       iface.Name,
 			jsonKeyIfName:     iface.IfName,
@@ -81,7 +82,7 @@ func gatewayNetworkTable(_ Profile, _ Identity, ports []PortView) []map[string]a
 			jsonKeyNetworkGrp: iface.NetworkGroup,
 			"ip":              iface.IP,
 			jsonKeyNetmask:    iface.Netmask,
-			"address":         iface.Address,
+			jsonKeyAddress:    iface.Address,
 			"addresses": []string{
 				iface.Address,
 			},
@@ -103,6 +104,32 @@ func gatewayNetworkTable(_ Profile, _ Identity, ports []PortView) []map[string]a
 	return out
 }
 
+func gatewayConfigNetwork(ports []PortView, role string) map[string]any {
+	for _, view := range ports {
+		if gatewayPortRole(view.Port) != role {
+			continue
+		}
+		iface := view.GatewayInterface
+		row := map[string]any{
+			jsonKeyType:       "dhcp",
+			jsonKeyName:       iface.NetworkGroup,
+			jsonKeyIfName:     iface.IfName,
+			jsonKeyPortIdx:    view.Index,
+			jsonKeyNetworkGrp: iface.NetworkGroup,
+			jsonKeyRole:       view.Role,
+			jsonKeyMAC:        iface.MAC,
+			"ip":              iface.IP,
+			jsonKeyNetmask:    iface.Netmask,
+			jsonKeyAddress:    iface.Address,
+			jsonKeyUp:         view.Up,
+			jsonKeyEnable:     view.Enabled,
+		}
+		addFields(row, sourceFields(view.SourceInterface))
+		return row
+	}
+	return map[string]any{jsonKeyType: "dhcp"}
+}
+
 // gatewayConfigPortTable renders gateway WAN/LAN port assignments from the
 // same resolved port view used by interface and network tables.
 func gatewayConfigPortTable(ports []PortView) []map[string]any {
@@ -114,7 +141,7 @@ func gatewayConfigPortTable(ports []PortView) []map[string]any {
 			jsonKeyIfName:     iface.IfName,
 			jsonKeyPortIdx:    view.Index,
 			jsonKeyNetworkGrp: view.NetworkGroup,
-			"role":            view.Role,
+			jsonKeyRole:       view.Role,
 			jsonKeyUp:         view.Up,
 			jsonKeyEnable:     view.Enabled,
 			"is_uplink":       view.Uplink,
@@ -137,7 +164,7 @@ func gatewayEthernetOverrides(ports []PortView) []map[string]any {
 			jsonKeyPortIdx:    view.Index,
 			jsonKeyMAC:        iface.MAC,
 			jsonKeyNetworkGrp: view.NetworkGroup,
-			"role":            view.Role,
+			jsonKeyRole:       view.Role,
 			jsonKeyUp:         view.Up,
 			jsonKeyEnable:     view.Enabled,
 		}
@@ -161,7 +188,7 @@ func gatewayReportedNetworks(ports []PortView) []map[string]any {
 			jsonKeyType:       view.Role,
 			"ip":              iface.IP,
 			jsonKeyNetmask:    iface.Netmask,
-			"address":         iface.Address,
+			jsonKeyAddress:    iface.Address,
 			"addresses":       []string{iface.Address},
 			jsonKeyUp:         view.Up,
 		}
@@ -227,7 +254,7 @@ func gatewayUplinkTable(_ Profile, id Identity, ports []PortView) []map[string]a
 			jsonKeyEnable:     view.Enabled,
 			jsonKeyFullDuplex: true,
 		}
-		addFields(row, portLinkFields(view.Speed, view.Media), portCounterFields(view.Port), sourceFields(view.SourceInterface))
+		addFields(row, portLinkFields(view.Speed, view.Media), portCounterFields(view.Port), explicitPortRateFields(view.Port), sourceFields(view.SourceInterface))
 		addManagementVLAN(row, id.ManagementVLAN)
 		return []map[string]any{row}
 	}

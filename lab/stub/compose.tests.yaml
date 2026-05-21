@@ -26,6 +26,10 @@ services:
     volumes:
       - stub-bridge-observe-state:/var/lib/unifi-stubd
       - type: bind
+        source: ./configs
+        target: /usr/local/share/unifi-stubd-lab/configs
+        read_only: true
+      - type: bind
         source: ./scripts
         target: /usr/local/lib/unifi-stubd-lab
         read_only: true
@@ -64,6 +68,10 @@ services:
     volumes:
       - stub-port-map-state:/var/lib/unifi-stubd
       - type: bind
+        source: ./configs
+        target: /usr/local/share/unifi-stubd-lab/configs
+        read_only: true
+      - type: bind
         source: ./scripts
         target: /usr/local/lib/unifi-stubd-lab
         read_only: true
@@ -101,6 +109,10 @@ services:
         ipv4_address: ${UNIFI_STUB_GATEWAY_IP:-172.31.242.27}
     volumes:
       - stub-gateway-smoke-state:/var/lib/unifi-stubd
+      - type: bind
+        source: ./configs
+        target: /usr/local/share/unifi-stubd-lab/configs
+        read_only: true
       - type: bind
         source: ./scripts
         target: /usr/local/lib/unifi-stubd-lab

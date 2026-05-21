@@ -112,6 +112,14 @@ type Port struct {
 	RXErrors int64
 	// TXErrors is the transmit error counter.
 	TXErrors int64
+	// RXBytesRate is the receive byte rate in bytes per second.
+	RXBytesRate int64
+	// TXBytesRate is the transmit byte rate in bytes per second.
+	TXBytesRate int64
+	// TrafficRatesEnabled reports that the runtime traffic-rate switch is on.
+	TrafficRatesEnabled bool
+	// TrafficRatesSet reports that RXBytesRate and TXBytesRate are real samples.
+	TrafficRatesSet bool
 	// MACs contains learned MAC entries for this port.
 	MACs []MacTableEntry
 }
@@ -190,6 +198,12 @@ type PortOverride struct {
 	RXErrors int64 `yaml:"-" json:"-"`
 	// TXErrors overrides the transmit error counter when non-zero.
 	TXErrors int64 `yaml:"-" json:"-"`
+	// RXBytesRate overrides the receive byte rate when TrafficRatesSet is true.
+	RXBytesRate int64 `yaml:"-" json:"-"`
+	// TXBytesRate overrides the transmit byte rate when TrafficRatesSet is true.
+	TXBytesRate int64 `yaml:"-" json:"-"`
+	// TrafficRatesSet reports that RXBytesRate and TXBytesRate are real samples.
+	TrafficRatesSet bool `yaml:"-" json:"-"`
 }
 
 // PortNeighbor describes one configured MAC-table entry on a specific port.

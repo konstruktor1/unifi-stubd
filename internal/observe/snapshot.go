@@ -28,6 +28,8 @@ type Config struct {
 	Interface string
 	// Bridge is the Linux bridge used for FDB MAC table data.
 	Bridge string
+	// IgnoredMembers excludes bridge member interfaces from UniFi port mapping.
+	IgnoredMembers []string
 	// MemberPortMap pins bridge member interfaces to one-based UniFi ports.
 	MemberPortMap map[string]int
 	// SysfsRoot is the sysfs root, usually /sys.
@@ -110,10 +112,10 @@ func LinuxSnapshot(ctx context.Context, cfg Config, uplinkPortIndex int) (Snapsh
 			if err := EnrichMACEntriesWithLocalARP(snapshot.DeviceMACs); err != nil {
 				errs = append(errs, err)
 			}
-			snapshot.MemberRoles = ClassifyBridgeMembers(snapshot.DeviceMACs, snapshot.Bridge, snapshot.Interface)
+			snapshot.MemberRoles = ClassifyBridgeMembersWithIgnores(snapshot.DeviceMACs, snapshot.Bridge, snapshot.Interface, cfg.IgnoredMembers)
 			snapshot.RemoteMACs = RemoteMACsByBridgeMember(snapshot.DeviceMACs, snapshot.MemberRoles, snapshot.Interface, snapshot.Bridge)
 			snapshot.MemberPorts = linuxMemberPortObservations(cfg.SysfsRoot, snapshot.DeviceMACs, snapshot.MemberRoles)
-			snapshot.MACs = flattenDeviceMACsExcept(snapshot.DeviceMACs, snapshot.Interface, snapshot.Bridge, snapshot.RemoteMACs)
+			snapshot.MACs = flattenDeviceMACsByRole(snapshot.DeviceMACs, snapshot.MemberRoles, snapshot.Interface, snapshot.Bridge, snapshot.RemoteMACs)
 		}
 	}
 	return snapshot, errs
@@ -128,6 +130,7 @@ func HostSnapshotFromSource(ctx context.Context, source ObservationSource, cfg C
 	bridge, errs := source.Bridge(ctx, BridgeConfig{
 		Bridge:          strings.TrimSpace(cfg.Bridge),
 		UplinkInterface: strings.TrimSpace(cfg.Interface),
+		IgnoredMembers:  cloneStrings(cfg.IgnoredMembers),
 		MemberPortMap:   normalizeMemberPortMap(cfg.MemberPortMap),
 	})
 	snapshot := Snapshot{
@@ -147,10 +150,11 @@ func HostSnapshotFromSource(ctx context.Context, source ObservationSource, cfg C
 	if len(snapshot.MemberRoles) == 0 {
 		snapshot.MemberRoles = ClassifyBridgeMembers(snapshot.DeviceMACs, snapshot.Bridge, snapshot.Interface)
 	}
+	snapshot.MemberRoles = ApplyIgnoredBridgeMembers(snapshot.MemberRoles, cfg.IgnoredMembers)
 	if len(snapshot.RemoteMACs) == 0 {
 		snapshot.RemoteMACs = RemoteMACsByBridgeMember(snapshot.DeviceMACs, snapshot.MemberRoles, snapshot.Interface, snapshot.Bridge)
 	}
-	snapshot.MACs = flattenDeviceMACsExcept(snapshot.DeviceMACs, snapshot.Interface, snapshot.Bridge, snapshot.RemoteMACs)
+	snapshot.MACs = flattenDeviceMACsByRole(snapshot.DeviceMACs, snapshot.MemberRoles, snapshot.Interface, snapshot.Bridge, snapshot.RemoteMACs)
 	return snapshot, errs
 }
 
@@ -268,6 +272,22 @@ func flattenDeviceMACsExcept(deviceMACs map[string][]device.MacTableEntry, iface
 	}
 	out := make([]device.MacTableEntry, 0, count)
 	for _, deviceName := range sortedDeviceNames(deviceMACs, iface, bridge) {
+		out = append(out, filterRemoteMACEntries(deviceMACs[deviceName], remoteMACs)...)
+	}
+	return out
+}
+
+func flattenDeviceMACsByRole(deviceMACs map[string][]device.MacTableEntry, roles map[string]BridgeMemberRole, iface, bridge string, remoteMACs map[string]bool) []device.MacTableEntry {
+	count := 0
+	for _, macs := range deviceMACs {
+		count += len(macs)
+	}
+	out := make([]device.MacTableEntry, 0, count)
+	for _, deviceName := range sortedDeviceNames(deviceMACs, iface, bridge) {
+		role := bridgeMemberRole(roles, deviceName)
+		if role == BridgeMemberRoleBridge || role == BridgeMemberRoleIgnored {
+			continue
+		}
 		out = append(out, filterRemoteMACEntries(deviceMACs[deviceName], remoteMACs)...)
 	}
 	return out
@@ -535,6 +555,15 @@ func normalizeRemoteMACSet(values map[string]bool) map[string]bool {
 	if len(out) == 0 {
 		return nil
 	}
+	return out
+}
+
+func cloneStrings(values []string) []string {
+	if len(values) == 0 {
+		return nil
+	}
+	out := make([]string, len(values))
+	copy(out, values)
 	return out
 }
 

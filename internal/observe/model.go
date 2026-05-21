@@ -19,6 +19,7 @@ type ObservationSource interface {
 type BridgeConfig struct {
 	Bridge          string
 	UplinkInterface string
+	IgnoredMembers  []string
 	MemberPortMap   map[string]int
 }
 

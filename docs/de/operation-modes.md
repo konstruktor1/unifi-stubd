@@ -74,6 +74,9 @@ physisch wirkendes Bridge-Member existiert, wird es als Uplink-Kandidat
 behandelt; sonst werden unbekannte Member als normale Ports gemappt.
 `bridge_observe.member_port_map` kann ein Member fest auf einen UniFi-Port
 pinnen, wenn die deterministische Sortierung nicht reicht.
+`bridge_observe.ignored_members` schliesst lokale Bridge-Member komplett aus;
+das ist fuer TAP-/epair-Seiten gedacht, die bereits ueber einen expliziten
+physischen oder Uplink-Port dargestellt werden.
 
 `observe` bleibt als Migrationsalias gueltig und wird intern auf
 `bridge-observe` normalisiert. Bestehende `observe_interface`- und
@@ -85,6 +88,8 @@ operation_mode: bridge-observe
 bridge_observe:
   bridge: vmbr0
   uplink_interface: eno1
+  ignored_members:
+    - tap10000i0
   member_port_map:
     - member: tap101i0
       port: 2
@@ -271,6 +276,7 @@ reichern Payloads oder Status an, veraendern aber kein Host-Netzwerk.
 
 ```yaml
 lldp_source: lldpd
+traffic_rates_enabled: false
 log_source: journalctl
 proc_source: procfs
 dbus_enabled: false
@@ -298,6 +304,14 @@ Diese Quellen sind ueber Status/Capabilities sichtbar und bleiben read-only.
 `proc_source: procfs` ist Linux-only und ergaenzt Interface-Zaehler aus
 `/proc/net/dev`; Link-Speed oder Medium kommen weiterhin aus `/sys/class/net`
 oder Plattformtools.
+
+`traffic_rates_enabled: true` meldet read-only RX/TX-Byte-Raten sowie bekannte
+Byte-, Paket-, Error-, Link-State-, Speed-, Media- und Source-Interface-Metadaten
+fuer gemappte oder beobachtete Interfaces in UniFi-Inform-Payloads. Der Schalter
+ist per Default aus, damit bestehende Labs ihre bisherige Controller-Darstellung
+behalten. Quelle ist derselbe Interface-Counter-Pfad wie bei
+`port_overrides[].interface`, `port-map` und Bridge-Observation; Packet Capture,
+NetFlow/IPFIX, DPI oder Paket-/Error-Rate-Felder werden dadurch nicht aktiviert.
 
 `dbus_enabled: true` prueft nur optionale System- oder Session-D-Bus-
 Konnektivitaet. D-Bus ist fuer den normalen Stub-Betrieb nicht erforderlich.

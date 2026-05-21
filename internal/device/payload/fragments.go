@@ -50,6 +50,12 @@ func portCounterFields(port Port) map[string]any {
 }
 
 func portRateFields(port Port) map[string]any {
+	if port.TrafficRatesSet || port.TrafficRatesEnabled {
+		return map[string]any{
+			jsonKeyRXBytesRate: port.RXBytesRate,
+			jsonKeyTXBytesRate: port.TXBytesRate,
+		}
+	}
 	rxRate := int64(0)
 	txRate := int64(0)
 	if port.Up && effectivePortSpeed(port) > 0 {
@@ -57,7 +63,17 @@ func portRateFields(port Port) map[string]any {
 		txRate = 48 + int64(port.Index)
 	}
 	return map[string]any{
-		"rx_bytes-r": rxRate,
-		"tx_bytes-r": txRate,
+		jsonKeyRXBytesRate: rxRate,
+		jsonKeyTXBytesRate: txRate,
+	}
+}
+
+func explicitPortRateFields(port Port) map[string]any {
+	if !port.TrafficRatesSet && !port.TrafficRatesEnabled {
+		return nil
+	}
+	return map[string]any{
+		jsonKeyRXBytesRate: port.RXBytesRate,
+		jsonKeyTXBytesRate: port.TXBytesRate,
 	}
 }

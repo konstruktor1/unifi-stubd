@@ -70,6 +70,9 @@ interface is configured and exactly one physical-looking bridge member exists,
 it is treated as the uplink candidate; otherwise unknown members are mapped as
 normal ports. `bridge_observe.member_port_map` can pin a member to a specific
 UniFi port when deterministic sorting is not enough.
+`bridge_observe.ignored_members` excludes local bridge members entirely; use it
+for TAP/epair sides that are already represented by another explicit physical
+or uplink port.
 
 `observe` remains accepted as a migration alias and is normalized internally to
 `bridge-observe`. Existing `observe_interface` and `observe_bridge` configs are
@@ -81,6 +84,8 @@ operation_mode: bridge-observe
 bridge_observe:
   bridge: vmbr0
   uplink_interface: eno1
+  ignored_members:
+    - tap10000i0
   member_port_map:
     - member: tap101i0
       port: 2
@@ -262,6 +267,7 @@ payloads or status, but never mutate host networking.
 
 ```yaml
 lldp_source: lldpd
+traffic_rates_enabled: false
 log_source: journalctl
 proc_source: procfs
 dbus_enabled: false
@@ -287,6 +293,14 @@ exposed through status/capabilities and remain read-only.
 
 `proc_source: procfs` is Linux-only and supplements interface counters from
 `/proc/net/dev`; it does not replace `/sys/class/net` for link speed or media.
+
+`traffic_rates_enabled: true` reports read-only RX/TX byte rates and the
+available byte, packet, error, link-state, speed, media, and source-interface
+metadata for mapped or observed interfaces in UniFi inform payloads. It is off
+by default so existing labs keep their previous controller display. The rate
+source is the same interface counter path used by
+`port_overrides[].interface`, `port-map`, and bridge observation; it does not
+enable packet capture, NetFlow/IPFIX, DPI, or packet/error rate fields.
 
 `dbus_enabled: true` only checks optional system or session D-Bus connectivity.
 D-Bus is not required for normal stub operation.

@@ -68,6 +68,8 @@ type Config struct {
 	LLDPSource string `yaml:"lldp_source"`
 	// TrafficSource selects the passive traffic metadata source.
 	TrafficSource string `yaml:"traffic_source"`
+	// TrafficRatesEnabled reports interface byte rates to the controller.
+	TrafficRatesEnabled bool `yaml:"traffic_rates_enabled"`
 	// LogSource selects optional read-only runtime log metadata.
 	LogSource string `yaml:"log_source"`
 	// ProcSource selects optional Linux procfs metadata.
@@ -107,46 +109,47 @@ type Config struct {
 // Default returns the built-in runtime defaults.
 func Default() Config {
 	return Config{
-		OperationMode:      "stub",
-		ControllerURL:      "",
-		Profile:            "us16p150",
-		ProfileFile:        "",
-		ProfileDir:         "",
-		MAC:                automaticValue,
-		IP:                 "192.168.1.50",
-		Hostname:           automaticValue,
-		Model:              "",
-		ModelDisplay:       "",
-		Ports:              0,
-		LinkSpeed:          0,
-		UplinkSpeed:        automaticValue,
-		UplinkPort:         0,
-		UplinkNeighbor:     nil,
-		PortNeighbors:      nil,
-		PortOverrides:      nil,
-		BridgeObserve:      BridgeObserve{},
-		PortMappings:       nil,
-		ObserveInterface:   "",
-		ObserveBridge:      "",
-		LLDPSource:         sourceOffValue,
-		TrafficSource:      sourceOffValue,
-		LogSource:          sourceOffValue,
-		ProcSource:         sourceOffValue,
-		DBusEnabled:        false,
-		DBusBus:            "system",
-		SyslogPath:         "/var/log/messages",
-		Version:            "",
-		IntervalSeconds:    10,
-		NoDiscovery:        false,
-		DiscoveryInterface: "",
-		DiscoveryTargets:   nil,
-		ManagementLAN:      ManagementLAN{},
-		SSHListen:          "",
-		SSHUser:            "ubnt",
-		SSHPassword:        "ubnt",
-		SSHHostKeyPath:     "/var/lib/unifi-stubd/ssh_host_rsa_key",
-		StatePath:          "/var/lib/unifi-stubd/adoption.env",
-		StatusPath:         "/var/lib/unifi-stubd/status.json",
+		OperationMode:       "stub",
+		ControllerURL:       "",
+		Profile:             "us16p150",
+		ProfileFile:         "",
+		ProfileDir:          "",
+		MAC:                 automaticValue,
+		IP:                  "192.168.1.50",
+		Hostname:            automaticValue,
+		Model:               "",
+		ModelDisplay:        "",
+		Ports:               0,
+		LinkSpeed:           0,
+		UplinkSpeed:         automaticValue,
+		UplinkPort:          0,
+		UplinkNeighbor:      nil,
+		PortNeighbors:       nil,
+		PortOverrides:       nil,
+		BridgeObserve:       BridgeObserve{},
+		PortMappings:        nil,
+		ObserveInterface:    "",
+		ObserveBridge:       "",
+		LLDPSource:          sourceOffValue,
+		TrafficSource:       sourceOffValue,
+		TrafficRatesEnabled: false,
+		LogSource:           sourceOffValue,
+		ProcSource:          sourceOffValue,
+		DBusEnabled:         false,
+		DBusBus:             "system",
+		SyslogPath:          "/var/log/messages",
+		Version:             "",
+		IntervalSeconds:     10,
+		NoDiscovery:         false,
+		DiscoveryInterface:  "",
+		DiscoveryTargets:    nil,
+		ManagementLAN:       ManagementLAN{},
+		SSHListen:           "",
+		SSHUser:             "ubnt",
+		SSHPassword:         "ubnt",
+		SSHHostKeyPath:      "/var/lib/unifi-stubd/ssh_host_rsa_key",
+		StatePath:           "/var/lib/unifi-stubd/adoption.env",
+		StatusPath:          "/var/lib/unifi-stubd/status.json",
 	}
 }
 
@@ -225,6 +228,8 @@ type BridgeObserve struct {
 	Bridge string `yaml:"bridge"`
 	// UplinkInterface is the bridge member that points upstream.
 	UplinkInterface string `yaml:"uplink_interface"`
+	// IgnoredMembers are bridge members excluded from UniFi port mapping.
+	IgnoredMembers []string `yaml:"ignored_members"`
 	// MemberPortMap pins bridge members to one-based UniFi ports.
 	MemberPortMap []BridgeMemberPortMap `yaml:"member_port_map"`
 }

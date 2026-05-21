@@ -24,6 +24,9 @@ func TestDefaultSeparatesConfigAndStatePaths(t *testing.T) {
 	if cfg.StatusPath != "/var/lib/unifi-stubd/status.json" {
 		t.Fatalf("StatusPath = %q", cfg.StatusPath)
 	}
+	if cfg.TrafficRatesEnabled {
+		t.Fatal("TrafficRatesEnabled default = true, want false")
+	}
 	if cfg.Profile == "" {
 		t.Fatal("Profile default is empty")
 	}
@@ -41,6 +44,8 @@ observe_bridge: vmbr0
 bridge_observe:
   bridge: vmbr1
   uplink_interface: eno1
+  ignored_members:
+    - tap10000i0
   member_port_map:
     - member: tap101i0
       port: 2
@@ -89,6 +94,7 @@ port_overrides:
   - port: 5
     up: false
 lldp_source: lldpd
+traffic_rates_enabled: true
 log_source: journalctl
 proc_source: procfs
 dbus_enabled: true
@@ -125,6 +131,9 @@ status_path: /tmp/unifi-stubd/status.json
 	}
 	if cfg.BridgeObserve.Bridge != "vmbr1" || cfg.BridgeObserve.UplinkInterface != "eno1" {
 		t.Fatalf("BridgeObserve = %+v", cfg.BridgeObserve)
+	}
+	if len(cfg.BridgeObserve.IgnoredMembers) != 1 || cfg.BridgeObserve.IgnoredMembers[0] != "tap10000i0" {
+		t.Fatalf("BridgeObserve.IgnoredMembers = %+v", cfg.BridgeObserve.IgnoredMembers)
 	}
 	if len(cfg.BridgeObserve.MemberPortMap) != 1 ||
 		cfg.BridgeObserve.MemberPortMap[0].Member != "tap101i0" ||
@@ -194,6 +203,9 @@ status_path: /tmp/unifi-stubd/status.json
 	}
 	if cfg.TrafficSource != "off" {
 		t.Fatalf("TrafficSource default was not preserved: %q", cfg.TrafficSource)
+	}
+	if !cfg.TrafficRatesEnabled {
+		t.Fatal("TrafficRatesEnabled = false, want true")
 	}
 	if cfg.LogSource != "journalctl" {
 		t.Fatalf("LogSource = %q", cfg.LogSource)

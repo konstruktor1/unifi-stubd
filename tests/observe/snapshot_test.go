@@ -179,6 +179,22 @@ func TestClassifyBridgeMembersPromotesSinglePhysicalCandidate(t *testing.T) {
 	}
 }
 
+func TestClassifyBridgeMembersHonorsIgnoredMembers(t *testing.T) {
+	memberMACs := map[string][]device.MacTableEntry{
+		"vmbr0":      {{MAC: "00:11:22:33:44:00", Age: 4, Uptime: 1200}},
+		"eno1":       {{MAC: "00:11:22:33:44:01", Age: 4, Uptime: 1200}},
+		"tap10000i0": {{MAC: "00:11:22:33:44:02", Age: 4, Uptime: 1200}},
+	}
+
+	roles := observe.ClassifyBridgeMembersWithIgnores(memberMACs, "vmbr0", "eno1", []string{"TAP10000I0"})
+	if roles["tap10000i0"] != observe.BridgeMemberRoleIgnored {
+		t.Fatalf("tap10000i0 role = %q", roles["tap10000i0"])
+	}
+	if roles["eno1"] != observe.BridgeMemberRoleUplink {
+		t.Fatalf("eno1 role = %q", roles["eno1"])
+	}
+}
+
 func TestRemoteMACsByBridgeMemberDetectsUplinkNeighbor(t *testing.T) {
 	memberMACs := map[string][]device.MacTableEntry{
 		"enp100s0": {
@@ -198,6 +214,48 @@ func TestRemoteMACsByBridgeMemberDetectsUplinkNeighbor(t *testing.T) {
 	}
 	if remote["00:11:22:33:44:55"] {
 		t.Fatalf("local access MAC was marked remote: %+v", remote)
+	}
+}
+
+func TestApplySnapshotIgnoresBridgeMembers(t *testing.T) {
+	ports := device.SwitchPortsWithOptions(4, device.PortOptions{
+		Speed:       10000,
+		UplinkSpeed: 25000,
+		Media:       "SFP+",
+		UplinkMedia: "SFP28",
+		PortGroups: []device.PortGroup{
+			{Count: 3, Speed: 10000, Media: "SFP+"},
+			{Count: 1, Speed: 25000, Media: "SFP28", Uplink: true},
+		},
+	})
+	out := observe.Apply(ports, observe.Snapshot{
+		UplinkPortIndex: 4,
+		Interface:       "eno1",
+		Bridge:          "vmbr0",
+		DeviceMACs: map[string][]device.MacTableEntry{
+			"tap10000i0": {{MAC: "00:11:22:33:44:55", Age: 4, Uptime: 1200}},
+			"veth200i0":  {{MAC: "00:11:22:33:44:77", Age: 4, Uptime: 1200}},
+			"eno1":       {{MAC: "00:11:22:33:44:99", Age: 4, Uptime: 1200}},
+		},
+		MemberRoles: map[string]observe.BridgeMemberRole{
+			"tap10000i0": observe.BridgeMemberRoleIgnored,
+			"veth200i0":  observe.BridgeMemberRoleAccess,
+			"eno1":       observe.BridgeMemberRoleUplink,
+		},
+	})
+
+	if out[0].Name != "veth200i0" {
+		t.Fatalf("port 1 name = %q", out[0].Name)
+	}
+	if len(out[0].MACs) != 1 || out[0].MACs[0].MAC != "00:11:22:33:44:77" {
+		t.Fatalf("port 1 MACs = %+v", out[0].MACs)
+	}
+	for _, port := range out {
+		for _, entry := range port.MACs {
+			if entry.MAC == "00:11:22:33:44:55" {
+				t.Fatalf("ignored member MAC leaked into payload: port=%+v", port)
+			}
+		}
 	}
 }
 

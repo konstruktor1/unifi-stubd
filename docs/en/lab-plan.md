@@ -131,6 +131,7 @@ name, hostname, and persistent volume are declared as `stub`:
 
 ```text
 lab/stub/compose.yaml
+lab/stub/configs/hosts/stub/config.yaml
 services.stub
 container_name: stub
 hostname: stub
@@ -146,7 +147,9 @@ docker compose -f lab/stub/compose.yaml up -d --build stub
 
 The `stub` service builds the root `Dockerfile` and passes
 `${UNIFI_STUB_PROFILE:-us8}` at runtime. The default emulated UniFi profile is
-`us8`; the Docker path and container identity remain `stub`.
+`us8`; the Docker path and container identity remain `stub`. Shared lab
+defaults for the generic and temporary test hosts live under
+`lab/stub/configs/hosts/<hostname>/config.yaml`.
 
 For gateway firmware simulation, use the per-profile labs under
 `lab/gateway-profiles/`. Those directories are real firmware wrappers, not

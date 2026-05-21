@@ -18,6 +18,7 @@ import (
 	appconfig "github.com/konstruktor1/unifi-stubd/internal/config"
 	"github.com/konstruktor1/unifi-stubd/internal/device"
 	"github.com/konstruktor1/unifi-stubd/internal/discovery"
+	"github.com/konstruktor1/unifi-stubd/internal/observe"
 )
 
 func serveSwitchEmulation() error {
@@ -155,6 +156,9 @@ func serveSwitchEmulation() error {
 	}
 
 	ports := portsForRuntime(flags, portOptions, plt)
+	if flags.trafficRatesEnabled {
+		ports = applyTrafficRates(ports, observe.NewTrafficRateTracker(), time.Now())
+	}
 	payload, err := payloadForIdentity(mac, ip, resolvedHostname, flags.controller, adoption.Store{}, flags, profile, ports, 1)
 	if err != nil {
 		return err
@@ -219,12 +223,26 @@ func maintainControllerPresence(cfg controllerPresence) error {
 	if startedAt.IsZero() {
 		startedAt = time.Now()
 	}
+	var rateTracker *observe.TrafficRateTracker
+	if cfg.flags.trafficRatesEnabled {
+		rateTracker = observe.NewTrafficRateTracker()
+	}
 
 	for {
 		uptimeSeconds := runtimeUptime(startedAt)
 		store := loadAdoptionState(cfg.flags.sshState)
 		informURL := effectiveInformURL(cfg.flags.controller, store)
-		ports := portsForRuntime(cfg.flags, cfg.portOptions, runtimePlatform(cfg.flags))
+		flags := cfg.flags
+		plt := runtimePlatform(flags)
+		if flags.trafficRatesEnabled {
+			ctx, cancel := context.WithTimeout(context.Background(), observeTimeout)
+			flags.portOverrides = enrichPortOverridesWithPlatform(ctx, plt, flags.portOverrides)
+			cancel()
+		}
+		ports := portsForRuntime(flags, cfg.portOptions, plt)
+		if flags.trafficRatesEnabled {
+			ports = applyTrafficRates(ports, rateTracker, time.Now())
+		}
 		payload, err := payloadForIdentity(cfg.mac, cfg.ip, cfg.hostname, informURL, store, cfg.flags, cfg.profile, ports, uptimeSeconds)
 		if err != nil {
 			return err

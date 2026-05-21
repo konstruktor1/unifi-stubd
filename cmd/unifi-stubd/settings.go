@@ -37,6 +37,7 @@ var runtimeSettings = []runtimeSetting{
 	stringSetting("bridge-observe-uplink-interface", "bridge member that represents the upstream link", func(flags *runtimeFlags) *string { return &flags.bridgeObserve.UplinkInterface }, func(cfg appconfig.Config) string { return cfg.BridgeObserve.UplinkInterface }),
 	stringSetting("lldp-source", "passive LLDP source: off or lldpd", func(flags *runtimeFlags) *string { return &flags.lldpSource }, func(cfg appconfig.Config) string { return cfg.LLDPSource }),
 	stringSetting("traffic-source", "traffic metadata source: off", func(flags *runtimeFlags) *string { return &flags.trafficSource }, func(cfg appconfig.Config) string { return cfg.TrafficSource }),
+	boolSetting("traffic-rates-enabled", "report read-only interface traffic rates in inform payloads", func(flags *runtimeFlags) *bool { return &flags.trafficRatesEnabled }, func(cfg appconfig.Config) bool { return cfg.TrafficRatesEnabled }),
 	stringSetting("log-source", "read-only log source: off, journalctl, or syslog", func(flags *runtimeFlags) *string { return &flags.logSource }, func(cfg appconfig.Config) string { return cfg.LogSource }),
 	stringSetting("proc-source", "read-only proc source: off or procfs", func(flags *runtimeFlags) *string { return &flags.procSource }, func(cfg appconfig.Config) string { return cfg.ProcSource }),
 	boolSetting("dbus-enabled", "enable optional D-Bus availability checks", func(flags *runtimeFlags) *bool { return &flags.dbusEnabled }, func(cfg appconfig.Config) bool { return cfg.DBusEnabled }),

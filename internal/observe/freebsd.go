@@ -52,10 +52,10 @@ func FreeBSDSnapshot(ctx context.Context, cfg Config, uplinkPortIndex int) (Snap
 			errs = append(errs, err)
 		} else {
 			snapshot.DeviceMACs = FreeBSDMACEntriesByInterface(entries)
-			snapshot.MemberRoles = ClassifyBridgeMembers(snapshot.DeviceMACs, snapshot.Bridge, snapshot.Interface)
+			snapshot.MemberRoles = ClassifyBridgeMembersWithIgnores(snapshot.DeviceMACs, snapshot.Bridge, snapshot.Interface, cfg.IgnoredMembers)
 			snapshot.RemoteMACs = RemoteMACsByBridgeMember(snapshot.DeviceMACs, snapshot.MemberRoles, snapshot.Interface, snapshot.Bridge)
 			snapshot.MemberPorts = mapBridgeMemberInterfaces(snapshot.DeviceMACs, snapshot.MemberRoles)
-			snapshot.MACs = flattenDeviceMACsExcept(snapshot.DeviceMACs, snapshot.Interface, snapshot.Bridge, snapshot.RemoteMACs)
+			snapshot.MACs = flattenDeviceMACsByRole(snapshot.DeviceMACs, snapshot.MemberRoles, snapshot.Interface, snapshot.Bridge, snapshot.RemoteMACs)
 		}
 	}
 	if snapshot.Interface != "" {

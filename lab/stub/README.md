@@ -14,6 +14,19 @@ name, hostname, and persistent volume. That keeps the generic daemon lab
 separate from firmware research directories, where containers are wrappers
 around extracted vendor root filesystems.
 
+Runtime configuration for the long-lived `stub` service and the temporary test
+services lives in `configs/hosts/<hostname>/config.yaml`, with one directory
+per reported stub hostname. Compose mounts `configs/` read-only inside the
+containers at
+`/usr/local/share/unifi-stubd-lab/configs`. Start scripts still pass throwaway
+MAC/IP/profile/hostname values as CLI overrides when a test run needs fresh
+identities.
+
+Real-network host configs and temporary snapshots can use the same host
+directory shape under `configs/hosts/<hostname>/real/config.yaml` or
+`configs/hosts/<hostname>/temp/config.yaml`. Those paths are local-only and
+ignored by Git; keep committed examples sanitized.
+
 Captured inform traffic is local output and belongs in the ignored
 `captures/` directory. Do not commit raw controller captures, adoption keys,
 tokens, private URLs, or device-specific data from this lab.

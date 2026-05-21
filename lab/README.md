@@ -25,7 +25,10 @@ by packages automatically.
 
 - `stub/`: generic Docker Compose lab for the Go `unifi-stubd` service. It
   owns the `compose.yaml` that starts the stub, controller, MongoDB, and MITM
-  containers. Its ignored `captures/` directory is local output only.
+  containers. Project-owned runtime configs for the generic and temporary test
+  hosts live under `stub/configs/hosts/`. Its ignored `captures/` directory is
+  local output only. Real-network host snapshots use ignored `real/` or `temp/`
+  subdirectories below each host.
 - `gateway-profiles/`: real firmware simulation wrappers. These are separate
   from the Go stub profiles and may use Docker, QEMU, or UTM depending on the
   device family.
@@ -47,6 +50,7 @@ declared as `stub`:
 
 ```text
 lab/stub/compose.yaml
+lab/stub/configs/hosts/stub/config.yaml
 services.stub
 container_name: stub
 hostname: stub
@@ -68,7 +72,9 @@ service. Captures are written to ignored `lab/stub/captures/`.
 
 The `stub` service builds the generic root `Dockerfile` and passes
 `${UNIFI_STUB_PROFILE:-us8}` at runtime. The default emulated UniFi profile is
-`us8`; the Docker path and container identity remain `stub`.
+`us8`; the Docker path and container identity remain `stub`. Shared lab
+defaults are kept in `lab/stub/configs/hosts/stub/config.yaml`, while
+MAC/IP/profile overrides still come from environment-backed Compose flags.
 
 Stop and remove the disposable stub lab state:
 
