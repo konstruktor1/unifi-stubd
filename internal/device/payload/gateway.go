@@ -33,7 +33,6 @@ func applyGatewayPayload(payload map[string]any, profile Profile, id Identity, p
 	if wan2 := gatewayWANStatus(ports, gatewayPortRoleWAN2, uptime); len(wan2) > 0 {
 		payload["wan2"] = wan2
 	}
-	payload["internet"] = gatewayInternetStatus(ports, uptime)
 }
 
 // gatewayUplinkPortIndex returns the one-based uplink port index.
@@ -165,28 +164,6 @@ func gatewayWANStatus(ports []PortView, role string, uptime int) map[string]any 
 		return row
 	}
 	return nil
-}
-
-func gatewayInternetStatus(ports []PortView, uptime int) map[string]any {
-	wan := gatewayWANStatus(ports, gatewayPortRoleWAN, uptime)
-	if len(wan) == 0 {
-		return map[string]any{"up": false, "wan_status": "disconnected"}
-	}
-	up, _ := wan[jsonKeyUp].(bool)
-	status := "disconnected"
-	if up {
-		status = "connected"
-	}
-	out := map[string]any{
-		"up":           up,
-		"wan_status":   status,
-		"ifname":       wan[jsonKeyIfName],
-		"ip":           wan["ip"],
-		"port_idx":     wan[jsonKeyPortIdx],
-		jsonKeyLatency: wan[jsonKeyLatency],
-		jsonKeyUptime:  wan[jsonKeyUptime],
-	}
-	return out
 }
 
 func gatewayConnectedField(view PortView) map[string]any {

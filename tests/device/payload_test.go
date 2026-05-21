@@ -386,7 +386,6 @@ func TestTenGigGatewayProfileReportsPortLayout(t *testing.T) {
 		ConfigNetworkWAN2 map[string]any   `json:"config_network_wan2"`
 		WAN1              map[string]any   `json:"wan1"`
 		WAN2              map[string]any   `json:"wan2"`
-		Internet          map[string]any   `json:"internet"`
 		OutletEnabled     bool             `json:"outlet_enabled"`
 		OutletOverrides   []map[string]any `json:"outlet_overrides"`
 		OutletTable       []map[string]any `json:"outlet_table"`
@@ -394,9 +393,9 @@ func TestTenGigGatewayProfileReportsPortLayout(t *testing.T) {
 	if err := json.Unmarshal(payload, &doc); err != nil {
 		t.Fatal(err)
 	}
-	for _, key := range []string{"ethernet_table", "port_overrides"} {
+	for _, key := range []string{"ethernet_table", "internet", "port_overrides"} {
 		if _, ok := raw[key]; ok {
-			t.Fatalf("gateway payload contains switch table %q", key)
+			t.Fatalf("gateway payload contains unsupported table/key %q", key)
 		}
 	}
 	if doc.DeviceType != "uxg" {
@@ -466,12 +465,6 @@ func TestTenGigGatewayProfileReportsPortLayout(t *testing.T) {
 	assertGatewayConfigNetwork(t, doc.ConfigNetworkWAN2, "eth2", "WAN2", "wan2", 3)
 	assertGatewayWANStatus(t, doc.WAN1, "eth0", "WAN", "wan", 1)
 	assertGatewayWANStatus(t, doc.WAN2, "eth2", "WAN2", "wan2", 3)
-	if got := doc.Internet["wan_status"].(string); got != "connected" {
-		t.Fatalf("internet wan_status = %q, want connected", got)
-	}
-	if got := int(doc.Internet["port_idx"].(float64)); got != 1 {
-		t.Fatalf("internet port_idx = %d, want 1", got)
-	}
 }
 
 func TestGatewayPayloadReportsManagementVLANOnUplink(t *testing.T) {
