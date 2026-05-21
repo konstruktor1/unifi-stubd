@@ -67,6 +67,8 @@ validate-config:
 	$(GO) run ./cmd/unifi-stubd -dry-run-plan -config lab/stub/configs/hosts/stub-bridge-observe/config.yaml >/dev/null
 	$(GO) run ./cmd/unifi-stubd -dry-run-plan -config lab/stub/configs/hosts/stub-port-map/config.yaml >/dev/null
 	$(GO) run ./cmd/unifi-stubd -dry-run-plan -config lab/stub/configs/hosts/stub-gateway-smoke/config.yaml >/dev/null
+	$(GO) run ./cmd/unifi-stubd -dry-run-plan -config lab/stub/configs/hosts/server-lan1-sfp-lab/config.example.yaml >/dev/null
+	$(GO) run ./cmd/unifi-stubd -dry-run-plan -config lab/stub/configs/hosts/opnsense-uxg-sfp-lab/config.example.yaml >/dev/null
 	$(GO) run ./cmd/unifi-stubd -profile-validate tests/fixtures/profiles
 
 integration-docker:

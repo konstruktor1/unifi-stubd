@@ -1,0 +1,125 @@
+# Sanitized example based on a Proxmox/Linux bridge that is represented as a
+# UniFi switch. Real host snapshots belong under hosts/<host>/real/ and stay
+# ignored by Git.
+operation_mode: bridge-observe
+controller_url: http://192.0.2.10:8080/inform
+profile: us48p500
+mac: 02:00:5e:00:53:c9
+ip: 192.0.2.190
+hostname: server-lan1
+uplink_speed: profile
+uplink_port: 49
+interval_seconds: 10
+no_discovery: true
+
+uplink_neighbor:
+  mac: 02:00:5e:00:53:ca
+  ip: 192.0.2.1
+  vlan: 0
+  type: uxg
+
+port_neighbors:
+  - port: 1
+    mac: 02:00:5e:00:53:11
+    hostname: lab-container
+    ip: 192.0.2.21
+    vlan: 9
+    static: true
+    type: client
+  - port: 3
+    mac: 02:00:5e:00:53:13
+    hostname: lab-jump
+    ip: 192.0.2.22
+    vlan: 9
+    static: true
+    type: client
+  - port: 4
+    mac: 02:00:5e:00:53:14
+    hostname: lab-controller
+    ip: 192.0.2.10
+    vlan: 1
+    static: true
+    type: client
+  - port: 5
+    mac: 02:00:5e:00:53:15
+    hostname: lab-management
+    ip: 192.0.2.30
+    vlan: 1001
+    static: true
+    type: client
+  - port: 6
+    mac: 02:00:5e:00:53:16
+    hostname: lab-dns
+    ip: 192.0.2.31
+    vlan: 10
+    static: true
+    type: client
+  - port: 7
+    mac: 02:00:5e:00:53:17
+    hostname: lab-proxy
+    ip: 192.0.2.32
+    vlan: 9
+    static: true
+    type: client
+  - port: 8
+    mac: 02:00:5e:00:53:18
+    hostname: lab-storage
+    ip: 192.0.2.33
+    vlan: 1
+    static: true
+    type: client
+  - port: 9
+    mac: 02:00:5e:00:53:19
+    hostname: lab-directory
+    ip: 192.0.2.34
+    vlan: 1
+    static: true
+    type: client
+  - port: 50
+    mac: 02:00:5e:00:53:50
+    hostname: aggregation-switch
+    ip: 192.0.2.50
+    vlan: 1001
+    static: true
+    type: usw
+
+port_overrides:
+  - port: 49
+    name: OPNsense LAN SFP+
+    speed: 10000
+    media: SFP+
+    up: true
+  - port: 50
+    name: Aggregation SFP+
+    speed: 10000
+    media: SFP+
+    up: true
+
+bridge_observe:
+  bridge: lan1
+  uplink_interface: eth2
+  ignored_members:
+    - tap10000i0
+  member_port_map:
+    - member: tap400i0
+      port: 1
+    - member: veth102i0
+      port: 3
+    - member: veth103i0
+      port: 4
+    - member: veth103i1
+      port: 5
+    - member: veth150i0
+      port: 6
+    - member: fwpr200p0
+      port: 7
+    - member: fwpr420p0
+      port: 8
+    - member: fwpr430p0
+      port: 9
+
+traffic_rates_enabled: true
+lldp_source: off
+traffic_source: off
+state_path: /var/lib/unifi-stubd/server-lan1-adoption.env
+status_path: /var/lib/unifi-stubd/server-lan1-status.json

@@ -1,0 +1,80 @@
+# Sanitized example based on an OPNsense/FreeBSD host represented as a UXG Pro.
+# WAN is the first SFP+ cage and LAN is the second SFP+ cage to server-lan1.
+operation_mode: stub
+controller_url: http://192.0.2.10:8080/inform
+profile: uxgpro
+ports: 4
+version: 5.0.16.30689
+mac: 02:00:5e:00:53:ca
+ip: 192.0.2.29
+hostname: opnsense-uxg-sfp-lab
+link_speed: 0
+uplink_speed: profile
+uplink_port: 3
+interval_seconds: 10
+no_discovery: false
+
+uplink_neighbor:
+  mac: 02:00:5e:00:53:01
+  ip: 198.51.100.1
+  vlan: 0
+  type: gateway
+
+port_neighbors:
+  - port: 4
+    mac: 02:00:5e:00:53:c9
+    hostname: server-lan1
+    ip: 192.0.2.190
+    type: usw
+    static: true
+
+port_overrides:
+  - port: 1
+    name: Port 1
+    role: lan
+    network_group: LAN
+    up: false
+    speed: 0
+    media: GE
+  - port: 2
+    name: Port 2
+    role: lan
+    network_group: LAN
+    up: false
+    speed: 0
+    media: GE
+  - port: 3
+    name: WAN SFP+
+    role: wan
+    network_group: WAN
+    interface: ixl0
+    mac: 02:00:5e:00:53:ca
+    ip: 198.51.100.9
+    netmask: 255.255.255.0
+    speed: 10000
+    media: SFP+
+  - port: 4
+    name: LAN SFP+ to server-lan1
+    role: lan
+    network_group: LAN
+    interface: vtnet0
+    mac: 02:00:5e:00:53:04
+    ip: 192.0.2.1
+    netmask: 255.255.255.0
+    speed: 10000
+    media: SFP+
+
+observe_interface: ""
+observe_bridge: ""
+lldp_source: off
+traffic_source: off
+traffic_rates_enabled: true
+discovery_targets:
+  - 192.0.2.10:10001
+  - 192.0.2.11:10001
+ssh_listen: 192.0.2.29:2222
+ssh_user: ubnt
+ssh_password: ubnt
+ssh_host_key_path: /var/lib/unifi-stubd/opnsense-ssh-host-key
+state_path: /var/lib/unifi-stubd/opnsense-adoption.env
+status_path: /var/lib/unifi-stubd/opnsense-status.json

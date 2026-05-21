@@ -11,6 +11,10 @@ do not contain controller secrets, adoption keys, captures, or real site data.
   host.
 - `hosts/stub-gateway-smoke/config.yaml`: temporary `uxg-lite` gateway-shaped
   smoke host.
+- `hosts/server-lan1-sfp-lab/config.example.yaml`: sanitized SFP+ bridge
+  observer with OPNsense on port 49 and aggregation on port 50.
+- `hosts/opnsense-uxg-sfp-lab/config.example.yaml`: sanitized UXG Pro gateway
+  with WAN on SFP+ port 3 and LAN on SFP+ port 4.
 
 The Compose services mount this directory read-only at
 `/usr/local/share/unifi-stubd-lab/configs`. Start scripts still pass MAC, IP,
@@ -24,6 +28,10 @@ keep `hostname:` inside the YAML aligned with the directory name. Use
 `UNIFI_STUB_CONFIG`, `UNIFI_STUB_BRIDGE_CONFIG`, `UNIFI_STUB_PORTMAP_CONFIG`,
 or `UNIFI_STUB_GATEWAY_CONFIG` when a service should load a non-default host
 configuration.
+
+The SFP+ examples are intentionally shareable references, not direct copies of a
+private controller. They keep the topology shape from the live lab while using
+documentation IP ranges and locally administered example MAC addresses.
 
 Real-network host snapshots belong under
 `hosts/<real-hostname>/real/config.yaml` or
