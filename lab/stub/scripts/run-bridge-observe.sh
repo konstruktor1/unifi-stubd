@@ -5,6 +5,7 @@ script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 sh "$script_dir/setup-bridge-observe.sh"
 
 exec /usr/local/bin/unifi-stubd \
+    -config "${UNIFI_STUB_BRIDGE_CONFIG:-/usr/local/lib/unifi-stubd-lab/bridge-observe.config.yaml}" \
     -profile "${UNIFI_STUB_BRIDGE_PROFILE:-us8}" \
     -operation-mode bridge-observe \
     -bridge-observe-bridge "${UNIFI_STUB_TEST_BRIDGE:-stubbr0}" \

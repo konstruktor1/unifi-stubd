@@ -8,8 +8,16 @@ from pathlib import Path
 
 
 BRIDGE_CLIENT_MACS = {
-    2: "02:00:5e:10:01:01",
-    3: "02:00:5e:10:02:01",
+    2: {
+        "mac": "02:00:5e:10:01:01",
+        "hostname": "lab-client-101",
+        "ip": "192.0.2.101",
+    },
+    3: {
+        "mac": "02:00:5e:10:02:01",
+        "hostname": "lab-client-102",
+        "ip": "192.0.2.102",
+    },
 }
 
 
@@ -44,11 +52,19 @@ def extract_payload(output: str) -> dict[str, object]:
 def assert_bridge_observe(payload: dict[str, object]) -> None:
     assert payload.get("hostname") == "stub-bridge-observe", payload.get("hostname")
     ports = ports_by_index(payload)
-    for index, expected_mac in BRIDGE_CLIENT_MACS.items():
+    for index, expected in BRIDGE_CLIENT_MACS.items():
         port = ports[index]
-        macs = [entry.get("mac") for entry in (port.get("mac_table") or [])]
-        if expected_mac not in macs:
-            raise AssertionError(f"port {index} mac_table {macs!r} does not contain {expected_mac}")
+        entries = {
+            entry.get("mac"): entry
+            for entry in (port.get("mac_table") or [])
+            if isinstance(entry, dict)
+        }
+        client = entries.get(expected["mac"])
+        if client is None:
+            raise AssertionError(f"port {index} mac_table {list(entries)!r} does not contain {expected['mac']}")
+        for field in ("hostname", "ip"):
+            if client.get(field) != expected[field]:
+                raise AssertionError(f"port {index} client {field} = {client.get(field)!r}, want {expected[field]!r}")
     if not ports[1].get("is_uplink"):
         raise AssertionError("port 1 should remain the bridge-observe uplink")
 

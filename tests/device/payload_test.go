@@ -598,6 +598,52 @@ func TestGatewayPortAssignmentsCanBeOverriddenFromConfigModel(t *testing.T) {
 	}
 }
 
+func TestGatewayPayloadReportsHostTableClientMetadata(t *testing.T) {
+	profile, ok := device.LookupProfile("ugw3")
+	if !ok {
+		t.Fatal("profile not found")
+	}
+	ports := device.SwitchPortsWithOptions(profile.Ports, profile.PortOptions())
+	ports[1].MACs = []device.MacTableEntry{
+		{
+			MAC:      "02:00:5e:00:53:03",
+			Hostname: "lab-host-2",
+			IP:       "192.0.2.52",
+			Age:      4,
+			Uptime:   1200,
+		},
+	}
+	payload, err := device.MinimalSwitchPayload(device.Identity{
+		MAC:          "02:00:5e:00:53:01",
+		IP:           "192.0.2.1",
+		Hostname:     "opnsense",
+		Model:        profile.Model,
+		ModelDisplay: profile.ModelDisplay,
+		DeviceType:   profile.DeviceType,
+		Version:      profile.Version,
+		Serial:       "02005E005301",
+		InformURL:    "http://192.0.2.10:8080/inform",
+	}, ports)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var doc struct {
+		NetworkTable []map[string]any `json:"network_table"`
+	}
+	if err := json.Unmarshal(payload, &doc); err != nil {
+		t.Fatal(err)
+	}
+	hosts, ok := doc.NetworkTable[1]["host_table"].([]any)
+	if !ok || len(hosts) != 1 {
+		t.Fatalf("LAN host_table = %#v", doc.NetworkTable[1]["host_table"])
+	}
+	host := hosts[0].(map[string]any)
+	if host["hostname"] != "lab-host-2" || host["ip"] != "192.0.2.52" {
+		t.Fatalf("host_table metadata = %#v", host)
+	}
+}
+
 func TestSwitchPortsCanOverrideAggregationUplinkToTenGigPort(t *testing.T) {
 	profile, ok := device.LookupProfile("usaggpro")
 	if !ok {
@@ -1016,9 +1062,12 @@ func TestApplyPortNeighborsAddsConfiguredMacTableEntry(t *testing.T) {
 		{
 			Port: 2,
 			Entry: device.MacTableEntry{
-				MAC:  "02:00:5e:00:53:03",
-				VLAN: 1,
-				Type: "usw",
+				MAC:      "02:00:5e:00:53:03",
+				Hostname: "lab-host-2",
+				IP:       "192.0.2.52",
+				VLAN:     1,
+				Static:   true,
+				Type:     "usw",
 			},
 		},
 	})
@@ -1030,11 +1079,81 @@ func TestApplyPortNeighborsAddsConfiguredMacTableEntry(t *testing.T) {
 	if entry.MAC != "02:00:5e:00:53:03" || entry.VLAN != 1 || entry.Type != "usw" {
 		t.Fatalf("port 2 neighbor = %+v", entry)
 	}
+	if entry.Hostname != "lab-host-2" || entry.IP != "192.0.2.52" || !entry.Static {
+		t.Fatalf("port 2 neighbor metadata = %+v", entry)
+	}
 	if entry.Age == 0 || entry.Uptime == 0 {
 		t.Fatalf("port 2 neighbor missing defaults: %+v", entry)
 	}
 	if len(ports[0].MACs) == 0 {
 		t.Fatal("port 1 lost its generated uplink MAC table")
+	}
+}
+
+func TestApplyPortNeighborsPreservesObservedClientIP(t *testing.T) {
+	ports := device.SwitchPorts(4)
+	ports[1].MACs = []device.MacTableEntry{
+		{MAC: "02:00:5e:00:53:03", IP: "192.0.2.52", VLAN: 20, Age: 4, Uptime: 1200, Type: "client"},
+	}
+
+	ports = device.ApplyPortNeighbors(ports, []device.PortNeighbor{
+		{
+			Port: 2,
+			Entry: device.MacTableEntry{
+				MAC:      "02:00:5e:00:53:03",
+				Hostname: "lab-host-2",
+				Type:     "client",
+			},
+		},
+	})
+
+	entry := ports[1].MACs[0]
+	if entry.Hostname != "lab-host-2" || entry.IP != "192.0.2.52" || entry.VLAN != 20 {
+		t.Fatalf("merged neighbor = %+v", entry)
+	}
+}
+
+func TestSwitchPayloadReportsNeighborClientMetadata(t *testing.T) {
+	ports := device.ApplyPortNeighbors(device.SwitchPorts(4), []device.PortNeighbor{
+		{
+			Port: 2,
+			Entry: device.MacTableEntry{
+				MAC:      "02:00:5e:00:53:03",
+				Hostname: "lab-host-2",
+				IP:       "192.0.2.52",
+				VLAN:     1,
+				Static:   true,
+				Type:     "client",
+			},
+		},
+	})
+	payload, err := device.MinimalSwitchPayload(device.Identity{
+		MAC:          "02:11:22:33:44:60",
+		IP:           "192.0.2.50",
+		Hostname:     "unifi-stubd-lab",
+		Model:        "US8",
+		ModelDisplay: "UniFi Switch 8",
+		Version:      "7.4.1.16850",
+		Serial:       "021122334460",
+		InformURL:    "http://192.0.2.10:8080/inform",
+	}, ports)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var doc struct {
+		PortTable []map[string]any `json:"port_table"`
+	}
+	if err := json.Unmarshal(payload, &doc); err != nil {
+		t.Fatal(err)
+	}
+	macs, ok := doc.PortTable[1]["mac_table"].([]any)
+	if !ok || len(macs) != 1 {
+		t.Fatalf("port 2 mac_table = %#v", doc.PortTable[1]["mac_table"])
+	}
+	entry := macs[0].(map[string]any)
+	if entry["hostname"] != "lab-host-2" || entry["ip"] != "192.0.2.52" || entry["static"] != true {
+		t.Fatalf("mac_table metadata = %#v", entry)
 	}
 }
 

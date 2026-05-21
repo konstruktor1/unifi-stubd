@@ -112,6 +112,9 @@ func validatePortOverrides(flags runtimeFlags) error {
 		if flags.uplinkNeighbor.VLAN < 0 {
 			return fmt.Errorf("invalid uplink_neighbor vlan %d; use 0 or a positive VLAN ID", flags.uplinkNeighbor.VLAN)
 		}
+		if ip := strings.TrimSpace(flags.uplinkNeighbor.IP); ip != "" && net.ParseIP(ip).To4() == nil {
+			return fmt.Errorf("invalid uplink_neighbor ip %q; use an IPv4 address", flags.uplinkNeighbor.IP)
+		}
 	}
 	for _, neighbor := range flags.portNeighbors {
 		if neighbor.Port < 1 || neighbor.Port > flags.portCount {
@@ -122,6 +125,9 @@ func validatePortOverrides(flags runtimeFlags) error {
 		}
 		if neighbor.Entry.VLAN < 0 {
 			return fmt.Errorf("invalid port neighbor vlan %d on port %d; use 0 or a positive VLAN ID", neighbor.Entry.VLAN, neighbor.Port)
+		}
+		if ip := strings.TrimSpace(neighbor.Entry.IP); ip != "" && net.ParseIP(ip).To4() == nil {
+			return fmt.Errorf("invalid port neighbor ip %q on port %d; use an IPv4 address", neighbor.Entry.IP, neighbor.Port)
 		}
 	}
 	for _, override := range flags.portOverrides {
@@ -339,11 +345,21 @@ func lldpNeighborMACEntry(neighbor platform.LLDPNeighbor) device.MacTableEntry {
 		return device.MacTableEntry{}
 	}
 	return device.MacTableEntry{
-		MAC:    mac,
-		Age:    4,
-		Uptime: 1200,
-		Type:   "lldp",
+		MAC:      mac,
+		Hostname: strings.TrimSpace(neighbor.SystemName),
+		IP:       ipv4Text(neighbor.ManagementIP),
+		Age:      4,
+		Uptime:   1200,
+		Type:     "lldp",
 	}
+}
+
+func ipv4Text(value string) string {
+	ip := net.ParseIP(strings.TrimSpace(value))
+	if ip == nil || ip.To4() == nil {
+		return ""
+	}
+	return ip.String()
 }
 
 func printRuntimePlan(flags runtimeFlags, profile device.Profile, macText, ipText, hostname string) {
@@ -356,16 +372,20 @@ func printRuntimePlan(flags runtimeFlags, profile device.Profile, macText, ipTex
 	fmt.Printf("hostname: %s\n", hostname)
 	fmt.Printf("uplink_port: %d\n", effectiveUplinkPort(profile, flags))
 	if flags.uplinkNeighbor != nil {
-		fmt.Printf("uplink_neighbor: mac=%s vlan=%d type=%q\n",
+		fmt.Printf("uplink_neighbor: mac=%s hostname=%q ip=%q vlan=%d type=%q\n",
 			flags.uplinkNeighbor.MAC,
+			strings.TrimSpace(flags.uplinkNeighbor.Hostname),
+			strings.TrimSpace(flags.uplinkNeighbor.IP),
 			flags.uplinkNeighbor.VLAN,
 			strings.TrimSpace(flags.uplinkNeighbor.Type),
 		)
 	}
 	for _, neighbor := range flags.portNeighbors {
-		fmt.Printf("port_neighbor: port=%d mac=%s vlan=%d type=%q\n",
+		fmt.Printf("port_neighbor: port=%d mac=%s hostname=%q ip=%q vlan=%d type=%q\n",
 			neighbor.Port,
 			neighbor.Entry.MAC,
+			strings.TrimSpace(neighbor.Entry.Hostname),
+			strings.TrimSpace(neighbor.Entry.IP),
 			neighbor.Entry.VLAN,
 			strings.TrimSpace(neighbor.Entry.Type),
 		)

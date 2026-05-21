@@ -4,6 +4,7 @@ package observe_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/konstruktor1/unifi-stubd/internal/adapters/freebsdifconfig"
@@ -78,6 +79,40 @@ func TestMACEntriesByDeviceGroupsBridgeMembers(t *testing.T) {
 	}
 	if _, ok := byDevice["eth0"]; ok {
 		t.Fatalf("local uplink entry was not filtered: %+v", byDevice["eth0"])
+	}
+}
+
+func TestParseARPTableFiltersAndNormalizesRows(t *testing.T) {
+	rows := `IP address       HW type     Flags       HW address            Mask     Device
+192.0.2.52       0x1         0x2         02:00:5e:00:53:03     *        vmbr0
+192.0.2.54       0x1         0x0         00:00:00:00:00:00     *        vmbr0
+2001:db8::1      0x1         0x2         02:00:5e:00:53:04     *        vmbr0
+192.0.2.53       0x1         0x2         33:33:00:00:00:01     *        vmbr0
+`
+	entries := observe.ParseARPTable(strings.NewReader(rows))
+	if len(entries) != 1 {
+		t.Fatalf("ARP entries = %+v", entries)
+	}
+	if entries[0].IP != "192.0.2.52" ||
+		entries[0].MAC != "02:00:5e:00:53:03" ||
+		entries[0].Device != "vmbr0" {
+		t.Fatalf("entry = %+v", entries[0])
+	}
+}
+
+func TestEnrichMACEntriesWithARPAddsClientIP(t *testing.T) {
+	memberMACs := map[string][]device.MacTableEntry{
+		"tap101i0": {
+			{MAC: "02:00:5e:00:53:03", Age: 4, Uptime: 1200},
+		},
+	}
+
+	observe.EnrichMACEntriesWithARP(memberMACs, []observe.ARPEntry{
+		{IP: "192.0.2.52", MAC: "02:00:5e:00:53:03", Device: "vmbr0"},
+	})
+
+	if got := memberMACs["tap101i0"][0].IP; got != "192.0.2.52" {
+		t.Fatalf("IP = %q, want 192.0.2.52", got)
 	}
 }
 

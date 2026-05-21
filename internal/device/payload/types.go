@@ -53,12 +53,18 @@ type Identity struct {
 type MacTableEntry struct {
 	// MAC is the learned client or neighbor MAC address.
 	MAC string `json:"mac"`
+	// Hostname is the optional controller-facing client name.
+	Hostname string `json:"hostname,omitempty"`
+	// IP is the optional client IPv4 address.
+	IP string `json:"ip,omitempty"`
 	// Age is the controller-facing age counter for this entry.
 	Age int `json:"age"`
 	// Uptime is the number of seconds the entry has been visible.
 	Uptime int `json:"uptime"`
 	// VLAN is the optional VLAN associated with the entry.
 	VLAN int `json:"vlan,omitempty"`
+	// Static reports that the entry is a configured lab hint, not a learned row.
+	Static bool `json:"static,omitempty"`
 	// Type describes the learned device type when known.
 	Type string `json:"type,omitempty"`
 }

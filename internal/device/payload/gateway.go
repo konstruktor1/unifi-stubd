@@ -175,7 +175,7 @@ func gatewayReportedNetworks(ports []PortView) []map[string]any {
 func gatewayHostTable(port Port) []map[string]any {
 	out := make([]map[string]any, 0, len(port.MACs))
 	for _, entry := range port.MACs {
-		out = append(out, map[string]any{
+		row := map[string]any{
 			jsonKeyMAC:       strings.ToLower(strings.TrimSpace(entry.MAC)),
 			"age":            entry.Age,
 			"authorized":     true,
@@ -184,7 +184,14 @@ func gatewayHostTable(port Port) []map[string]any {
 			jsonKeyRXPackets: firstNonZeroInt64(port.RXPackets, 1),
 			jsonKeyTXPackets: firstNonZeroInt64(port.TXPackets, 1),
 			jsonKeyUptime:    firstNonZero(entry.Uptime, 1200),
-		})
+		}
+		if hostname := strings.TrimSpace(entry.Hostname); hostname != "" {
+			row["hostname"] = hostname
+		}
+		if ip := strings.TrimSpace(entry.IP); ip != "" {
+			row["ip"] = ip
+		}
+		out = append(out, row)
 	}
 	return out
 }

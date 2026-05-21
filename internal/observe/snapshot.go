@@ -107,6 +107,9 @@ func LinuxSnapshot(ctx context.Context, cfg Config, uplinkPortIndex int) (Snapsh
 			errs = append(errs, err)
 		} else {
 			snapshot.DeviceMACs = MACEntriesByDevice(entries)
+			if err := EnrichMACEntriesWithLocalARP(snapshot.DeviceMACs); err != nil {
+				errs = append(errs, err)
+			}
 			snapshot.MemberRoles = ClassifyBridgeMembers(snapshot.DeviceMACs, snapshot.Bridge, snapshot.Interface)
 			snapshot.RemoteMACs = RemoteMACsByBridgeMember(snapshot.DeviceMACs, snapshot.MemberRoles, snapshot.Interface, snapshot.Bridge)
 			snapshot.MemberPorts = linuxMemberPortObservations(cfg.SysfsRoot, snapshot.DeviceMACs, snapshot.MemberRoles)

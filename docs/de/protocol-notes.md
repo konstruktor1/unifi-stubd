@@ -149,7 +149,7 @@ Wichtige Felder:
 | `port_table` | Switch-Ports |
 | `port_table[].speed` | Port-Speed in Mbps, z.B. `1000` oder `10000` |
 | `port_table[].media` | Medienkennung, z.B. `GE` oder `SFP+` |
-| `port_table[].mac_table` | gesehene Clients/VMs |
+| `port_table[].mac_table` | gesehene Clients/VMs, optional mit `hostname`- und `ip`-Metadaten |
 | `port_table[].last_connection` | controller-abgeleiteter zuletzt gesehener Nachbar/Client pro Port |
 | `uplink.uplink_mac` | controller-abgeleitete Upstream-MAC, wenn ein Nachbarhinweis akzeptiert wird |
 | `uplink.uplink_device_name` | controller-abgeleitetes Upstream-Device-Label |

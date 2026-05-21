@@ -150,6 +150,9 @@ func (p hostPlatform) linuxBridge(ctx context.Context, cfg observe.BridgeConfig)
 			errs = append(errs, err)
 		} else {
 			observation.MemberMACs = observe.MACEntriesByDevice(entries)
+			if err := observe.EnrichMACEntriesWithLocalARP(observation.MemberMACs); err != nil {
+				errs = append(errs, err)
+			}
 			observation.MemberRoles = observe.ClassifyBridgeMembers(observation.MemberMACs, observation.Bridge, observation.UplinkInterface)
 			observation.RemoteMACs = observe.RemoteMACsByBridgeMember(observation.MemberMACs, observation.MemberRoles, observation.UplinkInterface, observation.Bridge)
 			observation.MemberPorts, errs = p.bridgeMemberObservations(ctx, observation.MemberMACs, observation.MemberRoles, errs)

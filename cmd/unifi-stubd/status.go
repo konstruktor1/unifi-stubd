@@ -76,21 +76,27 @@ type statusConfig struct {
 
 // statusUplinkNeighbor summarizes the configured uplink MAC-table neighbor.
 type statusUplinkNeighbor struct {
-	MAC    string `json:"mac"`
-	VLAN   int    `json:"vlan,omitempty"`
-	Type   string `json:"type,omitempty"`
-	Age    int    `json:"age,omitempty"`
-	Uptime int    `json:"uptime,omitempty"`
+	MAC      string `json:"mac"`
+	Hostname string `json:"hostname,omitempty"`
+	IP       string `json:"ip,omitempty"`
+	VLAN     int    `json:"vlan,omitempty"`
+	Static   bool   `json:"static,omitempty"`
+	Type     string `json:"type,omitempty"`
+	Age      int    `json:"age,omitempty"`
+	Uptime   int    `json:"uptime,omitempty"`
 }
 
 // statusPortNeighbor summarizes one configured per-port MAC-table neighbor.
 type statusPortNeighbor struct {
-	Port   int    `json:"port"`
-	MAC    string `json:"mac"`
-	VLAN   int    `json:"vlan,omitempty"`
-	Type   string `json:"type,omitempty"`
-	Age    int    `json:"age,omitempty"`
-	Uptime int    `json:"uptime,omitempty"`
+	Port     int    `json:"port"`
+	MAC      string `json:"mac"`
+	Hostname string `json:"hostname,omitempty"`
+	IP       string `json:"ip,omitempty"`
+	VLAN     int    `json:"vlan,omitempty"`
+	Static   bool   `json:"static,omitempty"`
+	Type     string `json:"type,omitempty"`
+	Age      int    `json:"age,omitempty"`
+	Uptime   int    `json:"uptime,omitempty"`
 }
 
 // statusAdoption exposes adoption state without leaking the auth key.
@@ -327,16 +333,20 @@ func printHumanStatus(status localStatus) {
 		fmt.Printf("discovery_target: %s\n", target)
 	}
 	if status.Config.UplinkNeighbor != nil {
-		fmt.Printf("uplink_neighbor: mac=%s vlan=%d type=%s\n",
+		fmt.Printf("uplink_neighbor: mac=%s hostname=%s ip=%s vlan=%d type=%s\n",
 			status.Config.UplinkNeighbor.MAC,
+			valueOrDash(status.Config.UplinkNeighbor.Hostname),
+			valueOrDash(status.Config.UplinkNeighbor.IP),
 			status.Config.UplinkNeighbor.VLAN,
 			valueOrDash(status.Config.UplinkNeighbor.Type),
 		)
 	}
 	for _, neighbor := range status.Config.PortNeighbors {
-		fmt.Printf("port_neighbor: port=%d mac=%s vlan=%d type=%s\n",
+		fmt.Printf("port_neighbor: port=%d mac=%s hostname=%s ip=%s vlan=%d type=%s\n",
 			neighbor.Port,
 			neighbor.MAC,
+			valueOrDash(neighbor.Hostname),
+			valueOrDash(neighbor.IP),
 			neighbor.VLAN,
 			valueOrDash(neighbor.Type),
 		)
@@ -393,11 +403,14 @@ func statusUplinkNeighborEntry(neighbor *device.MacTableEntry) *statusUplinkNeig
 		return nil
 	}
 	return &statusUplinkNeighbor{
-		MAC:    neighbor.MAC,
-		VLAN:   neighbor.VLAN,
-		Type:   neighbor.Type,
-		Age:    neighbor.Age,
-		Uptime: neighbor.Uptime,
+		MAC:      neighbor.MAC,
+		Hostname: neighbor.Hostname,
+		IP:       neighbor.IP,
+		VLAN:     neighbor.VLAN,
+		Static:   neighbor.Static,
+		Type:     neighbor.Type,
+		Age:      neighbor.Age,
+		Uptime:   neighbor.Uptime,
 	}
 }
 
@@ -405,12 +418,15 @@ func statusPortNeighbors(neighbors []device.PortNeighbor) []statusPortNeighbor {
 	out := make([]statusPortNeighbor, 0, len(neighbors))
 	for _, neighbor := range neighbors {
 		out = append(out, statusPortNeighbor{
-			Port:   neighbor.Port,
-			MAC:    neighbor.Entry.MAC,
-			VLAN:   neighbor.Entry.VLAN,
-			Type:   neighbor.Entry.Type,
-			Age:    neighbor.Entry.Age,
-			Uptime: neighbor.Entry.Uptime,
+			Port:     neighbor.Port,
+			MAC:      neighbor.Entry.MAC,
+			Hostname: neighbor.Entry.Hostname,
+			IP:       neighbor.Entry.IP,
+			VLAN:     neighbor.Entry.VLAN,
+			Static:   neighbor.Entry.Static,
+			Type:     neighbor.Entry.Type,
+			Age:      neighbor.Entry.Age,
+			Uptime:   neighbor.Entry.Uptime,
 		})
 	}
 	return out

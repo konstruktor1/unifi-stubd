@@ -154,6 +154,8 @@ uplink_neighbor:
 port_neighbors:
   - port: 2
     mac: 02:00:5e:00:53:03
+    hostname: lab-host-2
+    ip: 192.0.2.52
     vlan: 1
     type: usw
 
@@ -179,7 +181,13 @@ port_overrides:
 
 `port_neighbors` populates `port_table[].mac_table` on specific ports. It is
 useful when the controller needs to see a downstream switch or host MAC on a
-non-uplink port.
+non-uplink port. `hostname` and `ip` are optional client metadata fields; `name`
+is accepted as a YAML alias for `hostname`.
+
+In Linux `bridge-observe` mode, learned bridge FDB MACs are also matched against
+the local `/proc/net/arp` cache when available. This can add client IPv4
+addresses to the MAC table without changing host networking. Hostnames are not
+guessed from DNS; set `hostname` or `name` explicitly for deterministic labels.
 
 Gateway models report WAN/LAN assignments through `config_port_table`,
 `ethernet_overrides`, `network_table`, and `reported_networks`. Switch-style

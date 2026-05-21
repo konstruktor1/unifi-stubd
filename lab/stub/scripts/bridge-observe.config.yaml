@@ -1,0 +1,15 @@
+port_neighbors:
+  - port: 2
+    mac: 02:00:5e:10:01:01
+    hostname: lab-client-101
+    ip: 192.0.2.101
+    vlan: 1
+    static: true
+    type: client
+  - port: 3
+    mac: 02:00:5e:10:02:01
+    hostname: lab-client-102
+    ip: 192.0.2.102
+    vlan: 1
+    static: true
+    type: client

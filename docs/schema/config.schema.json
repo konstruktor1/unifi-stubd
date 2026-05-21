@@ -209,10 +209,23 @@
         "mac": {
           "type": "string"
         },
+        "name": {
+          "type": "string"
+        },
+        "hostname": {
+          "type": "string"
+        },
+        "ip": {
+          "type": "string",
+          "format": "ipv4"
+        },
         "vlan": {
           "type": "integer",
           "minimum": 0,
           "maximum": 4094
+        },
+        "static": {
+          "type": "boolean"
         },
         "type": {
           "type": "string"
@@ -238,10 +251,23 @@
         "mac": {
           "type": "string"
         },
+        "name": {
+          "type": "string"
+        },
+        "hostname": {
+          "type": "string"
+        },
+        "ip": {
+          "type": "string",
+          "format": "ipv4"
+        },
         "vlan": {
           "type": "integer",
           "minimum": 0,
           "maximum": 4094
+        },
+        "static": {
+          "type": "boolean"
         },
         "type": {
           "type": "string"

@@ -174,8 +174,16 @@ type ManagementLAN struct {
 type UplinkNeighbor struct {
 	// MAC is the neighbor MAC address to expose on the uplink port.
 	MAC string `yaml:"mac"`
+	// Name is an optional lab label reported as the client hostname.
+	Name string `yaml:"name"`
+	// Hostname is the optional controller-facing client hostname.
+	Hostname string `yaml:"hostname"`
+	// IP is the optional client IPv4 address.
+	IP string `yaml:"ip"`
 	// VLAN is the optional VLAN associated with the neighbor.
 	VLAN int `yaml:"vlan"`
+	// Static reports the neighbor as a configured lab hint.
+	Static bool `yaml:"static"`
 	// Type is the controller-facing neighbor type.
 	Type string `yaml:"type"`
 	// Age is the controller-facing MAC-table age counter.
@@ -190,8 +198,16 @@ type PortNeighbor struct {
 	Port int `yaml:"port"`
 	// MAC is the neighbor MAC address to expose on the port.
 	MAC string `yaml:"mac"`
+	// Name is an optional lab label reported as the client hostname.
+	Name string `yaml:"name"`
+	// Hostname is the optional controller-facing client hostname.
+	Hostname string `yaml:"hostname"`
+	// IP is the optional client IPv4 address.
+	IP string `yaml:"ip"`
 	// VLAN is the optional VLAN associated with the neighbor.
 	VLAN int `yaml:"vlan"`
+	// Static reports the neighbor as a configured lab hint.
+	Static bool `yaml:"static"`
 	// Type is the controller-facing neighbor type.
 	Type string `yaml:"type"`
 	// Age is the controller-facing MAC-table age counter.

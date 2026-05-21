@@ -72,7 +72,7 @@ func ApplyPortNeighbors(ports []Port, neighbors []PortNeighbor) []Port {
 		replaced := false
 		for index := range port.MACs {
 			if strings.EqualFold(port.MACs[index].MAC, entry.MAC) {
-				port.MACs[index] = entry
+				port.MACs[index] = mergeMacTableEntry(port.MACs[index], entry)
 				replaced = true
 				break
 			}
@@ -84,9 +84,26 @@ func ApplyPortNeighbors(ports []Port, neighbors []PortNeighbor) []Port {
 	return ports
 }
 
+func mergeMacTableEntry(observed, configured MacTableEntry) MacTableEntry {
+	out := configured
+	if strings.TrimSpace(out.Hostname) == "" {
+		out.Hostname = observed.Hostname
+	}
+	if strings.TrimSpace(out.IP) == "" {
+		out.IP = observed.IP
+	}
+	if out.VLAN == 0 {
+		out.VLAN = observed.VLAN
+	}
+	out.Static = observed.Static || configured.Static
+	return out
+}
+
 // normalizeMacTableEntry fills controller-facing defaults for configured neighbors.
 func normalizeMacTableEntry(entry MacTableEntry) MacTableEntry {
 	entry.MAC = strings.ToLower(strings.TrimSpace(entry.MAC))
+	entry.Hostname = strings.TrimSpace(entry.Hostname)
+	entry.IP = strings.TrimSpace(entry.IP)
 	if entry.Age == 0 {
 		entry.Age = 4
 	}

@@ -59,11 +59,14 @@ func configUplinkNeighbor(neighbor *appconfig.UplinkNeighbor) *device.MacTableEn
 		return nil
 	}
 	return &device.MacTableEntry{
-		MAC:    strings.TrimSpace(neighbor.MAC),
-		Age:    defaultNeighborAge(neighbor.Age),
-		Uptime: defaultNeighborUptime(neighbor.Uptime),
-		VLAN:   neighbor.VLAN,
-		Type:   defaultNeighborType(neighbor.Type),
+		MAC:      strings.TrimSpace(neighbor.MAC),
+		Hostname: defaultNeighborHostname(neighbor.Hostname, neighbor.Name),
+		IP:       strings.TrimSpace(neighbor.IP),
+		Age:      defaultNeighborAge(neighbor.Age),
+		Uptime:   defaultNeighborUptime(neighbor.Uptime),
+		VLAN:     neighbor.VLAN,
+		Static:   neighbor.Static,
+		Type:     defaultNeighborType(neighbor.Type),
 	}
 }
 
@@ -76,11 +79,14 @@ func configPortNeighbors(neighbors []appconfig.PortNeighbor) []device.PortNeighb
 		out = append(out, device.PortNeighbor{
 			Port: neighbor.Port,
 			Entry: device.MacTableEntry{
-				MAC:    strings.TrimSpace(neighbor.MAC),
-				Age:    defaultNeighborAge(neighbor.Age),
-				Uptime: defaultNeighborUptime(neighbor.Uptime),
-				VLAN:   neighbor.VLAN,
-				Type:   defaultNeighborType(neighbor.Type),
+				MAC:      strings.TrimSpace(neighbor.MAC),
+				Hostname: defaultNeighborHostname(neighbor.Hostname, neighbor.Name),
+				IP:       strings.TrimSpace(neighbor.IP),
+				Age:      defaultNeighborAge(neighbor.Age),
+				Uptime:   defaultNeighborUptime(neighbor.Uptime),
+				VLAN:     neighbor.VLAN,
+				Static:   neighbor.Static,
+				Type:     defaultNeighborType(neighbor.Type),
 			},
 		})
 	}
@@ -111,6 +117,13 @@ func defaultNeighborType(neighborType string) string {
 		return "usw"
 	}
 	return neighborType
+}
+
+func defaultNeighborHostname(hostname, name string) string {
+	if hostname = strings.TrimSpace(hostname); hostname != "" {
+		return hostname
+	}
+	return strings.TrimSpace(name)
 }
 
 func cloneStrings(values []string) []string {

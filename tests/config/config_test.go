@@ -72,7 +72,10 @@ uplink_neighbor:
 port_neighbors:
   - port: 2
     mac: 02:00:5e:00:53:03
+    name: lab-host-2
+    ip: 192.0.2.52
     vlan: 1
+    static: true
     type: usw
 port_overrides:
   - port: 2
@@ -164,6 +167,11 @@ status_path: /tmp/unifi-stubd/status.json
 	}
 	if cfg.PortNeighbors[0].Port != 2 || cfg.PortNeighbors[0].MAC != "02:00:5e:00:53:03" {
 		t.Fatalf("first PortNeighbor = %+v", cfg.PortNeighbors[0])
+	}
+	if cfg.PortNeighbors[0].Name != "lab-host-2" ||
+		cfg.PortNeighbors[0].IP != "192.0.2.52" ||
+		!cfg.PortNeighbors[0].Static {
+		t.Fatalf("first PortNeighbor metadata = %+v", cfg.PortNeighbors[0])
 	}
 	if len(cfg.PortOverrides) != 2 {
 		t.Fatalf("len(PortOverrides) = %d, want 2", len(cfg.PortOverrides))

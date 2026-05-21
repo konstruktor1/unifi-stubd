@@ -25,6 +25,9 @@ create_link_pair() {
     if [ -n "$ip_addr" ] && ! ip addr show dev "$peer" | grep -q "$ip_addr"; then
         ip addr add "$ip_addr" dev "$peer" 2>/dev/null || true
     fi
+    if [ -n "$ip_addr" ]; then
+        ip neigh replace "${ip_addr%/*}" lladdr "$mac" dev "$peer" nud reachable 2>/dev/null || true
+    fi
     bridge fdb replace "$mac" dev "$member" master dynamic
 }
 

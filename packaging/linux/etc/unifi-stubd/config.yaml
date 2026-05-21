@@ -30,6 +30,8 @@ uplink_neighbor:
 # port_neighbors:
 #   - port: 2
 #     mac: 02:aa:bb:cc:dd:02
+#     hostname: lab-vm-2
+#     ip: 192.0.2.52
 #     vlan: 1
 #     type: usw
 port_neighbors: []
@@ -96,6 +98,8 @@ traffic_source: off
 # Optional read-only platform metadata. Leave disabled for the package default.
 # log_source: journalctl reads recent systemd journal entries for status.
 # proc_source: procfs supplements interface counters from /proc/net/dev.
+# Linux bridge observation also reads /proc/net/arp when available to attach
+# learned client IPv4 addresses to port_table[].mac_table rows.
 # dbus_enabled only checks bus availability; D-Bus is not required.
 log_source: off
 proc_source: off

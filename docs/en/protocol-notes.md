@@ -149,7 +149,7 @@ Important fields:
 | `port_table` | switch ports |
 | `port_table[].speed` | port speed in Mbps, e.g. `1000` or `10000` |
 | `port_table[].media` | media marker, e.g. `GE` or `SFP+` |
-| `port_table[].mac_table` | observed clients/VMs |
+| `port_table[].mac_table` | observed clients/VMs, with optional `hostname` and `ip` metadata |
 | `port_table[].last_connection` | controller-derived last seen neighbor/client for a port |
 | `uplink.uplink_mac` | controller-derived upstream MAC when a neighbor hint is accepted |
 | `uplink.uplink_device_name` | controller-derived upstream device label |
