@@ -14,12 +14,17 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/inform"
 )
 
+// informCipherStatus records the attempted and selected response cipher for
+// status output.
 type informCipherStatus struct {
 	AttemptedAESGCM bool
 	UsedAESGCM      bool
 	FallbackToCBC   bool
 }
 
+// sendInform chooses the adoption key and cipher sequence for one heartbeat.
+// Adopted devices may try AES-GCM first, then fall back to legacy AES-CBC when
+// the controller response cannot be decoded.
 func sendInform(mac net.HardwareAddr, url string, store adoption.Store, payload []byte, sourceIP net.IP) (*inform.Response, informCipherStatus, error) {
 	key, err := authKeyBytes(store.AuthKey)
 	if err != nil {
@@ -68,6 +73,8 @@ func sendInform(mac net.HardwareAddr, url string, store adoption.Store, payload 
 	return nil, status, lastErr
 }
 
+// authKeyBytes accepts both historical raw 16-byte keys and hex-encoded keys
+// stored in adoption.env.
 func authKeyBytes(authKey string) ([]byte, error) {
 	if authKey == "" {
 		return nil, nil

@@ -12,6 +12,8 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/device"
 )
 
+// runtimeFlags holds the fully layered CLI/config runtime settings before they
+// are validated and applied.
 type runtimeFlags struct {
 	configPath          string
 	operationMode       string
@@ -68,6 +70,8 @@ type runtimeFlags struct {
 	statusPath          string
 }
 
+// parseRuntimeFlags registers all CLI flags against defaults and records which
+// flags were explicitly set so YAML config cannot override them later.
 func parseRuntimeFlags(defaults appconfig.Config) (runtimeFlags, map[string]bool) {
 	flags := runtimeFlags{
 		uplinkNeighbor:   configUplinkNeighbor(defaults.UplinkNeighbor),
@@ -98,6 +102,8 @@ func parseRuntimeFlags(defaults appconfig.Config) (runtimeFlags, map[string]bool
 	return flags, changedFlags()
 }
 
+// changedFlags records which CLI flags the operator set so YAML config cannot
+// silently override them later.
 func changedFlags() map[string]bool {
 	out := map[string]bool{}
 	flag.Visit(func(f *flag.Flag) {

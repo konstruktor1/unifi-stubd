@@ -10,6 +10,8 @@ import (
 //go:embed profile.yaml
 var config []byte
 
+// init registers the embedded USW-Aggregation-Pro profile with the global
+// registry.
 func init() {
 	profiledata.RegisterConfig("profiles/usaggpro/profile.yaml", config)
 }

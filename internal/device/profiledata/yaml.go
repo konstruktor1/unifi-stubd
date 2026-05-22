@@ -5,6 +5,8 @@ package profiledata
 
 import "gopkg.in/yaml.v3"
 
+// mergeProfileDocuments merges an external overlay into a base profile while
+// returning a normal document node for the final strict decode.
 func mergeProfileDocuments(base *yaml.Node, overlay *yaml.Node) *yaml.Node {
 	baseContent := cloneYAMLNode(yamlDocumentContent(base))
 	overlayContent := yamlDocumentContent(overlay)
@@ -12,6 +14,8 @@ func mergeProfileDocuments(base *yaml.Node, overlay *yaml.Node) *yaml.Node {
 	return yamlDocument(merged)
 }
 
+// mergeYAMLNodes performs map-recursive replacement and scalar/list
+// replacement, preserving explicit empty values from the overlay.
 func mergeYAMLNodes(base *yaml.Node, overlay *yaml.Node) *yaml.Node {
 	if base == nil {
 		return cloneYAMLNode(overlay)
@@ -36,6 +40,8 @@ func mergeYAMLNodes(base *yaml.Node, overlay *yaml.Node) *yaml.Node {
 	return merged
 }
 
+// yamlMappingKeyIndex finds an overlay key in a mapping node during recursive
+// inheritance merges.
 func yamlMappingKeyIndex(node *yaml.Node, key string) int {
 	node = yamlDocumentContent(node)
 	if node == nil || node.Kind != yaml.MappingNode {
@@ -49,6 +55,8 @@ func yamlMappingKeyIndex(node *yaml.Node, key string) int {
 	return -1
 }
 
+// yamlDocumentContent unwraps document and alias nodes before merge or decode
+// operations inspect profile fields.
 func yamlDocumentContent(node *yaml.Node) *yaml.Node {
 	if node == nil {
 		return nil
@@ -65,6 +73,8 @@ func yamlDocumentContent(node *yaml.Node) *yaml.Node {
 	return node
 }
 
+// yamlDocument wraps merged content back into a YAML document node for the
+// final strict decode.
 func yamlDocument(content *yaml.Node) *yaml.Node {
 	if content == nil {
 		return nil
@@ -75,6 +85,8 @@ func yamlDocument(content *yaml.Node) *yaml.Node {
 	}
 }
 
+// cloneYAMLNode detaches YAML trees so inheritance and registry storage cannot
+// mutate shared profile data.
 func cloneYAMLNode(node *yaml.Node) *yaml.Node {
 	if node == nil {
 		return nil

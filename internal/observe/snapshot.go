@@ -261,10 +261,14 @@ func MACEntriesByDevice(entries []linuxbridge.FDBEntry) map[string][]device.MacT
 	return out
 }
 
+// flattenDeviceMACs returns a deterministic fallback MAC list when per-member
+// port assignment is unavailable.
 func flattenDeviceMACs(deviceMACs map[string][]device.MacTableEntry, iface, bridge string) []device.MacTableEntry {
 	return flattenDeviceMACsExcept(deviceMACs, iface, bridge, nil)
 }
 
+// flattenDeviceMACsExcept excludes remote upstream MACs from the fallback
+// client list.
 func flattenDeviceMACsExcept(deviceMACs map[string][]device.MacTableEntry, iface, bridge string, remoteMACs map[string]bool) []device.MacTableEntry {
 	count := 0
 	for _, macs := range deviceMACs {
@@ -277,6 +281,8 @@ func flattenDeviceMACsExcept(deviceMACs map[string][]device.MacTableEntry, iface
 	return out
 }
 
+// flattenDeviceMACsByRole produces the fallback uplink MAC list while excluding
+// bridge metadata, ignored members, and remote upstream MACs.
 func flattenDeviceMACsByRole(deviceMACs map[string][]device.MacTableEntry, roles map[string]BridgeMemberRole, iface, bridge string, remoteMACs map[string]bool) []device.MacTableEntry {
 	count := 0
 	for _, macs := range deviceMACs {
@@ -318,6 +324,8 @@ func RemoteMACsByBridgeMember(memberMACs map[string][]device.MacTableEntry, role
 	return out
 }
 
+// learnedFDBEntry accepts only non-local unicast FDB rows that can represent
+// downstream clients.
 func learnedFDBEntry(entry linuxbridge.FDBEntry) bool {
 	mac, err := net.ParseMAC(entry.MAC)
 	if err != nil || len(mac) == 0 {
@@ -332,6 +340,8 @@ func learnedFDBEntry(entry linuxbridge.FDBEntry) bool {
 	return entry.Dynamic || entry.Static || (!entry.Local && !entry.Permanent)
 }
 
+// uplinkPortIndex finds the represented uplink and falls back to port 1 for
+// minimal synthetic profiles.
 func uplinkPortIndex(ports []device.Port) int {
 	for _, port := range ports {
 		if port.Uplink {
@@ -341,6 +351,8 @@ func uplinkPortIndex(ports []device.Port) int {
 	return 1
 }
 
+// hasCounters distinguishes a usable zero-speed observation from a snapshot
+// with no traffic data at all.
 func hasCounters(stats InterfaceStats) bool {
 	for _, field := range interfaceStatsFields {
 		if field.get(stats) != 0 {
@@ -350,6 +362,8 @@ func hasCounters(stats InterfaceStats) bool {
 	return false
 }
 
+// interfaceStatsField maps one Linux sysfs statistic into observation and
+// payload port fields.
 type interfaceStatsField struct {
 	sysfsName string
 	get       func(InterfaceStats) int64
@@ -357,6 +371,8 @@ type interfaceStatsField struct {
 	setPort   func(*device.Port, int64)
 }
 
+// interfaceStatsFields enumerates the sysfs counters copied into observed port
+// state.
 var interfaceStatsFields = []interfaceStatsField{
 	{
 		sysfsName: "rx_bytes",
@@ -396,17 +412,24 @@ var interfaceStatsFields = []interfaceStatsField{
 	},
 }
 
+// applyInterfaceStatsToPort copies the observed counter set into the rendered
+// port so payload tables and status use the same values.
 func applyInterfaceStatsToPort(port *device.Port, stats InterfaceStats) {
 	for _, field := range interfaceStatsFields {
 		field.setPort(port, field.get(stats))
 	}
 }
 
+// applyDeviceMACs assigns bridge-member MAC groups to represented UniFi ports,
+// honoring pinned mappings, uplink filtering, and deterministic fallback order.
 func applyDeviceMACs(ports []device.Port, snapshot Snapshot, uplinkIndex int) {
 	for index := range ports {
 		ports[index].MACs = nil
 	}
 
+	// Remote MACs are learned behind the physical uplink neighbor. Filtering
+	// them keeps the represented virtual switch from claiming clients that
+	// actually live behind the real upstream switch.
 	remoteMACs := normalizeRemoteMACSet(snapshot.RemoteMACs)
 	if len(remoteMACs) == 0 {
 		remoteMACs = RemoteMACsByBridgeMember(snapshot.DeviceMACs, snapshot.MemberRoles, snapshot.Interface, snapshot.Bridge)
@@ -449,6 +472,8 @@ func applyDeviceMACs(ports []device.Port, snapshot Snapshot, uplinkIndex int) {
 		if pinnedPort := snapshot.MemberPortMap[strings.TrimSpace(deviceName)]; pinnedPort >= 1 && pinnedPort <= len(ports) {
 			portIndex = pinnedPort
 		} else if nextAccess < len(accessIndexes) {
+			// Unpinned bridge members are assigned deterministically by sorted
+			// interface name, leaving the selected uplink and pinned ports alone.
 			portIndex = accessIndexes[nextAccess]
 			nextAccess++
 		}
@@ -466,11 +491,14 @@ func applyDeviceMACs(ports []device.Port, snapshot Snapshot, uplinkIndex int) {
 	}
 	for index := range ports {
 		if !usedPorts[ports[index].Index] {
+			// A profile port without a mapped bridge member is rendered as
+			// disconnected instead of inventing a synthetic link.
 			markBridgePortDisconnected(&ports[index])
 		}
 	}
 }
 
+// filterRemoteMACEntries removes MACs known to live behind the physical uplink.
 func filterRemoteMACEntries(entries []device.MacTableEntry, remoteMACs map[string]bool) []device.MacTableEntry {
 	if len(entries) == 0 || len(remoteMACs) == 0 {
 		return entries
@@ -485,6 +513,8 @@ func filterRemoteMACEntries(entries []device.MacTableEntry, remoteMACs map[strin
 	return out
 }
 
+// markBridgePortDisconnected clears link, counters, and MACs for generated
+// ports with no observed bridge member.
 func markBridgePortDisconnected(port *device.Port) {
 	port.Up = false
 	port.Speed = 0
@@ -494,6 +524,7 @@ func markBridgePortDisconnected(port *device.Port) {
 	}
 }
 
+// normalizeMemberPortMap trims bridge-member pinning input before assignment.
 func normalizeMemberPortMap(values map[string]int) map[string]int {
 	if len(values) == 0 {
 		return nil
@@ -509,6 +540,8 @@ func normalizeMemberPortMap(values map[string]int) map[string]int {
 	return out
 }
 
+// normalizeMemberPorts trims source-provided member observations before merging
+// them into the legacy snapshot shape.
 func normalizeMemberPorts(values map[string]PortObservation) map[string]PortObservation {
 	if len(values) == 0 {
 		return nil
@@ -524,6 +557,8 @@ func normalizeMemberPorts(values map[string]PortObservation) map[string]PortObse
 	return out
 }
 
+// normalizeMemberRoles trims source-provided role keys before ignored-member
+// policy is applied.
 func normalizeMemberRoles(values map[string]BridgeMemberRole) map[string]BridgeMemberRole {
 	if len(values) == 0 {
 		return nil
@@ -539,6 +574,8 @@ func normalizeMemberRoles(values map[string]BridgeMemberRole) map[string]BridgeM
 	return out
 }
 
+// normalizeRemoteMACSet canonicalizes upstream MACs before filtering local
+// bridge-member clients.
 func normalizeRemoteMACSet(values map[string]bool) map[string]bool {
 	if len(values) == 0 {
 		return nil
@@ -558,6 +595,7 @@ func normalizeRemoteMACSet(values map[string]bool) map[string]bool {
 	return out
 }
 
+// cloneStrings detaches ignored-member lists passed to observation sources.
 func cloneStrings(values []string) []string {
 	if len(values) == 0 {
 		return nil
@@ -567,6 +605,7 @@ func cloneStrings(values []string) []string {
 	return out
 }
 
+// normalizedMACKey parses MAC strings into a stable lowercase comparison key.
 func normalizedMACKey(value string) string {
 	mac, err := net.ParseMAC(strings.TrimSpace(value))
 	if err != nil {
@@ -575,6 +614,8 @@ func normalizedMACKey(value string) string {
 	return strings.ToLower(mac.String())
 }
 
+// applyMemberPortObservation overlays per-member interface state onto the port
+// selected for that bridge member.
 func applyMemberPortObservation(port *device.Port, observations map[string]PortObservation, member string) {
 	observation, ok := memberPortObservation(observations, member)
 	if !ok {
@@ -600,6 +641,8 @@ func applyMemberPortObservation(port *device.Port, observations map[string]PortO
 	}
 }
 
+// memberPortObservation resolves member observations case-insensitively before
+// overlaying interface state onto a port.
 func memberPortObservation(observations map[string]PortObservation, member string) (PortObservation, bool) {
 	if len(observations) == 0 {
 		return PortObservation{}, false
@@ -616,6 +659,8 @@ func memberPortObservation(observations map[string]PortObservation, member strin
 	return PortObservation{}, false
 }
 
+// validPinnedPortSet reserves operator-pinned ports before automatic member
+// assignment chooses fallback ports.
 func validPinnedPortSet(values map[string]int, portCount int) map[int]bool {
 	out := map[int]bool{}
 	for _, port := range values {
@@ -626,6 +671,8 @@ func validPinnedPortSet(values map[string]int, portCount int) map[int]bool {
 	return out
 }
 
+// linuxMemberPortObservations reads per-member sysfs counters and speed when
+// Linux bridge members correspond to visible host interfaces.
 func linuxMemberPortObservations(sysfsRoot string, memberMACs map[string][]device.MacTableEntry, roles map[string]BridgeMemberRole) map[string]PortObservation {
 	if len(memberMACs) == 0 {
 		return nil
@@ -652,6 +699,8 @@ func linuxMemberPortObservations(sysfsRoot string, memberMACs map[string][]devic
 	return out
 }
 
+// mapBridgeMemberInterfaces records member interface names on platforms where
+// counters are not available through the bridge observation path.
 func mapBridgeMemberInterfaces(memberMACs map[string][]device.MacTableEntry, roles map[string]BridgeMemberRole) map[string]PortObservation {
 	if len(memberMACs) == 0 {
 		return nil
@@ -670,6 +719,8 @@ func mapBridgeMemberInterfaces(memberMACs map[string][]device.MacTableEntry, rol
 	return out
 }
 
+// sortedDeviceNames provides stable member-to-port assignment independent of
+// Go map iteration order.
 func sortedDeviceNames(deviceMACs map[string][]device.MacTableEntry, iface, bridge string) []string {
 	names := make([]string, 0, len(deviceMACs))
 	for deviceName := range deviceMACs {
@@ -689,12 +740,15 @@ func sortedDeviceNames(deviceMACs map[string][]device.MacTableEntry, iface, brid
 	return names
 }
 
+// sortKey makes bridge-member ordering deterministic across map iteration.
 type sortKey struct {
 	rank   int
 	number int
 	name   string
 }
 
+// deviceSortKey ranks uplink, virtual access devices, and bridge metadata so
+// deterministic mapping follows the same topology assumptions every run.
 func deviceSortKey(deviceName, iface, bridge string) sortKey {
 	name := strings.ToLower(strings.TrimSpace(deviceName))
 	rank := 50
@@ -713,6 +767,7 @@ func deviceSortKey(deviceName, iface, bridge string) sortKey {
 	return sortKey{rank: rank, number: firstNumber(name), name: name}
 }
 
+// isUplinkDevice recognizes the configured physical uplink member.
 func isUplinkDevice(deviceName, iface, _ string) bool {
 	name := strings.ToLower(strings.TrimSpace(deviceName))
 	if name == "" {
@@ -721,11 +776,15 @@ func isUplinkDevice(deviceName, iface, _ string) bool {
 	return name == strings.ToLower(strings.TrimSpace(iface))
 }
 
+// isBridgeDevice recognizes the bridge device itself so it is not rendered as a
+// client-facing port.
 func isBridgeDevice(deviceName, bridge string) bool {
 	name := strings.ToLower(strings.TrimSpace(deviceName))
 	return name != "" && name == strings.ToLower(strings.TrimSpace(bridge))
 }
 
+// firstNumber gives deterministic ordering to similarly named bridge members
+// such as tap2 and tap10.
 func firstNumber(value string) int {
 	start := -1
 	for i, r := range value {
@@ -748,6 +807,7 @@ func firstNumber(value string) int {
 	return number
 }
 
+// readInt64 parses Linux sysfs counter and speed files.
 func readInt64(path string) (int64, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {

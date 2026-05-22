@@ -11,6 +11,7 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/observe"
 )
 
+// Source constants select optional host integrations.
 const (
 	// SourceOff disables an optional platform source.
 	SourceOff = "off"
@@ -28,6 +29,8 @@ const (
 	DBusBusSession = "session"
 )
 
+// Capability state strings are stable status values, not dependency management
+// actions.
 const (
 	capabilityDisabled    = "disabled"
 	capabilityAvailable   = "available"

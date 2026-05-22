@@ -112,6 +112,8 @@ func gatewayNetworkTable(_ Profile, _ Identity, ports []PortView) []map[string]a
 	return out
 }
 
+// gatewayConfigNetwork renders the controller-owned network assignment view
+// for the first port matching the requested WAN/LAN role.
 func gatewayConfigNetwork(ports []PortView, role string) map[string]any {
 	for _, view := range ports {
 		if gatewayPortRole(view.Port) != role {
@@ -138,6 +140,8 @@ func gatewayConfigNetwork(ports []PortView, role string) map[string]any {
 	return map[string]any{jsonKeyType: payloadTypeDHCP}
 }
 
+// gatewayWANStatus renders live WAN-like state from the same resolved port view
+// used by the gateway interface tables.
 func gatewayWANStatus(ports []PortView, role string, uptime int) map[string]any {
 	for _, view := range ports {
 		if gatewayPortRole(view.Port) != role {
@@ -166,15 +170,22 @@ func gatewayWANStatus(ports []PortView, role string, uptime int) map[string]any 
 	return nil
 }
 
+// gatewayConnectedField uses the resolved port view as the single source for
+// gateway connection state.
 func gatewayConnectedField(view PortView) map[string]any {
 	return map[string]any{"connected": view.Up}
 }
 
+// gatewayConnectionFields derives controller topology hints from the first
+// visible MAC-table entry on a connected port.
 func gatewayConnectionFields(view PortView) map[string]any {
 	out := gatewayConnectedField(view)
 	if !view.Up || len(view.MACs) == 0 {
 		return out
 	}
+	// Controllers use last_connection as a topology hint. The first MAC entry
+	// is therefore treated as metadata about the visible neighbor, not as host
+	// configuration to apply.
 	entry := view.MACs[0]
 	connection := map[string]any{
 		jsonKeyMAC: strings.ToLower(strings.TrimSpace(entry.MAC)),
@@ -304,6 +315,8 @@ func gatewayHostTable(port Port, uplink bool) []map[string]any {
 	for _, entry := range port.MACs {
 		entryType := strings.TrimSpace(entry.Type)
 		if uplink && entryType != "" && entryType != "client" {
+			// Uplink neighbor metadata belongs in uplink/last_connection fields.
+			// The gateway host table should contain downstream client-like MACs.
 			continue
 		}
 		row := map[string]any{
@@ -439,6 +452,8 @@ func gatewayInterfaceIP(id Identity, port Port) string {
 	if ip := strings.TrimSpace(port.IP); ip != "" {
 		return ip
 	}
+	// Gateway WAN fallbacks use documentation addresses so payload examples do
+	// not leak or invent real lab network data.
 	switch gatewayPortRole(port) {
 	case gatewayPortRoleLAN, gatewayPortRoleLAN2:
 		return id.IP

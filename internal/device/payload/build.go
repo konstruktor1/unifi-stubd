@@ -11,6 +11,8 @@ import (
 	"time"
 )
 
+// defaultRequiredVersion is the conservative controller version floor reported
+// by sparse payload profiles.
 const defaultRequiredVersion = "5.0.0"
 
 // MinimalSwitchPayload returns a JSON inform payload with a switch-shaped port table.
@@ -79,6 +81,8 @@ func BuildPayload(profile Profile, id Identity, ports []Port) ([]byte, error) {
 	return data, nil
 }
 
+// identityUptime clamps reported uptime to a positive value because controller
+// freshness checks treat zero-like uptime as suspicious.
 func identityUptime(uptime int) int {
 	if uptime < 1 {
 		return 1
@@ -107,6 +111,9 @@ func applySwitchPayload(payload map[string]any, profile Profile, id Identity, po
 			jsonKeyNumPort: numPorts,
 		},
 		{
+			// srv0 is a synthetic secondary interface seen by controllers on
+			// switch-like payloads. It is derived from the fake MAC and does not
+			// represent a host interface.
 			jsonKeyName: "srv0",
 			jsonKeyMAC:  incrementMAC(id.MAC),
 		},
@@ -114,6 +121,8 @@ func applySwitchPayload(payload map[string]any, profile Profile, id Identity, po
 	payload["port_table"] = portTable(ports)
 }
 
+// addManagementVLAN writes both legacy and newer management VLAN field names so
+// controller versions can recognize the same intent.
 func addManagementVLAN(row map[string]any, vlan int) {
 	if vlan > 0 {
 		row["vlan"] = vlan
@@ -139,6 +148,8 @@ func isGatewayDeviceType(deviceType string) bool {
 	}
 }
 
+// defaultPayloadProfile infers switch or gateway payload shape from the UniFi
+// device type when no profile renderer metadata is available.
 func defaultPayloadProfile(id Identity) Profile {
 	profile := Profile{Kind: payloadKindSwitch}
 	if isGatewayDeviceType(deviceTypeOrDefault(id.DeviceType)) {
@@ -147,6 +158,8 @@ func defaultPayloadProfile(id Identity) Profile {
 	return normalizePayloadProfile(profile, id)
 }
 
+// normalizePayloadProfile turns sparse profile metadata into the renderer
+// defaults used by both legacy switch payloads and gateway-shaped payloads.
 func normalizePayloadProfile(profile Profile, id Identity) Profile {
 	profile.Kind = strings.ToLower(strings.TrimSpace(profile.Kind))
 	if profile.Kind == "" {

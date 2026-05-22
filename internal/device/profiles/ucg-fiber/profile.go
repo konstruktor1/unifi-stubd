@@ -10,6 +10,7 @@ import (
 //go:embed profile.yaml
 var config []byte
 
+// init registers the embedded UCG-Fiber profile with the global registry.
 func init() {
 	profiledata.RegisterConfig("profiles/ucg-fiber/profile.yaml", config)
 }

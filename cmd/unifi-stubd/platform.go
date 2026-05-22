@@ -14,10 +14,14 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/platform"
 )
 
+// runtimePlatform builds the read-only host adapter from resolved runtime
+// flags.
 func runtimePlatform(flags runtimeFlags) platform.Platform {
 	return platform.New(runtimePlatformConfig(flags))
 }
 
+// runtimePlatformConfig trims optional source settings before they reach the
+// platform adapter.
 func runtimePlatformConfig(flags runtimeFlags) platform.Config {
 	return platform.Config{
 		LLDPSource:    strings.TrimSpace(flags.lldpSource),
@@ -30,6 +34,8 @@ func runtimePlatformConfig(flags runtimeFlags) platform.Config {
 	}
 }
 
+// enrichPortOverridesWithPlatform reads local interface facts for explicit
+// overrides before validation, without letting controller data choose sources.
 func enrichPortOverridesWithPlatform(ctx context.Context, plt platform.Platform, overrides []device.PortOverride) []device.PortOverride {
 	if len(overrides) == 0 {
 		return overrides

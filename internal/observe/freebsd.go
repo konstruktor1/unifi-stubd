@@ -33,7 +33,8 @@ func HostSnapshot(ctx context.Context, cfg Config, uplinkPortIndex int) (Snapsho
 	}
 }
 
-// FreeBSDSnapshot reads passive FreeBSD bridge data.
+// FreeBSDSnapshot reads passive FreeBSD bridge data into the shared snapshot
+// model and reports unavailable counter support as a warning.
 func FreeBSDSnapshot(ctx context.Context, cfg Config, uplinkPortIndex int) (Snapshot, []error) {
 	snapshot := Snapshot{
 		UplinkPortIndex: uplinkPortIndex,
@@ -78,7 +79,8 @@ func FreeBSDBridgeAddr(ctx context.Context, bridge string) ([]freebsdifconfig.Br
 	return freebsdifconfig.ParseBridgeAddr(strings.NewReader(string(out))), nil
 }
 
-// FreeBSDMACEntriesByInterface converts FreeBSD bridge rows into UniFi MAC entries.
+// FreeBSDMACEntriesByInterface converts learned FreeBSD bridge rows into
+// per-member UniFi MAC entries, filtering local and multicast rows.
 func FreeBSDMACEntriesByInterface(entries []freebsdifconfig.BridgeAddress) map[string][]device.MacTableEntry {
 	out := map[string][]device.MacTableEntry{}
 	seen := map[string]bool{}
@@ -103,6 +105,8 @@ func FreeBSDMACEntriesByInterface(entries []freebsdifconfig.BridgeAddress) map[s
 	return out
 }
 
+// learnedFreeBSDBridgeEntry accepts only non-local unicast rows that can
+// represent downstream clients.
 func learnedFreeBSDBridgeEntry(entry freebsdifconfig.BridgeAddress) bool {
 	mac, err := net.ParseMAC(entry.MAC)
 	if err != nil || len(mac) == 0 {
@@ -117,6 +121,8 @@ func learnedFreeBSDBridgeEntry(entry freebsdifconfig.BridgeAddress) bool {
 	return strings.TrimSpace(entry.Interface) != ""
 }
 
+// defaultBridgeAge supplies a fresh MAC-table age when FreeBSD output omits
+// one.
 func defaultBridgeAge(value int) int {
 	if value > 0 {
 		return value

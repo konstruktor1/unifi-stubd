@@ -14,6 +14,8 @@ import (
 	"strings"
 )
 
+// storeField maps one whitelisted adoption value between env files and
+// controller mgmt_cfg keys.
 type storeField struct {
 	envKey  string
 	mgmtKey string
@@ -21,6 +23,8 @@ type storeField struct {
 	set     func(*Store, string)
 }
 
+// storeFields is the adoption-state allowlist accepted from controller
+// responses.
 var storeFields = []storeField{
 	{
 		envKey: "STATE",
@@ -125,6 +129,7 @@ func Merge(base, update Store) (Store, bool) {
 	return base, changed
 }
 
+// Controller response types handled specially by the adoption sanitizer.
 const (
 	responseTypeNoop     = "noop"
 	responseTypeSetParam = "setparam"
@@ -153,6 +158,9 @@ func ParseControllerResponseInfo(data []byte) (ControllerResponse, error) {
 		return ControllerResponse{}, fmt.Errorf("parse controller response: %w", err)
 	}
 	response := ControllerResponse{Type: jsonString(raw["_type"])}
+	// Only a narrow mgmt_cfg allowlist is persisted. Provisioning blocks,
+	// firmware actions, shell commands, and restart-like requests are reported
+	// as metadata or local stub resets, never executed on the host.
 	switch response.Type {
 	case responseTypeSetParam:
 		if mgmtCFG := jsonString(raw["mgmt_cfg"]); mgmtCFG != "" {
@@ -200,6 +208,8 @@ func ParseControllerResponseInfo(data []byte) (ControllerResponse, error) {
 	return response, nil
 }
 
+// parseMgmtCFG accepts only whitelisted mgmt_cfg keys that affect future
+// inform identity; other controller provisioning keys are ignored.
 func parseMgmtCFG(mgmtCFG string) Store {
 	store := Store{State: StateProvisioning}
 	for _, line := range strings.Split(mgmtCFG, "\n") {
@@ -207,6 +217,8 @@ func parseMgmtCFG(mgmtCFG string) Store {
 		if !ok {
 			continue
 		}
+		// Unknown controller keys are ignored by design. The storeFields table is
+		// the policy boundary for adoption data accepted from the controller.
 		if field, ok := storeFieldByMgmtKey(key); ok {
 			field.set(&store, value)
 		}
@@ -214,6 +226,8 @@ func parseMgmtCFG(mgmtCFG string) Store {
 	return store
 }
 
+// storeHasStateUpdate reports whether parsing found any durable adoption field
+// worth persisting.
 func storeHasStateUpdate(store Store) bool {
 	for _, field := range storeFields {
 		if field.get(store) != "" {
@@ -223,6 +237,8 @@ func storeHasStateUpdate(store Store) bool {
 	return false
 }
 
+// storeFieldByEnvKey resolves persisted environment keys through the same field
+// table used for saving adoption state.
 func storeFieldByEnvKey(key string) (storeField, bool) {
 	for _, field := range storeFields {
 		if field.envKey == key {
@@ -232,6 +248,8 @@ func storeFieldByEnvKey(key string) (storeField, bool) {
 	return storeField{}, false
 }
 
+// storeFieldByMgmtKey is the allowlist boundary for controller-provided
+// mgmt_cfg fields.
 func storeFieldByMgmtKey(key string) (storeField, bool) {
 	for _, field := range storeFields {
 		if field.mgmtKey != "" && field.mgmtKey == key {
@@ -241,6 +259,7 @@ func storeFieldByMgmtKey(key string) (storeField, bool) {
 	return storeField{}, false
 }
 
+// jsonString reads optional controller fields defensively and trims whitespace.
 func jsonString(raw json.RawMessage) string {
 	if len(raw) == 0 {
 		return ""
@@ -252,6 +271,8 @@ func jsonString(raw json.RawMessage) string {
 	return ""
 }
 
+// jsonInt reads optional numeric controller fields without failing the whole
+// response parse.
 func jsonInt(raw json.RawMessage) int {
 	if len(raw) == 0 {
 		return 0
@@ -263,6 +284,7 @@ func jsonInt(raw json.RawMessage) int {
 	return 0
 }
 
+// jsonStringSlice reads optional controller string lists and drops empty items.
 func jsonStringSlice(raw json.RawMessage) []string {
 	if len(raw) == 0 {
 		return nil
@@ -280,6 +302,8 @@ func jsonStringSlice(raw json.RawMessage) []string {
 	return out
 }
 
+// summarizeSystemCFG records only size and top-level keys for controller
+// provisioning data that the stub intentionally refuses to apply.
 func summarizeSystemCFG(raw json.RawMessage) (int, []string) {
 	raw = []byte(strings.TrimSpace(string(raw)))
 	if len(raw) == 0 {
@@ -294,6 +318,8 @@ func summarizeSystemCFG(raw json.RawMessage) (int, []string) {
 	return len(payload), keys
 }
 
+// topLevelJSONKeys makes ignored provisioning blocks inspectable without
+// storing their full contents.
 func topLevelJSONKeys(data []byte) []string {
 	var object map[string]json.RawMessage
 	if err := json.Unmarshal(data, &object); err != nil {
@@ -309,6 +335,8 @@ func topLevelJSONKeys(data []byte) []string {
 	return keys
 }
 
+// isUnsafeControllerCommand identifies response types that may imply restart,
+// firmware, shell, or host changes and must stay metadata-only.
 func isUnsafeControllerCommand(responseType string) bool {
 	switch strings.TrimSpace(responseType) {
 	case "cmd", "exec", "restart", "reboot", "restore-default", "shell", "syswrapper", "upgrade":
@@ -318,6 +346,8 @@ func isUnsafeControllerCommand(responseType string) bool {
 	}
 }
 
+// isResetControllerCommand recognizes controller removal commands that should
+// reset only local adoption state.
 func isResetControllerCommand(responseType string) bool {
 	switch strings.TrimSpace(responseType) {
 	case "delete", "forget", "remove", "restore-default", "setdefault":
@@ -327,6 +357,8 @@ func isResetControllerCommand(responseType string) bool {
 	}
 }
 
+// responseHasResetCommand scans non-type fields for reset-like command text
+// seen in controller response variants.
 func responseHasResetCommand(raw map[string]json.RawMessage) bool {
 	for key, value := range raw {
 		if key == "_type" {
@@ -339,6 +371,8 @@ func responseHasResetCommand(raw map[string]json.RawMessage) bool {
 	return false
 }
 
+// jsonRawContainsResetCommand searches strings and string lists without
+// executing or interpreting arbitrary controller command payloads.
 func jsonRawContainsResetCommand(raw json.RawMessage) bool {
 	if len(raw) == 0 {
 		return false
@@ -358,6 +392,8 @@ func jsonRawContainsResetCommand(raw json.RawMessage) bool {
 	return textContainsResetCommand(string(raw))
 }
 
+// textContainsResetCommand matches reset command fragments used by UniFi shell
+// wrappers while keeping the action local to the adoption store.
 func textContainsResetCommand(value string) bool {
 	value = strings.ToLower(value)
 	return strings.Contains(value, "restore-default") ||
@@ -365,6 +401,8 @@ func textContainsResetCommand(value string) bool {
 		strings.Contains(value, "setdefault")
 }
 
+// resetReason turns a reset-like controller response into a status-safe audit
+// message.
 func resetReason(responseType string) string {
 	responseType = strings.TrimSpace(responseType)
 	if responseType == "" {

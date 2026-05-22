@@ -16,6 +16,8 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// Profile schema defaults describe the current YAML version and renderer
+// fallback values.
 const (
 	schemaVersion          = 1
 	payloadKindSwitch      = "switch"
@@ -101,12 +103,16 @@ func (r *Registry) DecodeExternalConfig(data []byte) (Profile, int, error) {
 	return decoded.profile, decoded.order, nil
 }
 
+// decodedProfile carries both the typed profile and original YAML document
+// needed for inheritance and registry storage.
 type decodedProfile struct {
 	profile  Profile
 	order    int
 	document *yaml.Node
 }
 
+// decodeConfigRecord handles built-in profiles, which must be standalone YAML
+// documents with defaults and validation applied during init registration.
 func decodeConfigRecord(data []byte) (decodedProfile, error) {
 	document, err := decodeProfileDocument(data)
 	if err != nil {
@@ -123,6 +129,8 @@ func decodeConfigRecord(data []byte) (decodedProfile, error) {
 	return decodedProfile{profile: profile, order: profile.Order, document: document}, nil
 }
 
+// decodeExternalConfigRecord applies optional YAML-level inheritance before the
+// final strict typed decode, preserving explicit zero-value overrides.
 func (r *Registry) decodeExternalConfigRecord(data []byte) (decodedProfile, error) {
 	document, err := decodeProfileDocument(data)
 	if err != nil {
@@ -152,6 +160,8 @@ func (r *Registry) decodeExternalConfigRecord(data []byte) (decodedProfile, erro
 	return decodedProfile{profile: profile, order: order, document: mergedDocument}, nil
 }
 
+// decodeProfileDocument keeps a YAML node tree so external profiles can merge
+// inheritance before strict typed decoding.
 func decodeProfileDocument(data []byte) (*yaml.Node, error) {
 	var doc yaml.Node
 	decoder := yaml.NewDecoder(bytes.NewReader(data))
@@ -164,6 +174,8 @@ func decodeProfileDocument(data []byte) (*yaml.Node, error) {
 	return cloneYAMLNode(&doc), nil
 }
 
+// decodeProfileYAML performs the strict KnownFields decode that rejects
+// misspelled profile keys.
 func decodeProfileYAML(document *yaml.Node) (Profile, error) {
 	var profile Profile
 	data, err := yaml.Marshal(yamlDocumentContent(document))
@@ -179,10 +191,14 @@ func decodeProfileYAML(document *yaml.Node) (Profile, error) {
 	return profile, nil
 }
 
+// normalizeProfile delegates model-level normalization shared with generated
+// built-in profiles.
 func normalizeProfile(profile *Profile) {
 	profilemodel.Normalize(profile)
 }
 
+// applyProfileDefaults fills renderer metadata that older or minimal profiles
+// may omit, without changing fields explicitly set in YAML.
 func applyProfileDefaults(profile *Profile) {
 	setDefaultInt(&profile.SchemaVersion, schemaVersion)
 	for _, field := range []struct {
@@ -199,6 +215,8 @@ func applyProfileDefaults(profile *Profile) {
 	}
 }
 
+// validateProfile checks the semantic profile contract used by profile
+// generation and payload rendering after YAML has been strictly decoded.
 func validateProfile(profile Profile) error {
 	if profile.SchemaVersion != schemaVersion {
 		return fmt.Errorf("schema_version must be %d", schemaVersion)
@@ -251,6 +269,8 @@ func validateProfile(profile Profile) error {
 	return nil
 }
 
+// validatePortGroups ensures grouped hardware layouts exactly cover the profile
+// port count and declare at most one profile-defined uplink group.
 func validatePortGroups(profile Profile) error {
 	total := 0
 	uplinkGroups := 0
@@ -275,6 +295,8 @@ func validatePortGroups(profile Profile) error {
 	return nil
 }
 
+// validateOneBasedStrings checks profile arrays that map directly to one-based
+// port indexes.
 func validateOneBasedStrings(field, name string, ports int, values []string) error {
 	if len(values) > ports {
 		return fmt.Errorf("%s length %d exceeds ports %d for %q", field, len(values), ports, name)
@@ -287,6 +309,8 @@ func validateOneBasedStrings(field, name string, ports int, values []string) err
 	return nil
 }
 
+// validatePortRoles keeps gateway role labels constrained to the renderer's
+// known WAN/LAN role model.
 func validatePortRoles(profile Profile) error {
 	if err := validateOneBasedStrings("port_roles", profile.Name, profile.Ports, profile.PortRoles); err != nil {
 		return err
@@ -305,6 +329,8 @@ func validatePortRoles(profile Profile) error {
 	return nil
 }
 
+// validatePayload checks profile-driven renderer settings that are shared by
+// switch and gateway payload generation.
 func validatePayload(profile Profile) error {
 	switch strings.ToLower(strings.TrimSpace(profile.Payload.Kind)) {
 	case payloadKindSwitch, payloadKindGateway:
@@ -326,6 +352,8 @@ func validatePayload(profile Profile) error {
 	return nil
 }
 
+// defaultPayloadKind selects gateway-shaped payloads only for gateway device
+// families; switches remain the conservative default.
 func defaultPayloadKind(deviceType string) string {
 	switch strings.TrimSpace(deviceType) {
 	case "ugw", "uxg", "udm":
@@ -335,12 +363,16 @@ func defaultPayloadKind(deviceType string) string {
 	}
 }
 
+// setDefaultString fills profile defaults after decode without overwriting YAML
+// values.
 func setDefaultString(target *string, value string) {
 	if *target == "" {
 		*target = value
 	}
 }
 
+// setDefaultInt fills numeric profile defaults after decode without overwriting
+// YAML values.
 func setDefaultInt(target *int, value int) {
 	if *target == 0 {
 		*target = value

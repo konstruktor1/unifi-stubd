@@ -10,6 +10,7 @@ import (
 //go:embed profile.yaml
 var config []byte
 
+// init registers the embedded US-8 profile with the global registry.
 func init() {
 	profiledata.RegisterConfig("profiles/us8/profile.yaml", config)
 }

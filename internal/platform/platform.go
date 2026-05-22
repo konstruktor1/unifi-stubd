@@ -21,12 +21,16 @@ import (
 	"github.com/prometheus/procfs"
 )
 
+// Default platform settings keep optional host integrations bounded and
+// predictable when config omits them.
 const (
 	defaultCommandTimeout = 2 * time.Second
 	defaultSyslogPath     = "/var/log/messages"
 	defaultJournalUnit    = "unifi-stubd"
 )
 
+// hostPlatform is the concrete read-only adapter selected for the current OS or
+// tests.
 type hostPlatform struct {
 	goos string
 	cfg  Config
@@ -47,6 +51,7 @@ func NewForOS(goos string, cfg Config) Platform {
 	return hostPlatform{goos: strings.ToLower(strings.TrimSpace(goos)), cfg: cfg}
 }
 
+// normalizeConfig applies platform defaults for optional read-only sources.
 func normalizeConfig(cfg Config) Config {
 	cfg.LLDPSource = normalizedSource(cfg.LLDPSource)
 	cfg.TrafficSource = normalizedSource(cfg.TrafficSource)
@@ -65,6 +70,7 @@ func normalizeConfig(cfg Config) Config {
 	return cfg
 }
 
+// normalizedSource treats an empty optional integration as explicitly off.
 func normalizedSource(value string) string {
 	value = strings.ToLower(strings.TrimSpace(value))
 	if value == "" {
@@ -73,6 +79,8 @@ func normalizedSource(value string) string {
 	return value
 }
 
+// normalizedDBusBus defaults to the system bus because service deployments do
+// not usually have a session bus.
 func normalizedDBusBus(value string) string {
 	value = strings.ToLower(strings.TrimSpace(value))
 	switch value {
@@ -83,6 +91,8 @@ func normalizedDBusBus(value string) string {
 	}
 }
 
+// Bridge dispatches bridge observation to the OS-specific read-only adapter and
+// returns a portable observation plus warnings instead of mutating the host.
 func (p hostPlatform) Bridge(ctx context.Context, cfg observe.BridgeConfig) (observe.BridgeObservation, []error) {
 	switch p.goos {
 	case goosLinux:
@@ -98,6 +108,8 @@ func (p hostPlatform) Bridge(ctx context.Context, cfg observe.BridgeConfig) (obs
 	}
 }
 
+// Ports resolves explicit port-map entries into portable observations, using
+// interface reads only for mappings that request a real host interface.
 func (p hostPlatform) Ports(ctx context.Context, cfg observe.PortMapConfig) (observe.PortMapObservation, []error) {
 	out := observe.PortMapObservation{Ports: map[int]observe.PortObservation{}}
 	var errs []error
@@ -120,11 +132,16 @@ func (p hostPlatform) Ports(ctx context.Context, cfg observe.PortMapConfig) (obs
 	return out, errs
 }
 
+// Interface reads one host interface and optionally enriches counters from
+// procfs when that source is enabled.
 func (p hostPlatform) Interface(ctx context.Context, iface string) (observe.PortObservation, []error) {
 	observation, errs := ifsource.ObserveInterface(iface)
 	if p.goos != goosLinux || p.cfg.ProcSource != ProcSourceProcFS {
 		return observation, errs
 	}
+	// procfs can provide counters when sysfs/interface probing found link
+	// metadata but incomplete traffic values. It is merged as read-only fallback
+	// data for status and payload rendering.
 	procSnapshot, procErrs := p.Proc(ctx, ProcConfig{Source: p.cfg.ProcSource})
 	if stats, ok := procSnapshot.Interfaces[strings.TrimSpace(iface)]; ok {
 		observation.Stats = mergeInterfaceStats(observation.Stats, stats)
@@ -132,6 +149,8 @@ func (p hostPlatform) Interface(ctx context.Context, iface string) (observe.Port
 	return observation, append(errs, procErrs...)
 }
 
+// linuxBridge reads Linux bridge FDB rows, ARP metadata, member roles, and
+// optional per-member interface observations without applying any settings.
 func (p hostPlatform) linuxBridge(ctx context.Context, cfg observe.BridgeConfig) (observe.BridgeObservation, []error) {
 	observation := observe.BridgeObservation{
 		Bridge:          strings.TrimSpace(cfg.Bridge),
@@ -161,6 +180,8 @@ func (p hostPlatform) linuxBridge(ctx context.Context, cfg observe.BridgeConfig)
 	return observation, errs
 }
 
+// freebsdBridge reads FreeBSD bridge forwarding rows through ifconfig and then
+// uses the same portable role and member-observation model as Linux.
 func (p hostPlatform) freebsdBridge(ctx context.Context, cfg observe.BridgeConfig) (observe.BridgeObservation, []error) {
 	observation := observe.BridgeObservation{
 		Bridge:          strings.TrimSpace(cfg.Bridge),
@@ -187,6 +208,8 @@ func (p hostPlatform) freebsdBridge(ctx context.Context, cfg observe.BridgeConfi
 	return observation, errs
 }
 
+// bridgeMemberObservations reads interface state for eligible bridge members
+// while excluding bridge metadata and explicitly ignored members.
 func (p hostPlatform) bridgeMemberObservations(ctx context.Context, memberMACs map[string][]device.MacTableEntry, roles map[string]observe.BridgeMemberRole, errs []error) (map[string]observe.PortObservation, []error) {
 	if len(memberMACs) == 0 {
 		return nil, errs
@@ -211,6 +234,8 @@ func (p hostPlatform) bridgeMemberObservations(ctx context.Context, memberMACs m
 	return out, errs
 }
 
+// roleForMember resolves bridge roles case-insensitively before platform
+// member observations are read.
 func roleForMember(roles map[string]observe.BridgeMemberRole, member string) observe.BridgeMemberRole {
 	if len(roles) == 0 {
 		return observe.BridgeMemberRoleUnknown
@@ -227,6 +252,8 @@ func roleForMember(roles map[string]observe.BridgeMemberRole, member string) obs
 	return observe.BridgeMemberRoleUnknown
 }
 
+// Proc reads Linux procfs counters when enabled; unsupported or disabled
+// sources return warnings instead of installing dependencies.
 func (p hostPlatform) Proc(_ context.Context, cfg ProcConfig) (ProcSnapshot, []error) {
 	source := normalizedSource(cfg.Source)
 	if source == SourceOff {
@@ -261,9 +288,13 @@ func (p hostPlatform) Proc(_ context.Context, cfg ProcConfig) (ProcSnapshot, []e
 	return out, nil
 }
 
+// Capabilities reports which optional platform sources are disabled, available,
+// missing, or unsupported for status output.
 func (p hostPlatform) Capabilities(ctx context.Context, cfg Config) CapabilityReport {
 	cfg = normalizeConfig(cfg)
 	report := CapabilityReport{GOOS: p.goos}
+	// Capability reporting is diagnostic only. Missing optional tools become
+	// status output, not install attempts or host changes.
 	report.Capabilities = append(report.Capabilities,
 		p.commandCapability(capabilityLLDP, cfg.LLDPSource, "lldpcli"),
 		p.logCapability(cfg),
@@ -274,6 +305,8 @@ func (p hostPlatform) Capabilities(ctx context.Context, cfg Config) CapabilityRe
 	return report
 }
 
+// commandCapability reports whether an optional command-backed source is
+// usable, without installing or invoking it.
 func (p hostPlatform) commandCapability(name, source, command string) Capability {
 	source = normalizedSource(source)
 	if source == SourceOff {
@@ -285,6 +318,7 @@ func (p hostPlatform) commandCapability(name, source, command string) Capability
 	return Capability{Name: name, Source: source, State: capabilityAvailable}
 }
 
+// logCapability reports the configured log reader state for status output.
 func (p hostPlatform) logCapability(cfg Config) Capability {
 	source := normalizedSource(cfg.LogSource)
 	if source == SourceOff {
@@ -303,6 +337,8 @@ func (p hostPlatform) logCapability(cfg Config) Capability {
 	}
 }
 
+// procCapability reports whether Linux procfs counters can be used as optional
+// fallback telemetry.
 func (p hostPlatform) procCapability(cfg Config) Capability {
 	source := normalizedSource(cfg.ProcSource)
 	if source == SourceOff {
@@ -320,6 +356,8 @@ func (p hostPlatform) procCapability(cfg Config) Capability {
 	return Capability{Name: capabilityProc, Source: source, State: capabilityAvailable}
 }
 
+// trafficState currently marks traffic metadata sources as disabled or
+// unsupported; rate calculations use interface counters instead.
 func trafficState(source string) string {
 	if normalizedSource(source) == SourceOff {
 		return capabilityDisabled
@@ -327,6 +365,7 @@ func trafficState(source string) string {
 	return capabilityUnsupported
 }
 
+// trafficDetail explains unsupported traffic metadata sources in status output.
 func trafficDetail(source string) string {
 	if normalizedSource(source) == SourceOff {
 		return ""
@@ -334,6 +373,8 @@ func trafficDetail(source string) string {
 	return "traffic metadata sources are not implemented"
 }
 
+// cloneMemberPortMap detaches bridge-member pinning maps from caller-owned
+// config.
 func cloneMemberPortMap(values map[string]int) map[string]int {
 	if len(values) == 0 {
 		return nil
@@ -349,10 +390,14 @@ func cloneMemberPortMap(values map[string]int) map[string]int {
 	return out
 }
 
+// freeBSDMACEntriesByInterface keeps the platform adapter on the same FreeBSD
+// MAC filtering rules as the observe package.
 func freeBSDMACEntriesByInterface(entries []freebsdifconfig.BridgeAddress) map[string][]device.MacTableEntry {
 	return observe.FreeBSDMACEntriesByInterface(entries)
 }
 
+// mergeInterfaceStats fills missing fields from a fallback counter source while
+// preserving values already returned by the primary interface reader.
 func mergeInterfaceStats(primary, fallback observe.InterfaceStats) observe.InterfaceStats {
 	if primary.RXBytes == 0 {
 		primary.RXBytes = fallback.RXBytes
@@ -378,6 +423,7 @@ func mergeInterfaceStats(primary, fallback observe.InterfaceStats) observe.Inter
 	return primary
 }
 
+// commandContext runs bounded read-only host commands for optional integrations.
 func commandContext(ctx context.Context, timeout time.Duration, name string, args ...string) ([]byte, error) {
 	if timeout <= 0 {
 		timeout = defaultCommandTimeout

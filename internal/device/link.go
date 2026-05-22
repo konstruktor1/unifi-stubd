@@ -76,6 +76,8 @@ func InterfaceSpeedMbps(name string) (int, error) {
 	return speed, nil
 }
 
+// targetAddress converts a controller URL or bare address into a dial target
+// used only for UDP route probing.
 func targetAddress(target string) (string, error) {
 	target = strings.TrimSpace(target)
 	if target == "" {
@@ -108,6 +110,7 @@ func targetAddress(target string) (string, error) {
 	return net.JoinHostPort(target, "9"), nil
 }
 
+// interfaceByIP finds the up interface that owns the local route-probe address.
 func interfaceByIP(ip net.IP) (*net.Interface, error) {
 	ifaces, err := net.Interfaces()
 	if err != nil {
@@ -130,6 +133,8 @@ func interfaceByIP(ip net.IP) (*net.Interface, error) {
 	return nil, fmt.Errorf("no interface owns local IP %s", ip)
 }
 
+// addrContainsIP compares interface address variants against the route-probe
+// local IP.
 func addrContainsIP(addr net.Addr, ip net.IP) bool {
 	switch value := addr.(type) {
 	case *net.IPNet:

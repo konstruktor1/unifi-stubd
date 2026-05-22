@@ -8,6 +8,8 @@ import (
 	"fmt"
 )
 
+// printDryRun shows the exact discovery packet and inform payload bytes without
+// sending anything to the network.
 func printDryRun(packet, payload []byte) {
 	fmt.Println("discovery_packet_hex:")
 	fmt.Println(hex.EncodeToString(packet))

@@ -85,6 +85,8 @@ func applyGatewayTelemetry(payload map[string]any, id Identity, now time.Time, u
 	payload["wifi_caps"] = 0
 }
 
+// formatUptime mirrors compact firmware-style uptime text for gateway status
+// blocks.
 func formatUptime(seconds int) string {
 	if seconds < 1 {
 		seconds = 1

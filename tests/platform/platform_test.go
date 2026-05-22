@@ -9,6 +9,8 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/platform"
 )
 
+// TestParseLLDPCLIJSON verifies lldpcli JSON shape variants normalize to
+// portable neighbors.
 func TestParseLLDPCLIJSON(t *testing.T) {
 	t.Parallel()
 
@@ -63,6 +65,8 @@ func TestParseLLDPCLIJSON(t *testing.T) {
 	}
 }
 
+// TestSyslogReaderReturnsRecentEntries verifies syslog reading keeps only the
+// requested recent entries.
 func TestSyslogReaderReturnsRecentEntries(t *testing.T) {
 	t.Parallel()
 
@@ -93,6 +97,8 @@ func TestSyslogReaderReturnsRecentEntries(t *testing.T) {
 	}
 }
 
+// TestFreeBSDCapabilityReportsSyslogPath verifies FreeBSD capability output can
+// report configured syslog availability.
 func TestFreeBSDCapabilityReportsSyslogPath(t *testing.T) {
 	t.Parallel()
 

@@ -20,6 +20,8 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/inform"
 )
 
+// TestDryRunPlanHonorsOperationModeOverride verifies YAML and CLI operation
+// mode precedence in dry-run output.
 func TestDryRunPlanHonorsOperationModeOverride(t *testing.T) {
 	configPath := filepath.Join(t.TempDir(), "config.yaml")
 	if err := os.WriteFile(configPath, []byte(`controller_url: http://192.0.2.10:8080/inform
@@ -103,6 +105,8 @@ port_overrides:
 	}
 }
 
+// TestDryRunPlanDefaultsPortNeighborToClient verifies per-port neighbor config
+// defaults to client topology type.
 func TestDryRunPlanDefaultsPortNeighborToClient(t *testing.T) {
 	configPath := filepath.Join(t.TempDir(), "config.yaml")
 	if err := os.WriteFile(configPath, []byte(`profile: ugw3
@@ -128,6 +132,8 @@ port_neighbors:
 	}
 }
 
+// TestDryRunPlanReportsTrafficRatesFlag verifies rate tracking intent appears
+// in dry-run plans.
 func TestDryRunPlanReportsTrafficRatesFlag(t *testing.T) {
 	output := runStubd(t,
 		"-dry-run-plan",
@@ -143,6 +149,8 @@ func TestDryRunPlanReportsTrafficRatesFlag(t *testing.T) {
 	}
 }
 
+// TestValidatePortMapRejectsMissingMappedInterface verifies live validation
+// fails when a required host interface is absent.
 func TestValidatePortMapRejectsMissingMappedInterface(t *testing.T) {
 	configPath := filepath.Join(t.TempDir(), "config.yaml")
 	if err := os.WriteFile(configPath, []byte(`operation_mode: port-map
@@ -186,6 +194,8 @@ port_mappings:
 	}
 }
 
+// TestValidatePortMapAcceptsDisabledAndUnmapped verifies non-interface port-map
+// states pass validation without host interfaces.
 func TestValidatePortMapAcceptsDisabledAndUnmapped(t *testing.T) {
 	configPath := filepath.Join(t.TempDir(), "config.yaml")
 	if err := os.WriteFile(configPath, []byte(`operation_mode: port-map
@@ -220,6 +230,8 @@ port_mappings:
 	}
 }
 
+// TestPortMapRendersDisabledAndUnmappedDifferently verifies disabled ports and
+// omitted mappings have distinct payload effects.
 func TestPortMapRendersDisabledAndUnmappedDifferently(t *testing.T) {
 	output := runStubd(t,
 		"-dry-run",
@@ -268,6 +280,8 @@ func TestPortMapRendersDisabledAndUnmappedDifferently(t *testing.T) {
 	}
 }
 
+// TestBridgeObserveDefaultsPhysicalUplinkToNormalPort verifies bridge-observe
+// avoids defaulting an uplink to an SFP-only profile port.
 func TestBridgeObserveDefaultsPhysicalUplinkToNormalPort(t *testing.T) {
 	output := runStubd(t,
 		"-dry-run-plan",
@@ -286,6 +300,8 @@ func TestBridgeObserveDefaultsPhysicalUplinkToNormalPort(t *testing.T) {
 	}
 }
 
+// TestBridgeObserveKeepsDefaultUplinkForSimpleSwitch verifies simple switch
+// profiles keep their default uplink selection.
 func TestBridgeObserveKeepsDefaultUplinkForSimpleSwitch(t *testing.T) {
 	output := runStubd(t,
 		"-dry-run-plan",
@@ -304,6 +320,8 @@ func TestBridgeObserveKeepsDefaultUplinkForSimpleSwitch(t *testing.T) {
 	}
 }
 
+// TestDryRunPayloadHonorsModelOverride verifies CLI model overrides reach the
+// dry-run inform payload.
 func TestDryRunPayloadHonorsModelOverride(t *testing.T) {
 	output := runStubd(t,
 		"-dry-run",
@@ -330,6 +348,8 @@ func TestDryRunPayloadHonorsModelOverride(t *testing.T) {
 	}
 }
 
+// TestInvalidManagementLANVLANIsRejected verifies invalid VLAN IDs fail
+// validation before runtime.
 func TestInvalidManagementLANVLANIsRejected(t *testing.T) {
 	cmd := stubdCommand("-dry-run-plan",
 		"-profile", "usaggpro",
@@ -344,6 +364,8 @@ func TestInvalidManagementLANVLANIsRejected(t *testing.T) {
 	}
 }
 
+// TestManagementLANPlanReportsPreexistingInterface verifies dry-run output
+// distinguishes preexisting management interfaces from host mutation.
 func TestManagementLANPlanReportsPreexistingInterface(t *testing.T) {
 	iface, ip := loopbackInterface(t)
 	output := runStubdStdout(t,
@@ -370,6 +392,8 @@ func TestManagementLANPlanReportsPreexistingInterface(t *testing.T) {
 	}
 }
 
+// TestManagementLANRejectsGatewayProfiles verifies management-LAN metadata is
+// restricted to switch profiles in this release.
 func TestManagementLANRejectsGatewayProfiles(t *testing.T) {
 	cmd := stubdCommand("-dry-run-plan",
 		"-profile", "uxg-lite",
@@ -385,6 +409,8 @@ func TestManagementLANRejectsGatewayProfiles(t *testing.T) {
 	}
 }
 
+// TestLegacyManagementVLANConfigIsRejected verifies legacy management VLAN
+// config is rejected when it would be ambiguous.
 func TestLegacyManagementVLANConfigIsRejected(t *testing.T) {
 	configPath := filepath.Join(t.TempDir(), "config.yaml")
 	if err := os.WriteFile(configPath, []byte(`profile: us8
@@ -402,6 +428,8 @@ management_vlan: 42
 	}
 }
 
+// TestManagementLANPreexistingInterfaceFeedsPayloadIP verifies preexisting
+// management interfaces provide the identity IP in dry-run payloads.
 func TestManagementLANPreexistingInterfaceFeedsPayloadIP(t *testing.T) {
 	iface, ip := loopbackInterface(t)
 	output := runStubdStdout(t,
@@ -437,6 +465,8 @@ func TestManagementLANPreexistingInterfaceFeedsPayloadIP(t *testing.T) {
 	}
 }
 
+// TestLLDPSourceIsAcceptedForDryRunPlan verifies optional LLDP source selection
+// is represented in dry-run plans.
 func TestLLDPSourceIsAcceptedForDryRunPlan(t *testing.T) {
 	cmd := stubdCommand("-dry-run-plan",
 		"-profile", "usaggpro",
@@ -451,6 +481,8 @@ func TestLLDPSourceIsAcceptedForDryRunPlan(t *testing.T) {
 	}
 }
 
+// TestValidateAcceptsPackagedConfigs verifies packaged Linux and FreeBSD
+// configs remain valid.
 func TestValidateAcceptsPackagedConfigs(t *testing.T) {
 	for _, path := range []string{
 		"../../packaging/linux/etc/unifi-stubd/config.yaml",
@@ -465,6 +497,8 @@ func TestValidateAcceptsPackagedConfigs(t *testing.T) {
 	}
 }
 
+// TestProfileValidateTemplateAndExport verifies profile CLI actions share the
+// same decode, validation, and export path.
 func TestProfileValidateTemplateAndExport(t *testing.T) {
 	dir := t.TempDir()
 	templatePath := filepath.Join(dir, "gateway.yaml")
@@ -488,6 +522,8 @@ func TestProfileValidateTemplateAndExport(t *testing.T) {
 	}
 }
 
+// TestValidateUsesExternalProfile verifies runtime validation can load external
+// profile paths.
 func TestValidateUsesExternalProfile(t *testing.T) {
 	dir := t.TempDir()
 	profilePath := filepath.Join(dir, "lab-switch.yaml")
@@ -526,6 +562,8 @@ uplink_speed: profile
 	}
 }
 
+// TestProfileValidateRejectsSemanticError verifies invalid profile semantics
+// produce a validation failure.
 func TestProfileValidateRejectsSemanticError(t *testing.T) {
 	dir := t.TempDir()
 	profilePath := filepath.Join(dir, "bad.yaml")
@@ -556,6 +594,8 @@ payload:
 	}
 }
 
+// TestProfileValidateRejectsUnknownPayloadField verifies strict YAML decoding
+// catches unknown payload keys.
 func TestProfileValidateRejectsUnknownPayloadField(t *testing.T) {
 	dir := t.TempDir()
 	profilePath := filepath.Join(dir, "bad-payload.yaml")
@@ -586,6 +626,8 @@ payload:
 	}
 }
 
+// TestInvalidUplinkPortIsRejected verifies uplink selection is bounded by the
+// selected profile port count.
 func TestInvalidUplinkPortIsRejected(t *testing.T) {
 	cmd := stubdCommand("-dry-run-plan",
 		"-profile", "usaggpro",
@@ -600,6 +642,8 @@ func TestInvalidUplinkPortIsRejected(t *testing.T) {
 	}
 }
 
+// TestInvalidPortOverrideIsRejected verifies invalid per-port overrides fail
+// validation before payload rendering.
 func TestInvalidPortOverrideIsRejected(t *testing.T) {
 	configPath := filepath.Join(t.TempDir(), "config.yaml")
 	if err := os.WriteFile(configPath, []byte(`profile: usaggpro
@@ -620,6 +664,8 @@ port_overrides:
 	}
 }
 
+// TestMacHostIsRejectedOutsideHostDirectMode verifies host MAC adoption is
+// gated behind explicit host-direct mode.
 func TestMacHostIsRejectedOutsideHostDirectMode(t *testing.T) {
 	cmd := stubdCommand("-dry-run-plan",
 		"-operation-mode", "stub",
@@ -638,6 +684,8 @@ func TestMacHostIsRejectedOutsideHostDirectMode(t *testing.T) {
 	}
 }
 
+// TestMacvlanDryRunPlanDoesNotExecute verifies macvlan mode remains plan-only
+// and does not mutate host networking.
 func TestMacvlanDryRunPlanDoesNotExecute(t *testing.T) {
 	output := runStubd(t,
 		"-dry-run-plan",
@@ -660,6 +708,8 @@ func TestMacvlanDryRunPlanDoesNotExecute(t *testing.T) {
 	}
 }
 
+// TestVersionFlagPrintsBinaryVersion verifies the short version flag exits
+// before daemon setup.
 func TestVersionFlagPrintsBinaryVersion(t *testing.T) {
 	output := runStubdStdout(t, "-version")
 	if strings.TrimSpace(output) != "dev" {
@@ -667,6 +717,8 @@ func TestVersionFlagPrintsBinaryVersion(t *testing.T) {
 	}
 }
 
+// TestDoubleDashVersionFlagPrintsBinaryVersion verifies the long version flag
+// follows the same early-exit path.
 func TestDoubleDashVersionFlagPrintsBinaryVersion(t *testing.T) {
 	output := runStubdStdout(t, "--version")
 	if strings.TrimSpace(output) != "dev" {
@@ -674,6 +726,8 @@ func TestDoubleDashVersionFlagPrintsBinaryVersion(t *testing.T) {
 	}
 }
 
+// TestStatusJSONReportsAdoptionAndLastInformWithoutAuthKey verifies status JSON
+// reports sanitized adoption and inform state.
 func TestStatusJSONReportsAdoptionAndLastInformWithoutAuthKey(t *testing.T) {
 	dir := t.TempDir()
 	statePath := filepath.Join(dir, "adoption.env")
@@ -848,6 +902,8 @@ status_path: `+statusPath+`
 	}
 }
 
+// TestInformCipherFallbackStatusIsRecorded verifies AES-GCM fallback behavior is
+// reflected in persisted status.
 func TestInformCipherFallbackStatusIsRecorded(t *testing.T) {
 	dir := t.TempDir()
 	statePath := filepath.Join(dir, "adoption.env")
@@ -910,6 +966,8 @@ func TestInformCipherFallbackStatusIsRecorded(t *testing.T) {
 	}
 }
 
+// TestControllerRestoreDefaultResetsAdoptionState verifies controller reset
+// requests clear only local adoption state.
 func TestControllerRestoreDefaultResetsAdoptionState(t *testing.T) {
 	dir := t.TempDir()
 	statePath := filepath.Join(dir, "adoption.env")
@@ -989,6 +1047,7 @@ VERSION=5.0.17.1
 	}
 }
 
+// runStubd executes the CLI and fails the test on non-zero exit.
 func runStubd(t *testing.T, args ...string) string {
 	t.Helper()
 	cmd := stubdCommand(args...)
@@ -999,6 +1058,8 @@ func runStubd(t *testing.T, args ...string) string {
 	return string(out)
 }
 
+// runStubdStdout executes the CLI and returns stdout while preserving stderr for
+// diagnostics.
 func runStubdStdout(t *testing.T, args ...string) string {
 	t.Helper()
 	cmd := stubdCommand(args...)
@@ -1013,11 +1074,13 @@ func runStubdStdout(t *testing.T, args ...string) string {
 	return string(out)
 }
 
+// stubdCommand constructs a go-run command for the local stubd entry point.
 func stubdCommand(args ...string) *exec.Cmd {
 	cmdArgs := append([]string{"run", "../../cmd/unifi-stubd"}, args...)
 	return exec.Command("go", cmdArgs...)
 }
 
+// extractDryRunPayloadJSON extracts the JSON payload section from dry-run text.
 func extractDryRunPayloadJSON(t *testing.T, output string) string {
 	t.Helper()
 	const marker = "minimal_inform_payload_json:\n"
@@ -1028,6 +1091,8 @@ func extractDryRunPayloadJSON(t *testing.T, output string) string {
 	return strings.TrimSpace(payload)
 }
 
+// loopbackInterface returns a usable loopback interface and IPv4 address for
+// host-bound CLI tests.
 func loopbackInterface(t *testing.T) (string, string) {
 	t.Helper()
 	interfaces, err := net.Interfaces()

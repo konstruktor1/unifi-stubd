@@ -18,7 +18,8 @@ type ARPEntry struct {
 	Device string
 }
 
-// ReadARPTable reads Linux procfs ARP rows from path.
+// ReadARPTable reads Linux procfs ARP rows from path. ARP is only used to
+// enrich observed MAC-table metadata with client IPs.
 func ReadARPTable(path string) ([]ARPEntry, error) {
 	path = strings.TrimSpace(path)
 	if path == "" {
@@ -34,7 +35,8 @@ func ReadARPTable(path string) ([]ARPEntry, error) {
 	return ParseARPTable(file), nil
 }
 
-// ParseARPTable converts Linux /proc/net/arp content into normalized rows.
+// ParseARPTable converts Linux /proc/net/arp content into normalized unicast
+// IPv4 rows, filtering headers, invalid MACs, multicast, and zero addresses.
 func ParseARPTable(reader io.Reader) []ARPEntry {
 	scanner := bufio.NewScanner(reader)
 	var out []ARPEntry
@@ -60,6 +62,7 @@ func ParseARPTable(reader io.Reader) []ARPEntry {
 	return out
 }
 
+// zeroMAC filters placeholder ARP rows that cannot represent real clients.
 func zeroMAC(mac net.HardwareAddr) bool {
 	for _, part := range mac {
 		if part != 0 {
@@ -69,7 +72,8 @@ func zeroMAC(mac net.HardwareAddr) bool {
 	return true
 }
 
-// EnrichMACEntriesWithARP fills missing client IPs from local ARP rows.
+// EnrichMACEntriesWithARP fills missing client IPs from local ARP rows while
+// preserving any IPs already supplied by configuration or another observation.
 func EnrichMACEntriesWithARP(memberMACs map[string][]device.MacTableEntry, arpEntries []ARPEntry) {
 	if len(memberMACs) == 0 || len(arpEntries) == 0 {
 		return
@@ -110,6 +114,8 @@ func EnrichMACEntriesWithLocalARP(memberMACs map[string][]device.MacTableEntry) 
 	return nil
 }
 
+// arpEntryForMAC prefers an ARP row learned on the same bridge member, then
+// falls back to any row for that MAC.
 func arpEntryForMAC(member, mac string, byMAC map[string][]ARPEntry) (ARPEntry, bool) {
 	entries := byMAC[normalizedMACKey(mac)]
 	if len(entries) == 0 {

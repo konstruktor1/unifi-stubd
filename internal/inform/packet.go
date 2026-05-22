@@ -16,6 +16,8 @@ import (
 	"net"
 )
 
+// TNBU constants describe the inform framing version and feature flags used on
+// the wire.
 const (
 	// Magic is the inform packet magic marker.
 	Magic = "TNBU"
@@ -73,6 +75,8 @@ func EncodeJSON(mac net.HardwareAddr, key []byte, payload []byte, opts Options) 
 	flags := FlagEncrypted
 
 	if opts.Zlib {
+		// UniFi inform bodies are compressed before encryption. Keeping the order
+		// here explicit prevents AES-CBC and AES-GCM paths from drifting.
 		var compressed bytes.Buffer
 		zw := zlib.NewWriter(&compressed)
 		if _, err := zw.Write(body); err != nil {
@@ -101,6 +105,9 @@ func EncodeJSON(mac net.HardwareAddr, key []byte, payload []byte, opts Options) 
 		if err != nil {
 			return nil, fmt.Errorf("create AES-GCM cipher: %w", err)
 		}
+		// Newer UniFi inform responses authenticate the fixed 40-byte TNBU
+		// header as associated data, so the payload length must include the GCM
+		// tag before Seal runs.
 		header := makeHeader(mac, flags, iv, uint32(len(body)+aead.Overhead()))
 		body = aead.Seal(nil, iv, body, header)
 		return append(header, body...), nil
@@ -154,6 +161,8 @@ func Decode(data []byte, key []byte) (*Packet, []byte, error) {
 	return p, body, nil
 }
 
+// decryptPayload selects the cipher advertised in the TNBU flags while keeping
+// compression handling outside the encryption path.
 func decryptPayload(packet *Packet, body []byte, key []byte, header []byte) ([]byte, error) {
 	if packet.Flags&FlagEncrypted == 0 {
 		return body, nil
@@ -166,11 +175,15 @@ func decryptPayload(packet *Packet, body []byte, key []byte, header []byte) ([]b
 		return nil, fmt.Errorf("create AES cipher: %w", err)
 	}
 	if packet.Flags&FlagEncryptedGCM != 0 {
+		// The header is associated data for AES-GCM and must match the bytes that
+		// preceded the encrypted body on the wire.
 		return decryptGCMPayload(block, packet.IV, body, header)
 	}
 	return decryptCBCPayload(block, packet.IV, body)
 }
 
+// decryptGCMPayload authenticates the TNBU header as associated data, matching
+// the AES-GCM inform response shape used by newer controllers.
 func decryptGCMPayload(block cipher.Block, nonce []byte, body []byte, header []byte) ([]byte, error) {
 	aead, err := cipher.NewGCMWithNonceSize(block, len(nonce))
 	if err != nil {
@@ -183,6 +196,7 @@ func decryptGCMPayload(block cipher.Block, nonce []byte, body []byte, header []b
 	return out, nil
 }
 
+// decryptCBCPayload handles the legacy AES-CBC inform body format.
 func decryptCBCPayload(block cipher.Block, iv []byte, body []byte) ([]byte, error) {
 	if len(body)%aes.BlockSize != 0 {
 		return nil, fmt.Errorf("CBC payload is not block aligned")
@@ -195,6 +209,8 @@ func decryptCBCPayload(block cipher.Block, iv []byte, body []byte) ([]byte, erro
 	return out, nil
 }
 
+// decompressPayload runs after decryption because TNBU inform payloads compress
+// plaintext before encrypting it.
 func decompressPayload(body []byte) ([]byte, error) {
 	zr, err := zlib.NewReader(bytes.NewReader(body))
 	if err != nil {
@@ -210,6 +226,7 @@ func decompressPayload(body []byte) ([]byte, error) {
 	return out, nil
 }
 
+// makeHeader builds the fixed TNBU packet header shared by CBC and GCM paths.
 func makeHeader(mac net.HardwareAddr, flags uint16, iv []byte, payloadLen uint32) []byte {
 	header := make([]byte, 40)
 	copy(header[0:4], Magic)

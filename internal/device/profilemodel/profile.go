@@ -124,12 +124,15 @@ func Normalize(profile *Profile) {
 	)
 }
 
+// trimStrings normalizes profile text before validation and registry storage.
 func trimStrings(values ...*string) {
 	for _, value := range values {
 		*value = strings.TrimSpace(*value)
 	}
 }
 
+// cloneNonEmptySlice copies profile option slices while preserving nil for
+// absent fields.
 func cloneNonEmptySlice[T any](values []T) []T {
 	if len(values) == 0 {
 		return nil

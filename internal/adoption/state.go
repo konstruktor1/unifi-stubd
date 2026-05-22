@@ -6,6 +6,8 @@ package adoption
 // State describes the local adoption lifecycle state.
 type State string
 
+// Adoption states mirror the small lifecycle vocabulary needed for inform
+// status, not the full controller provisioning state machine.
 const (
 	// StateFactory means the stub has not been adopted yet.
 	StateFactory State = "factory"

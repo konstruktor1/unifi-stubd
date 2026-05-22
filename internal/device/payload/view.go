@@ -48,6 +48,9 @@ type PortView struct {
 func BuildPortViews(profile Profile, id Identity, ports []Port) []PortView {
 	views := make([]PortView, 0, len(ports))
 	for _, port := range ports {
+		// Resolve all profile, override, and observation data once. Switch and
+		// gateway renderers then consume the same view, which keeps MACs, speed,
+		// role, source-interface, and management metadata aligned.
 		speed := effectivePortSpeed(port)
 		media := effectivePortMedia(port, speed)
 		role := gatewayPortRole(port)
@@ -94,6 +97,8 @@ func BuildPortViews(profile Profile, id Identity, ports []Port) []PortView {
 	return views
 }
 
+// sourceFields keeps the host interface provenance visible in generated payload
+// rows without implying controller ownership of that interface.
 func sourceFields(sourceInterface string) map[string]any {
 	return map[string]any{
 		jsonKeySourceIf: strings.TrimSpace(sourceInterface),

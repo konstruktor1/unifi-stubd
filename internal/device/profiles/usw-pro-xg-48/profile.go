@@ -10,6 +10,7 @@ import (
 //go:embed profile.yaml
 var config []byte
 
+// init registers the embedded USW-Pro-XG-48 profile with the global registry.
 func init() {
 	profiledata.RegisterConfig("profiles/usw-pro-xg-48/profile.yaml", config)
 }

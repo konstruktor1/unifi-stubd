@@ -13,6 +13,8 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/inform"
 )
 
+// TestEncodeDecodeJSONCBCZlib verifies the legacy compressed AES-CBC inform
+// packet round trip.
 func TestEncodeDecodeJSONCBCZlib(t *testing.T) {
 	mac, err := net.ParseMAC("02:11:22:33:44:55")
 	if err != nil {
@@ -36,6 +38,8 @@ func TestEncodeDecodeJSONCBCZlib(t *testing.T) {
 	}
 }
 
+// TestClientRejectsOversizedResponseBody verifies controller responses are
+// bounded before packet decoding.
 func TestClientRejectsOversizedResponseBody(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -60,6 +64,7 @@ func TestClientRejectsOversizedResponseBody(t *testing.T) {
 	}
 }
 
+// FuzzDecode verifies arbitrary packet bytes do not panic the inform decoder.
 func FuzzDecode(f *testing.F) {
 	mac, err := net.ParseMAC("02:11:22:33:44:55")
 	if err != nil {

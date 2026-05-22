@@ -10,6 +10,7 @@ import (
 //go:embed profile.yaml
 var config []byte
 
+// init registers the embedded UXG-Lite profile with the global registry.
 func init() {
 	profiledata.RegisterConfig("profiles/uxg-lite/profile.yaml", config)
 }

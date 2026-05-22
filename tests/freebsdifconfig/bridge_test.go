@@ -9,6 +9,8 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/adapters/freebsdifconfig"
 )
 
+// TestParseBridgeAddr verifies FreeBSD bridge address parsing, VLANs, and
+// local/static flags.
 func TestParseBridgeAddr(t *testing.T) {
 	entries := freebsdifconfig.ParseBridgeAddr(strings.NewReader(`
 00:11:22:33:44:55 Vlan20 tap101 1199 flags=0<>

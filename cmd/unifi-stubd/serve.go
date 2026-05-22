@@ -21,10 +21,15 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/observe"
 )
 
+// serveSwitchEmulation applies configuration, validates the selected runtime
+// mode, builds the initial controller-facing identity, and then either exits
+// for one-shot commands or enters the presence loop.
 func serveSwitchEmulation() error {
 	defaults := appconfig.Default()
 	flags, changed := parseRuntimeFlags(defaults)
 
+	// Early exits run before YAML/profile/runtime validation because they do
+	// not need host state and must not start any controller-facing traffic.
 	if flags.binaryVersion {
 		fmt.Println(version)
 		return nil
@@ -66,6 +71,9 @@ func serveSwitchEmulation() error {
 		return err
 	}
 
+	// Profile defaults are applied before mode-specific validation so derived
+	// port counts, model IDs, payload kind, and interface names are validated
+	// as the daemon will actually use them.
 	profile, ok := registry.LookupProfile(flags.profileName)
 	if !ok {
 		err := fmt.Errorf("unknown profile %q; known profiles: %s", flags.profileName, registry.ProfileNames())
@@ -76,6 +84,9 @@ func serveSwitchEmulation() error {
 	}
 	applyProfile(profile, &flags)
 	plt := runtimePlatform(flags)
+	// Non-live validation catches schema and policy mistakes without touching
+	// host interfaces. Live checks are intentionally delayed until -validate or
+	// actual runtime, where missing local interfaces should be reported.
 	if err := validateManagementLAN(flags, profile, false); err != nil {
 		if flags.validate {
 			return withExitCode(1, err)
@@ -89,6 +100,9 @@ func serveSwitchEmulation() error {
 		return err
 	}
 	if flags.validate {
+		// -validate performs the same live reachability/name checks that a real
+		// run would perform, but exits before discovery, inform, SSH, or status
+		// persistence can start.
 		if err := validateIdentityFlags(flags); err != nil {
 			return withExitCode(1, err)
 		}
@@ -105,6 +119,9 @@ func serveSwitchEmulation() error {
 		return nil
 	}
 	if !flags.dryRunPlan {
+		// Dry-run plans may describe unsupported host-network actions. All other
+		// paths require live source checks before any controller-visible payload
+		// is built.
 		if err := validateSourceMappings(flags, true); err != nil {
 			return err
 		}
@@ -115,6 +132,8 @@ func serveSwitchEmulation() error {
 	enrichCtx, enrichCancel := context.WithTimeout(context.Background(), observeTimeout)
 	flags.portOverrides = enrichPortOverridesWithPlatform(enrichCtx, plt, flags.portOverrides)
 	enrichCancel()
+	// Platform enrichment can add observed MAC/IP/counter fields to operator
+	// overrides, so validation runs after enrichment and before payload build.
 	if err := validatePortOverrides(flags); err != nil {
 		return err
 	}
@@ -195,6 +214,8 @@ func serveSwitchEmulation() error {
 	})
 }
 
+// controllerPresence bundles the immutable daemon identity and mutable runtime
+// trackers used by the heartbeat loop.
 type controllerPresence struct {
 	flags              runtimeFlags
 	profile            device.Profile
@@ -210,6 +231,9 @@ type controllerPresence struct {
 	startedAt          time.Time
 }
 
+// maintainControllerPresence rebuilds discovery and inform state on every
+// interval so adoption changes, observed ports, and runtime counters can be
+// reflected without restarting the daemon.
 func maintainControllerPresence(cfg controllerPresence) error {
 	stop := make(chan os.Signal, 1)
 	signal.Notify(stop, os.Interrupt)
@@ -235,6 +259,9 @@ func maintainControllerPresence(cfg controllerPresence) error {
 		flags := cfg.flags
 		plt := runtimePlatform(flags)
 		if flags.trafficRatesEnabled {
+			// Rate reporting is based on current observed counters, so enrich
+			// interface-backed overrides on every heartbeat instead of only at
+			// startup.
 			ctx, cancel := context.WithTimeout(context.Background(), observeTimeout)
 			flags.portOverrides = enrichPortOverridesWithPlatform(ctx, plt, flags.portOverrides)
 			cancel()
@@ -270,6 +297,8 @@ func maintainControllerPresence(cfg controllerPresence) error {
 	}
 }
 
+// runtimeUptime converts daemon lifetime into the positive seconds expected by
+// UniFi inform payloads.
 func runtimeUptime(startedAt time.Time) int {
 	if startedAt.IsZero() {
 		return 1
@@ -281,6 +310,8 @@ func runtimeUptime(startedAt time.Time) int {
 	return uptime
 }
 
+// sendDiscovery sends the already-encoded UDP announcement and treats send
+// failures as heartbeat warnings, not daemon-fatal errors.
 func sendDiscovery(packet []byte, hostname string, mac net.HardwareAddr, skip bool, iface string, targets []string) {
 	if skip {
 		return
@@ -292,6 +323,9 @@ func sendDiscovery(packet []byte, hostname string, mac net.HardwareAddr, skip bo
 	log.Printf("sent discovery announcement for %s (%s)", hostname, mac)
 }
 
+// sendInformHeartbeat sends one inform packet, persists sanitized exchange
+// status, and applies only safe adoption-state updates from decoded controller
+// responses.
 func sendInformHeartbeat(mac net.HardwareAddr, informURL, statePath, statusPath string, store adoption.Store, payload []byte, sourceIP net.IP) {
 	if informURL == "" {
 		return
@@ -332,6 +366,8 @@ func sendInformHeartbeat(mac net.HardwareAddr, informURL, statePath, statusPath 
 	log.Printf("inform response status=%d raw_bytes=%d cipher=%s", resp.StatusCode, len(resp.RawBody), cipherStatusText(cipher))
 }
 
+// applyControllerResponseStatus copies the sanitized controller response into
+// persisted status, excluding raw provisioning bodies.
 func applyControllerResponseStatus(last *lastInformStatus, response adoption.ControllerResponse) {
 	last.ResponseType = response.Type
 	last.IntervalSeconds = response.IntervalSeconds
@@ -347,6 +383,9 @@ func applyControllerResponseStatus(last *lastInformStatus, response adoption.Con
 	last.IgnoredReason = response.IgnoredReason
 }
 
+// recordLastInform writes the same sanitized controller-exchange summary used
+// by --status, keeping auth keys and raw controller payloads out of the status
+// file.
 func recordLastInform(statusPath string, last lastInformStatus, statusCode int, responseType string, cipher informCipherStatus, rawBytes, jsonBytes int, err error) {
 	last.StatusCode = statusCode
 	last.ResponseType = responseType
@@ -363,6 +402,8 @@ func recordLastInform(statusPath string, last lastInformStatus, statusCode int, 
 	}
 }
 
+// startAdoptionSSH wires the optional SSH compatibility shim to the current
+// fake identity and adoption store path.
 func startAdoptionSSH(flags runtimeFlags, mac net.HardwareAddr, ip net.IP, hostname string) (*adoptionssh.Server, error) {
 	sshServer, err := adoptionssh.Start(adoptionssh.Config{
 		Listen:      flags.sshListen,

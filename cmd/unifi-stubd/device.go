@@ -18,8 +18,11 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/device"
 )
 
+// automaticText is the shared CLI value for derived identity fields.
 const automaticText = "auto"
 
+// payloadForIdentity converts resolved runtime flags and adoption state into
+// the stable device identity model consumed by the payload renderer.
 func payloadForIdentity(
 	mac net.HardwareAddr,
 	ip net.IP,
@@ -47,6 +50,8 @@ func payloadForIdentity(
 	}, profile, store, refreshPortFreshness(ports, uptimeSeconds))
 }
 
+// buildPayload overlays adoption-derived controller state onto the identity
+// before delegating switch or gateway table construction to the device package.
 func buildPayload(id device.Identity, profile device.Profile, store adoption.Store, ports []device.Port) ([]byte, error) {
 	id.CFGVersion = store.CFGVersion
 	id.Adopted = store.AuthKey != ""
@@ -60,6 +65,8 @@ func buildPayload(id device.Identity, profile device.Profile, store adoption.Sto
 	return payload, nil
 }
 
+// refreshPortFreshness increments synthetic connected-port counters and learned
+// MAC uptimes so repeated informs do not look like a frozen first-boot payload.
 func refreshPortFreshness(ports []device.Port, uptimeSeconds int) []device.Port {
 	if uptimeSeconds < 1 || len(ports) == 0 {
 		return ports
@@ -83,6 +90,8 @@ func refreshPortFreshness(ports []device.Port, uptimeSeconds int) []device.Port 
 	return out
 }
 
+// resolveInformIP reports the numeric controller address when it can be derived
+// from the inform URL; failures stay empty because this is payload metadata.
 func resolveInformIP(informURL string) string {
 	parsed, err := url.Parse(strings.TrimSpace(informURL))
 	if err != nil {
@@ -110,6 +119,8 @@ func resolveInformIP(informURL string) string {
 	return ""
 }
 
+// resolveHostname keeps explicit hostnames stable but falls back to the local
+// OS hostname for automatic lab identities.
 func resolveHostname(value string) string {
 	value = strings.TrimSpace(value)
 	if value != "" && strings.ToLower(value) != automaticText {
@@ -122,6 +133,9 @@ func resolveHostname(value string) string {
 	return "unifi-stubd"
 }
 
+// resolveMAC chooses the fake device MAC. The automatic path is stable for the
+// same host/profile/model, while host MAC use is allowed only in explicit
+// host-direct mode.
 func resolveMAC(value, hostname string, profile device.Profile, model, operationMode, ifaceName string) net.HardwareAddr {
 	value = strings.TrimSpace(value)
 	if strings.EqualFold(value, "host") {
@@ -148,6 +162,8 @@ func resolveMAC(value, hostname string, profile device.Profile, model, operation
 	return mac
 }
 
+// hostInterfaceMAC reads a local interface address only for explicit
+// host-direct mode; controller data never selects this interface.
 func hostInterfaceMAC(ifaceName string) (net.HardwareAddr, error) {
 	ifaceName = strings.TrimSpace(ifaceName)
 	if ifaceName == "" {
@@ -166,6 +182,8 @@ func hostInterfaceMAC(ifaceName string) (net.HardwareAddr, error) {
 	return iface.HardwareAddr, nil
 }
 
+// resolvePortOptions starts from profile hardware layout, then applies global
+// link-speed and uplink selections before any runtime observation is merged.
 func resolvePortOptions(profile device.Profile, linkSpeed int, uplinkPort int, uplinkSpeed, controller string) device.PortOptions {
 	portOptions := profile.PortOptions()
 	if linkSpeed > 0 {
@@ -179,6 +197,8 @@ func resolvePortOptions(profile device.Profile, linkSpeed int, uplinkPort int, u
 	return resolveUplinkSpeed(portOptions, uplinkSpeed, controller)
 }
 
+// resolveUplinkSpeed handles the operator's uplink-speed policy, including the
+// optional egress-link probe used only for local observation.
 func resolveUplinkSpeed(options device.PortOptions, value, target string) device.PortOptions {
 	value = strings.TrimSpace(strings.ToLower(value))
 	switch value {
@@ -209,6 +229,9 @@ func resolveUplinkSpeed(options device.PortOptions, value, target string) device
 	}
 }
 
+// effectiveUplinkSpeedMode disables egress probing when bridge observation has
+// an explicit uplink interface, because that interface is already the source of
+// link metadata.
 func effectiveUplinkSpeedMode(flags runtimeFlags) string {
 	value := strings.TrimSpace(flags.uplinkSpeed)
 	if !strings.EqualFold(value, automaticText) {
@@ -223,6 +246,8 @@ func effectiveUplinkSpeedMode(flags runtimeFlags) string {
 	return "profile"
 }
 
+// effectiveUplinkPort keeps bridge-observe from defaulting a represented host
+// uplink onto an SFP/SFP+ profile port when a safer copper/access port exists.
 func effectiveUplinkPort(profile device.Profile, flags runtimeFlags) int {
 	if flags.uplinkPort > 0 {
 		return flags.uplinkPort
@@ -264,6 +289,8 @@ func effectiveUplinkPort(profile device.Profile, flags runtimeFlags) int {
 	return candidate
 }
 
+// applyProfile fills CLI defaults from the selected profile after external
+// profile loading and before identity and payload construction.
 func applyProfile(profile device.Profile, flags *runtimeFlags) {
 	for _, field := range []struct {
 		target *string
@@ -278,18 +305,24 @@ func applyProfile(profile device.Profile, flags *runtimeFlags) {
 	setDefaultInt(&flags.portCount, profile.Ports)
 }
 
+// setDefaultString fills profile-derived string defaults only when the operator
+// did not set a value.
 func setDefaultString(target *string, value string) {
 	if *target == "" {
 		*target = value
 	}
 }
 
+// setDefaultInt fills profile-derived numeric defaults only when the operator
+// did not set a value.
 func setDefaultInt(target *int, value int) {
 	if *target == 0 {
 		*target = value
 	}
 }
 
+// serialFromMAC mirrors UniFi-style serial formatting by uppercasing the device
+// MAC without separators.
 func serialFromMAC(mac net.HardwareAddr) string {
 	out := make([]byte, hex.EncodedLen(len(mac)))
 	hex.Encode(out, mac)

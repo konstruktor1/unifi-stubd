@@ -12,6 +12,8 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+// TestInfoOutputMatchesUniFiCLIShape verifies the SSH shim returns the identity
+// fields adoption clients probe.
 func TestInfoOutputMatchesUniFiCLIShape(t *testing.T) {
 	server, err := adoptionssh.Start(adoptionssh.Config{
 		Listen:      "127.0.0.1:0",
@@ -52,6 +54,8 @@ func TestInfoOutputMatchesUniFiCLIShape(t *testing.T) {
 	}
 }
 
+// TestRestoreDefaultCommandResetsState verifies SSH reset commands clear only
+// local adoption state.
 func TestRestoreDefaultCommandResetsState(t *testing.T) {
 	dir := t.TempDir()
 	statePath := filepath.Join(dir, "adoption.env")
@@ -93,6 +97,8 @@ VERSION=5.0.17.1
 	}
 }
 
+// FuzzCommandFields verifies the SSH command splitter tolerates arbitrary
+// shell-like input.
 func FuzzCommandFields(f *testing.F) {
 	f.Add("syswrapper.sh set-adopt http://192.0.2.10:8080/inform 0123456789abcdef")
 	f.Add(`sh -c "mca-cli-op set-inform http://192.0.2.10:8080/inform"`)
@@ -107,6 +113,8 @@ func FuzzCommandFields(f *testing.F) {
 	})
 }
 
+// runSSHCommand executes one command against the test SSH shim and returns its
+// output.
 func runSSHCommand(t *testing.T, addr, command string) string {
 	t.Helper()
 	client, err := ssh.Dial("tcp", addr, &ssh.ClientConfig{

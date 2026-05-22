@@ -9,6 +9,8 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/adapters/linuxbridge"
 )
 
+// TestParseFDBCapturesDevicesVLANsAndFlags verifies Linux bridge FDB parsing
+// captures topology fields used by observation.
 func TestParseFDBCapturesDevicesVLANsAndFlags(t *testing.T) {
 	input := `00:11:22:33:44:55 dev tap101i0 vlan 20 master vmbr0 dynamic
 02:aa:bb:cc:dd:ee dev eth0 self permanent

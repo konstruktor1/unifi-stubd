@@ -10,6 +10,8 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/config"
 )
 
+// TestDefaultSeparatesConfigAndStatePaths verifies packaged defaults keep
+// config and writable state paths separate.
 func TestDefaultSeparatesConfigAndStatePaths(t *testing.T) {
 	cfg := config.Default()
 	if cfg.OperationMode != "stub" {
@@ -32,6 +34,8 @@ func TestDefaultSeparatesConfigAndStatePaths(t *testing.T) {
 	}
 }
 
+// TestLoadMergesWithDefaults verifies sparse YAML inherits default runtime
+// values.
 func TestLoadMergesWithDefaults(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "config.yaml")
 	if err := os.WriteFile(path, []byte(`controller_url: http://192.0.2.10:8080/inform

@@ -46,12 +46,17 @@ func portTable(ports []PortView) []map[string]any {
 			"stp_pathcost":    20000,
 			jsonKeyMACTable:   p.MACs,
 		}
+		// Every switch row is rendered from PortView so switch and gateway
+		// payloads agree on observed counters, source interface, link state, and
+		// MAC-table metadata.
 		addFields(row, portLinkFields(p.Speed, p.Media), portCounterFields(p.Port), portRateFields(p.Port), sourceFields(p.SourceInterface))
 		out = append(out, row)
 	}
 	return out
 }
 
+// switchInterfaceName maps one-based UniFi ports to zero-based eth names used
+// in switch payload rows.
 func switchInterfaceName(portIndex int) string {
 	if portIndex < 1 {
 		portIndex = 1

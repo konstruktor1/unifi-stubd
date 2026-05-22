@@ -16,6 +16,8 @@ type TrafficRateTracker struct {
 	previous map[string]trafficRateSample
 }
 
+// trafficRateSample stores the previous monotonic counters for one source
+// interface.
 type trafficRateSample struct {
 	time    time.Time
 	rxBytes int64
@@ -55,6 +57,8 @@ func (t *TrafficRateTracker) Rates(now time.Time, key string, stats InterfaceSta
 	}
 }
 
+// hasByteCounters keeps rate tracking disabled until a source provides real
+// monotonic counters.
 func hasByteCounters(stats InterfaceStats) bool {
 	return stats.RXBytes > 0 || stats.TXBytes > 0
 }

@@ -13,8 +13,12 @@ import (
 	"strings"
 )
 
+// defaultLogLines bounds status log reads when the operator does not provide a
+// line count.
 const defaultLogLines = 50
 
+// Logs reads recent platform logs from the configured optional source for
+// status display; failures are returned as warnings.
 func (p hostPlatform) Logs(ctx context.Context, cfg LogConfig) ([]LogEntry, []error) {
 	source := normalizedSource(cfg.Source)
 	if source == SourceOff {
@@ -30,6 +34,8 @@ func (p hostPlatform) Logs(ctx context.Context, cfg LogConfig) ([]LogEntry, []er
 	}
 }
 
+// journalctlLogs shells out to journalctl in JSON mode so parser errors can be
+// isolated to individual lines.
 func (p hostPlatform) journalctlLogs(ctx context.Context, cfg LogConfig) ([]LogEntry, []error) {
 	unit := strings.TrimSpace(cfg.Unit)
 	if unit == "" {
@@ -47,6 +53,8 @@ func (p hostPlatform) journalctlLogs(ctx context.Context, cfg LogConfig) ([]LogE
 	return entries, parseErrs
 }
 
+// parseJournalJSONLines normalizes journalctl JSON rows while preserving the
+// original line for debugging malformed or unexpected fields.
 func parseJournalJSONLines(output string) ([]LogEntry, []error) {
 	var entries []LogEntry
 	var errs []error
@@ -75,6 +83,8 @@ func parseJournalJSONLines(output string) ([]LogEntry, []error) {
 	return entries, errs
 }
 
+// syslogFileLogs tails the configured syslog-style file with a small in-memory
+// ring buffer instead of loading the full log.
 func syslogFileLogs(cfg LogConfig) ([]LogEntry, []error) {
 	path := strings.TrimSpace(cfg.Path)
 	if path == "" {
@@ -111,6 +121,8 @@ func syslogFileLogs(cfg LogConfig) ([]LogEntry, []error) {
 	return entries, nil
 }
 
+// parseSyslogLine extracts conservative metadata from plain syslog lines while
+// preserving the original text.
 func parseSyslogLine(line string) LogEntry {
 	entry := LogEntry{Raw: line, Message: strings.TrimSpace(line)}
 	fields := strings.Fields(line)
@@ -122,6 +134,8 @@ func parseSyslogLine(line string) LogEntry {
 	return entry
 }
 
+// firstStringField chooses the first populated journal field across systemd
+// naming variants.
 func firstStringField(values map[string]any, keys ...string) string {
 	for _, key := range keys {
 		if value := stringField(values, key); value != "" {
@@ -131,6 +145,7 @@ func firstStringField(values map[string]any, keys ...string) string {
 	return ""
 }
 
+// stringField normalizes journal JSON scalar and array values for display.
 func stringField(values map[string]any, key string) string {
 	value, ok := values[key]
 	if !ok {

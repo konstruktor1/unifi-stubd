@@ -17,6 +17,8 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/platform"
 )
 
+// Management-LAN modes and policies are explicit so the daemon can report VLAN
+// intent without creating host VLAN interfaces.
 const (
 	managementLANModeMetadataOnly         = "metadata-only"
 	managementLANModePreexistingInterface = "preexisting-interface"
@@ -30,6 +32,8 @@ const (
 	managementLANAdoptTaggedOnly    = "tagged-only"
 )
 
+// effectiveManagementLAN normalizes the structured management-LAN config and
+// marks it enabled whenever any meaningful field asks for management metadata.
 func effectiveManagementLAN(flags runtimeFlags) appconfig.ManagementLAN {
 	cfg := flags.managementLAN
 	cfg.Mode = strings.ToLower(strings.TrimSpace(cfg.Mode))
@@ -53,6 +57,9 @@ func effectiveManagementLAN(flags runtimeFlags) appconfig.ManagementLAN {
 	return cfg
 }
 
+// structuredManagementLANRequested detects whether the operator used any
+// management-LAN field, even when effective normalization would otherwise hide
+// an implicit default.
 func structuredManagementLANRequested(flags runtimeFlags) bool {
 	cfg := flags.managementLAN
 	return cfg.Enabled ||
@@ -65,10 +72,14 @@ func structuredManagementLANRequested(flags runtimeFlags) bool {
 		(strings.TrimSpace(cfg.AdoptionStrategy) != "" && !strings.EqualFold(strings.TrimSpace(cfg.AdoptionStrategy), managementLANAdoptUntaggedFirst))
 }
 
+// effectiveManagementVLAN exposes the normalized management VLAN to payload
+// identity construction.
 func effectiveManagementVLAN(flags runtimeFlags) int {
 	return effectiveManagementLAN(flags).VLAN
 }
 
+// statusManagementLAN returns management-LAN metadata only when the feature is
+// actually active, keeping status output quiet for default stub mode.
 func statusManagementLAN(flags runtimeFlags) *appconfig.ManagementLAN {
 	cfg := effectiveManagementLAN(flags)
 	if !cfg.Enabled {
@@ -77,6 +88,8 @@ func statusManagementLAN(flags runtimeFlags) *appconfig.ManagementLAN {
 	return &cfg
 }
 
+// managementLANSourceIP opts into source binding only for a preexisting
+// management interface; metadata-only and planned modes never bind traffic.
 func managementLANSourceIP(flags runtimeFlags, ip net.IP) net.IP {
 	cfg := effectiveManagementLAN(flags)
 	if !cfg.Enabled || cfg.Mode != managementLANModePreexistingInterface {
@@ -85,6 +98,9 @@ func managementLANSourceIP(flags runtimeFlags, ip net.IP) net.IP {
 	return ip.To4()
 }
 
+// informSourceIP chooses a safe local source for inform traffic, preferring the
+// management-LAN address and otherwise using the identity IP only when it is
+// already assigned on the host.
 func informSourceIP(flags runtimeFlags, ip net.IP) net.IP {
 	if source := managementLANSourceIP(flags, ip); source != nil {
 		return source
@@ -96,6 +112,8 @@ func informSourceIP(flags runtimeFlags, ip net.IP) net.IP {
 	return candidate
 }
 
+// effectiveDiscoveryInterface binds discovery to the operator-selected
+// interface, or to a preexisting management-LAN interface when configured.
 func effectiveDiscoveryInterface(flags runtimeFlags) string {
 	if iface := strings.TrimSpace(flags.discoveryInterface); iface != "" {
 		return iface
@@ -107,6 +125,9 @@ func effectiveDiscoveryInterface(flags runtimeFlags) string {
 	return ""
 }
 
+// validateManagementLAN enforces that management VLAN handling remains payload
+// metadata or binding to a preexisting interface; planned host VLAN creation is
+// dry-run-only.
 func validateManagementLAN(flags runtimeFlags, profile device.Profile, live bool) error {
 	cfg := effectiveManagementLAN(flags)
 	if cfg.VLAN < 0 || cfg.VLAN > 4094 {
@@ -151,6 +172,9 @@ func validateManagementLAN(flags runtimeFlags, profile device.Profile, live bool
 	return nil
 }
 
+// validatePreexistingManagementLAN checks the local interface and optional
+// controller reachability before the daemon binds discovery or inform traffic
+// to that management address.
 func validatePreexistingManagementLAN(flags runtimeFlags, cfg appconfig.ManagementLAN) error {
 	sourceIP, err := managementLANInterfaceIP(cfg)
 	if err != nil {
@@ -175,6 +199,9 @@ func validatePreexistingManagementLAN(flags runtimeFlags, cfg appconfig.Manageme
 	return nil
 }
 
+// resolveManagementLANIdentityIP replaces the default fake management IP with
+// the selected preexisting interface address when management-LAN mode asks for
+// source-bound discovery and inform traffic.
 func resolveManagementLANIdentityIP(flags runtimeFlags, fallback net.IP, plt platform.Platform) (net.IP, error) {
 	cfg := effectiveManagementLAN(flags)
 	if !cfg.Enabled || cfg.Mode != managementLANModePreexistingInterface {
@@ -203,6 +230,8 @@ func resolveManagementLANIdentityIP(flags runtimeFlags, fallback net.IP, plt pla
 	return ip, nil
 }
 
+// managementLANInterfaceIP returns the first IPv4 address on the selected
+// management interface for validation-time source binding checks.
 func managementLANInterfaceIP(cfg appconfig.ManagementLAN) (net.IP, error) {
 	iface, err := net.InterfaceByName(cfg.Interface)
 	if err != nil {
@@ -224,6 +253,8 @@ func managementLANInterfaceIP(cfg appconfig.ManagementLAN) (net.IP, error) {
 	return nil, fmt.Errorf("management_lan.interface %s has no IPv4 address", cfg.Interface)
 }
 
+// interfaceHasIPv4 checks whether a configured management IP is actually
+// assigned to the selected local interface.
 func interfaceHasIPv4(ifaceName string, ip net.IP) bool {
 	iface, err := net.InterfaceByName(ifaceName)
 	if err != nil {
@@ -245,6 +276,8 @@ func interfaceHasIPv4(ifaceName string, ip net.IP) bool {
 	return false
 }
 
+// hostHasIPv4 prevents inform source binding to synthetic or unassigned
+// identity addresses.
 func hostHasIPv4(ip net.IP) bool {
 	ifaces, err := net.Interfaces()
 	if err != nil {
@@ -258,6 +291,8 @@ func hostHasIPv4(ip net.IP) bool {
 	return false
 }
 
+// validateManagementLANReachability optionally proves that the chosen local
+// source address can reach the controller, depending on warn/required policy.
 func validateManagementLANReachability(flags runtimeFlags, cfg appconfig.ManagementLAN, sourceIP net.IP) error {
 	if cfg.ControllerReachable == managementLANReachOff {
 		return nil
@@ -278,6 +313,8 @@ func validateManagementLANReachability(flags runtimeFlags, cfg appconfig.Managem
 	return nil
 }
 
+// controllerHostPort turns the configured controller URL into the TCP endpoint
+// used for management-LAN reachability checks.
 func controllerHostPort(rawURL string) (string, error) {
 	parsed, err := url.Parse(strings.TrimSpace(rawURL))
 	if err != nil || parsed.Hostname() == "" {

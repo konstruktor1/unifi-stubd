@@ -2,6 +2,8 @@
 // consistent across switch and gateway builders.
 package payload
 
+// JSON key constants keep repeated UniFi field names consistent across payload
+// tables.
 const (
 	jsonKeyAddress     = "address"
 	jsonKeyAutoneg     = "autoneg"

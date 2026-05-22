@@ -7,6 +7,8 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/observe"
 )
 
+// TestTrafficRateTrackerCalculatesDeltas verifies byte-per-second rates from
+// successive counter samples.
 func TestTrafficRateTrackerCalculatesDeltas(t *testing.T) {
 	tracker := observe.NewTrafficRateTracker()
 	start := time.Unix(100, 0)
@@ -22,6 +24,8 @@ func TestTrafficRateTrackerCalculatesDeltas(t *testing.T) {
 	}
 }
 
+// TestTrafficRateTrackerHandlesResetAndDownLinks verifies counter resets and
+// down links suppress rate output.
 func TestTrafficRateTrackerHandlesResetAndDownLinks(t *testing.T) {
 	tracker := observe.NewTrafficRateTracker()
 	start := time.Unix(100, 0)

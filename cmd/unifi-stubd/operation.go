@@ -19,6 +19,7 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/platform"
 )
 
+// Operation modes define the host-observation boundary for the daemon.
 const (
 	operationModeStub          = "stub"
 	operationModeObserve       = "observe"
@@ -31,6 +32,8 @@ const (
 	observeTimeout   = 2 * time.Second
 )
 
+// validateOperationFlags normalizes operator-selected modes and optional host
+// sources before later validation can decide whether live checks are required.
 func validateOperationFlags(flags *runtimeFlags) error {
 	mode := normalizeMode(flags.operationMode)
 	flags.operationMode = mode
@@ -92,6 +95,8 @@ func validateOperationFlags(flags *runtimeFlags) error {
 	if strings.EqualFold(strings.TrimSpace(flags.macText), "host") && mode != operationModeHostDirect {
 		return fmt.Errorf("mac: host is only allowed with -operation-mode host-direct")
 	}
+	// Planned host-networking modes remain review-only. The daemon may print
+	// the intended macvlan commands, but it must not create interfaces itself.
 	if mode == operationModeMacvlan && !flags.dryRunPlan {
 		return fmt.Errorf("operation-mode macvlan is planned only; use -dry-run-plan to inspect the non-mutating plan")
 	}
@@ -101,6 +106,8 @@ func validateOperationFlags(flags *runtimeFlags) error {
 	return nil
 }
 
+// validatePortOverrides checks configured payload metadata before it can reach
+// generated ports, keeping invalid MAC/IP/speed data out of inform payloads.
 func validatePortOverrides(flags runtimeFlags) error {
 	if flags.uplinkPort < 0 || flags.uplinkPort > flags.portCount {
 		return fmt.Errorf("invalid -uplink-port %d; use 0 or 1..%d", flags.uplinkPort, flags.portCount)
@@ -138,6 +145,9 @@ func validatePortOverrides(flags runtimeFlags) error {
 	return nil
 }
 
+// validateSourceMappings validates bridge-observe and port-map inputs in two
+// phases: structural checks first, optional live interface existence checks when
+// requested by -validate or runtime startup.
 func validateSourceMappings(flags runtimeFlags, live bool) error {
 	var errs []error
 	mode := normalizeMode(flags.operationMode)
@@ -206,6 +216,8 @@ func validateSourceMappings(flags runtimeFlags, live bool) error {
 	return nil
 }
 
+// validateOptionalInterfaceName rejects path-like names and optionally checks
+// local existence for modes that will read host interface data.
 func validateOptionalInterfaceName(field, value string, live bool) error {
 	value = strings.TrimSpace(value)
 	if value == "" {
@@ -222,6 +234,8 @@ func validateOptionalInterfaceName(field, value string, live bool) error {
 	return nil
 }
 
+// validateIdentityFlags checks only locally supplied identity values; controller
+// adoption responses are not allowed to redefine the host-facing identity.
 func validateIdentityFlags(flags runtimeFlags) error {
 	if ip := net.ParseIP(strings.TrimSpace(flags.ipText)).To4(); ip == nil {
 		return fmt.Errorf("invalid IPv4 address: %q", flags.ipText)
@@ -236,6 +250,8 @@ func validateIdentityFlags(flags runtimeFlags) error {
 	return nil
 }
 
+// normalizeMode keeps the legacy observe alias while making stub mode the
+// default safety posture.
 func normalizeMode(value string) string {
 	value = strings.ToLower(strings.TrimSpace(value))
 	if value == "" {
@@ -247,10 +263,15 @@ func normalizeMode(value string) string {
 	return value
 }
 
+// portsForRuntime merges profile defaults, passive observations, LLDP hints,
+// operator overrides, and configured neighbors into one ordered port list.
 func portsForRuntime(flags runtimeFlags, portOptions device.PortOptions, plt platform.Platform) []device.Port {
 	ports := device.SwitchPortsWithOptions(flags.portCount, portOptions)
 	mode := normalizeMode(flags.operationMode)
 	if mode == operationModePortMap {
+		// Explicit port-map sources become ordinary overrides first, then user
+		// overrides win. This preserves the operator's final say over observed
+		// host data while keeping renderer code on one merge path.
 		ctx, cancel := context.WithTimeout(context.Background(), observeTimeout)
 		defer cancel()
 		overrides, errs := portmap.OverridesFromSource(ctx, plt, flags.portMappings)
@@ -264,6 +285,8 @@ func portsForRuntime(flags runtimeFlags, portOptions device.PortOptions, plt pla
 		return device.ApplyUplinkNeighbor(ports, flags.uplinkNeighbor)
 	}
 	if mode != operationModeBridgeObserve && mode != operationModeHostDirect {
+		// Stub mode stays synthetic unless the operator explicitly supplies
+		// payload metadata. No host bridge or interface data is guessed here.
 		ports = device.ApplyPortOverrides(ports, flags.portOverrides)
 		ports = device.ApplyPortNeighbors(ports, flags.portNeighbors)
 		return device.ApplyUplinkNeighbor(ports, flags.uplinkNeighbor)
@@ -282,6 +305,9 @@ func portsForRuntime(flags runtimeFlags, portOptions device.PortOptions, plt pla
 		log.Printf("passive observation warning: %v", err)
 	}
 	observedPorts := observe.Apply(ports, snapshot)
+	// Bridge observation is read-only input. Operator overrides are applied
+	// after the passive snapshot so a config file can correct or mask host facts
+	// without the controller mutating the host.
 	if flags.trafficRatesEnabled {
 		observedPorts = markTrafficRateUplinkInterface(observedPorts, bridgeObserve.UplinkInterface)
 	}
@@ -291,6 +317,8 @@ func portsForRuntime(flags runtimeFlags, portOptions device.PortOptions, plt pla
 	return device.ApplyUplinkNeighbor(ports, flags.uplinkNeighbor)
 }
 
+// applyLLDPNeighbors adds passive LLDP neighbors as MAC-table hints on the
+// matching represented UniFi ports.
 func applyLLDPNeighbors(ports []device.Port, flags runtimeFlags, plt platform.Platform) []device.Port {
 	if strings.TrimSpace(flags.lldpSource) == "" || strings.EqualFold(strings.TrimSpace(flags.lldpSource), platform.SourceOff) {
 		return ports
@@ -316,11 +344,15 @@ func applyLLDPNeighbors(ports []device.Port, flags runtimeFlags, plt platform.Pl
 		if strings.TrimSpace(entry.MAC) == "" {
 			continue
 		}
+		// LLDP neighbors are represented only as controller-facing MAC-table
+		// hints. They are never used to configure host networking.
 		out[portIndex-1].MACs = append(out[portIndex-1].MACs, entry)
 	}
 	return out
 }
 
+// lldpInterfacePortMap maps observed interface names back to represented port
+// indexes using explicit bridge, port-map, and override bindings.
 func lldpInterfacePortMap(flags runtimeFlags, ports []device.Port) map[string]int {
 	out := map[string]int{}
 	bridgeObserve := effectiveBridgeObserve(flags)
@@ -345,6 +377,8 @@ func lldpInterfacePortMap(flags runtimeFlags, ports []device.Port) map[string]in
 	return out
 }
 
+// lldpNeighborMACEntry turns one LLDP neighbor into the same MAC-table metadata
+// shape used for configured neighbors.
 func lldpNeighborMACEntry(neighbor platform.LLDPNeighbor) device.MacTableEntry {
 	mac := strings.TrimSpace(neighbor.ChassisMAC)
 	if mac == "" {
@@ -365,6 +399,8 @@ func lldpNeighborMACEntry(neighbor platform.LLDPNeighbor) device.MacTableEntry {
 	}
 }
 
+// ipv4Text keeps LLDP management addresses limited to IPv4 strings accepted by
+// the UniFi MAC-table payload.
 func ipv4Text(value string) string {
 	ip := net.ParseIP(strings.TrimSpace(value))
 	if ip == nil || ip.To4() == nil {
@@ -373,6 +409,8 @@ func ipv4Text(value string) string {
 	return ip.String()
 }
 
+// printRuntimePlan describes the non-mutating runtime plan, including actions
+// that are intentionally dry-run-only for host-networking safety.
 func printRuntimePlan(flags runtimeFlags, profile device.Profile, macText, ipText, hostname string) {
 	mode := normalizeMode(flags.operationMode)
 	fmt.Printf("operation_mode: %s\n", mode)
@@ -472,6 +510,9 @@ func printRuntimePlan(flags runtimeFlags, profile device.Profile, macText, ipTex
 	}
 }
 
+// printManagementLANPlan renders management-LAN intent separately so operators
+// can review whether it is metadata-only, preexisting-interface, or dry-run
+// host VLAN planning.
 func printManagementLANPlan(flags runtimeFlags) {
 	cfg := effectiveManagementLAN(flags)
 	fmt.Printf("management_lan.enabled: %t\n", cfg.Enabled)
@@ -502,6 +543,8 @@ func printManagementLANPlan(flags runtimeFlags) {
 	}
 }
 
+// boolPointerText distinguishes unset optional booleans from explicit true or
+// false in plans and status output.
 func boolPointerText(value *bool) string {
 	if value == nil {
 		return "unset"
@@ -509,6 +552,8 @@ func boolPointerText(value *bool) string {
 	return fmt.Sprintf("%t", *value)
 }
 
+// uplinkPortIndex finds the represented uplink and falls back to port 1 for
+// sparse or synthetic profiles.
 func uplinkPortIndex(ports []device.Port) int {
 	for _, port := range ports {
 		if port.Uplink {
@@ -518,6 +563,8 @@ func uplinkPortIndex(ports []device.Port) int {
 	return 1
 }
 
+// markTrafficRateUplinkInterface preserves the bridge-observe uplink interface
+// name so rate tracking has a stable key on later heartbeats.
 func markTrafficRateUplinkInterface(ports []device.Port, iface string) []device.Port {
 	iface = strings.TrimSpace(iface)
 	if iface == "" || len(ports) == 0 {
@@ -533,6 +580,8 @@ func markTrafficRateUplinkInterface(ports []device.Port, iface string) []device.
 	return out
 }
 
+// effectiveBridgeObserve merges structured bridge_observe config with the older
+// observe_bridge/observe_interface flags.
 func effectiveBridgeObserve(flags runtimeFlags) appconfig.BridgeObserve {
 	cfg := cloneBridgeObserve(flags.bridgeObserve)
 	if strings.TrimSpace(cfg.Bridge) == "" {
@@ -544,6 +593,8 @@ func effectiveBridgeObserve(flags runtimeFlags) appconfig.BridgeObserve {
 	return cfg
 }
 
+// bridgeMemberPortMap converts operator pinning into the observe package shape
+// used for deterministic bridge-member assignment.
 func bridgeMemberPortMap(mappings []appconfig.BridgeMemberPortMap) map[string]int {
 	if len(mappings) == 0 {
 		return nil
@@ -558,6 +609,8 @@ func bridgeMemberPortMap(mappings []appconfig.BridgeMemberPortMap) map[string]in
 	return out
 }
 
+// validateBridgeMemberPortMap rejects ambiguous bridge-member pinning before
+// passive observation can assign represented UniFi ports.
 func validateBridgeMemberPortMap(mappings []appconfig.BridgeMemberPortMap) []error {
 	var errs []error
 	seenMembers := map[string]bool{}
@@ -579,6 +632,8 @@ func validateBridgeMemberPortMap(mappings []appconfig.BridgeMemberPortMap) []err
 	return errs
 }
 
+// validateBridgeIgnoredMembers catches configuration that both pins and ignores
+// the same bridge member, because ignored members must never consume ports.
 func validateBridgeIgnoredMembers(cfg appconfig.BridgeObserve) []error {
 	var errs []error
 	seen := map[string]bool{}
@@ -610,6 +665,8 @@ func validateBridgeIgnoredMembers(cfg appconfig.BridgeObserve) []error {
 	return errs
 }
 
+// bridgeMemberKey normalizes bridge member names for duplicate and ignore-list
+// policy checks.
 func bridgeMemberKey(value string) string {
 	return strings.ToLower(strings.TrimSpace(value))
 }

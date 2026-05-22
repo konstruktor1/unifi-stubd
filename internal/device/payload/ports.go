@@ -84,6 +84,8 @@ func ApplyPortNeighbors(ports []Port, neighbors []PortNeighbor) []Port {
 	return ports
 }
 
+// mergeMacTableEntry lets configured neighbor metadata win while keeping
+// observed fields as fallbacks.
 func mergeMacTableEntry(observed, configured MacTableEntry) MacTableEntry {
 	out := configured
 	if strings.TrimSpace(out.Hostname) == "" {
@@ -192,6 +194,9 @@ func generatedPort(index, speed int, media string, uplink, profileUplink bool, n
 		TXPackets:     1,
 	}
 	if uplink {
+		// Give the active uplink one plausible locally administered neighbor so
+		// factory-default payloads are useful before any bridge or LLDP source is
+		// configured.
 		port.MACs = []MacTableEntry{
 			{MAC: "02:aa:bb:cc:dd:01", Age: 4, Uptime: 1200, VLAN: 1, Type: deviceTypeUSW},
 		}
@@ -216,6 +221,8 @@ func applyUplinkPort(ports []Port, uplinkPort int) []Port {
 		}
 		ports[index].Uplink = false
 		if index != targetIndex {
+			// Moving the active uplink also moves the synthetic topology hint so
+			// the controller does not see two upstream neighbors.
 			ports[index].MACs = nil
 		}
 	}

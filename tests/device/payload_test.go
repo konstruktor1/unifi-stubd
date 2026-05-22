@@ -9,6 +9,8 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/device"
 )
 
+// TestMinimalSwitchPayloadReportsPortCount verifies that switch payloads expose
+// generated port counts consistently across controller tables.
 func TestMinimalSwitchPayloadReportsPortCount(t *testing.T) {
 	payload, err := device.MinimalSwitchPayload(device.Identity{
 		MAC:          "02:11:22:33:44:55",
@@ -53,6 +55,8 @@ func TestMinimalSwitchPayloadReportsPortCount(t *testing.T) {
 	}
 }
 
+// TestPayloadReportsMonotonicFreshnessFields verifies that synthetic switch
+// payloads still look fresh to controller health checks.
 func TestPayloadReportsMonotonicFreshnessFields(t *testing.T) {
 	payload, err := device.MinimalSwitchPayload(device.Identity{
 		MAC:           "02:11:22:33:44:75",
@@ -95,6 +99,8 @@ func TestPayloadReportsMonotonicFreshnessFields(t *testing.T) {
 	}
 }
 
+// TestGatewayPayloadReportsFreshnessFields verifies gateway-specific freshness
+// and telemetry fields derived from deterministic lab data.
 func TestGatewayPayloadReportsFreshnessFields(t *testing.T) {
 	profile, ok := device.LookupProfile("uxg-lite")
 	if !ok {
@@ -139,6 +145,8 @@ func TestGatewayPayloadReportsFreshnessFields(t *testing.T) {
 	}
 }
 
+// TestMinimalSwitchPayloadReportsAdoptedState verifies that adoption state maps
+// to the controller-facing state fields.
 func TestMinimalSwitchPayloadReportsAdoptedState(t *testing.T) {
 	payload, err := device.MinimalSwitchPayload(device.Identity{
 		MAC:          "02:11:22:33:44:56",
@@ -169,6 +177,8 @@ func TestMinimalSwitchPayloadReportsAdoptedState(t *testing.T) {
 	}
 }
 
+// TestMinimalSwitchPayloadReportsTenGigUplink verifies that uplink speed and
+// media metadata are rendered for high-speed switch profiles.
 func TestMinimalSwitchPayloadReportsTenGigUplink(t *testing.T) {
 	payload, err := device.MinimalSwitchPayload(device.Identity{
 		MAC:          "02:11:22:33:44:57",
@@ -207,6 +217,8 @@ func TestMinimalSwitchPayloadReportsTenGigUplink(t *testing.T) {
 	}
 }
 
+// TestMinimalSwitchPayloadReportsManagementVLAN verifies the duplicated
+// management VLAN fields expected by controller versions.
 func TestMinimalSwitchPayloadReportsManagementVLAN(t *testing.T) {
 	payload, err := device.MinimalSwitchPayload(device.Identity{
 		MAC:            "02:11:22:33:44:65",
@@ -241,6 +253,8 @@ func TestMinimalSwitchPayloadReportsManagementVLAN(t *testing.T) {
 	}
 }
 
+// TestSwitchPortsWithProfilePortGroups verifies contiguous profile port groups
+// produce the expected generated port layout.
 func TestSwitchPortsWithProfilePortGroups(t *testing.T) {
 	profile, ok := device.LookupProfile("usw-pro-xg-48")
 	if !ok {
@@ -272,6 +286,8 @@ func TestSwitchPortsWithProfilePortGroups(t *testing.T) {
 	assertPort(52, 25000, "SFP28", false)
 }
 
+// TestSwitchPortsWithAggregationProPortGroups verifies mixed media and speed
+// groups for aggregation-style switch profiles.
 func TestSwitchPortsWithAggregationProPortGroups(t *testing.T) {
 	profile, ok := device.LookupProfile("usaggpro")
 	if !ok {
@@ -301,6 +317,8 @@ func TestSwitchPortsWithAggregationProPortGroups(t *testing.T) {
 	assertPort(32, 25000, "SFP28", false)
 }
 
+// TestGatewayProfileReportsDeviceTypeAndPortNames verifies gateway profile
+// identity and port naming across gateway payload tables.
 func TestGatewayProfileReportsDeviceTypeAndPortNames(t *testing.T) {
 	profile, ok := device.LookupProfile("ugw3")
 	if !ok {
@@ -344,6 +362,8 @@ func TestGatewayProfileReportsDeviceTypeAndPortNames(t *testing.T) {
 	}
 }
 
+// TestTenGigGatewayProfileReportsPortLayout verifies high-speed gateway profile
+// roles, media, and table synchronization.
 func TestTenGigGatewayProfileReportsPortLayout(t *testing.T) {
 	profile, ok := device.LookupProfile("uxgpro")
 	if !ok {
@@ -467,6 +487,8 @@ func TestTenGigGatewayProfileReportsPortLayout(t *testing.T) {
 	assertGatewayWANStatus(t, doc.WAN2, "eth2", "WAN2", "wan2", 3)
 }
 
+// TestGatewayPayloadReportsManagementVLANOnUplink verifies that management VLAN
+// metadata is attached to the resolved gateway uplink.
 func TestGatewayPayloadReportsManagementVLANOnUplink(t *testing.T) {
 	profile, ok := device.LookupProfile("uxgpro")
 	if !ok {
@@ -511,6 +533,8 @@ func TestGatewayPayloadReportsManagementVLANOnUplink(t *testing.T) {
 	}
 }
 
+// TestCloudGatewayFiberProfileReportsGatewayPayload verifies UCG-Fiber profile
+// data renders through the gateway payload path.
 func TestCloudGatewayFiberProfileReportsGatewayPayload(t *testing.T) {
 	profile, ok := device.LookupProfile("ucg-fiber")
 	if !ok {
@@ -593,6 +617,8 @@ func TestCloudGatewayFiberProfileReportsGatewayPayload(t *testing.T) {
 	assertGatewayConfigNetwork(t, doc.ConfigNetworkWAN2, "eth4", "WAN2", "wan2", 5)
 }
 
+// TestGatewayPortAssignmentsCanBeOverriddenFromConfigModel verifies that config
+// overrides can adjust gateway port role and network assignment.
 func TestGatewayPortAssignmentsCanBeOverriddenFromConfigModel(t *testing.T) {
 	profile, ok := device.LookupProfile("uxgpro")
 	if !ok {
@@ -634,6 +660,8 @@ func TestGatewayPortAssignmentsCanBeOverriddenFromConfigModel(t *testing.T) {
 	}
 }
 
+// TestGatewayPayloadReportsHostTableClientMetadata verifies MAC-table client
+// metadata appears in gateway host-table output.
 func TestGatewayPayloadReportsHostTableClientMetadata(t *testing.T) {
 	profile, ok := device.LookupProfile("ugw3")
 	if !ok {
@@ -691,6 +719,8 @@ func TestGatewayPayloadReportsHostTableClientMetadata(t *testing.T) {
 	}
 }
 
+// TestGatewayPayloadReportsDownstreamDeviceOnLANHostTable verifies downstream
+// LAN clients are reported on the LAN host table.
 func TestGatewayPayloadReportsDownstreamDeviceOnLANHostTable(t *testing.T) {
 	profile, ok := device.LookupProfile("uxgpro")
 	if !ok {
@@ -741,6 +771,8 @@ func TestGatewayPayloadReportsDownstreamDeviceOnLANHostTable(t *testing.T) {
 	}
 }
 
+// TestSwitchPortsCanOverrideAggregationUplinkToTenGigPort verifies explicit
+// uplink selection on grouped aggregation profiles.
 func TestSwitchPortsCanOverrideAggregationUplinkToTenGigPort(t *testing.T) {
 	profile, ok := device.LookupProfile("usaggpro")
 	if !ok {
@@ -776,6 +808,8 @@ func TestSwitchPortsCanOverrideAggregationUplinkToTenGigPort(t *testing.T) {
 	}
 }
 
+// TestApplyPortOverridesChangesSpeedAndLinkState verifies operator overrides
+// change generated link metadata without changing unrelated ports.
 func TestApplyPortOverridesChangesSpeedAndLinkState(t *testing.T) {
 	profile, ok := device.LookupProfile("usaggpro")
 	if !ok {
@@ -808,6 +842,8 @@ func TestApplyPortOverridesChangesSpeedAndLinkState(t *testing.T) {
 	assertPort(5, 0, "SFP+", false)
 }
 
+// TestApplyPortOverridesKeepsMediaOrderAndCounters verifies override setter
+// ordering for speed-derived media, explicit media, and counters.
 func TestApplyPortOverridesKeepsMediaOrderAndCounters(t *testing.T) {
 	ports := device.ApplyPortOverrides(device.SwitchPorts(8), []device.PortOverride{
 		{
@@ -839,6 +875,8 @@ func TestApplyPortOverridesKeepsMediaOrderAndCounters(t *testing.T) {
 	}
 }
 
+// TestGatewayPayloadReportsPortOverrideMACs verifies MAC/IP override data is
+// reflected in gateway interface rows.
 func TestGatewayPayloadReportsPortOverrideMACs(t *testing.T) {
 	profile, ok := device.LookupProfile("ugw3")
 	if !ok {
@@ -884,6 +922,8 @@ func TestGatewayPayloadReportsPortOverrideMACs(t *testing.T) {
 	}
 }
 
+// TestUXGGatewayPayloadUsesInterfaceOverrideData verifies gateway payloads use
+// source-interface override data consistently.
 func TestUXGGatewayPayloadUsesInterfaceOverrideData(t *testing.T) {
 	profile, ok := device.LookupProfile("uxg-lite")
 	if !ok {
@@ -960,6 +1000,8 @@ func TestUXGGatewayPayloadUsesInterfaceOverrideData(t *testing.T) {
 	}
 }
 
+// TestGatewayPayloadReportsExplicitTrafficRates verifies observed or configured
+// byte rates are rendered without synthetic fallback rates.
 func TestGatewayPayloadReportsExplicitTrafficRates(t *testing.T) {
 	profile, ok := device.LookupProfile("uxg-lite")
 	if !ok {
@@ -1064,6 +1106,8 @@ func TestGatewayPayloadReportsExplicitTrafficRates(t *testing.T) {
 	assertNoExperimentalRateFields(t, doc.WAN1)
 }
 
+// TestGatewayPayloadSynchronizesResolvedPortTables verifies gateway tables all
+// consume the same resolved PortView data.
 func TestGatewayPayloadSynchronizesResolvedPortTables(t *testing.T) {
 	profile, ok := device.LookupProfile("uxg-lite")
 	if !ok {
@@ -1181,6 +1225,8 @@ func TestGatewayPayloadSynchronizesResolvedPortTables(t *testing.T) {
 	}
 }
 
+// TestCustomGatewayPayloadUsesProfileRolesWithoutModelSpecialCase verifies
+// gateway behavior follows profile roles instead of hard-coded model names.
 func TestCustomGatewayPayloadUsesProfileRolesWithoutModelSpecialCase(t *testing.T) {
 	profile := device.Profile{
 		Name:         "custom-gateway",
@@ -1245,6 +1291,8 @@ func TestCustomGatewayPayloadUsesProfileRolesWithoutModelSpecialCase(t *testing.
 	}
 }
 
+// TestApplyUplinkNeighborAddsConfiguredNeighbor verifies configured uplink
+// topology hints are inserted into the uplink MAC table.
 func TestApplyUplinkNeighborAddsConfiguredNeighbor(t *testing.T) {
 	profile, ok := device.LookupProfile("usaggpro")
 	if !ok {
@@ -1270,6 +1318,8 @@ func TestApplyUplinkNeighborAddsConfiguredNeighbor(t *testing.T) {
 	}
 }
 
+// TestApplyPortNeighborsAddsConfiguredMacTableEntry verifies configured
+// per-port neighbor metadata is added to the target port.
 func TestApplyPortNeighborsAddsConfiguredMacTableEntry(t *testing.T) {
 	profile, ok := device.LookupProfile("ugw3")
 	if !ok {
@@ -1307,6 +1357,8 @@ func TestApplyPortNeighborsAddsConfiguredMacTableEntry(t *testing.T) {
 	}
 }
 
+// TestApplyPortNeighborsDefaultsToClientType verifies per-port neighbors
+// default to client topology type.
 func TestApplyPortNeighborsDefaultsToClientType(t *testing.T) {
 	ports := device.ApplyPortNeighbors(device.SwitchPorts(4), []device.PortNeighbor{
 		{
@@ -1325,6 +1377,8 @@ func TestApplyPortNeighborsDefaultsToClientType(t *testing.T) {
 	}
 }
 
+// TestApplyPortNeighborsPreservesObservedClientIP verifies configured neighbor
+// data can merge with observed client IP metadata.
 func TestApplyPortNeighborsPreservesObservedClientIP(t *testing.T) {
 	ports := device.SwitchPorts(4)
 	ports[1].MACs = []device.MacTableEntry{
@@ -1348,6 +1402,8 @@ func TestApplyPortNeighborsPreservesObservedClientIP(t *testing.T) {
 	}
 }
 
+// TestSwitchPayloadReportsNeighborClientMetadata verifies switch port tables
+// render configured neighbor client metadata.
 func TestSwitchPayloadReportsNeighborClientMetadata(t *testing.T) {
 	ports := device.ApplyPortNeighbors(device.SwitchPorts(4), []device.PortNeighbor{
 		{
@@ -1392,6 +1448,8 @@ func TestSwitchPayloadReportsNeighborClientMetadata(t *testing.T) {
 	}
 }
 
+// TestMinimalSwitchPayloadReportsPortOverrideLinkDown verifies link-down
+// overrides clear live link fields in switch payloads.
 func TestMinimalSwitchPayloadReportsPortOverrideLinkDown(t *testing.T) {
 	linkDown := false
 	payload, err := device.MinimalSwitchPayload(device.Identity{
@@ -1428,6 +1486,8 @@ func TestMinimalSwitchPayloadReportsPortOverrideLinkDown(t *testing.T) {
 	}
 }
 
+// TestMinimalSwitchPayloadReportsDisabledPort verifies disabled ports render as
+// down, zero-speed, and without learned MACs.
 func TestMinimalSwitchPayloadReportsDisabledPort(t *testing.T) {
 	payload, err := device.MinimalSwitchPayload(device.Identity{
 		MAC:          "02:11:22:33:44:61",
@@ -1466,6 +1526,8 @@ func TestMinimalSwitchPayloadReportsDisabledPort(t *testing.T) {
 	}
 }
 
+// TestMinimalSwitchPayloadReportsGroupedUplinkSpeed verifies grouped profile
+// uplink speed reaches switch payload rows.
 func TestMinimalSwitchPayloadReportsGroupedUplinkSpeed(t *testing.T) {
 	profile, ok := device.LookupProfile("usw-pro-xg-48")
 	if !ok {
@@ -1503,6 +1565,8 @@ func TestMinimalSwitchPayloadReportsGroupedUplinkSpeed(t *testing.T) {
 	}
 }
 
+// TestMinimalSwitchPayloadReportsObservedCounters verifies observed interface
+// counters are copied into switch payload rows.
 func TestMinimalSwitchPayloadReportsObservedCounters(t *testing.T) {
 	payload, err := device.MinimalSwitchPayload(device.Identity{
 		MAC:          "02:11:22:33:44:59",
@@ -1551,6 +1615,8 @@ func TestMinimalSwitchPayloadReportsObservedCounters(t *testing.T) {
 	}
 }
 
+// TestMinimalSwitchPayloadPrefersExplicitTrafficRates verifies explicit traffic
+// rates take precedence over synthetic heartbeat rates.
 func TestMinimalSwitchPayloadPrefersExplicitTrafficRates(t *testing.T) {
 	payload, err := device.MinimalSwitchPayload(device.Identity{
 		MAC:          "02:11:22:33:44:60",
@@ -1593,6 +1659,8 @@ func TestMinimalSwitchPayloadPrefersExplicitTrafficRates(t *testing.T) {
 	}
 }
 
+// TestMinimalSwitchPayloadSuppressesSyntheticRatesWhenTrafficRatesEnabledWithoutSource
+// verifies rate fields stay zero when tracking is enabled without a source.
 func TestMinimalSwitchPayloadSuppressesSyntheticRatesWhenTrafficRatesEnabledWithoutSource(t *testing.T) {
 	payload, err := device.MinimalSwitchPayload(device.Identity{
 		MAC:          "02:11:22:33:44:61",
@@ -1634,6 +1702,8 @@ func TestMinimalSwitchPayloadSuppressesSyntheticRatesWhenTrafficRatesEnabledWith
 	assertNoExperimentalRateFields(t, port)
 }
 
+// assertNoExperimentalRateFields verifies payload rows avoid legacy
+// experimental rate keys.
 func assertNoExperimentalRateFields(t *testing.T, row map[string]any) {
 	t.Helper()
 	for _, key := range []string{"rx_packets-r", "tx_packets-r", "rx_errors-r", "tx_errors-r"} {
@@ -1643,6 +1713,8 @@ func assertNoExperimentalRateFields(t *testing.T, row map[string]any) {
 	}
 }
 
+// assertGatewayConfigNetwork checks the shared gateway config-network row
+// contract used across WAN and LAN tests.
 func assertGatewayConfigNetwork(t *testing.T, row map[string]any, ifname, networkGroup, role string, portIndex int) {
 	t.Helper()
 	if got := row["type"].(string); got != "dhcp" {
@@ -1662,6 +1734,7 @@ func assertGatewayConfigNetwork(t *testing.T, row map[string]any, ifname, networ
 	}
 }
 
+// assertGatewayWANStatus checks the shared gateway WAN status row contract.
 func assertGatewayWANStatus(t *testing.T, row map[string]any, ifname, networkGroup, role string, portIndex int) {
 	t.Helper()
 	if row == nil {

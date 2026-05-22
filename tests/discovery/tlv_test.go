@@ -9,6 +9,7 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/discovery"
 )
 
+// TestAnnouncementMarshalBinary verifies UniFi discovery TLV packet structure.
 func TestAnnouncementMarshalBinary(t *testing.T) {
 	mac, err := net.ParseMAC("02:11:22:33:44:55")
 	if err != nil {

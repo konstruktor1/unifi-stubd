@@ -15,6 +15,7 @@ import (
 // StringList parses repeated string flags into a trimmed list.
 type StringList []string
 
+// String renders repeated string flags for flag package diagnostics.
 func (f *StringList) String() string {
 	if f == nil {
 		return ""
@@ -35,6 +36,7 @@ func (f *StringList) Set(value string) error {
 // BridgeMemberPortMap parses repeated bridge member pin flags.
 type BridgeMemberPortMap []appconfig.BridgeMemberPortMap
 
+// String renders bridge member mappings for flag package diagnostics.
 func (f *BridgeMemberPortMap) String() string {
 	if f == nil {
 		return ""
@@ -67,6 +69,7 @@ func (f *BridgeMemberPortMap) Set(value string) error {
 // PortMapping parses repeated port source mapping flags.
 type PortMapping []appconfig.PortMapping
 
+// String renders port mappings for flag package diagnostics.
 func (f *PortMapping) String() string {
 	if f == nil {
 		return ""
@@ -100,6 +103,7 @@ func (f *PortMapping) Set(value string) error {
 	return nil
 }
 
+// parseCommaKeyValues accepts compact key=value flag syntax for port mappings.
 func parseCommaKeyValues(value string) map[string]string {
 	out := map[string]string{}
 	for _, field := range strings.Split(value, ",") {
@@ -112,6 +116,8 @@ func parseCommaKeyValues(value string) map[string]string {
 	return out
 }
 
+// parseBoolField accepts common truthy flag values and treats all other input
+// as false.
 func parseBoolField(value string) bool {
 	switch strings.ToLower(strings.TrimSpace(value)) {
 	case "1", "true", "yes", "on":

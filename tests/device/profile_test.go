@@ -9,6 +9,7 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/device"
 )
 
+// TestLookupProfile verifies built-in profiles can be found by profile name.
 func TestLookupProfile(t *testing.T) {
 	profile, ok := device.LookupProfile("us16p150")
 	if !ok {
@@ -22,6 +23,8 @@ func TestLookupProfile(t *testing.T) {
 	}
 }
 
+// TestLookupProfileByModel verifies built-in profiles can be found by UniFi
+// model identifier.
 func TestLookupProfileByModel(t *testing.T) {
 	profile, ok := device.LookupProfile("US8P60")
 	if !ok {
@@ -32,6 +35,8 @@ func TestLookupProfileByModel(t *testing.T) {
 	}
 }
 
+// TestExternalProfileRegistryLoadsDerivedProfile verifies external YAML
+// inheritance and profile defaults.
 func TestExternalProfileRegistryLoadsDerivedProfile(t *testing.T) {
 	dir := t.TempDir()
 	profilePath := filepath.Join(dir, "derived.yaml")
@@ -63,6 +68,8 @@ description: derived lab profile
 	}
 }
 
+// TestExternalProfileRegistryDerivedProfileOverridesZeroValues verifies YAML
+// inheritance preserves explicit zero and false overrides.
 func TestExternalProfileRegistryDerivedProfileOverridesZeroValues(t *testing.T) {
 	dir := t.TempDir()
 	basePath := filepath.Join(dir, "00-base.yaml")
@@ -126,6 +133,8 @@ payload:
 	}
 }
 
+// TestExternalProfileCanOverrideBuiltinModel verifies explicit override markers
+// can replace a built-in profile.
 func TestExternalProfileCanOverrideBuiltinModel(t *testing.T) {
 	dir := t.TempDir()
 	profilePath := filepath.Join(dir, "us8-override.yaml")
@@ -155,6 +164,7 @@ description: overridden lab identity
 	}
 }
 
+// TestTenGigProfile verifies the US-16-XG profile's high-speed port layout.
 func TestTenGigProfile(t *testing.T) {
 	profile, ok := device.LookupProfile("us16xg")
 	if !ok {
@@ -181,6 +191,8 @@ func TestTenGigProfile(t *testing.T) {
 	}
 }
 
+// TestGen1PoEProfilesIncludeSFPUplinkPorts verifies older PoE profiles include
+// expected SFP uplink groups.
 func TestGen1PoEProfilesIncludeSFPUplinkPorts(t *testing.T) {
 	tests := []struct {
 		profile           string
@@ -218,6 +230,8 @@ func TestGen1PoEProfilesIncludeSFPUplinkPorts(t *testing.T) {
 	}
 }
 
+// TestLargestTenGigProfile verifies the aggregation profile with the largest
+// ten-gig switch layout.
 func TestLargestTenGigProfile(t *testing.T) {
 	profile, ok := device.LookupProfile("usw-pro-xg-48")
 	if !ok {
@@ -240,6 +254,8 @@ func TestLargestTenGigProfile(t *testing.T) {
 	}
 }
 
+// TestLargestControllerKnownTenGigProfile verifies the controller-known
+// high-port-count ten-gig profile metadata.
 func TestLargestControllerKnownTenGigProfile(t *testing.T) {
 	profile, ok := device.LookupProfile("usaggpro")
 	if !ok {
@@ -259,6 +275,8 @@ func TestLargestControllerKnownTenGigProfile(t *testing.T) {
 	}
 }
 
+// TestGatewayProfile verifies the UXG-Pro profile selects gateway payload
+// metadata and WAN/LAN roles.
 func TestGatewayProfile(t *testing.T) {
 	profile, ok := device.LookupProfile("ugw3")
 	if !ok {
@@ -278,6 +296,8 @@ func TestGatewayProfile(t *testing.T) {
 	}
 }
 
+// TestTenGigGatewayProfile verifies the ten-gig gateway profile's role and
+// speed layout.
 func TestTenGigGatewayProfile(t *testing.T) {
 	profile, ok := device.LookupProfile("uxgpro")
 	if !ok {
@@ -328,6 +348,7 @@ func TestTenGigGatewayProfile(t *testing.T) {
 	}
 }
 
+// TestGatewayLiteProfile verifies the UXG-Lite gateway profile metadata.
 func TestGatewayLiteProfile(t *testing.T) {
 	profile, ok := device.LookupProfile("uxg-lite")
 	if !ok {
@@ -354,6 +375,8 @@ func TestGatewayLiteProfile(t *testing.T) {
 	}
 }
 
+// TestCloudGatewayFiberProfile verifies the UCG-Fiber profile metadata and
+// port layout.
 func TestCloudGatewayFiberProfile(t *testing.T) {
 	profile, ok := device.LookupProfile("ucg-fiber")
 	if !ok {
@@ -402,6 +425,8 @@ func TestCloudGatewayFiberProfile(t *testing.T) {
 	assertPort(7, "LAN 5", 10000, "SFP+", "lan", "LAN", false)
 }
 
+// TestAutoMACIsStableAndProfileSensitive verifies deterministic fake MACs vary
+// by profile seed.
 func TestAutoMACIsStableAndProfileSensitive(t *testing.T) {
 	first := device.AutoMAC("host|us16p150")
 	second := device.AutoMAC("host|us16p150")

@@ -12,6 +12,8 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/inform"
 )
 
+// loadAdoptionState reads persisted controller adoption data and treats a
+// missing state file as factory state so first boot stays non-fatal.
 func loadAdoptionState(path string) adoption.Store {
 	store, err := adoption.LoadEnv(path)
 	if err == nil {
@@ -23,6 +25,8 @@ func loadAdoptionState(path string) adoption.Store {
 	return adoption.Store{}
 }
 
+// effectiveInformURL prefers the adopted controller URL because set-inform
+// responses are the controller's durable endpoint for future heartbeats.
 func effectiveInformURL(fallback string, store adoption.Store) string {
 	if store.InformURL != "" {
 		return store.InformURL
@@ -30,6 +34,9 @@ func effectiveInformURL(fallback string, store adoption.Store) string {
 	return fallback
 }
 
+// updateAdoptionState applies only sanitized controller response data to the
+// local adoption store. Controller reset and upgrade requests never mutate host
+// services or firmware.
 func updateAdoptionState(path string, store adoption.Store, response adoption.ControllerResponse, usedGCM bool) adoption.Store {
 	if response.ResetRequested {
 		resetStore, err := adoption.ResetEnv(path)
@@ -65,6 +72,8 @@ func updateAdoptionState(path string, store adoption.Store, response adoption.Co
 	return store
 }
 
+// logInformResponse writes a compact audit line for the controller response so
+// operators can see accepted, ignored, and reset-like actions without raw JSON.
 func logInformResponse(resp *inform.Response, response adoption.ControllerResponse, store adoption.Store, cipher informCipherStatus) {
 	if response.Type != "" {
 		if response.Type == "setparam" {
@@ -122,6 +131,8 @@ func logInformResponse(resp *inform.Response, response adoption.ControllerRespon
 	log.Printf("inform response status=%d decoded_json_bytes=%d type=unknown cipher=%s", resp.StatusCode, len(resp.JSONBody), cipherStatusText(cipher))
 }
 
+// cipherStatusText compresses inform cipher negotiation into stable audit and
+// status labels.
 func cipherStatusText(cipher informCipherStatus) string {
 	switch {
 	case cipher.UsedAESGCM:

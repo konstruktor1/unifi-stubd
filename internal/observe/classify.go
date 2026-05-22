@@ -26,6 +26,8 @@ func ClassifyBridgeMembers(memberMACs map[string][]device.MacTableEntry, bridge,
 		}
 	}
 	if strings.TrimSpace(uplinkInterface) == "" && len(physicalCandidates) == 1 {
+		// With exactly one physical-looking unknown member, treating it as the
+		// uplink is safer than mapping upstream infrastructure as an access port.
 		roles[physicalCandidates[0]] = BridgeMemberRoleUplink
 	}
 	return roles
@@ -76,6 +78,8 @@ func ClassifyBridgeMember(member, bridge, uplinkInterface string) BridgeMemberRo
 	return BridgeMemberRoleUnknown
 }
 
+// bridgeMemberRole resolves member roles case-insensitively so Linux and
+// FreeBSD naming differences do not change mapping behavior.
 func bridgeMemberRole(roles map[string]BridgeMemberRole, member string) BridgeMemberRole {
 	if len(roles) == 0 {
 		return BridgeMemberRoleUnknown
@@ -92,6 +96,7 @@ func bridgeMemberRole(roles map[string]BridgeMemberRole, member string) BridgeMe
 	return BridgeMemberRoleUnknown
 }
 
+// roleByLowerMember looks up ignored members using normalized names.
 func roleByLowerMember(roles map[string]BridgeMemberRole, member string) (BridgeMemberRole, bool) {
 	member = bridgeMemberNameKey(member)
 	for key, role := range roles {
@@ -102,6 +107,8 @@ func roleByLowerMember(roles map[string]BridgeMemberRole, member string) (Bridge
 	return BridgeMemberRoleUnknown, false
 }
 
+// ignoredBridgeMemberSet normalizes operator exclusions before bridge members
+// are allowed to consume represented ports.
 func ignoredBridgeMemberSet(values []string) map[string]bool {
 	if len(values) == 0 {
 		return nil
@@ -118,10 +125,14 @@ func ignoredBridgeMemberSet(values []string) map[string]bool {
 	return out
 }
 
+// bridgeMemberNameKey provides the common normalization key for bridge member
+// comparisons.
 func bridgeMemberNameKey(value string) string {
 	return strings.ToLower(strings.TrimSpace(value))
 }
 
+// isVirtualAccessBridgeMember recognizes VM/container interfaces that should be
+// represented as access ports.
 func isVirtualAccessBridgeMember(name string) bool {
 	name = strings.ToLower(strings.TrimSpace(name))
 	return strings.HasPrefix(name, "tap") ||
@@ -133,6 +144,8 @@ func isVirtualAccessBridgeMember(name string) bool {
 		strings.HasPrefix(name, "vnet")
 }
 
+// isPhysicalBridgeMember recognizes common physical uplink names for the
+// conservative single-uplink heuristic.
 func isPhysicalBridgeMember(name string) bool {
 	name = strings.ToLower(strings.TrimSpace(name))
 	prefixes := []string{

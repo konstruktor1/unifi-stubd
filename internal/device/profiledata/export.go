@@ -83,6 +83,8 @@ func TemplateYAML(kind string) ([]byte, error) {
 	}
 }
 
+// profileYAML renders a detached profile with runtime-only source metadata
+// cleared from exported YAML.
 func profileYAML(profile Profile) ([]byte, error) {
 	profile = cloneProfile(profile)
 	profile.Source = ""
@@ -96,6 +98,8 @@ func profileYAML(profile Profile) ([]byte, error) {
 	return data, nil
 }
 
+// classifyProfileError gives CLI callers a broad parse-vs-validation category
+// for profile loading failures.
 func classifyProfileError(err error) string {
 	if err == nil {
 		return ""

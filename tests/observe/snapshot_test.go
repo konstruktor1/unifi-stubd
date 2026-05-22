@@ -13,6 +13,8 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/observe"
 )
 
+// TestReadInterfaceStatsFromSysfsFixture verifies sysfs counter and speed reads
+// from fixture data.
 func TestReadInterfaceStatsFromSysfsFixture(t *testing.T) {
 	root := t.TempDir()
 	writeSysfsCounter(t, root, "eth0", "statistics/rx_bytes", "1234")
@@ -41,6 +43,8 @@ func TestReadInterfaceStatsFromSysfsFixture(t *testing.T) {
 	}
 }
 
+// TestMACEntriesFiltersLocalAndMulticastFDBRows verifies bridge observation
+// ignores rows that cannot represent downstream clients.
 func TestMACEntriesFiltersLocalAndMulticastFDBRows(t *testing.T) {
 	entries := []linuxbridge.FDBEntry{
 		{MAC: "00:11:22:33:44:55", Device: "tap101i0", VLAN: 20, Dynamic: true},
@@ -60,6 +64,8 @@ func TestMACEntriesFiltersLocalAndMulticastFDBRows(t *testing.T) {
 	}
 }
 
+// TestMACEntriesByDeviceGroupsBridgeMembers verifies FDB entries are grouped by
+// bridge member for port assignment.
 func TestMACEntriesByDeviceGroupsBridgeMembers(t *testing.T) {
 	entries := []linuxbridge.FDBEntry{
 		{MAC: "00:11:22:33:44:55", Device: "tap101i0", VLAN: 20, Dynamic: true},
@@ -82,6 +88,8 @@ func TestMACEntriesByDeviceGroupsBridgeMembers(t *testing.T) {
 	}
 }
 
+// TestParseARPTableFiltersAndNormalizesRows verifies ARP enrichment accepts
+// only normalized unicast IPv4 rows.
 func TestParseARPTableFiltersAndNormalizesRows(t *testing.T) {
 	rows := `IP address       HW type     Flags       HW address            Mask     Device
 192.0.2.52       0x1         0x2         02:00:5e:00:53:03     *        vmbr0
@@ -100,6 +108,8 @@ func TestParseARPTableFiltersAndNormalizesRows(t *testing.T) {
 	}
 }
 
+// TestEnrichMACEntriesWithARPAddsClientIP verifies ARP data fills missing
+// client IP metadata without replacing existing fields.
 func TestEnrichMACEntriesWithARPAddsClientIP(t *testing.T) {
 	memberMACs := map[string][]device.MacTableEntry{
 		"tap101i0": {
@@ -116,6 +126,8 @@ func TestEnrichMACEntriesWithARPAddsClientIP(t *testing.T) {
 	}
 }
 
+// TestFreeBSDMACEntriesByInterfaceFiltersLocalAndMulticast verifies FreeBSD
+// bridge rows follow the same downstream-client filter.
 func TestFreeBSDMACEntriesByInterfaceFiltersLocalAndMulticast(t *testing.T) {
 	entries := []freebsdifconfig.BridgeAddress{
 		{MAC: "00:11:22:33:44:55", VLAN: 20, Interface: "tap101", Age: 99},
@@ -135,6 +147,8 @@ func TestFreeBSDMACEntriesByInterfaceFiltersLocalAndMulticast(t *testing.T) {
 	}
 }
 
+// TestClassifyBridgeMembersDistinguishesUplinkAccessAndBridge verifies bridge
+// member roles before port mapping.
 func TestClassifyBridgeMembersDistinguishesUplinkAccessAndBridge(t *testing.T) {
 	memberMACs := map[string][]device.MacTableEntry{
 		"vmbr0":    {{MAC: "00:11:22:33:44:00", Age: 4, Uptime: 1200}},
@@ -160,6 +174,8 @@ func TestClassifyBridgeMembersDistinguishesUplinkAccessAndBridge(t *testing.T) {
 	}
 }
 
+// TestClassifyBridgeMembersPromotesSinglePhysicalCandidate verifies the
+// conservative single-physical-uplink heuristic.
 func TestClassifyBridgeMembersPromotesSinglePhysicalCandidate(t *testing.T) {
 	memberMACs := map[string][]device.MacTableEntry{
 		"bridge0": {{MAC: "00:11:22:33:44:00", Age: 4, Uptime: 1200}},
@@ -179,6 +195,8 @@ func TestClassifyBridgeMembersPromotesSinglePhysicalCandidate(t *testing.T) {
 	}
 }
 
+// TestClassifyBridgeMembersHonorsIgnoredMembers verifies ignored members cannot
+// consume represented UniFi ports.
 func TestClassifyBridgeMembersHonorsIgnoredMembers(t *testing.T) {
 	memberMACs := map[string][]device.MacTableEntry{
 		"vmbr0":      {{MAC: "00:11:22:33:44:00", Age: 4, Uptime: 1200}},
@@ -195,6 +213,8 @@ func TestClassifyBridgeMembersHonorsIgnoredMembers(t *testing.T) {
 	}
 }
 
+// TestRemoteMACsByBridgeMemberDetectsUplinkNeighbor verifies upstream MACs are
+// separated from local bridge participants.
 func TestRemoteMACsByBridgeMemberDetectsUplinkNeighbor(t *testing.T) {
 	memberMACs := map[string][]device.MacTableEntry{
 		"enp100s0": {
@@ -217,6 +237,8 @@ func TestRemoteMACsByBridgeMemberDetectsUplinkNeighbor(t *testing.T) {
 	}
 }
 
+// TestApplySnapshotIgnoresBridgeMembers verifies bridge metadata and ignored
+// members are not rendered as access ports.
 func TestApplySnapshotIgnoresBridgeMembers(t *testing.T) {
 	ports := device.SwitchPortsWithOptions(4, device.PortOptions{
 		Speed:       10000,
@@ -259,6 +281,8 @@ func TestApplySnapshotIgnoresBridgeMembers(t *testing.T) {
 	}
 }
 
+// TestApplySnapshotUpdatesUplinkPort verifies uplink observation updates speed,
+// counters, and MAC metadata.
 func TestApplySnapshotUpdatesUplinkPort(t *testing.T) {
 	ports := device.SwitchPortsWithOptions(4, device.PortOptions{
 		Speed:       10000,
@@ -298,6 +322,8 @@ func TestApplySnapshotUpdatesUplinkPort(t *testing.T) {
 	}
 }
 
+// TestApplySnapshotDistributesBridgeFDBDevices verifies deterministic bridge
+// member assignment across generated ports.
 func TestApplySnapshotDistributesBridgeFDBDevices(t *testing.T) {
 	ports := device.SwitchPortsWithOptions(5, device.PortOptions{
 		Speed:       10000,
@@ -399,6 +425,8 @@ func TestApplySnapshotDistributesBridgeFDBDevices(t *testing.T) {
 	}
 }
 
+// TestApplySnapshotHonorsBridgeMemberPortMap verifies explicit member pinning
+// overrides automatic port assignment.
 func TestApplySnapshotHonorsBridgeMemberPortMap(t *testing.T) {
 	ports := device.SwitchPortsWithOptions(5, device.PortOptions{
 		Speed:       10000,
@@ -438,6 +466,7 @@ func TestApplySnapshotHonorsBridgeMemberPortMap(t *testing.T) {
 	}
 }
 
+// writeSysfsCounter writes one fixture sysfs counter for observation tests.
 func writeSysfsCounter(t *testing.T, root, iface, name, value string) {
 	t.Helper()
 	path := filepath.Join(root, "class", "net", iface, name)

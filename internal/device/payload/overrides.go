@@ -90,6 +90,8 @@ func NormalizePortOverride(override PortOverride) PortOverride {
 	return override
 }
 
+// validGatewayRole keeps override roles aligned with the gateway renderer's
+// known WAN/LAN role set.
 func validGatewayRole(role string) bool {
 	switch role {
 	case gatewayPortRoleWAN, gatewayPortRoleLAN, gatewayPortRoleWAN2, gatewayPortRoleLAN2:
@@ -99,8 +101,12 @@ func validGatewayRole(role string) bool {
 	}
 }
 
+// portOverrideSetter applies one ordered group of override fields.
 type portOverrideSetter func(*Port, PortOverride)
 
+// Setter order is policy: string metadata is normalized first, speed may set a
+// default media label, explicit media can override that label, link-down can
+// clear speed, and disabled finally clears all live port state.
 var portOverrideSetters = []portOverrideSetter{
 	setPortOverrideStrings,
 	setPortOverrideSpeed,
@@ -111,6 +117,8 @@ var portOverrideSetters = []portOverrideSetter{
 	setPortOverrideDisabled,
 }
 
+// setPortOverrideStrings applies identity and role text before speed/media
+// dependent fields are resolved.
 func setPortOverrideStrings(port *Port, override PortOverride) {
 	for _, field := range portOverrideStringFields {
 		if field.applyAfterSpeed {
@@ -120,16 +128,22 @@ func setPortOverrideStrings(port *Port, override PortOverride) {
 	}
 }
 
+// setPortOverrideSpeed applies explicit speed before media so default media can
+// still be replaced by a later explicit media override.
 func setPortOverrideSpeed(port *Port, override PortOverride) {
 	if override.Speed <= 0 {
 		return
 	}
 	port.Speed = override.Speed
+	// A speed override also implies the controller media label unless the
+	// operator supplied an explicit media override later in the setter order.
 	if strings.TrimSpace(override.Media) == "" {
 		port.Media = mediaForSpeed(override.Speed)
 	}
 }
 
+// setPortOverrideCounters overlays non-zero operator or observation counters
+// onto the generated port.
 func setPortOverrideCounters(port *Port, override PortOverride) {
 	for _, binding := range portCounterOverrides {
 		if value := binding.get(override); value != 0 {
@@ -138,6 +152,8 @@ func setPortOverrideCounters(port *Port, override PortOverride) {
 	}
 }
 
+// setPortOverrideRates marks operator-provided or observed byte rates as
+// explicit so the renderer does not synthesize heartbeat rates for that port.
 func setPortOverrideRates(port *Port, override PortOverride) {
 	if !override.TrafficRatesSet {
 		return
@@ -148,11 +164,14 @@ func setPortOverrideRates(port *Port, override PortOverride) {
 	port.TrafficRatesSet = true
 }
 
+// portCounterOverride binds one override counter to its generated port field.
 type portCounterOverride struct {
 	get func(PortOverride) int64
 	set func(*Port, int64)
 }
 
+// portCounterOverrides lists counter fields that can be supplied by config or
+// observation.
 var portCounterOverrides = []portCounterOverride{
 	{func(override PortOverride) int64 { return override.RXBytes }, func(port *Port, value int64) { port.RXBytes = value }},
 	{func(override PortOverride) int64 { return override.TXBytes }, func(port *Port, value int64) { port.TXBytes = value }},
@@ -162,6 +181,8 @@ var portCounterOverrides = []portCounterOverride{
 	{func(override PortOverride) int64 { return override.TXErrors }, func(port *Port, value int64) { port.TXErrors = value }},
 }
 
+// setPortOverrideMedia applies explicit media after speed so it can override
+// the speed-derived label.
 func setPortOverrideMedia(port *Port, override PortOverride) {
 	for _, field := range portOverrideStringFields {
 		if field.applyAfterSpeed {
@@ -170,16 +191,22 @@ func setPortOverrideMedia(port *Port, override PortOverride) {
 	}
 }
 
+// setPortOverrideLinkState applies explicit up/down state after counters and
+// media so disconnected ports render consistently.
 func setPortOverrideLinkState(port *Port, override PortOverride) {
 	if override.Up == nil {
 		return
 	}
 	port.Up = *override.Up
 	if !*override.Up && override.Speed <= 0 {
+		// Link-down without an explicit speed should render as disconnected, not
+		// as a forced-speed port that happens to be down.
 		port.Speed = 0
 	}
 }
 
+// setPortOverrideDisabled is the final override step because disabling a port
+// must clear link, speed, and learned MAC state after all other metadata merges.
 func setPortOverrideDisabled(port *Port, override PortOverride) {
 	if !override.Disabled {
 		return
@@ -190,6 +217,8 @@ func setPortOverrideDisabled(port *Port, override PortOverride) {
 	port.MACs = nil
 }
 
+// portOverrideStringField centralizes normalization, validation, and application
+// rules for text-like override fields.
 type portOverrideStringField struct {
 	get             func(PortOverride) string
 	setOverride     func(*PortOverride, string)
@@ -199,6 +228,8 @@ type portOverrideStringField struct {
 	applyAfterSpeed bool
 }
 
+// portOverrideStringFields is ordered so fields that depend on speed can be
+// applied after speed-derived defaults.
 var portOverrideStringFields = []portOverrideStringField{
 	{
 		get:         func(override PortOverride) string { return override.Name },
@@ -287,6 +318,8 @@ var portOverrideStringFields = []portOverrideStringField{
 	},
 }
 
+// validate checks one normalized text override against the field-specific
+// payload policy.
 func (field portOverrideStringField) validate(override PortOverride) error {
 	value := field.normalize(field.get(override))
 	if value == "" || field.validateValue == nil {
@@ -295,6 +328,8 @@ func (field portOverrideStringField) validate(override PortOverride) error {
 	return field.validateValue(override, value)
 }
 
+// portOverrideStringsEmpty checks normalized text fields before validation
+// decides whether an override has any effect.
 func portOverrideStringsEmpty(override PortOverride) bool {
 	for _, field := range portOverrideStringFields {
 		if field.normalize(field.get(override)) != "" {
@@ -304,10 +339,13 @@ func portOverrideStringsEmpty(override PortOverride) bool {
 	return true
 }
 
+// lowerTrimmed normalizes MAC-like override text before validation or display.
 func lowerTrimmed(value string) string {
 	return strings.ToLower(strings.TrimSpace(value))
 }
 
+// setNonEmptyString applies optional text overrides only when a normalized value
+// is present.
 func setNonEmptyString(value string, set func()) {
 	if value != "" {
 		set()

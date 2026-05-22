@@ -26,6 +26,8 @@ type BridgeConfig struct {
 // BridgeMemberRole describes how a bridge member should map to UniFi ports.
 type BridgeMemberRole string
 
+// Bridge member roles describe mapping decisions before payload ports are
+// mutated.
 const (
 	// BridgeMemberRoleUnknown keeps a member eligible for normal port mapping
 	// when the platform cannot classify it safely.

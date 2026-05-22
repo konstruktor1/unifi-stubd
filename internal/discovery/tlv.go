@@ -12,6 +12,8 @@ import (
 	"strings"
 )
 
+// Discovery constants define the UDP targets and fixed packet header bytes used
+// by UniFi discovery.
 const (
 	// Port is the UDP port used by UniFi discovery.
 	Port = 10001
@@ -136,6 +138,7 @@ func SendToInterface(packet []byte, targets []string, ifaceName string) error {
 	return nil
 }
 
+// interfaceIPv4 selects the local source address for interface-bound discovery.
 func interfaceIPv4(name string) (net.IP, error) {
 	if strings.Contains(name, "/") {
 		return nil, fmt.Errorf("invalid discovery interface %q", name)
@@ -160,6 +163,8 @@ func interfaceIPv4(name string) (net.IP, error) {
 	return nil, fmt.Errorf("discovery interface %s has no IPv4 address", name)
 }
 
+// cleanTargets drops empty explicit discovery targets before defaults are
+// applied.
 func cleanTargets(targets []string) []string {
 	out := make([]string, 0, len(targets))
 	for _, target := range targets {
@@ -171,18 +176,21 @@ func cleanTargets(targets []string) []string {
 	return out
 }
 
+// writeTLV appends one UniFi discovery type-length-value record.
 func writeTLV(w *bytes.Buffer, typ byte, value []byte) {
 	w.WriteByte(typ)
 	_ = binary.Write(w, binary.BigEndian, uint16(len(value)))
 	w.Write(value)
 }
 
+// uint32Bytes encodes discovery numeric fields in network byte order.
 func uint32Bytes(v uint32) []byte {
 	var b [4]byte
 	binary.BigEndian.PutUint32(b[:], v)
 	return b[:]
 }
 
+// serialFromMAC derives the discovery serial from the announcing MAC.
 func serialFromMAC(mac net.HardwareAddr) string {
 	const hexdigits = "0123456789ABCDEF"
 	out := make([]byte, 0, len(mac)*2)

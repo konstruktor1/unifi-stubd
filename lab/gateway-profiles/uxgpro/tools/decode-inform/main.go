@@ -45,6 +45,7 @@ type packetSummary struct {
 	PayloadVersion uint32 `json:"payload_version"`
 }
 
+// main decodes one inform packet fixture for lab inspection.
 func main() {
 	var keyHex string
 	flag.StringVar(&keyHex, "key-hex", "", "16-byte inform auth key as hex; defaults to UniFi default key")

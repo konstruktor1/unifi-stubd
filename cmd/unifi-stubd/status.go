@@ -158,6 +158,8 @@ type lastInformStatus struct {
 	Error           string   `json:"error,omitempty"`
 }
 
+// printLocalStatus renders the sanitized status document in either machine JSON
+// or the line-oriented human format used by lab scripts.
 func printLocalStatus(flags runtimeFlags, profile device.Profile, mac net.HardwareAddr, ip net.IP, hostname string, portOptions device.PortOptions, plt platform.Platform) error {
 	status := buildLocalStatus(flags, profile, mac, ip, hostname, portOptions, plt)
 	if flags.statusJSON {
@@ -172,6 +174,8 @@ func printLocalStatus(flags runtimeFlags, profile device.Profile, mac net.Hardwa
 	return nil
 }
 
+// buildLocalStatus assembles status from config, adoption state, optional
+// platform capabilities, and passive observations without exposing secrets.
 func buildLocalStatus(flags runtimeFlags, profile device.Profile, mac net.HardwareAddr, ip net.IP, hostname string, portOptions device.PortOptions, plt platform.Platform) localStatus {
 	store, adoptionWarnings := loadAdoptionStateForStatus(flags.sshState)
 	informURL := effectiveInformURL(flags.controller, store)
@@ -243,6 +247,8 @@ func buildLocalStatus(flags runtimeFlags, profile device.Profile, mac net.Hardwa
 	return status
 }
 
+// loadAdoptionStateForStatus reports adoption-state read failures as warnings
+// so status remains usable on a fresh or partially configured host.
 func loadAdoptionStateForStatus(path string) (adoption.Store, []string) {
 	store, err := adoption.LoadEnv(path)
 	if err == nil {
@@ -254,6 +260,8 @@ func loadAdoptionStateForStatus(path string) (adoption.Store, []string) {
 	return adoption.Store{}, []string{fmt.Sprintf("adoption state: %v", err)}
 }
 
+// adoptionStateText maps an empty store to factory state for human and JSON
+// status output.
 func adoptionStateText(store adoption.Store) string {
 	if store.State != "" {
 		return string(store.State)
@@ -264,11 +272,15 @@ func adoptionStateText(store adoption.Store) string {
 	return string(adoption.StateFactory)
 }
 
+// shouldObserveStatus limits live observation during status to modes where the
+// daemon would also read host data at runtime.
 func shouldObserveStatus(mode string) bool {
 	mode = normalizeMode(mode)
 	return mode == operationModeBridgeObserve || mode == operationModePortMap || mode == operationModeHostDirect
 }
 
+// buildObservationStatus reads the same passive source model used by runtime
+// payload rendering so --status can explain what the daemon would observe.
 func buildObservationStatus(flags runtimeFlags, ports []device.Port, plt platform.Platform) statusObservation {
 	ctx, cancel := context.WithTimeout(context.Background(), observeTimeout)
 	defer cancel()
@@ -294,6 +306,8 @@ func buildObservationStatus(flags runtimeFlags, ports []device.Port, plt platfor
 	return out
 }
 
+// printHumanStatus emits stable key-value lines rather than prose so operators
+// and tests can grep individual safety, adoption, and observation fields.
 func printHumanStatus(status localStatus) {
 	fmt.Println("unifi-stubd status")
 	fmt.Printf("config_path: %s\n", status.ConfigPath)
@@ -387,6 +401,8 @@ func printHumanStatus(status localStatus) {
 	}
 }
 
+// printPlatformStatus renders optional host integration availability without
+// implying that missing tools are required.
 func printPlatformStatus(status statusPlatform) {
 	if status.Capabilities.GOOS == "" {
 		return
@@ -402,6 +418,8 @@ func printPlatformStatus(status statusPlatform) {
 	}
 }
 
+// statusUplinkNeighborEntry copies configured uplink neighbor metadata into the
+// stable status schema.
 func statusUplinkNeighborEntry(neighbor *device.MacTableEntry) *statusUplinkNeighbor {
 	if neighbor == nil {
 		return nil
@@ -418,6 +436,8 @@ func statusUplinkNeighborEntry(neighbor *device.MacTableEntry) *statusUplinkNeig
 	}
 }
 
+// statusPortNeighbors converts configured per-port neighbors into status rows
+// without exposing renderer-only fields.
 func statusPortNeighbors(neighbors []device.PortNeighbor) []statusPortNeighbor {
 	out := make([]statusPortNeighbor, 0, len(neighbors))
 	for _, neighbor := range neighbors {
@@ -436,6 +456,8 @@ func statusPortNeighbors(neighbors []device.PortNeighbor) []statusPortNeighbor {
 	return out
 }
 
+// statusPortOverrides normalizes override text for display while keeping the
+// runtime override slice detached.
 func statusPortOverrides(overrides []device.PortOverride) []device.PortOverride {
 	out := device.ClonePortOverrides(overrides)
 	for index := range out {
@@ -444,6 +466,8 @@ func statusPortOverrides(overrides []device.PortOverride) []device.PortOverride 
 	return out
 }
 
+// printObservationStatus reports only the passive observation summary and
+// warnings, never raw host command output.
 func printObservationStatus(status statusObservation) {
 	if status.Interface == "" && status.Bridge == "" {
 		return
@@ -460,6 +484,8 @@ func printObservationStatus(status statusObservation) {
 	}
 }
 
+// printLastInform explains the most recent controller exchange without writing
+// raw inform payloads, auth keys, or controller provisioning bodies.
 func printLastInform(last lastInformStatus) {
 	if last.Time == "" {
 		fmt.Println("last_inform: none")
@@ -507,6 +533,8 @@ func printLastInform(last lastInformStatus) {
 	}
 }
 
+// valueOrDash keeps human status output readable when optional fields are
+// absent.
 func valueOrDash(value string) string {
 	if strings.TrimSpace(value) == "" {
 		return "-"
@@ -514,6 +542,8 @@ func valueOrDash(value string) string {
 	return value
 }
 
+// loadPersistedRunStatus reads the sanitized last-inform status written by the
+// daemon loop for later status commands.
 func loadPersistedRunStatus(path string) (persistedRunStatus, error) {
 	var status persistedRunStatus
 	data, err := os.ReadFile(path)
@@ -526,6 +556,8 @@ func loadPersistedRunStatus(path string) (persistedRunStatus, error) {
 	return status, nil
 }
 
+// saveLastInformStatus persists only the last sanitized inform summary, keeping
+// runtime status narrow and safe to inspect.
 func saveLastInformStatus(path string, last lastInformStatus) error {
 	if path == "" {
 		return errors.New("status path is required")
@@ -544,6 +576,8 @@ func saveLastInformStatus(path string, last lastInformStatus) error {
 	return nil
 }
 
+// newLastInformStatus starts a sanitized status record before the controller
+// response is decoded.
 func newLastInformStatus(url string, store adoption.Store) lastInformStatus {
 	return lastInformStatus{
 		Time:            time.Now().Format(time.RFC3339),

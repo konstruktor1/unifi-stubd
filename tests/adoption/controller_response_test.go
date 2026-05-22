@@ -13,6 +13,8 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/adoption"
 )
 
+// TestEnvRoundTripPreservesKeyOrderAndValues verifies adoption state persists
+// in deterministic env-file form.
 func TestEnvRoundTripPreservesKeyOrderAndValues(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "adoption.env")
 	store := adoption.Store{
@@ -48,6 +50,8 @@ func TestEnvRoundTripPreservesKeyOrderAndValues(t *testing.T) {
 	}
 }
 
+// TestParseControllerResponseInfoExtractsMgmtCFG verifies allowed management
+// config fields are persisted from setparam responses.
 func TestParseControllerResponseInfoExtractsMgmtCFG(t *testing.T) {
 	info, err := adoption.ParseControllerResponseInfo([]byte(`{
   "_type": "setparam",
@@ -73,6 +77,8 @@ func TestParseControllerResponseInfoExtractsMgmtCFG(t *testing.T) {
 	}
 }
 
+// TestParseControllerResponseInfoSummarizesSystemCFGOnly verifies provisioning
+// blocks are summarized but not applied.
 func TestParseControllerResponseInfoSummarizesSystemCFGOnly(t *testing.T) {
 	info, err := adoption.ParseControllerResponseInfo([]byte(`{
   "_type": "setparam",
@@ -99,6 +105,8 @@ func TestParseControllerResponseInfoSummarizesSystemCFGOnly(t *testing.T) {
 	}
 }
 
+// TestParseControllerResponseInfoNoopCarriesInterval verifies noop responses
+// update connected state and heartbeat hints.
 func TestParseControllerResponseInfoNoopCarriesInterval(t *testing.T) {
 	info, err := adoption.ParseControllerResponseInfo([]byte(`{
   "_type": "noop",
@@ -119,6 +127,8 @@ func TestParseControllerResponseInfoNoopCarriesInterval(t *testing.T) {
 	}
 }
 
+// TestParseControllerResponseInfoUpgradeIsIgnoredButVersionCaptured verifies
+// firmware requests are ignored while requested version metadata is recorded.
 func TestParseControllerResponseInfoUpgradeIsIgnoredButVersionCaptured(t *testing.T) {
 	info, err := adoption.ParseControllerResponseInfo([]byte(`{
   "_type": "upgrade",
@@ -138,6 +148,8 @@ func TestParseControllerResponseInfoUpgradeIsIgnoredButVersionCaptured(t *testin
 	}
 }
 
+// TestParseControllerResponseInfoRestoreDefaultRequestsReset verifies reset-like
+// response types request a local adoption reset.
 func TestParseControllerResponseInfoRestoreDefaultRequestsReset(t *testing.T) {
 	info, err := adoption.ParseControllerResponseInfo([]byte(`{"_type":"restore-default"}`))
 	if err != nil {
@@ -151,6 +163,8 @@ func TestParseControllerResponseInfoRestoreDefaultRequestsReset(t *testing.T) {
 	}
 }
 
+// TestParseControllerResponseInfoSetDefaultRequestsReset verifies set-default
+// command text triggers only local adoption reset behavior.
 func TestParseControllerResponseInfoSetDefaultRequestsReset(t *testing.T) {
 	info, err := adoption.ParseControllerResponseInfo([]byte(`{"_type":"setdefault"}`))
 	if err != nil {
@@ -164,6 +178,8 @@ func TestParseControllerResponseInfoSetDefaultRequestsReset(t *testing.T) {
 	}
 }
 
+// TestParseControllerResponseInfoCommandRestoreDefaultRequestsReset verifies
+// shell-wrapper reset commands are detected without executing them.
 func TestParseControllerResponseInfoCommandRestoreDefaultRequestsReset(t *testing.T) {
 	info, err := adoption.ParseControllerResponseInfo([]byte(`{
   "_type": "cmd",
@@ -177,6 +193,8 @@ func TestParseControllerResponseInfoCommandRestoreDefaultRequestsReset(t *testin
 	}
 }
 
+// FuzzParseControllerResponseInfo verifies arbitrary controller JSON bytes do
+// not panic the response sanitizer.
 func FuzzParseControllerResponseInfo(f *testing.F) {
 	f.Add([]byte(`{"_type":"noop","interval":10}`))
 	f.Add([]byte(`{"_type":"setparam","mgmt_cfg":"cfgversion=abc\nauthkey=0123456789abcdef\nuse_aes_gcm=true\n"}`))

@@ -8,11 +8,15 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/observe/portmap"
 )
 
+// Shared fixture values describe one observed interface used by the port-map
+// override test.
 const (
 	observedInterface = "eth0"
 	observedMAC       = "00:11:22:33:44:55"
 )
 
+// TestPortMapOverridesFromObservation verifies explicit port maps become
+// payload overrides from portable observation data.
 func TestPortMapOverridesFromObservation(t *testing.T) {
 	t.Parallel()
 

@@ -10,12 +10,15 @@ import (
 	appconfig "github.com/konstruktor1/unifi-stubd/internal/config"
 )
 
+// runtimeSetting ties one CLI flag to its matching YAML config field.
 type runtimeSetting struct {
 	flagName string
 	register func(*runtimeFlags, appconfig.Config)
 	apply    func(appconfig.Config, *runtimeFlags)
 }
 
+// runtimeSettings enumerates the runtime surface that participates in
+// CLI-over-YAML precedence.
 var runtimeSettings = []runtimeSetting{
 	stringSetting("operation-mode", "runtime mode: stub, bridge-observe, observe, port-map, host-direct, or macvlan", func(flags *runtimeFlags) *string { return &flags.operationMode }, func(cfg appconfig.Config) string { return cfg.OperationMode }),
 	stringSetting("profile", "device profile to emulate; use -list-profiles to show options", func(flags *runtimeFlags) *string { return &flags.profileName }, func(cfg appconfig.Config) string { return cfg.Profile }),
@@ -63,12 +66,16 @@ var runtimeSettings = []runtimeSetting{
 	stringSetting("status-path", "non-sensitive runtime status file path", func(flags *runtimeFlags) *string { return &flags.statusPath }, func(cfg appconfig.Config) string { return cfg.StatusPath }),
 }
 
+// registerRuntimeSettings binds flags to the same fields that YAML config can
+// later populate, preserving the CLI-over-YAML precedence model.
 func registerRuntimeSettings(flags *runtimeFlags, defaults appconfig.Config) {
 	for _, setting := range runtimeSettings {
 		setting.register(flags, defaults)
 	}
 }
 
+// stringSetting describes one string-valued setting for both flag registration
+// and deferred config application.
 func stringSetting(name string, usage string, target func(*runtimeFlags) *string, value func(appconfig.Config) string) runtimeSetting {
 	return runtimeSetting{
 		flagName: name,
@@ -81,6 +88,8 @@ func stringSetting(name string, usage string, target func(*runtimeFlags) *string
 	}
 }
 
+// intSetting describes one integer setting for both flag registration and YAML
+// fallback application.
 func intSetting(name string, usage string, target func(*runtimeFlags) *int, value func(appconfig.Config) int) runtimeSetting {
 	return runtimeSetting{
 		flagName: name,
@@ -93,6 +102,8 @@ func intSetting(name string, usage string, target func(*runtimeFlags) *int, valu
 	}
 }
 
+// boolSetting describes one boolean setting while preserving explicit false CLI
+// overrides.
 func boolSetting(name string, usage string, target func(*runtimeFlags) *bool, value func(appconfig.Config) bool) runtimeSetting {
 	return runtimeSetting{
 		flagName: name,
@@ -105,6 +116,8 @@ func boolSetting(name string, usage string, target func(*runtimeFlags) *bool, va
 	}
 }
 
+// intervalSetting accepts CLI durations but reads YAML intervals in seconds to
+// match the packaged config schema.
 func intervalSetting() runtimeSetting {
 	return runtimeSetting{
 		flagName: "interval",

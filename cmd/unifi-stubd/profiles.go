@@ -12,6 +12,8 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/device/profiledata"
 )
 
+// loadProfileRegistry layers optional external profile paths on top of the
+// built-in registry used by runtime and profile CLI actions.
 func loadProfileRegistry(flags runtimeFlags) (device.ProfileRegistry, error) {
 	registry := device.NewProfileRegistry()
 	for _, path := range []string{strings.TrimSpace(flags.profileDir), strings.TrimSpace(flags.profileFile)} {
@@ -25,6 +27,8 @@ func loadProfileRegistry(flags runtimeFlags) (device.ProfileRegistry, error) {
 	return registry, nil
 }
 
+// printProfileTemplate emits a starter YAML profile without starting daemon
+// validation or controller traffic.
 func printProfileTemplate(kind string) error {
 	data, err := device.ProfileTemplateYAML(kind)
 	if err != nil {
@@ -34,6 +38,8 @@ func printProfileTemplate(kind string) error {
 	return nil
 }
 
+// validateProfilePath runs the same profile registry checks used at runtime and
+// maps parse or I/O errors to profile-specific exit codes.
 func validateProfilePath(path string) error {
 	path = strings.TrimSpace(path)
 	if path == "" {
@@ -47,6 +53,8 @@ func validateProfilePath(path string) error {
 	return nil
 }
 
+// printProfileExport renders the resolved profile, including inherited and
+// defaulted fields, as canonical YAML.
 func printProfileExport(registry device.ProfileRegistry, name string) error {
 	name = strings.TrimSpace(name)
 	if name == "" {
@@ -60,6 +68,8 @@ func printProfileExport(registry device.ProfileRegistry, name string) error {
 	return nil
 }
 
+// profileErrorExitCode distinguishes malformed profile files from semantic
+// validation failures for CLI automation.
 func profileErrorExitCode(err error) int {
 	var pathErr *profiledata.PathError
 	if errors.As(err, &pathErr) {

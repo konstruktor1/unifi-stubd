@@ -10,6 +10,7 @@ import (
 //go:embed profile.yaml
 var config []byte
 
+// init registers the embedded US-16-150W profile with the global registry.
 func init() {
 	profiledata.RegisterConfig("profiles/us16p150/profile.yaml", config)
 }

@@ -67,11 +67,13 @@ func ParseBridgeAddr(r io.Reader) []BridgeAddress {
 	return entries
 }
 
+// parseVLAN extracts numeric VLAN IDs from FreeBSD VlanN bridge tokens.
 func parseVLAN(value string) int {
 	value = strings.TrimPrefix(strings.ToLower(strings.TrimSpace(value)), "vlan")
 	return parseOptionalInt(value)
 }
 
+// parseOptionalInt tolerates absent or non-numeric FreeBSD bridge fields.
 func parseOptionalInt(value string) int {
 	value = strings.Trim(strings.TrimSpace(value), ",")
 	number, err := strconv.Atoi(value)

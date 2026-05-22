@@ -11,8 +11,12 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// defaultDeviceType keeps legacy profiles switch-shaped when device_type is
+// omitted.
 const defaultDeviceType = "usw"
 
+// Registry metadata constants separate user-facing error classes from internal
+// source labels.
 const (
 	// ErrorKindIO marks filesystem access errors.
 	ErrorKindIO = "io"
@@ -35,6 +39,7 @@ type PathError struct {
 	Err error
 }
 
+// Error includes the profile path when one is available for CLI diagnostics.
 func (e *PathError) Error() string {
 	if e.Path == "" {
 		return e.Err.Error()
@@ -42,10 +47,13 @@ func (e *PathError) Error() string {
 	return fmt.Sprintf("%s: %v", e.Path, e.Err)
 }
 
+// Unwrap exposes the underlying profile loading error.
 func (e *PathError) Unwrap() error {
 	return e.Err
 }
 
+// record stores one registered profile plus the YAML document used for external
+// inheritance.
 type record struct {
 	source   string
 	builtin  bool
@@ -54,6 +62,7 @@ type record struct {
 	document *yaml.Node
 }
 
+// registry is populated by embedded profile packages at init time.
 var registry []record
 
 // Registry contains built-in and caller-loaded profile records.
@@ -78,6 +87,8 @@ func (r *Registry) register(source string, order int, profile Profile, document 
 	return registerRecord(&r.records, source, order, profile, document, builtin)
 }
 
+// registerRecord enforces profile-name and model uniqueness while allowing an
+// explicitly marked external profile to replace a built-in record.
 func registerRecord(records *[]record, source string, order int, profile Profile, document *yaml.Node, builtin bool) error {
 	for index, record := range *records {
 		nameDuplicate := record.profile.Name == profile.Name
@@ -100,6 +111,8 @@ func registerRecord(records *[]record, source string, order int, profile Profile
 	return nil
 }
 
+// recordEntry stores detached profile and YAML-node copies so later caller
+// changes cannot mutate registered profile data.
 func recordEntry(source string, order int, profile Profile, document *yaml.Node, builtin bool) record {
 	return record{
 		source:   source,
@@ -145,6 +158,8 @@ func (r Registry) Lookup(name string) (Profile, bool) {
 	return profileWithSource(record), true
 }
 
+// lookupRecord resolves either a profile name or model identifier and returns a
+// detached record copy for inheritance or payload use.
 func (r Registry) lookupRecord(name string) (record, bool) {
 	name = strings.ToLower(strings.TrimSpace(name))
 	for _, record := range r.records {
@@ -201,6 +216,7 @@ func (r Registry) Format() string {
 	return b.String()
 }
 
+// cloneProfile detaches profile slices before registry callers can mutate them.
 func cloneProfile(profile Profile) Profile {
 	profile.PortGroups = clonePortGroups(profile.PortGroups)
 	profile.PortNames = cloneStrings(profile.PortNames)
@@ -210,6 +226,8 @@ func cloneProfile(profile Profile) Profile {
 	return profile
 }
 
+// profileWithSource attaches registry provenance to a detached profile copy for
+// status, list, and export views.
 func profileWithSource(record record) Profile {
 	profile := cloneProfile(record.profile)
 	profile.Source = record.source
@@ -221,6 +239,7 @@ func profileWithSource(record record) Profile {
 	return profile
 }
 
+// cloneRecords detaches registry entries and their YAML documents.
 func cloneRecords(records []record) []record {
 	if len(records) == 0 {
 		return nil
@@ -234,14 +253,18 @@ func cloneRecords(records []record) []record {
 	return out
 }
 
+// clonePortGroups detaches contiguous port group definitions.
 func clonePortGroups(groups []PortGroup) []PortGroup {
 	return cloneNonEmptySlice(groups)
 }
 
+// cloneStrings detaches profile string slices.
 func cloneStrings(values []string) []string {
 	return cloneNonEmptySlice(values)
 }
 
+// cloneNonEmptySlice preserves nil for absent profile slices while copying
+// populated values.
 func cloneNonEmptySlice[T any](values []T) []T {
 	if len(values) == 0 {
 		return nil
@@ -251,6 +274,8 @@ func cloneNonEmptySlice[T any](values []T) []T {
 	return out
 }
 
+// deviceTypeOrDefault keeps older profiles that predate explicit device_type
+// usable as switch profiles.
 func deviceTypeOrDefault(value string) string {
 	value = strings.TrimSpace(value)
 	if value == "" {
@@ -259,6 +284,7 @@ func deviceTypeOrDefault(value string) string {
 	return value
 }
 
+// firstNonZero returns the first configured numeric value from a fallback list.
 func firstNonZero(values ...int) int {
 	for _, value := range values {
 		if value != 0 {

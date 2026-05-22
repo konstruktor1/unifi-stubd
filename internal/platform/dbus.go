@@ -11,6 +11,8 @@ import (
 	"github.com/godbus/dbus/v5"
 )
 
+// ServiceBus probes the configured D-Bus only when enabled and reports
+// availability as status metadata.
 func (p hostPlatform) ServiceBus(_ context.Context, cfg DBusConfig) (ServiceBusStatus, error) {
 	cfg.Bus = normalizedDBusBus(cfg.Bus)
 	if !cfg.Enabled {
@@ -26,6 +28,8 @@ func (p hostPlatform) ServiceBus(_ context.Context, cfg DBusConfig) (ServiceBusS
 	return ServiceBusStatus{Enabled: true, Bus: cfg.Bus, State: capabilityAvailable}, nil
 }
 
+// dbusCapability adapts the D-Bus probe into the generic capability report used
+// by --status.
 func (p hostPlatform) dbusCapability(ctx context.Context, cfg Config) Capability {
 	status, err := p.ServiceBus(ctx, DBusConfig{Enabled: cfg.DBusEnabled, Bus: cfg.DBusBus})
 	if !status.Enabled {
@@ -37,6 +41,7 @@ func (p hostPlatform) dbusCapability(ctx context.Context, cfg Config) Capability
 	return Capability{Name: capabilityDBus, Source: status.Bus, State: capabilityAvailable}
 }
 
+// connectDBus opens only the configured bus for a capability probe.
 func connectDBus(bus string) (*dbus.Conn, error) {
 	switch normalizedDBusBus(bus) {
 	case DBusBusSession:

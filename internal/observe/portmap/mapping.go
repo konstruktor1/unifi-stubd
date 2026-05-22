@@ -63,6 +63,8 @@ func OverrideFromObservation(port int, observation observe.PortObservation) devi
 	return override
 }
 
+// legacyOverrides preserves the direct ifsource path for callers that do not
+// provide a portable observation source.
 func legacyOverrides(mappings []appconfig.PortMapping) []device.PortOverride {
 	out := make([]device.PortOverride, 0, len(mappings))
 	for _, mapping := range mappings {
@@ -83,11 +85,14 @@ func legacyOverrides(mappings []appconfig.PortMapping) []device.PortOverride {
 	return out
 }
 
+// disabledOverride renders a mapped port as explicitly disabled and down.
 func disabledOverride(port int) device.PortOverride {
 	up := false
 	return device.PortOverride{Port: port, Up: &up, Disabled: true}
 }
 
+// observePortMappings converts config mappings into the portable observation
+// request shape.
 func observePortMappings(mappings []appconfig.PortMapping) []observe.PortMapping {
 	out := make([]observe.PortMapping, 0, len(mappings))
 	for _, mapping := range mappings {

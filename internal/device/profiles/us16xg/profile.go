@@ -10,6 +10,7 @@ import (
 //go:embed profile.yaml
 var config []byte
 
+// init registers the embedded US-16-XG profile with the global registry.
 func init() {
 	profiledata.RegisterConfig("profiles/us16xg/profile.yaml", config)
 }

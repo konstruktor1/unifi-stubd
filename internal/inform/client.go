@@ -56,6 +56,8 @@ func (c Client) Send(payload []byte) (*Response, error) {
 	}
 	opts := c.Options
 	if !opts.Zlib && !opts.GCM {
+		// Legacy UniFi devices commonly send zlib-compressed AES-CBC inform
+		// bodies. Use that shape unless the caller selected AES-GCM explicitly.
 		opts.Zlib = true
 	}
 
@@ -97,6 +99,8 @@ func (c Client) Send(payload []byte) (*Response, error) {
 		RawBody:    raw,
 	}
 	if httpResp.StatusCode != http.StatusOK || len(raw) == 0 {
+		// Pre-adoption controllers often answer 404/empty bodies. That is a
+		// valid lifecycle signal, not a packet-decoding failure.
 		return resp, nil
 	}
 
@@ -109,6 +113,8 @@ func (c Client) Send(payload []byte) (*Response, error) {
 	return resp, nil
 }
 
+// defaultHTTPClient optionally binds inform TCP connections to a chosen local
+// management IP while keeping the same request timeout.
 func defaultHTTPClient(localIP net.IP) *http.Client {
 	if localIP == nil || localIP.To4() == nil {
 		return &http.Client{Timeout: 10 * time.Second}
@@ -127,6 +133,7 @@ func defaultHTTPClient(localIP net.IP) *http.Client {
 	}
 }
 
+// readLimitedBody bounds controller response size before decode attempts.
 func readLimitedBody(r io.Reader, maxBytes int64) ([]byte, error) {
 	limited := &io.LimitedReader{R: r, N: maxBytes + 1}
 	data, err := io.ReadAll(limited)

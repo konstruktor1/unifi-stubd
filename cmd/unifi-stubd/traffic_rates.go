@@ -8,6 +8,8 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/observe"
 )
 
+// applyTrafficRates converts observed monotonic counters into per-second rates
+// for ports that have a real source interface and a persistent tracker.
 func applyTrafficRates(ports []device.Port, tracker *observe.TrafficRateTracker, now time.Time) []device.Port {
 	if len(ports) == 0 || tracker == nil {
 		return ports
@@ -36,6 +38,8 @@ func applyTrafficRates(ports []device.Port, tracker *observe.TrafficRateTracker,
 	return out
 }
 
+// trafficRateKey ties rate samples to real source interfaces, avoiding
+// synthetic rates from accumulating across unrelated generated ports.
 func trafficRateKey(port device.Port) string {
 	if iface := strings.TrimSpace(port.Interface); iface != "" {
 		return iface

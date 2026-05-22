@@ -10,6 +10,7 @@ import (
 //go:embed profile.yaml
 var config []byte
 
+// init registers the embedded US-48-500W profile with the global registry.
 func init() {
 	profiledata.RegisterConfig("profiles/us48p500/profile.yaml", config)
 }

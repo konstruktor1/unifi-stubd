@@ -26,6 +26,8 @@ import (
 	"golang.org/x/crypto/ssh"
 )
 
+// Adoption SSH defaults and command tokens match the minimal UniFi command
+// surface that controllers probe.
 const (
 	defaultSSHUser     = "ubnt"
 	defaultSSHPassword = "ubnt"
@@ -139,6 +141,9 @@ func (s *Server) Addr() net.Addr {
 	return s.listener.Addr()
 }
 
+// serve accepts SSH connections until the listener closes. Each accepted
+// connection is handled independently so slow adoption clients do not block new
+// attempts.
 func (s *Server) serve(config *ssh.ServerConfig) {
 	for {
 		conn, err := s.listener.Accept()
@@ -153,6 +158,8 @@ func (s *Server) serve(config *ssh.ServerConfig) {
 	}
 }
 
+// handleConn completes SSH setup and accepts only session channels, matching
+// the narrow command surface required by UniFi advanced adoption.
 func (s *Server) handleConn(conn net.Conn, config *ssh.ServerConfig) {
 	sshConn, chans, reqs, err := ssh.NewServerConn(conn, config)
 	if err != nil {
@@ -175,6 +182,8 @@ func (s *Server) handleConn(conn net.Conn, config *ssh.ServerConfig) {
 	}
 }
 
+// handleSession supports exec and a tiny interactive shell, routing all command
+// text through Handler instead of a host shell.
 func (s *Server) handleSession(channel ssh.Channel, requests <-chan *ssh.Request) {
 	defer func() {
 		_ = channel.Close()
@@ -207,6 +216,8 @@ func (s *Server) handleSession(channel ssh.Channel, requests <-chan *ssh.Request
 	}
 }
 
+// sendExitStatus mirrors normal SSH command completion so controller clients do
+// not need special-case behavior for the shim.
 func sendExitStatus(channel ssh.Channel, status int) {
 	_, _ = channel.SendRequest("exit-status", false, ssh.Marshal(struct {
 		Status uint32
@@ -250,6 +261,8 @@ func (h *Handler) Shell(rw io.ReadWriter) {
 	}
 }
 
+// executeOne handles one parsed adoption command and intentionally maps unknown
+// commands to accepted no-ops rather than host execution.
 func (h *Handler) executeOne(command string) (string, int) {
 	args := CommandFields(strings.TrimSpace(command))
 	if len(args) == 0 {
@@ -262,6 +275,8 @@ func (h *Handler) executeOne(command string) (string, int) {
 		}
 	}
 	if (args[0] == "sh" || args[0] == "/bin/sh") && len(args) >= 3 && args[1] == "-c" {
+		// Controller SSH adoption often wraps commands in a shell. Re-parse the
+		// quoted command inside the shim instead of invoking a host shell.
 		return h.Execute(strings.Join(args[2:], " "))
 	}
 
@@ -286,6 +301,8 @@ func (h *Handler) executeOne(command string) (string, int) {
 		h.saveState("", "", strings.Join(args, " "))
 		return okOutput, 0
 	case "reset2defaults", "restore-default":
+		// Factory-reset commands clear only the stub adoption file. They must not
+		// reset the host, services, users, interfaces, or firewall.
 		h.resetState(strings.Join(args, " "))
 		return "Factory reset accepted\n", 0
 	case "hostname":
@@ -303,11 +320,15 @@ func (h *Handler) executeOne(command string) (string, int) {
 			h.saveState(url, "", strings.Join(args, " "))
 			return fmt.Sprintf("Adoption request accepted: %s\n", url), 0
 		}
+		// Unsupported commands are acknowledged for compatibility but are not
+		// executed. Persisting the command gives operators an audit trail.
 		h.saveState("", "", strings.Join(args, " "))
 		return okOutput, 0
 	}
 }
 
+// handleSyswrapper emulates the syswrapper subcommands used by advanced
+// adoption while keeping reset and adopt effects inside the stub state file.
 func (h *Handler) handleSyswrapper(args []string) (string, int) {
 	if len(args) < 2 {
 		return h.info(), 0
@@ -340,6 +361,8 @@ func (h *Handler) handleSyswrapper(args []string) (string, int) {
 	}
 }
 
+// handleMCA emulates the mca-cli command forms that controllers commonly try
+// during SSH adoption.
 func (h *Handler) handleMCA(args []string) (string, int) {
 	if len(args) < 2 {
 		return "UniFi CLI shim\n", 0
@@ -358,6 +381,8 @@ func (h *Handler) handleMCA(args []string) (string, int) {
 	}
 }
 
+// handleSetInform persists the controller-supplied inform URL as adoption
+// state, not as a command to run on the host.
 func (h *Handler) handleSetInform(args []string) (string, int) {
 	url := findInformURL(args)
 	h.saveState(url, "", strings.Join(args, " "))
@@ -367,6 +392,8 @@ func (h *Handler) handleSetInform(args []string) (string, int) {
 	return fmt.Sprintf("Inform URL set: %s\n", url), 0
 }
 
+// handleCat returns only safe identity/version files that adoption clients
+// probe; arbitrary file reads are not supported.
 func (h *Handler) handleCat(args []string) (string, int) {
 	if len(args) < 2 {
 		return "", 0
@@ -381,6 +408,8 @@ func (h *Handler) handleCat(args []string) (string, int) {
 	}
 }
 
+// info returns a small firmware-like identity report used by controller SSH
+// adoption checks.
 func (h *Handler) info() string {
 	id := h.config.Identity
 	if id.Model == "" {
@@ -407,6 +436,8 @@ func (h *Handler) info() string {
 	)
 }
 
+// saveState persists adoption commands as local stub state and audit metadata,
+// never as shell instructions to execute.
 func (h *Handler) saveState(informURL, authKey, command string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -433,6 +464,8 @@ func (h *Handler) saveState(informURL, authKey, command string) {
 	}
 }
 
+// resetState clears only the adoption store, making the next inform look
+// factory-default without resetting the host.
 func (h *Handler) resetState(command string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -450,6 +483,8 @@ func (h *Handler) resetState(command string) {
 	}
 }
 
+// splitCommands handles the small command chains controllers send over SSH
+// while routing each segment through the safe shim.
 func splitCommands(command string) []string {
 	raw := strings.NewReplacer("&&", ";", "\n", ";").Replace(command)
 	parts := strings.Split(raw, ";")
@@ -506,6 +541,7 @@ func CommandFields(input string) []string {
 	return fields
 }
 
+// findInformURL extracts only inform endpoints from SSH command arguments.
 func findInformURL(args []string) string {
 	for _, arg := range args {
 		if (strings.HasPrefix(arg, "http://") || strings.HasPrefix(arg, "https://")) && strings.Contains(arg, "/inform") {
@@ -515,6 +551,8 @@ func findInformURL(args []string) string {
 	return ""
 }
 
+// loadOrCreateHostKey loads a persistent shim host key when configured, or
+// creates one so SSH adoption clients see a stable server identity.
 func loadOrCreateHostKey(hostKeyPath string) (ssh.Signer, error) {
 	if hostKeyPath != "" {
 		if data, err := os.ReadFile(hostKeyPath); err == nil {

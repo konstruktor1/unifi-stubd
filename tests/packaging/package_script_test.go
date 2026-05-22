@@ -7,6 +7,8 @@ import (
 	"testing"
 )
 
+// TestPackageScriptKeepsOtherTargetArtifacts verifies packaging cleanup is
+// scoped to the requested target.
 func TestPackageScriptKeepsOtherTargetArtifacts(t *testing.T) {
 	dist := t.TempDir()
 	version := "9.9.9"
@@ -27,6 +29,7 @@ func TestPackageScriptKeepsOtherTargetArtifacts(t *testing.T) {
 	}
 }
 
+// runPackageScript executes the package helper against a temporary dist tree.
 func runPackageScript(t *testing.T, dist, version, release, goos, goarch string) {
 	t.Helper()
 	cmd := exec.Command("sh", "../../scripts/package.sh", "tgz")

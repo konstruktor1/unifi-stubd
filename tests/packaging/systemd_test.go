@@ -8,6 +8,8 @@ import (
 	"testing"
 )
 
+// TestLinuxSystemdServiceRunsNonRootWithBindCapability verifies the packaged
+// unit grants only the required bind capability.
 func TestLinuxSystemdServiceRunsNonRootWithBindCapability(t *testing.T) {
 	data, err := os.ReadFile("../../packaging/linux/usr/lib/systemd/system/unifi-stubd.service")
 	if err != nil {
