@@ -50,6 +50,31 @@ gh release create v0.1.1-alpha --prerelease \
   dist/releases/v0.1.1-alpha/*
 ```
 
+## GitHub Pages Package Repositories
+
+Alpha package repositories are published unsigned through GitHub Pages:
+
+```text
+https://konstruktor1.github.io/unifi-stubd/
+```
+
+Build all package artifacts first, then generate the static repository site:
+
+```sh
+PKG_VERSION=0.1.1-alpha PKG_RELEASE=1 PKG_GOARCH=amd64 make package
+PKG_VERSION=0.1.1-alpha PKG_RELEASE=1 PKG_GOARCH=arm64 make package
+PKG_VERSION=0.1.1-alpha PKG_RELEASE=1 PKG_FREEBSD_GOARCH=amd64 make package-freebsd-tgz
+PKG_VERSION=0.1.1-alpha PKG_RELEASE=1 PKG_FREEBSD_GOARCH=arm64 make package-freebsd-tgz
+make package-repos
+```
+
+`make package-repos` writes `dist/package-site/` with APT, RPM, Arch Linux, and
+FreeBSD/OPNsense tarball paths. The generator requires `dpkg-scanpackages`,
+`createrepo_c`, and `repo-add`; the GitHub Pages workflow installs those tools
+on Ubuntu before publishing. Keep alpha repository instructions visibly
+unsigned (`trusted=yes`, `gpgcheck=0`, `SigLevel = Never`) until a project
+release key exists.
+
 ## Package Metadata
 
 The default package maintainer is `unifi-stubd maintainers <info@spinas.org>`.

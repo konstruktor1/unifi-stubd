@@ -104,6 +104,55 @@ Not goals:
 - It must not blindly apply controller provisioning to the host.
 - It does not reproduce full UniFi DPI, firewall, or routing behavior.
 
+## Install From Package Repositories
+
+Unsigned alpha package repositories are published through GitHub Pages at
+`https://konstruktor1.github.io/unifi-stubd/`. Use them only for isolated lab or
+management networks. Stable releases should use signed package repositories once
+a project release key exists.
+
+Debian, Ubuntu, and Proxmox:
+
+```sh
+echo 'deb [trusted=yes arch=amd64] https://konstruktor1.github.io/unifi-stubd/apt alpha main' | sudo tee /etc/apt/sources.list.d/unifi-stubd.list
+sudo apt update
+sudo apt install unifi-stubd
+```
+
+Use `arch=arm64` on ARM hosts.
+
+Fedora, RHEL, and openSUSE-compatible RPM systems:
+
+```ini
+[unifi-stubd]
+name=unifi-stubd alpha
+baseurl=https://konstruktor1.github.io/unifi-stubd/rpm/$basearch
+enabled=1
+gpgcheck=0
+repo_gpgcheck=0
+```
+
+Arch Linux and Arch Linux ARM:
+
+```ini
+[unifi-stubd]
+SigLevel = Never
+Server = https://konstruktor1.github.io/unifi-stubd/arch/$arch
+```
+
+FreeBSD/OPNsense builds are published as tarballs, not as a FreeBSD `pkg`
+repository yet:
+
+```sh
+fetch https://konstruktor1.github.io/unifi-stubd/freebsd/amd64/unifi-stubd_0.1.1-alpha-1_freebsd_amd64.tar.gz
+sudo tar -xzf unifi-stubd_0.1.1-alpha-1_freebsd_amd64.tar.gz -C /
+```
+
+Packages install neutral defaults only. Copy the host-specific config to
+`/etc/unifi-stubd/config.yaml` on Linux or
+`/usr/local/etc/unifi-stubd/config.yaml` on FreeBSD/OPNsense before starting the
+service.
+
 ## Installation
 
 ### Build From Source
@@ -338,6 +387,15 @@ PKG_VERSION=0.1.0 PKG_RELEASE=1 PKG_GOARCH=amd64 \
 ```
 
 Artifacts are written to `dist/packages/`.
+
+Unsigned GitHub Pages package repositories can be built from those artifacts:
+
+```sh
+make package-repos
+```
+
+The generated site is written to `dist/package-site/` and contains APT, RPM,
+Arch Linux, and FreeBSD/OPNsense tarball paths for the alpha channel.
 
 Release packages are intentionally neutral. They install the daemon, service
 files, documentation, and the packaged example config only. Keep real controller

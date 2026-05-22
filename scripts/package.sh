@@ -43,9 +43,14 @@ package_arch() {
   esac
 }
 
+archlinux_version() {
+  printf '%s' "$1" | sed 's/[-~]//g'
+}
+
 remove_current_artifact() {
   format="$1"
   rpm_arch="$(package_arch "$GOARCH_VALUE")"
+  arch_version="$(archlinux_version "$VERSION")"
   case "$format" in
     deb)
       rm -f "$PACKAGE_DIR/unifi-stubd_${VERSION}-${RELEASE}_${GOARCH_VALUE}.deb"
@@ -54,7 +59,9 @@ remove_current_artifact() {
       rm -f "$PACKAGE_DIR/unifi-stubd-${VERSION}-${RELEASE}.${rpm_arch}.rpm"
       ;;
     archlinux)
-      rm -f "$PACKAGE_DIR/unifi-stubd-${VERSION}-${RELEASE}-${rpm_arch}.pkg.tar.zst"
+      rm -f \
+        "$PACKAGE_DIR/unifi-stubd-${VERSION}-${RELEASE}-${rpm_arch}.pkg.tar.zst" \
+        "$PACKAGE_DIR/unifi-stubd-${arch_version}-${RELEASE}-${rpm_arch}.pkg.tar.zst"
       ;;
     tgz|tar.gz)
       rm -f "$PACKAGE_DIR/unifi-stubd_${VERSION}-${RELEASE}_${GOOS_VALUE}_${GOARCH_VALUE}.tar.gz"
@@ -128,9 +135,17 @@ sed_escape() {
 }
 
 write_nfpm_config() {
+  format="$1"
+  nfpm_version="$VERSION"
+  nfpm_version_schema="semver"
+  if [ "$format" = "archlinux" ]; then
+    nfpm_version="$(archlinux_version "$VERSION")"
+    nfpm_version_schema="none"
+  fi
   sed \
     -e "s|@PKG_ARCH@|$(sed_escape "$GOARCH_VALUE")|g" \
-    -e "s|@PKG_VERSION@|$(sed_escape "$VERSION")|g" \
+    -e "s|@PKG_VERSION@|$(sed_escape "$nfpm_version")|g" \
+    -e "s|@PKG_VERSION_SCHEMA@|$(sed_escape "$nfpm_version_schema")|g" \
     -e "s|@PKG_RELEASE@|$(sed_escape "$RELEASE")|g" \
     -e "s|@PKG_LICENSE@|$(sed_escape "$LICENSE")|g" \
     -e "s|@PKG_MAINTAINER@|$(sed_escape "$MAINTAINER")|g" \
@@ -143,7 +158,7 @@ build_nfpm() {
     printf 'format %s is linux-only; use tgz for freebsd packages\n' "$format" >&2
     exit 1
   fi
-  write_nfpm_config
+  write_nfpm_config "$format"
   printf '== package %s ==\n' "$format"
   $NFPM_CMD package -f "$NFPM_CONFIG" -p "$format" -t "$PACKAGE_DIR"
 }

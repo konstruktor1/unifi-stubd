@@ -26,6 +26,8 @@ No unreleased changes yet.
   packages use the requested target architecture.
 - Removed the OpenRC init script from nFPM Linux packages so systemd enablement
   works cleanly on Debian, RPM, and Arch-based installs.
+- Fixed Arch Linux pre-release package metadata so `repo-add` can index alpha
+  packages for the GitHub Pages package repository.
 - Updated `golang.org/x/crypto` to the SSH vulnerability fix release required
   by `govulncheck`.
 - Avoided a gateway `internet` payload shape that could make UniFi Network mark

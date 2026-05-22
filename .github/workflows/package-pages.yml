@@ -1,0 +1,74 @@
+name: Package Repositories
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Package version without leading v
+        required: false
+        default: 0.1.1-alpha
+      package_release:
+        description: Package release number
+        required: false
+        default: "1"
+  push:
+    tags:
+      - "v*"
+  release:
+    types: [published, prereleased]
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: github-pages
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/go/pkg/mod
+          key: go-mod-${{ hashFiles('go.sum') }}
+
+      - name: Install repository tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dpkg-dev createrepo-c libarchive-tools pacman-package-manager zstd
+
+      - name: Build package matrix
+        env:
+          RAW_VERSION: ${{ inputs.version || github.event.release.tag_name || github.ref_name }}
+          PACKAGE_RELEASE: ${{ inputs.package_release || '1' }}
+        run: |
+          set -eu
+          version="${RAW_VERSION#v}"
+          PKG_VERSION="$version" PKG_RELEASE="$PACKAGE_RELEASE" PKG_GOARCH=amd64 make package
+          PKG_VERSION="$version" PKG_RELEASE="$PACKAGE_RELEASE" PKG_GOARCH=arm64 make package
+          PKG_VERSION="$version" PKG_RELEASE="$PACKAGE_RELEASE" PKG_FREEBSD_GOARCH=amd64 make package-freebsd-tgz
+          PKG_VERSION="$version" PKG_RELEASE="$PACKAGE_RELEASE" PKG_FREEBSD_GOARCH=arm64 make package-freebsd-tgz
+
+      - name: Build static package repositories
+        run: scripts/build-package-repos.sh
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/package-site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4

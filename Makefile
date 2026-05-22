@@ -22,7 +22,7 @@ PKG_ENV_NONFPM := PKG_VERSION='$(PKG_VERSION)' \
 PKG_ENV := NFPM='$(NFPM)' \
   $(PKG_ENV_NONFPM)
 
-.PHONY: build build-freebsd check clean-dist coverage fmt help integration-docker lint package package-arch package-deb package-freebsd-tgz package-rpm package-tgz policy switch-emulation switch-payload test validate-config
+.PHONY: build build-freebsd check clean-dist coverage fmt help integration-docker lint package package-arch package-deb package-freebsd-tgz package-repos package-rpm package-tgz policy switch-emulation switch-payload test validate-config
 
 help:
 	@printf '%s\n' \
@@ -37,6 +37,7 @@ help:
 		'  make switch-payload  Print discovery and inform payloads' \
 		'  make switch-emulation  Start the lab switch emulator' \
 		'  make package      Build deb, rpm, archlinux, and tgz packages' \
+		'  make package-repos  Build unsigned alpha package repositories in dist/package-site' \
 		'  make package-freebsd-tgz  Build FreeBSD/OPNsense stub-only tgz' \
 		'  make clean-dist   Remove package build output'
 
@@ -96,6 +97,9 @@ package-tgz:
 
 package-freebsd-tgz:
 	$(PKG_ENV_NONFPM) PKG_GOOS='freebsd' PKG_GOARCH='$(PKG_FREEBSD_GOARCH)' PKG_FORMATS='tgz' sh scripts/package.sh tgz
+
+package-repos:
+	sh scripts/build-package-repos.sh
 
 clean-dist:
 	rm -rf dist

@@ -3,7 +3,7 @@ name: unifi-stubd
 arch: "@PKG_ARCH@"
 platform: linux
 version: "@PKG_VERSION@"
-version_schema: semver
+version_schema: "@PKG_VERSION_SCHEMA@"
 release: "@PKG_RELEASE@"
 section: net
 priority: optional
