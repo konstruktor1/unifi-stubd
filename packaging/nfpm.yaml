@@ -27,11 +27,6 @@ contents:
       owner: root
       group: unifi-stubd
 
-  - src: ./dist/stage/pkgroot/etc/init.d/unifi-stubd
-    dst: /etc/init.d/unifi-stubd
-    file_info:
-      mode: 0755
-
   - src: ./dist/stage/pkgroot/usr/lib/systemd/system/unifi-stubd.service
     dst: /usr/lib/systemd/system/unifi-stubd.service
     packager: rpm
