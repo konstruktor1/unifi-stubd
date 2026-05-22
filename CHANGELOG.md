@@ -9,6 +9,22 @@ semantic version tags once releases are published.
 
 No unreleased changes yet.
 
+## [0.1.2-alpha] - 2026-05-22
+
+### Added
+
+- Expanded source and test comments around daemon orchestration, adoption and
+  inform safety boundaries, UniFi payload mapping, host observation, platform
+  integrations, and release-facing fixtures.
+- Added package-site source attribution and expanded roadmap documentation.
+- Documented FreeBSD and OPNsense tarball availability in user-facing docs.
+
+### Fixed
+
+- Fixed GitHub Actions `govulncheck` execution.
+- Updated CI workflow setup so release checks use the latest stable Go where
+  appropriate while keeping the repository Go version floor explicit.
+
 ## [0.1.1-alpha] - 2026-05-22
 
 ### Added
