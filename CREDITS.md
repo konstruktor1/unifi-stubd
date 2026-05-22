@@ -68,6 +68,7 @@ license decision must be revisited before merging that code.
 | [Go Toolchains](https://go.dev/doc/toolchain) | Go version policy and automatic toolchain behavior considered when keeping repository files unpinned to a patch toolchain |
 | [Go Workspaces](https://go.dev/doc/tutorial/workspaces) | Repository-local `go.work` setup |
 | [Go Modules Reference](https://go.dev/ref/mod) | `tool` directives for tracked build tools |
+| [govulncheck](https://go.dev/doc/tutorial/govulncheck) | Go vulnerability scanning wired into local and CI validation |
 | [nFPM documentation](https://nfpm.goreleaser.com/docs/configuration/) | Debian, RPM, and Arch Linux package generation |
 | [GitHub Actions checkout](https://github.com/actions/checkout), [setup-go](https://github.com/actions/setup-go), [upload-artifact](https://github.com/actions/upload-artifact), [configure-pages](https://github.com/actions/configure-pages), [upload-pages-artifact](https://github.com/actions/upload-pages-artifact), and [deploy-pages](https://github.com/actions/deploy-pages) | CI workflow, package artifact publishing, and GitHub Pages package repository deployment |
 | [GNU Affero General Public License v3](https://www.gnu.org/licenses/agpl-3.0.txt) | Copyleft license text used by the project |
