@@ -3,6 +3,9 @@
 The package builder stages files below `dist/stage/pkgroot/`. Source files that
 represent installed Linux config live under `packaging/linux/`. Source files
 that represent installed FreeBSD/OPNsense config live under `packaging/freebsd/`.
+These packaged configs are neutral defaults. Keep real host-specific configs in
+a private location outside this repository, then copy the selected config to the
+installed service path after package installation.
 
 ## Linux Packaged Files
 
@@ -47,3 +50,8 @@ Lab switch identities live under `lab/`. They are not installed by packages
 automatically; copy one over `/etc/unifi-stubd/config.yaml` when it matches the
 Linux lab you are building, or over
 `/usr/local/etc/unifi-stubd/config.yaml` on FreeBSD.
+
+Real controller URLs, site IP addresses, MAC addresses, client names, adoption
+state paths, and private topology mappings must not be committed. Use sanitized
+examples in `lab/` for shareable documentation and keep live host configs in a
+private deployment directory.

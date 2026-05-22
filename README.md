@@ -339,6 +339,18 @@ PKG_VERSION=0.1.0 PKG_RELEASE=1 PKG_GOARCH=amd64 \
 
 Artifacts are written to `dist/packages/`.
 
+Release packages are intentionally neutral. They install the daemon, service
+files, documentation, and the packaged example config only. Keep real controller
+URLs, host MACs, lab addresses, client names, and adoption paths in a private
+configuration store outside this repository, then copy the host-specific config
+to `/etc/unifi-stubd/config.yaml` on Linux or
+`/usr/local/etc/unifi-stubd/config.yaml` on FreeBSD/OPNsense after installing
+the package.
+
+Installing a package does not create VLANs, change firewall or routing rules,
+alter controller network definitions, or mutate host networking. Any lab
+topology mapping must be expressed explicitly in the local host config.
+
 ## Development
 
 The repository keeps the Go requirement as a minor-version floor:

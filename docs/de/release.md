@@ -2,24 +2,33 @@
 
 Nutze diese Checkliste vor einem veroeffentlichten Tag oder Paket-Set.
 
+Release-Artefakte sind bewusst neutral. Sie duerfen keine echten
+Controller-URLs, Site-IP-Adressen, MAC-Adressen, Clientnamen, Credentials,
+Adoption-State-Dateien oder host-spezifische Interface-Mappings enthalten.
+Solche Dateien gehoeren in eine private Konfigurationsablage ausserhalb dieses
+Repositories und werden nach der Paketinstallation auf den jeweiligen Host
+kopiert.
+
 ## Vor dem Tag
 
 1. `make check` ausfuehren.
 2. `make package` ausfuehren.
-3. `dist/packages/` auf Debian-, RPM-, Arch-Linux- und `.tar.gz`-Ausgaben pruefen.
-4. Nach Dependency- oder Tool-Updates `go.mod`, `go.work` und `go.sum` pruefen.
-5. Private Lab-Daten suchen:
+3. Cross-Architektur-Ziele fuer Releases bauen, z.B. `PKG_GOARCH=arm64 make
+   package` und `PKG_FREEBSD_GOARCH=amd64 make package-freebsd-tgz`.
+4. `dist/packages/` auf Debian-, RPM-, Arch-Linux- und `.tar.gz`-Ausgaben pruefen.
+5. Nach Dependency- oder Tool-Updates `go.mod`, `go.work` und `go.sum` pruefen.
+6. Private Lab-Daten suchen:
 
    ```sh
    sh scripts/check-policy.sh
    ```
 
-6. `CHANGELOG.md` aktualisieren.
-7. `CREDITS.md` und `NOTICE.md` aktualisieren, wenn neue Quellen, kopierter
+7. `CHANGELOG.md` aktualisieren.
+8. `CREDITS.md` und `NOTICE.md` aktualisieren, wenn neue Quellen, kopierter
    Code, Pakete oder Tools hinzukommen.
-8. Pruefen, dass `packaging/linux/etc/unifi-stubd/config.yaml` und `lab/` nur
+9. Pruefen, dass `packaging/linux/etc/unifi-stubd/config.yaml` und `lab/` nur
    Dokumentationsadressen oder neutrale Defaults enthalten.
-9. Fuer oeffentliche Releases Pakete oder Checksums mit dem Projekt-Release-Key
+10. Fuer oeffentliche Releases Pakete oder Checksums mit dem Projekt-Release-Key
    signieren, sobald dieser existiert; stabile Releases nicht als unsignierte
    Artefakte veroeffentlichen.
 
@@ -34,6 +43,15 @@ git push origin v0.1.0
 
 Der GitHub-Actions-CI-Workflow baut Pakete fuer `amd64` und `arm64`.
 
+Alpha-Paketsets als Pre-Release veroeffentlichen:
+
+```sh
+gh release create v0.1.1-alpha --prerelease \
+  --title "unifi-stubd v0.1.1-alpha" \
+  --notes-file dist/releases/v0.1.1-alpha/release-notes.md \
+  dist/releases/v0.1.1-alpha/*
+```
+
 ## Paket-Metadaten
 
 Der Default-Maintainer fuer Pakete ist `unifi-stubd maintainers <info@spinas.org>`.
@@ -42,3 +60,23 @@ Maintainer-Metadaten fuer oeffentliche Paket-Builds ueberschreiben:
 ```sh
 PKG_MAINTAINER='Name <email@example.com>' PKG_GOARCH=amd64 make package
 ```
+
+## Host-Konfigurationen
+
+Echte Host-Konfigurationen nicht in diesem Repository ablegen. Nutze dafuer ein
+privates Verzeichnis oder ein privates Deployment-Repository. Eine sinnvolle
+lokale Struktur ist:
+
+```text
+unifi-stubd-host-configs/
+  hosts/<host>/current-tmp.yaml
+  hosts/<host>/installed-config.yaml
+  hosts/<host>/process.txt
+  hosts/<host>/status-before.json
+  hosts/<host>/status-after.json
+```
+
+`current-tmp.yaml` dokumentiert die temporaere Laufzeitkonfiguration.
+`installed-config.yaml` ist die paketfertige Konfiguration fuer den installierten
+Servicepfad. Das Paket selbst bleibt neutral und aendert keine VLANs,
+Firewall-Regeln, Routen oder Controller-Netzwerkdefinitionen.

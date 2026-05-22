@@ -2,24 +2,32 @@
 
 Use this checklist before publishing a tag or package set.
 
+Release artifacts are neutral by design. They must not include real controller
+URLs, site IP addresses, MAC addresses, client names, credentials, adoption
+state, or host-specific interface mappings. Keep those files in a private
+configuration store outside the repository and copy the selected host config
+onto the installed system after the package is installed.
+
 ## Before Tagging
 
 1. Run `make check`.
 2. Run `make package`.
-3. Inspect `dist/packages/` for Debian, RPM, Arch Linux, and `.tar.gz` output.
-4. Confirm `go.mod`, `go.work`, and `go.sum` are tidy after dependency or tool updates.
-5. Search for private lab data:
+3. Build any cross-architecture release targets, such as `PKG_GOARCH=arm64
+   make package` and `PKG_FREEBSD_GOARCH=amd64 make package-freebsd-tgz`.
+4. Inspect `dist/packages/` for Debian, RPM, Arch Linux, and `.tar.gz` output.
+5. Confirm `go.mod`, `go.work`, and `go.sum` are tidy after dependency or tool updates.
+6. Search for private lab data:
 
    ```sh
    sh scripts/check-policy.sh
    ```
 
-6. Update `CHANGELOG.md`.
-7. Update `CREDITS.md` and `NOTICE.md` if new sources, copied code, packages,
+7. Update `CHANGELOG.md`.
+8. Update `CREDITS.md` and `NOTICE.md` if new sources, copied code, packages,
    or tools were added.
-8. Confirm `packaging/linux/etc/unifi-stubd/config.yaml` and `lab/` contain
+9. Confirm `packaging/linux/etc/unifi-stubd/config.yaml` and `lab/` contain
    documentation addresses or neutral defaults only.
-9. For public releases, sign packages or checksums with the project release key
+10. For public releases, sign packages or checksums with the project release key
    once that key exists; do not publish unsigned artifacts as stable releases.
 
 ## Tagging
@@ -33,6 +41,15 @@ git push origin v0.1.0
 
 The GitHub Actions CI workflow builds packages for `amd64` and `arm64`.
 
+Create a pre-release for alpha package sets:
+
+```sh
+gh release create v0.1.1-alpha --prerelease \
+  --title "unifi-stubd v0.1.1-alpha" \
+  --notes-file dist/releases/v0.1.1-alpha/release-notes.md \
+  dist/releases/v0.1.1-alpha/*
+```
+
 ## Package Metadata
 
 The default package maintainer is `unifi-stubd maintainers <info@spinas.org>`.
@@ -41,3 +58,22 @@ Override maintainer metadata for public package builds:
 ```sh
 PKG_MAINTAINER='Name <email@example.com>' PKG_GOARCH=amd64 make package
 ```
+
+## Host Configurations
+
+Do not place real host configs in this repository. Store them in a private
+directory or private deployment repository. A useful local layout is:
+
+```text
+unifi-stubd-host-configs/
+  hosts/<host>/current-tmp.yaml
+  hosts/<host>/installed-config.yaml
+  hosts/<host>/process.txt
+  hosts/<host>/status-before.json
+  hosts/<host>/status-after.json
+```
+
+`current-tmp.yaml` records the temporary runtime config. `installed-config.yaml`
+is the package-ready config copied to the installed service path. The package
+itself remains neutral and does not change VLANs, firewall rules, routes, or
+controller network definitions.

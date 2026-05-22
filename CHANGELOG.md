@@ -9,6 +9,24 @@ semantic version tags once releases are published.
 
 No unreleased changes yet.
 
+## [0.1.1-alpha] - 2026-05-22
+
+### Added
+
+- Read-only traffic-rate reporting from mapped interfaces for lab UI activity.
+- Gateway WAN/LAN port reporting for UXG-shaped lab stubs.
+- Sanitized SFP+ lab examples for Proxmox/Linux bridge and OPNsense-style
+  gateway topologies.
+- Release documentation for neutral package artifacts and external private
+  host configuration storage.
+
+### Fixed
+
+- Regenerated nFPM metadata per package build so cross-architecture release
+  packages use the requested target architecture.
+- Avoided a gateway `internet` payload shape that could make UniFi Network mark
+  an adopted lab gateway as failed during inform processing.
+
 ## [0.1.0-alpha] - 2026-05-20
 
 ### Added

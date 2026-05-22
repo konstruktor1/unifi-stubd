@@ -143,9 +143,7 @@ build_nfpm() {
     printf 'format %s is linux-only; use tgz for freebsd packages\n' "$format" >&2
     exit 1
   fi
-  if [ ! -f "$NFPM_CONFIG" ]; then
-    write_nfpm_config
-  fi
+  write_nfpm_config
   printf '== package %s ==\n' "$format"
   $NFPM_CMD package -f "$NFPM_CONFIG" -p "$format" -t "$PACKAGE_DIR"
 }
