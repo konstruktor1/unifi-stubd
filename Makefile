@@ -1,6 +1,7 @@
 GO ?= go
 GOLANGCI_LINT ?= $(GO) tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint
 NFPM ?= $(GO) tool github.com/goreleaser/nfpm/v2/cmd/nfpm
+GOVULNCHECK ?= $(GO) tool golang.org/x/vuln/cmd/govulncheck
 PKG_VERSION ?= 0.1.0
 PKG_RELEASE ?= 1
 PKG_GOOS ?= linux
@@ -22,7 +23,7 @@ PKG_ENV_NONFPM := PKG_VERSION='$(PKG_VERSION)' \
 PKG_ENV := NFPM='$(NFPM)' \
   $(PKG_ENV_NONFPM)
 
-.PHONY: build build-freebsd check clean-dist coverage fmt help integration-docker lint package package-arch package-deb package-freebsd-tgz package-repos package-rpm package-tgz policy switch-emulation switch-payload test validate-config
+.PHONY: build build-freebsd check clean-dist coverage fmt help integration-docker lint package package-arch package-deb package-freebsd-tgz package-repos package-rpm package-tgz policy switch-emulation switch-payload test validate-config vulncheck
 
 help:
 	@printf '%s\n' \
@@ -33,6 +34,7 @@ help:
 		'  make lint         Run golangci-lint and repository policy checks' \
 		'  make test         Run all Go tests' \
 		'  make validate-config  Validate packaged configs and example profiles' \
+		'  make vulncheck    Run Go vulnerability scanning' \
 		'  make integration-docker  Run Docker bridge-observe and port-map lab tests' \
 		'  make switch-payload  Print discovery and inform payloads' \
 		'  make switch-emulation  Start the lab switch emulator' \
@@ -60,6 +62,9 @@ policy:
 
 test:
 	$(GO) test ./...
+
+vulncheck:
+	$(GOVULNCHECK) ./...
 
 validate-config:
 	$(GO) run ./cmd/unifi-stubd -validate -config packaging/linux/etc/unifi-stubd/config.yaml
