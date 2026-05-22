@@ -30,7 +30,9 @@ unit. The unit grants `CAP_NET_BIND_SERVICE` so the lab SSH shim can bind port
 ## FreeBSD/OPNsense Packaged Files
 
 The FreeBSD package path is currently stub-only and is built as a `.tar.gz`
-artifact with `make package-freebsd-tgz`.
+artifact with `make package-freebsd-tgz`. Release builds publish both
+`freebsd_amd64` and `freebsd_arm64` tarballs as GitHub Release assets and under
+the GitHub Pages paths `/freebsd/amd64/` and `/freebsd/arm64/`.
 
 | FreeBSD path | Repository source | Notes |
 | --- | --- | --- |

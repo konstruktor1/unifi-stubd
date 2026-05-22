@@ -69,11 +69,13 @@ make package-repos
 ```
 
 `make package-repos` writes `dist/package-site/` with APT, RPM, Arch Linux, and
-FreeBSD/OPNsense tarball paths. The generator requires `dpkg-scanpackages`,
-`createrepo_c`, and `repo-add`; the GitHub Pages workflow installs those tools
-on Ubuntu before publishing. Keep alpha repository instructions visibly
-unsigned (`trusted=yes`, `gpgcheck=0`, `SigLevel = Never`) until a project
-release key exists.
+FreeBSD/OPNsense tarball paths. The FreeBSD paths include generated index pages
+for `freebsd/amd64/` and `freebsd/arm64/`, direct tarball links, and install
+commands. The generator requires `dpkg-scanpackages`, `createrepo_c`, and
+`repo-add`; the GitHub Pages workflow installs those tools on Ubuntu before
+publishing. Keep alpha repository instructions visibly unsigned
+(`trusted=yes`, `gpgcheck=0`, `SigLevel = Never`) until a project release key
+exists.
 
 The generated project page also links to the source repository, releases, wiki,
 `CREDITS.md`, and a short research/source-project map. Keep that map as a

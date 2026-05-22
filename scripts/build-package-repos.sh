@@ -128,6 +128,11 @@ write_index() {
     <h2>Arch Linux</h2>
     <pre>Server = https://konstruktor1.github.io/unifi-stubd/arch/\$arch</pre>
     <h2>FreeBSD and OPNsense</h2>
+    <p>
+      FreeBSD and OPNsense artifacts are tarballs for now, not native
+      FreeBSD <code>pkg</code> repositories. Both amd64 and arm64 tarballs are
+      published with rc.d service files and neutral defaults.
+    </p>
     <ul>
       <li><a href="freebsd/amd64/">FreeBSD amd64 tarballs</a></li>
       <li><a href="freebsd/arm64/">FreeBSD arm64 tarballs</a></li>
@@ -183,6 +188,78 @@ write_index() {
       See the full attribution matrix in
       <a href="https://github.com/konstruktor1/unifi-stubd/blob/main/CREDITS.md">CREDITS.md</a>.
     </p>
+  </main>
+</body>
+</html>
+EOF
+}
+
+write_freebsd_index() {
+  freebsd_dir="$SITE_DIR/freebsd"
+  mkdir -p "$freebsd_dir"
+  cat >"$freebsd_dir/index.html" <<EOF
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>unifi-stubd FreeBSD and OPNsense tarballs</title>
+</head>
+<body>
+  <main>
+    <h1>unifi-stubd FreeBSD and OPNsense tarballs</h1>
+    <p>
+      FreeBSD and OPNsense builds are currently published as tarballs, not as a
+      native FreeBSD <code>pkg</code> repository. Use these artifacts only for
+      isolated lab or management networks.
+    </p>
+    <ul>
+      <li><a href="amd64/">FreeBSD amd64 tarballs</a></li>
+      <li><a href="arm64/">FreeBSD arm64 tarballs</a></li>
+    </ul>
+    <p><a href="../checksums.txt">checksums.txt</a></p>
+    <p><a href="../">Back to package repositories</a></p>
+  </main>
+</body>
+</html>
+EOF
+}
+
+write_freebsd_arch_index() {
+  arch="$1"
+  arch_dir="$SITE_DIR/freebsd/$arch"
+  artifact="$(basename "$(find_artifact "$arch_dir"/unifi-stubd_*_freebsd_"$arch".tar.gz)")"
+  cat >"$arch_dir/index.html" <<EOF
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>unifi-stubd FreeBSD ${arch} tarball</title>
+</head>
+<body>
+  <main>
+    <h1>unifi-stubd FreeBSD ${arch} tarball</h1>
+    <p>
+      This is a tarball artifact for FreeBSD and OPNsense. It is not a native
+      FreeBSD <code>pkg</code> package yet.
+    </p>
+    <ul>
+      <li><a href="${artifact}">${artifact}</a></li>
+      <li><a href="../../checksums.txt">checksums.txt</a></li>
+    </ul>
+    <h2>Fetch and Inspect</h2>
+    <pre>fetch https://konstruktor1.github.io/unifi-stubd/freebsd/${arch}/${artifact}
+fetch https://konstruktor1.github.io/unifi-stubd/checksums.txt
+grep 'freebsd/${arch}/${artifact}' checksums.txt
+sha256 ${artifact}
+tar -tzf ${artifact}</pre>
+    <h2>Extract</h2>
+    <pre>sudo tar -xzf ${artifact} -C /
+sudo vi /usr/local/etc/unifi-stubd/config.yaml
+sudo sysrc unifi_stubd_enable=YES
+sudo service unifi-stubd start</pre>
+    <p><a href="../">Back to FreeBSD and OPNsense tarballs</a></p>
   </main>
 </body>
 </html>
@@ -251,6 +328,9 @@ build_arch_repo() {
 copy_freebsd_tarballs() {
   copy_artifact "$(find_artifact "$PACKAGE_DIR"/unifi-stubd_*_freebsd_amd64.tar.gz)" "$SITE_DIR/freebsd/amd64"
   copy_artifact "$(find_artifact "$PACKAGE_DIR"/unifi-stubd_*_freebsd_arm64.tar.gz)" "$SITE_DIR/freebsd/arm64"
+  write_freebsd_index
+  write_freebsd_arch_index amd64
+  write_freebsd_arch_index arm64
 }
 
 if [ ! -d "$PACKAGE_DIR" ]; then

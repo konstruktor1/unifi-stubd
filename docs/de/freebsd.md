@@ -63,12 +63,41 @@ und enthaelt dieses Layout:
 /var/log/unifi-stubd.log
 ```
 
+## Veroeffentlichte Tarballs installieren
+
+Veroeffentlichte Alpha-Tarballs liegen in GitHub Releases und auf der
+GitHub-Pages-Paketeseite. Die Pages-Seite bietet stabile URLs fuer
+Paketmanager-Doku und direkte FreeBSD-/OPNsense-Downloads:
+
+```text
+https://konstruktor1.github.io/unifi-stubd/freebsd/amd64/
+https://konstruktor1.github.io/unifi-stubd/freebsd/arm64/
+```
+
+Tarball fuer die Host-Architektur laden. `amd64` passt fuer typische
+OPNsense-/x86_64-Installationen, `arm64` fuer ARM-FreeBSD-Hosts:
+
+```sh
+ARCH=amd64 # oder arm64
+fetch https://konstruktor1.github.io/unifi-stubd/freebsd/${ARCH}/unifi-stubd_0.1.1-alpha-1_freebsd_${ARCH}.tar.gz
+fetch https://konstruktor1.github.io/unifi-stubd/checksums.txt
+grep "freebsd/${ARCH}/unifi-stubd_0.1.1-alpha-1_freebsd_${ARCH}.tar.gz" checksums.txt
+sha256 unifi-stubd_0.1.1-alpha-1_freebsd_${ARCH}.tar.gz
+tar -tzf unifi-stubd_0.1.1-alpha-1_freebsd_${ARCH}.tar.gz
+```
+
+Die `sha256`-Ausgabe muss zum Eintrag in `checksums.txt` passen. Der Tarball
+enthaelt nur neutrale Defaults. Nach dem Entpacken und vor dem Aktivieren des
+Diensts `/usr/local/etc/unifi-stubd/config.yaml` pruefen oder ersetzen.
+
 ## Service
 
 Tarball auf dem FreeBSD-/OPNsense-Host installieren oder entpacken, dann den
 Dienst ueber rc.conf oder OPNsense-Tunables aktivieren:
 
 ```sh
+sudo tar -xzf unifi-stubd_0.1.1-alpha-1_freebsd_${ARCH}.tar.gz -C /
+sudo vi /usr/local/etc/unifi-stubd/config.yaml
 sysrc unifi_stubd_enable=YES
 service unifi-stubd start
 ```

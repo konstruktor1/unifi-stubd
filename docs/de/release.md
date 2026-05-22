@@ -72,7 +72,9 @@ make package-repos
 ```
 
 `make package-repos` schreibt `dist/package-site/` mit APT-, RPM-,
-Arch-Linux- und FreeBSD-/OPNsense-Tarball-Pfaden. Der Generator benoetigt
+Arch-Linux- und FreeBSD-/OPNsense-Tarball-Pfaden. Die FreeBSD-Pfade enthalten
+generierte Indexseiten fuer `freebsd/amd64/` und `freebsd/arm64/`, direkte
+Tarball-Links und Installationskommandos. Der Generator benoetigt
 `dpkg-scanpackages`, `createrepo_c` und `repo-add`; der GitHub-Pages-Workflow
 installiert diese Tools auf Ubuntu vor dem Publish. Alpha-Anleitungen bleiben
 sichtbar unsigniert (`trusted=yes`, `gpgcheck=0`, `SigLevel = Never`), bis ein
