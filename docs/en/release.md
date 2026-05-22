@@ -39,7 +39,9 @@ git tag -a v0.1.0 -m "unifi-stubd v0.1.0"
 git push origin v0.1.0
 ```
 
-The GitHub Actions CI workflow builds packages for `amd64` and `arm64`.
+The normal CI workflow validates the tagged commit. The Package Repositories
+workflow also runs for `v*` tags and GitHub pre-releases, so the `github-pages`
+environment must allow deployments from `main` and `v*` tags.
 
 Create a pre-release for alpha package sets:
 
@@ -66,6 +68,16 @@ PKG_VERSION=0.1.1-alpha PKG_RELEASE=1 PKG_GOARCH=arm64 make package
 PKG_VERSION=0.1.1-alpha PKG_RELEASE=1 PKG_FREEBSD_GOARCH=amd64 make package-freebsd-tgz
 PKG_VERSION=0.1.1-alpha PKG_RELEASE=1 PKG_FREEBSD_GOARCH=arm64 make package-freebsd-tgz
 make package-repos
+```
+
+The Package Repositories workflow publishes the package repository through
+GitHub Pages when a `v*` tag or pre-release is published. To retry or rebuild
+the package repository manually, run the workflow from `main`:
+
+```sh
+gh workflow run package-pages.yml --ref main \
+  -f version=0.1.1-alpha \
+  -f package_release=1
 ```
 
 `make package-repos` writes `dist/package-site/` with APT, RPM, Arch Linux, and

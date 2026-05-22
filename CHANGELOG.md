@@ -7,7 +7,10 @@ semantic version tags once releases are published.
 
 ## [Unreleased]
 
-No unreleased changes yet.
+### Fixed
+
+- Documented the required `github-pages` environment policy for automatic
+  package-repository deployments from `v*` release tags.
 
 ## [0.1.2-alpha] - 2026-05-22
 

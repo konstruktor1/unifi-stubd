@@ -41,7 +41,9 @@ git tag -a v0.1.0 -m "unifi-stubd v0.1.0"
 git push origin v0.1.0
 ```
 
-Der GitHub-Actions-CI-Workflow baut Pakete fuer `amd64` und `arm64`.
+Der normale CI-Workflow prueft den getaggten Commit. Der Package-Repositories-
+Workflow laeuft auch fuer `v*`-Tags und GitHub-Pre-Releases, deshalb muss das
+`github-pages`-Environment Deployments von `main` und `v*`-Tags erlauben.
 
 Alpha-Paketsets als Pre-Release veroeffentlichen:
 
@@ -69,6 +71,16 @@ PKG_VERSION=0.1.1-alpha PKG_RELEASE=1 PKG_GOARCH=arm64 make package
 PKG_VERSION=0.1.1-alpha PKG_RELEASE=1 PKG_FREEBSD_GOARCH=amd64 make package-freebsd-tgz
 PKG_VERSION=0.1.1-alpha PKG_RELEASE=1 PKG_FREEBSD_GOARCH=arm64 make package-freebsd-tgz
 make package-repos
+```
+
+Der Package-Repositories-Workflow veroeffentlicht die Paketquelle ueber GitHub
+Pages, wenn ein `v*`-Tag oder Pre-Release veroeffentlicht wird. Fuer einen
+manuellen Rebuild oder Retry den Workflow von `main` aus starten:
+
+```sh
+gh workflow run package-pages.yml --ref main \
+  -f version=0.1.1-alpha \
+  -f package_release=1
 ```
 
 `make package-repos` schreibt `dist/package-site/` mit APT-, RPM-,
