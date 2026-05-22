@@ -24,6 +24,8 @@ No unreleased changes yet.
 
 - Regenerated nFPM metadata per package build so cross-architecture release
   packages use the requested target architecture.
+- Updated `golang.org/x/crypto` to the SSH vulnerability fix release required
+  by `govulncheck`.
 - Avoided a gateway `internet` payload shape that could make UniFi Network mark
   an adopted lab gateway as failed during inform processing.
 
