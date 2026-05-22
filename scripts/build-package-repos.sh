@@ -108,9 +108,19 @@ write_index() {
   <main>
     <h1>unifi-stubd alpha package repositories</h1>
     <p>
-      This site hosts unsigned alpha package repositories for unifi-stubd.
-      Use only in isolated lab or management networks.
+      This site hosts unsigned alpha package repositories for
+      <a href="https://github.com/konstruktor1/unifi-stubd">unifi-stubd</a>,
+      a lab-only UniFi Network device stub for Proxmox, Linux bridges, and
+      FreeBSD/OPNsense. Use only in isolated lab or management networks.
     </p>
+    <h2>Project Links</h2>
+    <ul>
+      <li><a href="https://github.com/konstruktor1/unifi-stubd">Source repository</a></li>
+      <li><a href="https://github.com/konstruktor1/unifi-stubd/releases">GitHub releases</a></li>
+      <li><a href="https://github.com/konstruktor1/unifi-stubd/wiki">GitHub wiki</a></li>
+      <li><a href="https://github.com/konstruktor1/unifi-stubd/blob/main/CREDITS.md">Credits and research sources</a></li>
+      <li><a href="https://github.com/konstruktor1/unifi-stubd/blob/main/NOTICE.md">Notice and trademark notes</a></li>
+    </ul>
     <h2>APT</h2>
     <pre>deb [trusted=yes arch=amd64] https://konstruktor1.github.io/unifi-stubd/apt ${CHANNEL} main</pre>
     <h2>RPM</h2>
@@ -124,6 +134,55 @@ write_index() {
     </ul>
     <h2>Checksums</h2>
     <p><a href="checksums.txt">checksums.txt</a></p>
+    <h2>Research and Attribution</h2>
+    <p>
+      The implementation is original project code. Public documentation and
+      reverse-engineering projects were used as protocol references, historical
+      context, and cross-checks; no source code from unlicensed research
+      repositories is copied into unifi-stubd.
+    </p>
+    <table>
+      <thead>
+        <tr>
+          <th>Project or source</th>
+          <th>How it informed unifi-stubd</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><a href="https://help.ui.com/hc/en-us/articles/218506997-UniFi-Network-Required-Ports-Reference">Ubiquiti required ports</a> and <a href="https://help.ui.com/hc/en-us/articles/204909754-Remote-Adoption-Layer-3">remote adoption docs</a></td>
+          <td>Official discovery, inform, adoption, and service-port framing.</td>
+        </tr>
+        <tr>
+          <td><a href="https://techspecs.ui.com/">Ubiquiti tech specs and datasheets</a></td>
+          <td>Controller-visible device model and port-layout sanity checks.</td>
+        </tr>
+        <tr>
+          <td><a href="https://jrjparks.github.io/unofficial-unifi-guide/">The unofficial guide to UniFi</a></td>
+          <td>Discovery, inform, adoption, encryption, and compression reference notes.</td>
+        </tr>
+        <tr>
+          <td><a href="https://github.com/jeffreykog/unifi-inform-protocol">jeffreykog/unifi-inform-protocol</a> and <a href="https://github.com/fxkr/unifi-protocol-reverse-engineering">fxkr/unifi-protocol-reverse-engineering</a></td>
+          <td>Independent UniFi discovery and inform protocol cross-checks.</td>
+        </tr>
+        <tr>
+          <td><a href="https://github.com/mcrute/ubntmfi/blob/master/inform_protocol.md">mcrute inform protocol notes</a>, <a href="https://github.com/jda/pixiedust">jda/pixiedust</a>, <a href="https://github.com/ZAP-Quebec/unifi-inform">ZAP-Quebec/unifi-inform</a>, and <a href="https://github.com/dmke/inform-inspect">dmke/inform-inspect</a></td>
+          <td>Packet framing, adoption-state, parser, and lab-comparison references.</td>
+        </tr>
+        <tr>
+          <td><a href="https://github.com/wvengen/unifi-controllable-switch">wvengen/unifi-controllable-switch</a> and <a href="https://github.com/stephanlascar/unifi-gateway">stephanlascar/unifi-gateway</a></td>
+          <td>Historical fake switch and gateway-emulation project context.</td>
+        </tr>
+        <tr>
+          <td><a href="https://github.com/openwrt/openwrt/tree/main/package/network/config/swconfig">OpenWrt swconfig</a>, <a href="https://docs.docker.com/engine/network/drivers/macvlan/">Docker macvlan docs</a>, and <a href="https://kernel.org/doc/html/next/networking/bridge.html">Linux bridge docs</a></td>
+          <td>Lab simulation, bridge observation, and future network-mode planning references.</td>
+        </tr>
+      </tbody>
+    </table>
+    <p>
+      See the full attribution matrix in
+      <a href="https://github.com/konstruktor1/unifi-stubd/blob/main/CREDITS.md">CREDITS.md</a>.
+    </p>
   </main>
 </body>
 </html>

@@ -75,6 +75,10 @@ on Ubuntu before publishing. Keep alpha repository instructions visibly
 unsigned (`trusted=yes`, `gpgcheck=0`, `SigLevel = Never`) until a project
 release key exists.
 
+The generated project page also links to the source repository, releases, wiki,
+`CREDITS.md`, and a short research/source-project map. Keep that map as a
+summary only; the authoritative attribution matrix stays in `CREDITS.md`.
+
 ## Package Metadata
 
 The default package maintainer is `unifi-stubd maintainers <info@spinas.org>`.

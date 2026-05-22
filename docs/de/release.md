@@ -78,6 +78,11 @@ installiert diese Tools auf Ubuntu vor dem Publish. Alpha-Anleitungen bleiben
 sichtbar unsigniert (`trusted=yes`, `gpgcheck=0`, `SigLevel = Never`), bis ein
 Projekt-Release-Key existiert.
 
+Die generierte Projektseite verlinkt ausserdem auf Source-Repository, Releases,
+Wiki, `CREDITS.md` und eine kurze Karte der genutzten Research-/Quellprojekte.
+Diese Karte bleibt nur eine Zusammenfassung; die verbindliche Attribution steht
+weiterhin in `CREDITS.md`.
+
 ## Paket-Metadaten
 
 Der Default-Maintainer fuer Pakete ist `unifi-stubd maintainers <info@spinas.org>`.
