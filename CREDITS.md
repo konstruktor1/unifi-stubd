@@ -69,7 +69,7 @@ license decision must be revisited before merging that code.
 | [Go Workspaces](https://go.dev/doc/tutorial/workspaces) | Repository-local `go.work` setup |
 | [Go Modules Reference](https://go.dev/ref/mod) | `tool` directives for tracked build tools |
 | [nFPM documentation](https://nfpm.goreleaser.com/docs/configuration/) | Debian, RPM, and Arch Linux package generation |
-| [GitHub Actions checkout](https://github.com/actions/checkout), [setup-go](https://github.com/actions/setup-go), and [upload-artifact](https://github.com/actions/upload-artifact) | CI workflow and package artifact publishing |
+| [GitHub Actions checkout](https://github.com/actions/checkout), [setup-go](https://github.com/actions/setup-go), [upload-artifact](https://github.com/actions/upload-artifact), [configure-pages](https://github.com/actions/configure-pages), [upload-pages-artifact](https://github.com/actions/upload-pages-artifact), and [deploy-pages](https://github.com/actions/deploy-pages) | CI workflow, package artifact publishing, and GitHub Pages package repository deployment |
 | [GNU Affero General Public License v3](https://www.gnu.org/licenses/agpl-3.0.txt) | Copyleft license text used by the project |
 | [SPDX AGPL-3.0-or-later](https://spdx.org/licenses/AGPL-3.0-or-later.html) | Package and documentation license identifier |
 
