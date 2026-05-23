@@ -1,10 +1,10 @@
 module github.com/konstruktor1/unifi-stubd
 
-go 1.25
+go 1.25.0
 
 require (
 	github.com/godbus/dbus/v5 v5.2.2
-	github.com/prometheus/procfs v0.7.3
+	github.com/prometheus/procfs v0.20.1
 	golang.org/x/crypto v0.52.0
 	gopkg.in/yaml.v3 v3.0.1
 )
