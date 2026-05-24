@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/konstruktor1/unifi-stubd/internal/device"
-	"github.com/konstruktor1/unifi-stubd/internal/device/profiledata"
 )
 
 // loadProfileRegistry layers optional external profile paths on top of the
@@ -71,10 +70,10 @@ func printProfileExport(registry device.ProfileRegistry, name string) error {
 // profileErrorExitCode distinguishes malformed profile files from semantic
 // validation failures for CLI automation.
 func profileErrorExitCode(err error) int {
-	var pathErr *profiledata.PathError
+	var pathErr *device.ProfilePathError
 	if errors.As(err, &pathErr) {
 		switch pathErr.Kind {
-		case profiledata.ErrorKindIO, profiledata.ErrorKindParse:
+		case device.ErrorKindIO, device.ErrorKindParse:
 			return 2
 		default:
 			return 1

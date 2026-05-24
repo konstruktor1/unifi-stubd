@@ -1,30 +1,126 @@
-// Package device provides the public facade over built-in and external profile
-// data. CLI and payload code use this API instead of importing the
-// loader/registry implementation directly.
+// Package device combines built-in and external profile records and
+// enforces duplicate and override rules before profiles reach CLI validation or
+// payload rendering.
 package device
 
 import (
 	"fmt"
+	"sort"
+	"strings"
 
-	"github.com/konstruktor1/unifi-stubd/internal/device/profiledata"
+	"gopkg.in/yaml.v3"
 )
 
-// ProfileRegistry contains built-in and caller-loaded device profiles.
+// defaultDeviceType keeps legacy profiles switch-shaped when device_type is
+// omitted.
+const defaultDeviceType = "usw"
+
+// Registry metadata constants separate user-facing error classes from internal
+// source labels.
+const (
+	// ErrorKindIO marks filesystem access errors.
+	ErrorKindIO = "io"
+	// ErrorKindParse marks YAML decoding errors.
+	ErrorKindParse = "parse"
+	// ErrorKindValidation marks semantic profile validation errors.
+	ErrorKindValidation = "validation"
+	sourceTypeBuiltIn   = "built-in"
+	sourceTypeExternal  = "external"
+	stabilityExternal   = "external"
+)
+
+// ProfilePathError wraps a profile path error with a broad error class for CLI exit codes.
+type ProfilePathError struct {
+	// Path is the profile file or directory path.
+	Path string
+	// Kind is one of ErrorKindIO, ErrorKindParse, or ErrorKindValidation.
+	Kind string
+	// Err is the underlying error.
+	Err error
+}
+
+// Error includes the profile path when one is available for CLI diagnostics.
+func (e *ProfilePathError) Error() string {
+	if e.Path == "" {
+		return e.Err.Error()
+	}
+	return fmt.Sprintf("%s: %v", e.Path, e.Err)
+}
+
+// Unwrap exposes the underlying profile loading error.
+func (e *ProfilePathError) Unwrap() error {
+	return e.Err
+}
+
+// record stores one registered profile plus the YAML document used for external
+// inheritance.
+type record struct {
+	source   string
+	builtin  bool
+	order    int
+	profile  Profile
+	document *yaml.Node
+}
+
+// ProfileRegistry contains built-in and caller-loaded profile records.
 type ProfileRegistry struct {
-	data profiledata.Registry
+	records []record
 }
 
 // NewProfileRegistry returns a registry initialized with built-in profiles.
 func NewProfileRegistry() ProfileRegistry {
-	return ProfileRegistry{data: profiledata.BuiltinRegistry()}
+	return BuiltinRegistry()
+}
+
+// BuiltinRegistry returns a new registry initialized with built-in profiles.
+func BuiltinRegistry() ProfileRegistry {
+	return ProfileRegistry{records: cloneRecords(builtinProfileRecords())}
 }
 
 // LoadProfilePath loads one external profile file or profile directory.
 func (r *ProfileRegistry) LoadProfilePath(path string) error {
-	if err := r.data.LoadPath(path); err != nil {
-		return fmt.Errorf("load profile path: %w", err)
+	return r.LoadPath(path)
+}
+
+// Register adds one profile to r.
+func (r *ProfileRegistry) register(source string, order int, profile Profile, document *yaml.Node, builtin bool) error {
+	return registerRecord(&r.records, source, order, profile, document, builtin)
+}
+
+// registerRecord enforces profile-name and model uniqueness while allowing an
+// explicitly marked external profile to replace a built-in record.
+func registerRecord(records *[]record, source string, order int, profile Profile, document *yaml.Node, builtin bool) error {
+	for index, record := range *records {
+		nameDuplicate := record.profile.Name == profile.Name
+		modelDuplicate := strings.EqualFold(record.profile.Model, profile.Model)
+		if !nameDuplicate && !modelDuplicate {
+			continue
+		}
+		if profile.AllowBuiltinOverride && record.builtin {
+			(*records)[index] = recordEntry(source, order, profile, document, builtin)
+			return nil
+		}
+		switch {
+		case nameDuplicate:
+			return fmt.Errorf("duplicate profile name %q in %s and %s", profile.Name, record.source, source)
+		default:
+			return fmt.Errorf("duplicate profile model %q in %s and %s", profile.Model, record.source, source)
+		}
 	}
+	*records = append(*records, recordEntry(source, order, profile, document, builtin))
 	return nil
+}
+
+// recordEntry stores detached profile and YAML-node copies so later caller
+// changes cannot mutate registered profile data.
+func recordEntry(source string, order int, profile Profile, document *yaml.Node, builtin bool) record {
+	return record{
+		source:   source,
+		builtin:  builtin,
+		order:    order,
+		profile:  cloneProfile(profile),
+		document: cloneYAMLNode(document),
+	}
 }
 
 // Profiles returns a copy of the built-in device profiles.
@@ -32,9 +128,20 @@ func Profiles() []Profile {
 	return NewProfileRegistry().Profiles()
 }
 
-// Profiles returns a copy of the registry profiles.
+// Profiles returns a copy of all profiles in r.
 func (r ProfileRegistry) Profiles() []Profile {
-	return r.data.Profiles()
+	records := cloneRecords(r.records)
+	sort.SliceStable(records, func(i, j int) bool {
+		if records[i].order != records[j].order {
+			return records[i].order < records[j].order
+		}
+		return records[i].profile.Name < records[j].profile.Name
+	})
+	out := make([]Profile, 0, len(records))
+	for _, record := range records {
+		out = append(out, profileWithSource(record))
+	}
+	return out
 }
 
 // LookupProfile returns a built-in profile by profile name or model identifier.
@@ -44,11 +151,24 @@ func LookupProfile(name string) (Profile, bool) {
 
 // LookupProfile returns a profile by profile name or model identifier.
 func (r ProfileRegistry) LookupProfile(name string) (Profile, bool) {
-	dataProfile, ok := r.data.Lookup(name)
+	record, ok := r.lookupRecord(name)
 	if !ok {
 		return Profile{}, false
 	}
-	return dataProfile, true
+	return profileWithSource(record), true
+}
+
+// lookupRecord resolves either a profile name or model identifier and returns a
+// detached record copy for inheritance or payload use.
+func (r ProfileRegistry) lookupRecord(name string) (record, bool) {
+	name = strings.ToLower(strings.TrimSpace(name))
+	for _, record := range r.records {
+		profile := record.profile
+		if strings.ToLower(profile.Name) == name || strings.ToLower(profile.Model) == name {
+			return recordEntry(record.source, record.order, profile, record.document, record.builtin), true
+		}
+	}
+	return record{}, false
 }
 
 // ProfileNames returns the known profile names as a comma-separated list.
@@ -58,7 +178,12 @@ func ProfileNames() string {
 
 // ProfileNames returns the known profile names as a comma-separated list.
 func (r ProfileRegistry) ProfileNames() string {
-	return r.data.Names()
+	profiles := r.Profiles()
+	names := make([]string, 0, len(profiles))
+	for _, profile := range profiles {
+		names = append(names, profile.Name)
+	}
+	return strings.Join(names, ", ")
 }
 
 // FormatProfiles returns a human-readable table of built-in profiles.
@@ -66,25 +191,105 @@ func FormatProfiles() string {
 	return NewProfileRegistry().FormatProfiles()
 }
 
-// FormatProfiles returns a human-readable table of registry profiles.
+// FormatProfiles returns a human-readable table of profiles.
 func (r ProfileRegistry) FormatProfiles() string {
-	return r.data.Format()
+	var b strings.Builder
+	for _, profile := range r.Profiles() {
+		recommended := ""
+		if profile.Recommended {
+			recommended = " recommended"
+		}
+		fmt.Fprintf(&b, "%-15s %-6s %-15s kind=%-7s source=%-8s stability=%-12s ports=%-2d speed=%-5d version=%s%s  %s\n",
+			profile.Name,
+			deviceTypeOrDefault(profile.DeviceType),
+			profile.Model,
+			profile.Payload.Kind,
+			profile.SourceType,
+			profile.Stability,
+			profile.Ports,
+			firstNonZero(profile.PortSpeed, 1000),
+			profile.Version,
+			recommended,
+			profile.Description,
+		)
+	}
+	return b.String()
 }
 
-// ExportProfileYAML returns a profile as canonical YAML.
-func (r ProfileRegistry) ExportProfileYAML(name string) ([]byte, error) {
-	data, err := r.data.ExportYAML(name)
-	if err != nil {
-		return nil, fmt.Errorf("export profile YAML: %w", err)
-	}
-	return data, nil
+// cloneProfile detaches profile slices before registry callers can mutate them.
+func cloneProfile(profile Profile) Profile {
+	profile.PortGroups = clonePortGroups(profile.PortGroups)
+	profile.PortNames = cloneStrings(profile.PortNames)
+	profile.PortRoles = cloneStrings(profile.PortRoles)
+	profile.PortNetworkGroups = cloneStrings(profile.PortNetworkGroups)
+	profile.ValidatedControllerVersions = cloneStrings(profile.ValidatedControllerVersions)
+	return profile
 }
 
-// ProfileTemplateYAML returns a starter profile template for kind.
-func ProfileTemplateYAML(kind string) ([]byte, error) {
-	data, err := profiledata.TemplateYAML(kind)
-	if err != nil {
-		return nil, fmt.Errorf("profile template YAML: %w", err)
+// profileWithSource attaches registry provenance to a detached profile copy for
+// status, list, and export views.
+func profileWithSource(record record) Profile {
+	profile := cloneProfile(record.profile)
+	profile.Source = record.source
+	if record.builtin {
+		profile.SourceType = sourceTypeBuiltIn
+	} else {
+		profile.SourceType = sourceTypeExternal
 	}
-	return data, nil
+	return profile
+}
+
+// cloneRecords detaches registry entries and their YAML documents.
+func cloneRecords(records []record) []record {
+	if len(records) == 0 {
+		return nil
+	}
+	out := make([]record, len(records))
+	for index, record := range records {
+		out[index] = record
+		out[index].profile = cloneProfile(record.profile)
+		out[index].document = cloneYAMLNode(record.document)
+	}
+	return out
+}
+
+// clonePortGroups detaches contiguous port group definitions.
+func clonePortGroups(groups []PortGroup) []PortGroup {
+	return cloneNonEmptySlice(groups)
+}
+
+// cloneStrings detaches profile string slices.
+func cloneStrings(values []string) []string {
+	return cloneNonEmptySlice(values)
+}
+
+// cloneNonEmptySlice preserves nil for absent profile slices while copying
+// populated values.
+func cloneNonEmptySlice[T any](values []T) []T {
+	if len(values) == 0 {
+		return nil
+	}
+	out := make([]T, len(values))
+	copy(out, values)
+	return out
+}
+
+// deviceTypeOrDefault keeps older profiles that predate explicit device_type
+// usable as switch profiles.
+func deviceTypeOrDefault(value string) string {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return defaultDeviceType
+	}
+	return value
+}
+
+// firstNonZero returns the first configured numeric value from a fallback list.
+func firstNonZero(values ...int) int {
+	for _, value := range values {
+		if value != 0 {
+			return value
+		}
+	}
+	return 0
 }

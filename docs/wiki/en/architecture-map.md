@@ -35,17 +35,16 @@ Do not add payload decisions here.
 
 Owned by:
 
-- `internal/device/profilemodel`
-- `internal/device/profiledata`
+- `internal/device`
 - `internal/device/profiles/*`
 
 Responsibilities:
 
-- model identity;
-- port layout;
+- canonical profile, identity, and port model;
+- profile registry, YAML loading, and YAML `extends` handling;
+- port layout and port generation;
 - payload kind;
-- safe feature defaults;
-- YAML `extends` handling.
+- safe feature defaults.
 
 Do not branch on profile names in payload runtime code when profile fields can
 represent the behavior.
@@ -72,13 +71,12 @@ Do not render controller JSON here.
 
 Owned by:
 
-- `internal/device`
 - `internal/device/payload`
 
 Responsibilities:
 
-- merge profile ports, overrides, observations, and management metadata into
-  controller-facing structures;
+- render controller-facing structures from `device.Profile`, `device.Identity`,
+  and resolved `device.Port` values;
 - render switch and gateway payload tables;
 - keep port media, speed, MAC, role, and network group synchronized.
 
@@ -109,8 +107,7 @@ Do not execute arbitrary controller commands.
 | --- | --- | --- |
 | `config.Config` | config | raw runtime configuration after YAML load |
 | `runtimeFlags` | cmd | effective CLI/YAML runtime state |
-| `profilemodel.Profile` | profile | canonical profile data |
-| `device.Profile` | device | resolved profile API used by runtime |
+| `device.Profile` | device | canonical profile data |
 | `observe.BridgeObservation` | observe | bridge-level read-only facts |
 | `observe.PortObservation` | observe | interface or explicit port source facts |
 | `device.Port` | device | resolved controller-facing port input |
@@ -135,10 +132,9 @@ Use this placement guide:
 | Feature type | Likely place |
 | --- | --- |
 | New YAML field | `internal/config`, schemas, packaged configs, docs |
-| New profile data | `internal/device/profilemodel`, profile YAML, validation |
+| New profile data | `internal/device`, profile YAML, validation |
 | New OS read source | `internal/platform` or `internal/adapters` |
 | New bridge classification rule | `internal/observe/classify.go` plus tests |
 | New payload field | `internal/device/payload` plus fixture tests |
 | New controller response | `internal/adoption` or `internal/adoptionssh` |
 | New CLI validation | `cmd/unifi-stubd/operation.go` |
-

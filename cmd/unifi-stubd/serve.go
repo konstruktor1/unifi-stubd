@@ -140,7 +140,7 @@ func serveSwitchEmulation() error {
 
 	resolvedHostname := resolveHostname(flags.hostname)
 	uplinkPort := effectiveUplinkPort(profile, flags)
-	portOptions := resolvePortOptions(profile, flags.linkSpeed, uplinkPort, effectiveUplinkSpeedMode(flags), flags.controller)
+	portBuildOptions := resolvePortBuildOptions(flags.portCount, flags.linkSpeed, uplinkPort, effectiveUplinkSpeedMode(flags), flags.controller)
 	mac := resolveMAC(flags.macText, resolvedHostname, profile, flags.model, flags.operationMode, flags.observeInterface)
 	ip := net.ParseIP(flags.ipText).To4()
 	if ip == nil {
@@ -155,7 +155,7 @@ func serveSwitchEmulation() error {
 		return nil
 	}
 	if flags.status || flags.statusJSON {
-		return printLocalStatus(flags, profile, mac, ip, resolvedHostname, portOptions, plt)
+		return printLocalStatus(flags, profile, mac, ip, resolvedHostname, portBuildOptions, plt)
 	}
 
 	ann := discovery.Announcement{
@@ -174,7 +174,7 @@ func serveSwitchEmulation() error {
 		return fmt.Errorf("marshal discovery announcement: %w", err)
 	}
 
-	ports := portsForRuntime(flags, portOptions, plt)
+	ports := portsForRuntime(flags, profile, portBuildOptions, plt)
 	if flags.trafficRatesEnabled {
 		ports = applyTrafficRates(ports, observe.NewTrafficRateTracker(), time.Now())
 	}
@@ -204,7 +204,7 @@ func serveSwitchEmulation() error {
 		mac:                mac,
 		ip:                 ip,
 		hostname:           resolvedHostname,
-		portOptions:        portOptions,
+		portBuildOptions:   portBuildOptions,
 		announcement:       ann,
 		discoveryPacket:    packet,
 		discoverySkipped:   flags.noDiscovery,
@@ -222,7 +222,7 @@ type controllerPresence struct {
 	mac                net.HardwareAddr
 	ip                 net.IP
 	hostname           string
-	portOptions        device.PortOptions
+	portBuildOptions   device.PortBuildOptions
 	announcement       discovery.Announcement
 	discoveryPacket    []byte
 	discoverySkipped   bool
@@ -266,7 +266,7 @@ func maintainControllerPresence(cfg controllerPresence) error {
 			flags.portOverrides = enrichPortOverridesWithPlatform(ctx, plt, flags.portOverrides)
 			cancel()
 		}
-		ports := portsForRuntime(flags, cfg.portOptions, plt)
+		ports := portsForRuntime(flags, cfg.profile, cfg.portBuildOptions, plt)
 		if flags.trafficRatesEnabled {
 			ports = applyTrafficRates(ports, rateTracker, time.Now())
 		}

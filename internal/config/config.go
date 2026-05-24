@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/konstruktor1/unifi-stubd/internal/device/payload"
+	"github.com/konstruktor1/unifi-stubd/internal/device"
 	"gopkg.in/yaml.v3"
 )
 
@@ -222,7 +222,7 @@ type PortNeighbor struct {
 }
 
 // PortOverride describes one per-port YAML override.
-type PortOverride = payload.PortOverride
+type PortOverride = device.PortOverride
 
 // BridgeObserve describes a bridge represented as one virtual switch.
 type BridgeObserve struct {

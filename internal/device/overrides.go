@@ -1,7 +1,7 @@
-// Package payload applies operator-specified port state, speed, media, counters,
+// Package device applies operator-specified port state, speed, media, counters,
 // identity, and role metadata after profile generation. Setter order is explicit
 // because speed, media, and up/down state interact in controller-visible ways.
-package payload
+package device
 
 import (
 	"fmt"

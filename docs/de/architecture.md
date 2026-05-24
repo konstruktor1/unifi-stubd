@@ -48,10 +48,8 @@ flowchart LR
 | --- | --- | --- |
 | `cmd/unifi-stubd` | CLI, Config-Layering, Validierung, Daemon-Orchestrierung, Operation-Mode-Wiring | Packet-Encoding-Details, OS-spezifisches Parsing, Controller-Protokollinternas |
 | `internal/config` | user-facing YAML-Schema, Defaults, striktes Config-Laden | Runtime-Netzwerkreads, Payload-Bau |
-| `internal/device/profilemodel` | kanonische Profil-Structs fuer Built-ins und externe YAMLs | Dateisuche oder Merge-Policy |
-| `internal/device/profiledata` | Built-in-/externe Profil-Registry, YAML-level `extends`, Validierung, Export/Templates | Live-Interface-Reads |
-| `internal/device` | Profilaufloesung, Portdefinitionen, high-level Payload-API | Controller-HTTP, OS-Kommandos |
-| `internal/device/payload` | Switch-/Gateway-JSON-Payloads aus typisiertem Profil, Identity und Ports | modellbasierte Runtime-Ratespiele, Host-Netzwerk |
+| `internal/device` | kanonische Profil-Structs, Built-in-/externe Profil-Registry, YAML-level `extends`, Validierung, Export/Templates, Portdefinitionen und Portaufloesung | Controller-HTTP, OS-Kommandos, JSON-Payload-Tabellenencoding |
+| `internal/device/payload` | Switch-/Gateway-JSON-Payloads aus typisiertem Device-Profil, Identity und aufgeloesten Ports | Profil-Laden, Port-Erzeugung, modellbasierte Runtime-Ratespiele, Host-Netzwerk |
 | `internal/observe` | normalisierte read-only Observations fuer Bridge- und Port-Map-Modi | direkte Linux-/FreeBSD-Kommandos ausserhalb der Adapter |
 | `internal/platform` | read-only OS-Fassade fuer Interfaces, Bridges, LLDP, Logs, procfs, D-Bus, Capabilities | Payload-Rendering, Controller-Adoption-Entscheide |
 | `internal/adapters/linuxbridge` | Linux-Bridge-FDB-Command-Parsing | Payload-Policy |
@@ -70,7 +68,7 @@ flowchart LR
 4. Built-in-Profile werden zuerst registriert; optionale `profile_file`- und
    `profile_dir`-Eintraege werden danach geladen.
 5. Externes Profil-`extends` wird auf YAML-Mapping-Ebene aufgeloest und danach
-   genau einmal in das kanonische Profilmodell decodiert. Dadurch bleiben
+   genau einmal in `device.Profile` decodiert. Dadurch bleiben
    absichtliche Zero-Value-Overrides wie `recommended: false`,
    `payload.has_dpi: false` oder `port_names: []` korrekt.
 6. Operation-Mode-Validierung prueft aufgeloestes Profil, Portanzahl,
@@ -78,8 +76,9 @@ flowchart LR
 7. Die Plattform-Fassade liest optionale Host-Fakten nur, wenn der gewaehlte
    Modus oder der Statuspfad sie braucht.
 8. Profilports, konfigurierte Overrides, passive Observations, Management-LAN-
-   Metadaten und Neighbor-Hints werden in eine gemeinsame Port-View gemergt.
-9. `internal/device/payload` rendert daraus den controller-seitigen JSON-Payload.
+   Metadaten und Neighbor-Hints werden in `[]device.Port` gemergt.
+9. `internal/device/payload` rendert daraus mit Profil und Identity den
+   controller-seitigen JSON-Payload.
 10. `internal/discovery` und `internal/inform` senden Discovery-/Inform-Traffic,
     ausser Validierung oder Dry-Run stoppen vor Netzwerk-I/O.
 11. Controller-Antworten aktualisieren nur lokalen Adoption-Store und Status.
@@ -102,6 +101,10 @@ Profil besitzt:
 - Portanzahl, Namen, Rollen, Network-Groups, Medien und Speed-Layout;
 - Payload-Defaults wie Management-Interface-Name, Gateway-Interface-Prefix,
   erforderliche Controller-Version und sichere Feature-Flags.
+
+Das Device-Paket ist die einzige Quelle fuer Profil- und Portdaten. Renderer-
+spezifische Views werden aus `device.Profile` und `device.Port` abgeleitet; sie
+sind keine eigenen Profil- oder Portmodelle.
 
 Der Payload-Renderer darf nicht anhand von Modellnamen wie `UXG`, `UXGPRO` oder
 `US48P500` Verhalten waehlen. Renderer-Verhalten wird durch Profilfelder
@@ -178,7 +181,7 @@ kein Grund fuer Host-Mutation oder Dependency-Installation.
 Payload-Rendering startet erst nach Profil- und Observation-Aufloesung. Der
 Renderer erhaelt:
 
-- ein normalisiertes Payload-Profil;
+- das aufgeloeste `device.Profile`;
 - controller-seitige Identity;
 - eine geordnete, aufgeloeste Portliste.
 

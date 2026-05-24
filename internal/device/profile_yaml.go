@@ -1,7 +1,7 @@
-// Package profiledata merges YAML inheritance before strict typed decoding.
+// Package device merges YAML inheritance before strict typed decoding.
 // This preserves explicit zero-value overrides such as false, 0, empty strings,
 // and [] while still rejecting unknown fields later.
-package profiledata
+package device
 
 import "gopkg.in/yaml.v3"
 

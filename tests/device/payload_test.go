@@ -3,16 +3,34 @@ package device_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"strconv"
 	"testing"
 
 	"github.com/konstruktor1/unifi-stubd/internal/device"
+	"github.com/konstruktor1/unifi-stubd/internal/device/payload"
 )
 
-// TestMinimalSwitchPayloadReportsPortCount verifies that switch payloads expose
+func switchPayload(id device.Identity, ports []device.Port) ([]byte, error) {
+	doc, err := payload.Build(device.Profile{}, id, ports)
+	if err != nil {
+		return nil, fmt.Errorf("build minimal switch payload: %w", err)
+	}
+	return doc, nil
+}
+
+func buildPayload(profile device.Profile, id device.Identity, ports []device.Port) ([]byte, error) {
+	doc, err := payload.Build(profile, id, ports)
+	if err != nil {
+		return nil, fmt.Errorf("build payload: %w", err)
+	}
+	return doc, nil
+}
+
+// TestSwitchPayloadReportsPortCount verifies that switch payloads expose
 // generated port counts consistently across controller tables.
-func TestMinimalSwitchPayloadReportsPortCount(t *testing.T) {
-	payload, err := device.MinimalSwitchPayload(device.Identity{
+func TestSwitchPayloadReportsPortCount(t *testing.T) {
+	payload, err := switchPayload(device.Identity{
 		MAC:          "02:11:22:33:44:55",
 		IP:           "192.0.2.50",
 		Hostname:     "unifi-stubd-lab",
@@ -58,7 +76,7 @@ func TestMinimalSwitchPayloadReportsPortCount(t *testing.T) {
 // TestPayloadReportsMonotonicFreshnessFields verifies that synthetic switch
 // payloads still look fresh to controller health checks.
 func TestPayloadReportsMonotonicFreshnessFields(t *testing.T) {
-	payload, err := device.MinimalSwitchPayload(device.Identity{
+	payload, err := switchPayload(device.Identity{
 		MAC:           "02:11:22:33:44:75",
 		IP:            "192.0.2.50",
 		Hostname:      "freshness-lab",
@@ -106,7 +124,7 @@ func TestGatewayPayloadReportsFreshnessFields(t *testing.T) {
 	if !ok {
 		t.Fatal("profile not found")
 	}
-	payload, err := device.BuildPayload(profile, device.Identity{
+	payload, err := buildPayload(profile, device.Identity{
 		MAC:           "02:11:22:33:44:76",
 		IP:            "192.0.2.50",
 		Hostname:      "freshness-gateway",
@@ -117,7 +135,7 @@ func TestGatewayPayloadReportsFreshnessFields(t *testing.T) {
 		Serial:        "021122334476",
 		InformURL:     "http://192.0.2.10:8080/inform",
 		UptimeSeconds: 3661,
-	}, device.SwitchPortsWithOptions(profile.Ports, profile.PortOptions()))
+	}, device.BuildPorts(profile, device.PortBuildOptions{}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -145,10 +163,10 @@ func TestGatewayPayloadReportsFreshnessFields(t *testing.T) {
 	}
 }
 
-// TestMinimalSwitchPayloadReportsAdoptedState verifies that adoption state maps
+// TestSwitchPayloadReportsAdoptedState verifies that adoption state maps
 // to the controller-facing state fields.
-func TestMinimalSwitchPayloadReportsAdoptedState(t *testing.T) {
-	payload, err := device.MinimalSwitchPayload(device.Identity{
+func TestSwitchPayloadReportsAdoptedState(t *testing.T) {
+	payload, err := switchPayload(device.Identity{
 		MAC:          "02:11:22:33:44:56",
 		IP:           "192.0.2.50",
 		Hostname:     "unifi-stubd-lab",
@@ -177,10 +195,10 @@ func TestMinimalSwitchPayloadReportsAdoptedState(t *testing.T) {
 	}
 }
 
-// TestMinimalSwitchPayloadReportsTenGigUplink verifies that uplink speed and
+// TestSwitchPayloadReportsTenGigUplink verifies that uplink speed and
 // media metadata are rendered for high-speed switch profiles.
-func TestMinimalSwitchPayloadReportsTenGigUplink(t *testing.T) {
-	payload, err := device.MinimalSwitchPayload(device.Identity{
+func TestSwitchPayloadReportsTenGigUplink(t *testing.T) {
+	payload, err := switchPayload(device.Identity{
 		MAC:          "02:11:22:33:44:57",
 		IP:           "192.0.2.50",
 		Hostname:     "unifi-stubd-lab",
@@ -189,12 +207,13 @@ func TestMinimalSwitchPayloadReportsTenGigUplink(t *testing.T) {
 		Version:      "7.4.1.16850",
 		Serial:       "021122334457",
 		InformURL:    "http://192.0.2.10:8080/inform",
-	}, device.SwitchPortsWithOptions(16, device.PortOptions{
-		Speed:       10000,
+	}, device.BuildPorts(device.Profile{
+		Ports:       16,
+		PortSpeed:   10000,
 		UplinkSpeed: 10000,
-		Media:       "SFP+",
+		PortMedia:   "SFP+",
 		UplinkMedia: "SFP+",
-	}))
+	}, device.PortBuildOptions{}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -217,10 +236,10 @@ func TestMinimalSwitchPayloadReportsTenGigUplink(t *testing.T) {
 	}
 }
 
-// TestMinimalSwitchPayloadReportsManagementVLAN verifies the duplicated
+// TestSwitchPayloadReportsManagementVLAN verifies the duplicated
 // management VLAN fields expected by controller versions.
-func TestMinimalSwitchPayloadReportsManagementVLAN(t *testing.T) {
-	payload, err := device.MinimalSwitchPayload(device.Identity{
+func TestSwitchPayloadReportsManagementVLAN(t *testing.T) {
+	payload, err := switchPayload(device.Identity{
 		MAC:            "02:11:22:33:44:65",
 		IP:             "192.0.2.50",
 		Hostname:       "unifi-stubd-lab",
@@ -260,7 +279,7 @@ func TestSwitchPortsWithProfilePortGroups(t *testing.T) {
 	if !ok {
 		t.Fatal("profile not found")
 	}
-	ports := device.SwitchPortsWithOptions(profile.Ports, profile.PortOptions())
+	ports := device.BuildPorts(profile, device.PortBuildOptions{})
 
 	if len(ports) != 52 {
 		t.Fatalf("len(ports) = %d, want 52", len(ports))
@@ -293,7 +312,7 @@ func TestSwitchPortsWithAggregationProPortGroups(t *testing.T) {
 	if !ok {
 		t.Fatal("profile not found")
 	}
-	ports := device.SwitchPortsWithOptions(profile.Ports, profile.PortOptions())
+	ports := device.BuildPorts(profile, device.PortBuildOptions{})
 
 	if len(ports) != 32 {
 		t.Fatalf("len(ports) = %d, want 32", len(ports))
@@ -324,8 +343,8 @@ func TestGatewayProfileReportsDeviceTypeAndPortNames(t *testing.T) {
 	if !ok {
 		t.Fatal("profile not found")
 	}
-	ports := device.SwitchPortsWithOptions(profile.Ports, profile.PortOptions())
-	payload, err := device.MinimalSwitchPayload(device.Identity{
+	ports := device.BuildPorts(profile, device.PortBuildOptions{})
+	payload, err := switchPayload(device.Identity{
 		MAC:          "02:11:22:33:44:61",
 		IP:           "192.0.2.50",
 		Hostname:     "unifi-stubd-router",
@@ -369,8 +388,8 @@ func TestTenGigGatewayProfileReportsPortLayout(t *testing.T) {
 	if !ok {
 		t.Fatal("profile not found")
 	}
-	ports := device.SwitchPortsWithOptions(profile.Ports, profile.PortOptions())
-	payload, err := device.MinimalSwitchPayload(device.Identity{
+	ports := device.BuildPorts(profile, device.PortBuildOptions{})
+	payload, err := switchPayload(device.Identity{
 		MAC:          "02:11:22:33:44:62",
 		IP:           "192.0.2.50",
 		Hostname:     "unifi-stubd-uxg",
@@ -494,8 +513,8 @@ func TestGatewayPayloadReportsManagementVLANOnUplink(t *testing.T) {
 	if !ok {
 		t.Fatal("profile not found")
 	}
-	ports := device.SwitchPortsWithOptions(profile.Ports, profile.PortOptions())
-	payload, err := device.MinimalSwitchPayload(device.Identity{
+	ports := device.BuildPorts(profile, device.PortBuildOptions{})
+	payload, err := switchPayload(device.Identity{
 		MAC:            "02:11:22:33:44:66",
 		IP:             "192.0.2.50",
 		Hostname:       "unifi-stubd-uxg",
@@ -540,8 +559,8 @@ func TestCloudGatewayFiberProfileReportsGatewayPayload(t *testing.T) {
 	if !ok {
 		t.Fatal("profile not found")
 	}
-	ports := device.SwitchPortsWithOptions(profile.Ports, profile.PortOptions())
-	payload, err := device.MinimalSwitchPayload(device.Identity{
+	ports := device.BuildPorts(profile, device.PortBuildOptions{})
+	payload, err := switchPayload(device.Identity{
 		MAC:          "02:11:22:33:44:64",
 		IP:           "192.0.2.50",
 		Hostname:     "unifi-stubd-ucg-fiber",
@@ -624,13 +643,13 @@ func TestGatewayPortAssignmentsCanBeOverriddenFromConfigModel(t *testing.T) {
 	if !ok {
 		t.Fatal("profile not found")
 	}
-	ports := device.ApplyPortOverrides(device.SwitchPortsWithOptions(profile.Ports, profile.PortOptions()), []device.PortOverride{
+	ports := device.ApplyPortOverrides(device.BuildPorts(profile, device.PortBuildOptions{}), []device.PortOverride{
 		{Port: 1, Name: "WAN uplink", Role: "wan", NetworkGroup: "WAN", Interface: "ixl0"},
 		{Port: 2, Name: "LAN bridge", Role: "lan", NetworkGroup: "LAN", Interface: "vtnet0"},
 		{Port: 3, Name: "backup_wan", Role: "wan2", NetworkGroup: "WAN2", Interface: "vlan09"},
 		{Port: 4, Name: "unused_lab_lan", Role: "lan2", NetworkGroup: "LAN", Interface: "vlan10"},
 	})
-	payload, err := device.MinimalSwitchPayload(device.Identity{
+	payload, err := switchPayload(device.Identity{
 		MAC:          "02:11:22:33:44:63",
 		IP:           "192.0.2.50",
 		Hostname:     "unifi-stubd-uxg",
@@ -667,7 +686,7 @@ func TestGatewayPayloadReportsHostTableClientMetadata(t *testing.T) {
 	if !ok {
 		t.Fatal("profile not found")
 	}
-	ports := device.SwitchPortsWithOptions(profile.Ports, profile.PortOptions())
+	ports := device.BuildPorts(profile, device.PortBuildOptions{})
 	ports[1].MACs = []device.MacTableEntry{
 		{
 			MAC:      "02:00:5e:00:53:03",
@@ -677,7 +696,7 @@ func TestGatewayPayloadReportsHostTableClientMetadata(t *testing.T) {
 			Uptime:   1200,
 		},
 	}
-	payload, err := device.MinimalSwitchPayload(device.Identity{
+	payload, err := switchPayload(device.Identity{
 		MAC:          "02:00:5e:00:53:01",
 		IP:           "192.0.2.1",
 		Hostname:     "opnsense",
@@ -726,7 +745,7 @@ func TestGatewayPayloadReportsDownstreamDeviceOnLANHostTable(t *testing.T) {
 	if !ok {
 		t.Fatal("profile not found")
 	}
-	ports := device.SwitchPortsWithOptions(profile.Ports, profile.PortOptions())
+	ports := device.BuildPorts(profile, device.PortBuildOptions{})
 	ports[3].MACs = []device.MacTableEntry{
 		{
 			MAC:      "28:70:4e:c3:b7:b8",
@@ -737,7 +756,7 @@ func TestGatewayPayloadReportsDownstreamDeviceOnLANHostTable(t *testing.T) {
 			Static:   true,
 		},
 	}
-	payload, err := device.MinimalSwitchPayload(device.Identity{
+	payload, err := switchPayload(device.Identity{
 		MAC:          "02:17:05:10:01:21",
 		IP:           "10.10.0.29",
 		Hostname:     "opnsense",
@@ -778,9 +797,7 @@ func TestSwitchPortsCanOverrideAggregationUplinkToTenGigPort(t *testing.T) {
 	if !ok {
 		t.Fatal("profile not found")
 	}
-	options := profile.PortOptions()
-	options.UplinkPort = 1
-	ports := device.SwitchPortsWithOptions(profile.Ports, options)
+	ports := device.BuildPorts(profile, device.PortBuildOptions{UplinkPort: 1})
 
 	if !ports[0].Uplink {
 		t.Fatal("port 1 is not uplink")
@@ -816,7 +833,7 @@ func TestApplyPortOverridesChangesSpeedAndLinkState(t *testing.T) {
 		t.Fatal("profile not found")
 	}
 	linkDown := false
-	ports := device.ApplyPortOverrides(device.SwitchPortsWithOptions(profile.Ports, profile.PortOptions()), []device.PortOverride{
+	ports := device.ApplyPortOverrides(device.BuildPorts(profile, device.PortBuildOptions{}), []device.PortOverride{
 		{Port: 2, Speed: 1000},
 		{Port: 3, Speed: 2500},
 		{Port: 4, Speed: 100},
@@ -882,11 +899,11 @@ func TestGatewayPayloadReportsPortOverrideMACs(t *testing.T) {
 	if !ok {
 		t.Fatal("profile not found")
 	}
-	ports := device.ApplyPortOverrides(device.SwitchPortsWithOptions(2, profile.PortOptions()), []device.PortOverride{
+	ports := device.ApplyPortOverrides(device.BuildPorts(profile, device.PortBuildOptions{Count: 2}), []device.PortOverride{
 		{Port: 1, Name: "WAN", MAC: "02:00:5e:00:53:01", IP: "192.0.2.2", Netmask: "255.255.255.0"},
 		{Port: 2, Name: "LAN", MAC: "02:00:5e:00:53:02", IP: "192.0.2.1", Netmask: "255.255.255.0"},
 	})
-	payload, err := device.MinimalSwitchPayload(device.Identity{
+	payload, err := switchPayload(device.Identity{
 		MAC:          "02:00:5e:00:53:01",
 		IP:           "192.0.2.1",
 		Hostname:     "opnsense",
@@ -929,7 +946,7 @@ func TestUXGGatewayPayloadUsesInterfaceOverrideData(t *testing.T) {
 	if !ok {
 		t.Fatal("profile not found")
 	}
-	ports := device.ApplyPortOverrides(device.SwitchPortsWithOptions(profile.Ports, profile.PortOptions()), []device.PortOverride{
+	ports := device.ApplyPortOverrides(device.BuildPorts(profile, device.PortBuildOptions{}), []device.PortOverride{
 		{
 			Port:      1,
 			Name:      "LAN",
@@ -953,7 +970,7 @@ func TestUXGGatewayPayloadUsesInterfaceOverrideData(t *testing.T) {
 			Media:     "SFP+",
 		},
 	})
-	payload, err := device.MinimalSwitchPayload(device.Identity{
+	payload, err := switchPayload(device.Identity{
 		MAC:          "02:00:5e:00:53:01",
 		IP:           "192.0.2.1",
 		Hostname:     "opnsense",
@@ -1007,7 +1024,7 @@ func TestGatewayPayloadReportsExplicitTrafficRates(t *testing.T) {
 	if !ok {
 		t.Fatal("profile not found")
 	}
-	ports := device.ApplyPortOverrides(device.SwitchPortsWithOptions(profile.Ports, profile.PortOptions()), []device.PortOverride{
+	ports := device.ApplyPortOverrides(device.BuildPorts(profile, device.PortBuildOptions{}), []device.PortOverride{
 		{
 			Port:            1,
 			Name:            "LAN",
@@ -1043,7 +1060,7 @@ func TestGatewayPayloadReportsExplicitTrafficRates(t *testing.T) {
 			TrafficRatesSet: true,
 		},
 	})
-	payload, err := device.MinimalSwitchPayload(device.Identity{
+	payload, err := switchPayload(device.Identity{
 		MAC:          "02:00:5e:00:53:01",
 		IP:           "192.0.2.1",
 		Hostname:     "opnsense",
@@ -1113,7 +1130,7 @@ func TestGatewayPayloadSynchronizesResolvedPortTables(t *testing.T) {
 	if !ok {
 		t.Fatal("profile not found")
 	}
-	ports := device.ApplyPortOverrides(device.SwitchPortsWithOptions(profile.Ports, profile.PortOptions()), []device.PortOverride{
+	ports := device.ApplyPortOverrides(device.BuildPorts(profile, device.PortBuildOptions{}), []device.PortOverride{
 		{
 			Port:         1,
 			Name:         "LAN",
@@ -1138,7 +1155,7 @@ func TestGatewayPayloadSynchronizesResolvedPortTables(t *testing.T) {
 			Media:        "SFP+",
 		},
 	})
-	payload, err := device.MinimalSwitchPayload(device.Identity{
+	payload, err := switchPayload(device.Identity{
 		MAC:          "02:00:5e:00:53:10",
 		IP:           "192.0.2.1",
 		Hostname:     "opnsense",
@@ -1252,8 +1269,8 @@ func TestCustomGatewayPayloadUsesProfileRolesWithoutModelSpecialCase(t *testing.
 			GatewayInterfacePrefix: "eth",
 		},
 	}
-	ports := device.SwitchPortsWithOptions(profile.Ports, profile.PortOptions())
-	payload, err := device.BuildPayload(profile, device.Identity{
+	ports := device.BuildPorts(profile, device.PortBuildOptions{})
+	payload, err := buildPayload(profile, device.Identity{
 		MAC:          "02:00:5e:00:53:70",
 		IP:           "192.0.2.70",
 		Hostname:     "custom-gateway",
@@ -1298,9 +1315,7 @@ func TestApplyUplinkNeighborAddsConfiguredNeighbor(t *testing.T) {
 	if !ok {
 		t.Fatal("profile not found")
 	}
-	options := profile.PortOptions()
-	options.UplinkPort = 1
-	ports := device.ApplyUplinkNeighbor(device.SwitchPortsWithOptions(profile.Ports, options), &device.MacTableEntry{
+	ports := device.ApplyUplinkNeighbor(device.BuildPorts(profile, device.PortBuildOptions{UplinkPort: 1}), &device.MacTableEntry{
 		MAC:  "02:aa:bb:cc:dd:01",
 		VLAN: 1,
 		Type: "usw",
@@ -1325,7 +1340,7 @@ func TestApplyPortNeighborsAddsConfiguredMacTableEntry(t *testing.T) {
 	if !ok {
 		t.Fatal("profile not found")
 	}
-	ports := device.ApplyPortNeighbors(device.SwitchPortsWithOptions(profile.Ports, profile.PortOptions()), []device.PortNeighbor{
+	ports := device.ApplyPortNeighbors(device.BuildPorts(profile, device.PortBuildOptions{}), []device.PortNeighbor{
 		{
 			Port: 2,
 			Entry: device.MacTableEntry{
@@ -1418,7 +1433,7 @@ func TestSwitchPayloadReportsNeighborClientMetadata(t *testing.T) {
 			},
 		},
 	})
-	payload, err := device.MinimalSwitchPayload(device.Identity{
+	payload, err := switchPayload(device.Identity{
 		MAC:          "02:11:22:33:44:60",
 		IP:           "192.0.2.50",
 		Hostname:     "unifi-stubd-lab",
@@ -1448,11 +1463,11 @@ func TestSwitchPayloadReportsNeighborClientMetadata(t *testing.T) {
 	}
 }
 
-// TestMinimalSwitchPayloadReportsPortOverrideLinkDown verifies link-down
+// TestSwitchPayloadReportsPortOverrideLinkDown verifies link-down
 // overrides clear live link fields in switch payloads.
-func TestMinimalSwitchPayloadReportsPortOverrideLinkDown(t *testing.T) {
+func TestSwitchPayloadReportsPortOverrideLinkDown(t *testing.T) {
 	linkDown := false
-	payload, err := device.MinimalSwitchPayload(device.Identity{
+	payload, err := switchPayload(device.Identity{
 		MAC:          "02:11:22:33:44:60",
 		IP:           "192.0.2.50",
 		Hostname:     "unifi-stubd-lab",
@@ -1486,10 +1501,10 @@ func TestMinimalSwitchPayloadReportsPortOverrideLinkDown(t *testing.T) {
 	}
 }
 
-// TestMinimalSwitchPayloadReportsDisabledPort verifies disabled ports render as
+// TestSwitchPayloadReportsDisabledPort verifies disabled ports render as
 // down, zero-speed, and without learned MACs.
-func TestMinimalSwitchPayloadReportsDisabledPort(t *testing.T) {
-	payload, err := device.MinimalSwitchPayload(device.Identity{
+func TestSwitchPayloadReportsDisabledPort(t *testing.T) {
+	payload, err := switchPayload(device.Identity{
 		MAC:          "02:11:22:33:44:61",
 		IP:           "192.0.2.50",
 		Hostname:     "unifi-stubd-lab",
@@ -1526,14 +1541,14 @@ func TestMinimalSwitchPayloadReportsDisabledPort(t *testing.T) {
 	}
 }
 
-// TestMinimalSwitchPayloadReportsGroupedUplinkSpeed verifies grouped profile
+// TestSwitchPayloadReportsGroupedUplinkSpeed verifies grouped profile
 // uplink speed reaches switch payload rows.
-func TestMinimalSwitchPayloadReportsGroupedUplinkSpeed(t *testing.T) {
+func TestSwitchPayloadReportsGroupedUplinkSpeed(t *testing.T) {
 	profile, ok := device.LookupProfile("usw-pro-xg-48")
 	if !ok {
 		t.Fatal("profile not found")
 	}
-	payload, err := device.MinimalSwitchPayload(device.Identity{
+	payload, err := switchPayload(device.Identity{
 		MAC:          "02:11:22:33:44:58",
 		IP:           "192.0.2.50",
 		Hostname:     "unifi-stubd-lab",
@@ -1542,7 +1557,7 @@ func TestMinimalSwitchPayloadReportsGroupedUplinkSpeed(t *testing.T) {
 		Version:      profile.Version,
 		Serial:       "021122334458",
 		InformURL:    "http://192.0.2.10:8080/inform",
-	}, device.SwitchPortsWithOptions(profile.Ports, profile.PortOptions()))
+	}, device.BuildPorts(profile, device.PortBuildOptions{}))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1565,10 +1580,10 @@ func TestMinimalSwitchPayloadReportsGroupedUplinkSpeed(t *testing.T) {
 	}
 }
 
-// TestMinimalSwitchPayloadReportsObservedCounters verifies observed interface
+// TestSwitchPayloadReportsObservedCounters verifies observed interface
 // counters are copied into switch payload rows.
-func TestMinimalSwitchPayloadReportsObservedCounters(t *testing.T) {
-	payload, err := device.MinimalSwitchPayload(device.Identity{
+func TestSwitchPayloadReportsObservedCounters(t *testing.T) {
+	payload, err := switchPayload(device.Identity{
 		MAC:          "02:11:22:33:44:59",
 		IP:           "192.0.2.50",
 		Hostname:     "unifi-stubd-lab",
@@ -1615,10 +1630,10 @@ func TestMinimalSwitchPayloadReportsObservedCounters(t *testing.T) {
 	}
 }
 
-// TestMinimalSwitchPayloadPrefersExplicitTrafficRates verifies explicit traffic
+// TestSwitchPayloadPrefersExplicitTrafficRates verifies explicit traffic
 // rates take precedence over synthetic heartbeat rates.
-func TestMinimalSwitchPayloadPrefersExplicitTrafficRates(t *testing.T) {
-	payload, err := device.MinimalSwitchPayload(device.Identity{
+func TestSwitchPayloadPrefersExplicitTrafficRates(t *testing.T) {
+	payload, err := switchPayload(device.Identity{
 		MAC:          "02:11:22:33:44:60",
 		IP:           "192.0.2.50",
 		Hostname:     "unifi-stubd-lab",
@@ -1659,10 +1674,10 @@ func TestMinimalSwitchPayloadPrefersExplicitTrafficRates(t *testing.T) {
 	}
 }
 
-// TestMinimalSwitchPayloadSuppressesSyntheticRatesWhenTrafficRatesEnabledWithoutSource
+// TestSwitchPayloadSuppressesSyntheticRatesWhenTrafficRatesEnabledWithoutSource
 // verifies rate fields stay zero when tracking is enabled without a source.
-func TestMinimalSwitchPayloadSuppressesSyntheticRatesWhenTrafficRatesEnabledWithoutSource(t *testing.T) {
-	payload, err := device.MinimalSwitchPayload(device.Identity{
+func TestSwitchPayloadSuppressesSyntheticRatesWhenTrafficRatesEnabledWithoutSource(t *testing.T) {
+	payload, err := switchPayload(device.Identity{
 		MAC:          "02:11:22:33:44:61",
 		IP:           "192.0.2.50",
 		Hostname:     "unifi-stubd-lab",

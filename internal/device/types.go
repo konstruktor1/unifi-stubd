@@ -1,21 +1,4 @@
-// Package payload defines the neutral data model shared by profiles,
-// observation, and JSON renderers. These types describe what should be reported,
-// not how a specific controller table is encoded.
-package payload
-
-// Profile contains profile-driven inform payload rendering metadata.
-type Profile struct {
-	// Kind selects the generic payload renderer: switch or gateway.
-	Kind string
-	// RequiredVersion is reported in the inform payload.
-	RequiredVersion string
-	// ManagementInterface is the controller-facing management interface name.
-	ManagementInterface string
-	// GatewayInterfacePrefix prefixes generated gateway interface names.
-	GatewayInterfacePrefix string
-	// HasDPI reports whether gateway DPI capability should be advertised.
-	HasDPI bool
-}
+package device
 
 // Identity contains the device attributes reported in inform payloads.
 type Identity struct {
@@ -127,36 +110,26 @@ type Port struct {
 // PortGroup describes one contiguous block in a switch port layout.
 type PortGroup struct {
 	// Count is the number of ports in this block.
-	Count int
+	Count int `yaml:"count"`
 	// Speed is the negotiated speed in Mbps for ports in this block.
-	Speed int
+	Speed int `yaml:"speed"`
 	// Media is the UniFi media label for ports in this block.
-	Media string
+	Media string `yaml:"media"`
 	// Uplink marks this block as the profile-defined uplink-capable group; the
 	// first port is used as the active upstream default.
-	Uplink bool
+	Uplink bool `yaml:"uplink"`
 }
 
-// PortOptions configures generated switch port defaults.
-type PortOptions struct {
-	// Speed is the default access port speed in Mbps.
-	Speed int
-	// UplinkSpeed is the uplink port speed in Mbps.
+// PortBuildOptions configures runtime changes to profile-derived ports.
+type PortBuildOptions struct {
+	// Count overrides the profile port count when positive.
+	Count int
+	// LinkSpeed overrides all profile port speeds when positive.
+	LinkSpeed int
+	// UplinkSpeed overrides only the active uplink speed when positive.
 	UplinkSpeed int
-	// Media is the default access port media label.
-	Media string
-	// UplinkMedia is the uplink port media label.
-	UplinkMedia string
 	// UplinkPort overrides the generated uplink port when positive.
 	UplinkPort int
-	// PortGroups optionally describe a non-uniform physical port layout.
-	PortGroups []PortGroup
-	// PortNames optionally override one-based port display labels.
-	PortNames []string
-	// PortRoles optionally assign one-based gateway roles.
-	PortRoles []string
-	// PortNetworkGroups optionally assign one-based UniFi network groups.
-	PortNetworkGroups []string
 }
 
 // PortOverride describes one per-port runtime override.

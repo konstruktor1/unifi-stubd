@@ -160,8 +160,8 @@ type lastInformStatus struct {
 
 // printLocalStatus renders the sanitized status document in either machine JSON
 // or the line-oriented human format used by lab scripts.
-func printLocalStatus(flags runtimeFlags, profile device.Profile, mac net.HardwareAddr, ip net.IP, hostname string, portOptions device.PortOptions, plt platform.Platform) error {
-	status := buildLocalStatus(flags, profile, mac, ip, hostname, portOptions, plt)
+func printLocalStatus(flags runtimeFlags, profile device.Profile, mac net.HardwareAddr, ip net.IP, hostname string, portBuildOptions device.PortBuildOptions, plt platform.Platform) error {
+	status := buildLocalStatus(flags, profile, mac, ip, hostname, portBuildOptions, plt)
 	if flags.statusJSON {
 		data, err := json.MarshalIndent(status, "", "  ")
 		if err != nil {
@@ -176,10 +176,10 @@ func printLocalStatus(flags runtimeFlags, profile device.Profile, mac net.Hardwa
 
 // buildLocalStatus assembles status from config, adoption state, optional
 // platform capabilities, and passive observations without exposing secrets.
-func buildLocalStatus(flags runtimeFlags, profile device.Profile, mac net.HardwareAddr, ip net.IP, hostname string, portOptions device.PortOptions, plt platform.Platform) localStatus {
+func buildLocalStatus(flags runtimeFlags, profile device.Profile, mac net.HardwareAddr, ip net.IP, hostname string, portBuildOptions device.PortBuildOptions, plt platform.Platform) localStatus {
 	store, adoptionWarnings := loadAdoptionStateForStatus(flags.sshState)
 	informURL := effectiveInformURL(flags.controller, store)
-	ports := device.SwitchPortsWithOptions(flags.portCount, portOptions)
+	ports := device.BuildPorts(profile, portBuildOptions)
 	status := localStatus{
 		ConfigPath: flags.configPath,
 		Identity: statusIdentity{

@@ -74,7 +74,7 @@ Nicht-Ziele:
 | --- | --- |
 | `cmd/unifi-stubd/` | CLI, Config-Layering, Validierung, Daemon-Orchestrierung |
 | `internal/config/` | YAML-Schema und Defaults |
-| `internal/device/` | Profile, aufgeloeste Ports, Payload-Einstieg |
+| `internal/device/` | Profile, Registry, Identitaeten und aufgeloeste Ports |
 | `internal/device/payload/` | Switch-/Gateway-JSON-Payload-Renderer |
 | `internal/observe/` | read-only Observation-Modell |
 | `internal/platform/` | OS-Fassade fuer read-only Host-Integrationen |
@@ -91,4 +91,3 @@ Wenn eine Aenderung Verhalten betrifft, zuerst die Detaildokumentation
 aktualisieren und danach das Wiki nur anpassen, wenn sich Navigation oder
 Betriebssicht aendern. Keine ganzen Referenzabschnitte ins Wiki kopieren; kurz
 zusammenfassen und verlinken.
-

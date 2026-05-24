@@ -7,7 +7,55 @@ import (
 	"net"
 	"strconv"
 	"strings"
+
+	"github.com/konstruktor1/unifi-stubd/internal/device"
 )
+
+type switchInterfaceRow struct {
+	Name           string `json:"name"`
+	MAC            string `json:"mac"`
+	IP             string `json:"ip"`
+	NumPort        int    `json:"num_port"`
+	Up             bool   `json:"up"`
+	Speed          int    `json:"speed"`
+	FullDuplex     bool   `json:"full_duplex"`
+	VLAN           int    `json:"vlan,omitempty"`
+	ManagementVLAN int    `json:"management_vlan,omitempty"`
+}
+
+type switchEthernetRow struct {
+	Name    string `json:"name"`
+	MAC     string `json:"mac"`
+	NumPort *int   `json:"num_port,omitempty"`
+}
+
+type switchPortRow struct {
+	PortIdx      int                    `json:"port_idx"`
+	IfName       string                 `json:"ifname"`
+	Name         string                 `json:"name"`
+	Enable       bool                   `json:"enable"`
+	Up           bool                   `json:"up"`
+	IsUplink     bool                   `json:"is_uplink"`
+	OpMode       string                 `json:"op_mode"`
+	FullDuplex   bool                   `json:"full_duplex"`
+	Autoneg      bool                   `json:"autoneg"`
+	FlowctrlRX   bool                   `json:"flowctrl_rx"`
+	FlowctrlTX   bool                   `json:"flowctrl_tx"`
+	PortPOE      bool                   `json:"port_poe"`
+	POEEnable    bool                   `json:"poe_enable"`
+	POECaps      int                    `json:"poe_caps"`
+	RXDropped    int                    `json:"rx_dropped"`
+	TXDropped    int                    `json:"tx_dropped"`
+	Satisfaction int                    `json:"satisfaction"`
+	STPState     string                 `json:"stp_state"`
+	STPPathcost  int                    `json:"stp_pathcost"`
+	MACTable     []device.MacTableEntry `json:"mac_table"`
+	linkFields
+	counterFields
+	RXBytesRate     int64  `json:"rx_bytes-r"`
+	TXBytesRate     int64  `json:"tx_bytes-r"`
+	SourceInterface string `json:"source_interface"`
+}
 
 // incrementMAC derives the secondary switch interface MAC from the device MAC.
 func incrementMAC(macText string) string {
@@ -21,35 +69,40 @@ func incrementMAC(macText string) string {
 }
 
 // portTable renders switch port rows in the shape expected by UniFi Network.
-func portTable(ports []PortView) []map[string]any {
-	out := make([]map[string]any, 0, len(ports))
+func portTable(ports []PortView) []switchPortRow {
+	out := make([]switchPortRow, 0, len(ports))
 	for _, p := range ports {
-		row := map[string]any{
-			jsonKeyPortIdx:    p.Index,
-			jsonKeyIfName:     p.SwitchInterfaceName,
-			jsonKeyName:       p.Name,
-			jsonKeyEnable:     p.Enabled,
-			jsonKeyUp:         p.Up,
-			jsonKeyIsUplink:   p.Uplink,
-			"op_mode":         payloadModeSwitch,
-			jsonKeyFullDuplex: true,
-			jsonKeyAutoneg:    true,
-			"flowctrl_rx":     false,
-			"flowctrl_tx":     false,
-			"port_poe":        false,
-			"poe_enable":      false,
-			"poe_caps":        0,
-			"rx_dropped":      0,
-			"tx_dropped":      0,
-			"satisfaction":    100,
-			"stp_state":       "forwarding",
-			"stp_pathcost":    20000,
-			jsonKeyMACTable:   p.MACs,
-		}
+		rxRate, txRate := portRateFields(p.Port)
 		// Every switch row is rendered from PortView so switch and gateway
 		// payloads agree on observed counters, source interface, link state, and
 		// MAC-table metadata.
-		addFields(row, portLinkFields(p.Speed, p.Media), portCounterFields(p.Port), portRateFields(p.Port), sourceFields(p.SourceInterface))
+		row := switchPortRow{
+			PortIdx:         p.Index,
+			IfName:          p.SwitchInterfaceName,
+			Name:            p.Name,
+			Enable:          p.Enabled,
+			Up:              p.Up,
+			IsUplink:        p.Uplink,
+			OpMode:          payloadModeSwitch,
+			FullDuplex:      true,
+			Autoneg:         true,
+			FlowctrlRX:      false,
+			FlowctrlTX:      false,
+			PortPOE:         false,
+			POEEnable:       false,
+			POECaps:         0,
+			RXDropped:       0,
+			TXDropped:       0,
+			Satisfaction:    100,
+			STPState:        "forwarding",
+			STPPathcost:     20000,
+			MACTable:        p.MACs,
+			linkFields:      portLinkFields(p.Speed, p.Media),
+			counterFields:   portCounterFields(p.Port),
+			RXBytesRate:     rxRate,
+			TXBytesRate:     txRate,
+			SourceInterface: p.SourceInterface,
+		}
 		out = append(out, row)
 	}
 	return out

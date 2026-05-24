@@ -3,7 +3,11 @@
 // observation data, and controller payload shape separated.
 package payload
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/konstruktor1/unifi-stubd/internal/device"
+)
 
 // InterfaceView is the resolved controller-facing state of one interface.
 type InterfaceView struct {
@@ -25,7 +29,7 @@ type InterfaceView struct {
 // PortView is the canonical resolved port state shared by all payload
 // renderers. It is derived from profile data plus safe runtime observations.
 type PortView struct {
-	Port                Port
+	Port                device.Port
 	Index               int
 	Name                string
 	SwitchInterfaceName string
@@ -38,14 +42,14 @@ type PortView struct {
 	Up                  bool
 	Speed               int
 	Media               string
-	MACs                []MacTableEntry
+	MACs                []device.MacTableEntry
 	GatewayInterface    InterfaceView
 }
 
 // BuildPortViews resolves profile ports once so switch and gateway renderers
 // cannot drift when roles, speed, source interfaces, or management metadata
 // change.
-func BuildPortViews(profile Profile, id Identity, ports []Port) []PortView {
+func BuildPortViews(profile device.Profile, id device.Identity, ports []device.Port) []PortView {
 	views := make([]PortView, 0, len(ports))
 	for _, port := range ports {
 		// Resolve all profile, override, and observation data once. Switch and
@@ -60,7 +64,7 @@ func BuildPortViews(profile Profile, id Identity, ports []Port) []PortView {
 		gatewayName := gatewayInterfaceName(profile, port.Index)
 		sourceInterface := strings.TrimSpace(port.Interface)
 		enabled := !port.Disabled
-		macs := append([]MacTableEntry(nil), port.MACs...)
+		macs := append([]device.MacTableEntry(nil), port.MACs...)
 		view := PortView{
 			Port:                port,
 			Index:               port.Index,
@@ -95,12 +99,4 @@ func BuildPortViews(profile Profile, id Identity, ports []Port) []PortView {
 		views = append(views, view)
 	}
 	return views
-}
-
-// sourceFields keeps the host interface provenance visible in generated payload
-// rows without implying controller ownership of that interface.
-func sourceFields(sourceInterface string) map[string]any {
-	return map[string]any{
-		jsonKeySourceIf: strings.TrimSpace(sourceInterface),
-	}
 }

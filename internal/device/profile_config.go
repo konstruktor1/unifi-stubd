@@ -1,5 +1,5 @@
-// Package profiledata loads and stores embedded device profile data.
-package profiledata
+// Package device loads and stores embedded device profile data.
+package device
 
 // Embedded profile config decoding turns checked-in YAML documents into
 // validated built-in profiles during init registration.
@@ -12,7 +12,6 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/konstruktor1/unifi-stubd/internal/device/profilemodel"
 	"gopkg.in/yaml.v3"
 )
 
@@ -27,27 +26,18 @@ const (
 	defaultGatewayPrefix   = "eth"
 )
 
-// RegisterConfig decodes and registers one embedded profile YAML document.
-func RegisterConfig(source string, data []byte) {
-	decoded, err := decodeConfigRecord(data)
-	if err != nil {
-		panic(fmt.Sprintf("load profile %s: %v", source, err))
-	}
-	Register(source, decoded.order, decoded.profile, decoded.document)
-}
-
 // LoadPath loads one profile YAML file or all profile YAML files in a directory.
-func (r *Registry) LoadPath(path string) error {
+func (r *ProfileRegistry) LoadPath(path string) error {
 	info, err := os.Stat(path)
 	if err != nil {
-		return &PathError{Path: path, Kind: ErrorKindIO, Err: err}
+		return &ProfilePathError{Path: path, Kind: ErrorKindIO, Err: err}
 	}
 	if !info.IsDir() {
 		return r.LoadFile(path)
 	}
 	entries, err := os.ReadDir(path)
 	if err != nil {
-		return &PathError{Path: path, Kind: ErrorKindIO, Err: err}
+		return &ProfilePathError{Path: path, Kind: ErrorKindIO, Err: err}
 	}
 	var paths []string
 	for _, entry := range entries {
@@ -70,17 +60,17 @@ func (r *Registry) LoadPath(path string) error {
 }
 
 // LoadFile loads one external profile YAML file into r.
-func (r *Registry) LoadFile(path string) error {
+func (r *ProfileRegistry) LoadFile(path string) error {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return &PathError{Path: path, Kind: ErrorKindIO, Err: err}
+		return &ProfilePathError{Path: path, Kind: ErrorKindIO, Err: err}
 	}
 	decoded, err := r.decodeExternalConfigRecord(data)
 	if err != nil {
-		return &PathError{Path: path, Kind: classifyProfileError(err), Err: err}
+		return &ProfilePathError{Path: path, Kind: classifyProfileError(err), Err: err}
 	}
 	if err := r.register(path, decoded.order, decoded.profile, decoded.document, false); err != nil {
-		return &PathError{Path: path, Kind: ErrorKindValidation, Err: err}
+		return &ProfilePathError{Path: path, Kind: ErrorKindValidation, Err: err}
 	}
 	return nil
 }
@@ -95,7 +85,7 @@ func DecodeConfig(data []byte) (Profile, int, error) {
 }
 
 // DecodeExternalConfig decodes a profile YAML document with optional inheritance.
-func (r *Registry) DecodeExternalConfig(data []byte) (Profile, int, error) {
+func (r *ProfileRegistry) DecodeExternalConfig(data []byte) (Profile, int, error) {
 	decoded, err := r.decodeExternalConfigRecord(data)
 	if err != nil {
 		return Profile{}, 0, err
@@ -131,7 +121,7 @@ func decodeConfigRecord(data []byte) (decodedProfile, error) {
 
 // decodeExternalConfigRecord applies optional YAML-level inheritance before the
 // final strict typed decode, preserving explicit zero-value overrides.
-func (r *Registry) decodeExternalConfigRecord(data []byte) (decodedProfile, error) {
+func (r *ProfileRegistry) decodeExternalConfigRecord(data []byte) (decodedProfile, error) {
 	document, err := decodeProfileDocument(data)
 	if err != nil {
 		return decodedProfile{}, err
@@ -191,10 +181,10 @@ func decodeProfileYAML(document *yaml.Node) (Profile, error) {
 	return profile, nil
 }
 
-// normalizeProfile delegates model-level normalization shared with generated
-// built-in profiles.
+// normalizeProfile delegates model-level normalization shared by built-in and
+// external profiles.
 func normalizeProfile(profile *Profile) {
-	profilemodel.Normalize(profile)
+	NormalizeProfile(profile)
 }
 
 // applyProfileDefaults fills renderer metadata that older or minimal profiles

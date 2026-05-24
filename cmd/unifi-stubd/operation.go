@@ -265,8 +265,8 @@ func normalizeMode(value string) string {
 
 // portsForRuntime merges profile defaults, passive observations, LLDP hints,
 // operator overrides, and configured neighbors into one ordered port list.
-func portsForRuntime(flags runtimeFlags, portOptions device.PortOptions, plt platform.Platform) []device.Port {
-	ports := device.SwitchPortsWithOptions(flags.portCount, portOptions)
+func portsForRuntime(flags runtimeFlags, profile device.Profile, portBuildOptions device.PortBuildOptions, plt platform.Platform) []device.Port {
+	ports := device.BuildPorts(profile, portBuildOptions)
 	mode := normalizeMode(flags.operationMode)
 	if mode == operationModePortMap {
 		// Explicit port-map sources become ordinary overrides first, then user

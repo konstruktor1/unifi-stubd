@@ -35,17 +35,16 @@ Hier keine Payload-Entscheide einbauen.
 
 Besitzt:
 
-- `internal/device/profilemodel`
-- `internal/device/profiledata`
+- `internal/device`
 - `internal/device/profiles/*`
 
 Verantwortung:
 
-- Modellidentitaet;
-- Portlayout;
+- kanonisches Profil-, Identitaets- und Portmodell;
+- Profil-Registry, YAML-Laden und YAML-`extends`-Handling;
+- Portlayout und Port-Erzeugung;
 - Payload-Art;
-- sichere Feature-Defaults;
-- YAML-`extends`-Handling.
+- sichere Feature-Defaults.
 
 Nicht anhand von Profilnamen im Payload-Runtime-Code verzweigen, wenn
 Profilfelder das Verhalten abbilden koennen.
@@ -72,13 +71,12 @@ Hier kein Controller-JSON rendern.
 
 Besitzt:
 
-- `internal/device`
 - `internal/device/payload`
 
 Verantwortung:
 
-- Profilports, Overrides, Observations und Management-Metadaten in controller-
-  seitige Strukturen mergen;
+- controller-seitige Strukturen aus `device.Profile`, `device.Identity` und
+  aufgeloesten `device.Port`-Werten rendern;
 - Switch- und Gateway-Payload-Tabellen rendern;
 - Port-Medium, Speed, MAC, Rolle und Network-Group synchron halten.
 
@@ -109,8 +107,7 @@ Keine beliebigen Controller-Kommandos ausfuehren.
 | --- | --- | --- |
 | `config.Config` | config | rohe Runtime-Konfiguration nach YAML-Load |
 | `runtimeFlags` | cmd | effektiver CLI-/YAML-Runtime-State |
-| `profilemodel.Profile` | profile | kanonische Profildaten |
-| `device.Profile` | device | aufgeloeste Profil-API fuer Runtime |
+| `device.Profile` | device | kanonische Profildaten |
 | `observe.BridgeObservation` | observe | read-only Bridge-Fakten |
 | `observe.PortObservation` | observe | Interface- oder explizite Portquellen-Fakten |
 | `device.Port` | device | aufgeloester controller-seitiger Portinput |
@@ -135,10 +132,9 @@ Platzierungsregel:
 | Feature-Art | Wahrscheinlicher Ort |
 | --- | --- |
 | Neues YAML-Feld | `internal/config`, Schemas, Paket-Configs, Doku |
-| Neue Profildaten | `internal/device/profilemodel`, Profil-YAML, Validierung |
+| Neue Profildaten | `internal/device`, Profil-YAML, Validierung |
 | Neue OS-Lesequelle | `internal/platform` oder `internal/adapters` |
 | Neue Bridge-Klassifikationsregel | `internal/observe/classify.go` plus Tests |
 | Neues Payload-Feld | `internal/device/payload` plus Fixture-Tests |
 | Neue Controller-Antwort | `internal/adoption` oder `internal/adoptionssh` |
 | Neue CLI-Validierung | `cmd/unifi-stubd/operation.go` |
-

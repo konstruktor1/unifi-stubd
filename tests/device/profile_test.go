@@ -179,7 +179,7 @@ func TestTenGigProfile(t *testing.T) {
 	if profile.PortSpeed != 10000 {
 		t.Fatalf("PortSpeed = %d, want 10000", profile.PortSpeed)
 	}
-	ports := device.SwitchPortsWithOptions(profile.Ports, profile.PortOptions())
+	ports := device.BuildPorts(profile, device.PortBuildOptions{})
 	if ports[0].Media != "SFP+" || ports[0].Speed != 10000 {
 		t.Fatalf("port 1 = media %q speed %d, want 10G SFP+", ports[0].Media, ports[0].Speed)
 	}
@@ -213,7 +213,7 @@ func TestGen1PoEProfilesIncludeSFPUplinkPorts(t *testing.T) {
 			if profile.Ports != test.ports {
 				t.Fatalf("Ports = %d, want %d", profile.Ports, test.ports)
 			}
-			ports := device.SwitchPortsWithOptions(profile.Ports, profile.PortOptions())
+			ports := device.BuildPorts(profile, device.PortBuildOptions{})
 			if len(ports) != test.ports {
 				t.Fatalf("len(ports) = %d, want %d", len(ports), test.ports)
 			}
@@ -324,7 +324,7 @@ func TestTenGigGatewayProfile(t *testing.T) {
 	if profile.UplinkMedia != "GE" {
 		t.Fatalf("UplinkMedia = %q, want GE", profile.UplinkMedia)
 	}
-	ports := device.SwitchPortsWithOptions(profile.Ports, profile.PortOptions())
+	ports := device.BuildPorts(profile, device.PortBuildOptions{})
 	if ports[0].Role != "wan" || ports[0].NetworkGroup != "WAN" {
 		t.Fatalf("port 1 assignment = role %q group %q, want WAN", ports[0].Role, ports[0].NetworkGroup)
 	}
@@ -340,9 +340,7 @@ func TestTenGigGatewayProfile(t *testing.T) {
 	if ports[2].Media != "SFP+" || ports[2].Speed != 10000 || ports[2].Uplink {
 		t.Fatalf("port 3 = media %q speed %d uplink %v, want 10G SFP+ WAN2", ports[2].Media, ports[2].Speed, ports[2].Uplink)
 	}
-	options := profile.PortOptions()
-	options.UplinkPort = 3
-	remappedPorts := device.SwitchPortsWithOptions(profile.Ports, options)
+	remappedPorts := device.BuildPorts(profile, device.PortBuildOptions{UplinkPort: 3})
 	if !remappedPorts[2].Uplink || remappedPorts[2].Speed != 10000 || remappedPorts[2].Media != "SFP+" {
 		t.Fatalf("remapped port 3 = media %q speed %d uplink %v, want 10G SFP+ uplink", remappedPorts[2].Media, remappedPorts[2].Speed, remappedPorts[2].Uplink)
 	}
@@ -363,7 +361,7 @@ func TestGatewayLiteProfile(t *testing.T) {
 	if profile.Ports != 2 {
 		t.Fatalf("Ports = %d, want 2", profile.Ports)
 	}
-	ports := device.SwitchPortsWithOptions(profile.Ports, profile.PortOptions())
+	ports := device.BuildPorts(profile, device.PortBuildOptions{})
 	if len(ports) != 2 {
 		t.Fatalf("len(ports) = %d, want 2", len(ports))
 	}
@@ -398,7 +396,7 @@ func TestCloudGatewayFiberProfile(t *testing.T) {
 	if !ok || byModel.Name != "ucg-fiber" {
 		t.Fatalf("LookupProfile(UCGF) = %+v, %v; want ucg-fiber", byModel, ok)
 	}
-	ports := device.SwitchPortsWithOptions(profile.Ports, profile.PortOptions())
+	ports := device.BuildPorts(profile, device.PortBuildOptions{})
 	assertPort := func(index int, name string, speed int, media string, role string, group string, uplink bool) {
 		t.Helper()
 		port := ports[index-1]

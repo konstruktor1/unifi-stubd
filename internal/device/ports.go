@@ -1,39 +1,70 @@
-// Package payload turns profile layout data into deterministic UniFi ports
+// Package device turns profile layout data into deterministic UniFi ports
 // before observations and overrides are merged. The generator preserves profile
 // media, speed groups, names, roles, and uplink selection.
-package payload
+package device
 
 import (
 	"strconv"
 	"strings"
 )
 
-// SwitchPorts returns count generated switch ports with profile-neutral defaults.
-func SwitchPorts(count int) []Port {
-	return SwitchPortsWithOptions(count, PortOptions{})
+const (
+	deviceTypeUSW       = "usw"
+	gatewayPortRoleLAN  = "lan"
+	gatewayPortRoleLAN2 = "lan2"
+	gatewayPortRoleWAN  = "wan"
+	gatewayPortRoleWAN2 = "wan2"
+	mediaSFPPlus        = "SFP+"
+)
+
+// portLayout is the internal resolved profile layout used while building ports.
+type portLayout struct {
+	Speed             int
+	UplinkSpeed       int
+	Media             string
+	UplinkMedia       string
+	UplinkPort        int
+	PortGroups        []PortGroup
+	PortNames         []string
+	PortRoles         []string
+	PortNetworkGroups []string
 }
 
-// SwitchPortsWithOptions returns count generated switch ports using options.
-func SwitchPortsWithOptions(count int, options PortOptions) []Port {
+// BuildPorts returns generated switch ports from profile plus runtime options.
+func BuildPorts(profile Profile, options PortBuildOptions) []Port {
+	count := profile.Ports
+	if options.Count > 0 {
+		count = options.Count
+	}
+	return switchPortsWithLayout(count, profilePortLayout(profile, options))
+}
+
+// SwitchPorts returns count generated switch ports with profile-neutral defaults.
+func SwitchPorts(count int) []Port {
+	return BuildPorts(Profile{Ports: count}, PortBuildOptions{})
+}
+
+// switchPortsWithLayout returns count generated switch ports using layout.
+func switchPortsWithLayout(count int, layout portLayout) []Port {
 	if count < 1 {
 		count = 1
 	}
-	options = normalizePortOptions(options)
-	if ports := groupedSwitchPorts(count, options); len(ports) > 0 {
-		return applyUplinkPort(ports, options.UplinkPort)
+	layout = normalizePortLayout(layout)
+	if ports := groupedSwitchPorts(count, layout); len(ports) > 0 {
+		return applyUplinkPort(ports, layout.UplinkPort)
 	}
 
 	ports := make([]Port, 0, count)
 	for i := 1; i <= count; i++ {
-		speed := options.Speed
-		media := options.Media
+		speed := layout.Speed
+		media := layout.Media
 		if i == 1 {
-			speed = options.UplinkSpeed
-			media = options.UplinkMedia
+			speed = layout.UplinkSpeed
+			media = layout.UplinkMedia
 		}
-		ports = append(ports, generatedPort(i, speed, media, i == 1, i == 1, options.PortNames, options.PortRoles, options.PortNetworkGroups))
+		ports = append(ports, generatedPort(i, speed, media, i == 1, i == 1, layout.PortNames, layout.PortRoles, layout.PortNetworkGroups))
 	}
-	return applyUplinkPort(ports, options.UplinkPort)
+	return applyUplinkPort(ports, layout.UplinkPort)
 }
 
 // ApplyUplinkNeighbor adds a configured neighbor entry to the uplink port.
@@ -119,13 +150,13 @@ func normalizeMacTableEntry(entry MacTableEntry, defaultType string) MacTableEnt
 }
 
 // groupedSwitchPorts generates physical layouts with non-uniform speed or media blocks.
-func groupedSwitchPorts(count int, options PortOptions) []Port {
-	if len(options.PortGroups) == 0 {
+func groupedSwitchPorts(count int, layout portLayout) []Port {
+	if len(layout.PortGroups) == 0 {
 		return nil
 	}
 	total := 0
 	uplinkIndex := 0
-	for _, group := range options.PortGroups {
+	for _, group := range layout.PortGroups {
 		if group.Count < 1 {
 			return nil
 		}
@@ -143,10 +174,10 @@ func groupedSwitchPorts(count int, options PortOptions) []Port {
 
 	ports := make([]Port, 0, count)
 	index := 0
-	for _, group := range options.PortGroups {
+	for _, group := range layout.PortGroups {
 		speed := group.Speed
 		if speed <= 0 {
-			speed = options.Speed
+			speed = layout.Speed
 		}
 		media := group.Media
 		if media == "" {
@@ -158,8 +189,8 @@ func groupedSwitchPorts(count int, options PortOptions) []Port {
 			portSpeed := speed
 			portMedia := media
 			if isUplink {
-				portSpeed = options.UplinkSpeed
-				portMedia = options.UplinkMedia
+				portSpeed = layout.UplinkSpeed
+				portMedia = layout.UplinkMedia
 			}
 			ports = append(ports, generatedPort(
 				index,
@@ -167,9 +198,9 @@ func groupedSwitchPorts(count int, options PortOptions) []Port {
 				portMedia,
 				isUplink,
 				group.Uplink,
-				options.PortNames,
-				options.PortRoles,
-				options.PortNetworkGroups,
+				layout.PortNames,
+				layout.PortRoles,
+				layout.PortNetworkGroups,
 			))
 		}
 	}
@@ -254,21 +285,50 @@ func oneBasedString(index int, values []string) string {
 	return strings.TrimSpace(values[index-1])
 }
 
-// normalizePortOptions applies profile-neutral defaults used by generated ports.
-func normalizePortOptions(options PortOptions) PortOptions {
-	if options.Speed <= 0 {
-		options.Speed = 1000
+// profilePortLayout resolves profile layout plus runtime-only overrides.
+func profilePortLayout(profile Profile, options PortBuildOptions) portLayout {
+	layout := portLayout{
+		Speed:             profile.PortSpeed,
+		UplinkSpeed:       profile.UplinkSpeed,
+		Media:             profile.PortMedia,
+		UplinkMedia:       profile.UplinkMedia,
+		UplinkPort:        options.UplinkPort,
+		PortGroups:        cloneNonEmptySlice(profile.PortGroups),
+		PortNames:         cloneNonEmptySlice(profile.PortNames),
+		PortRoles:         cloneNonEmptySlice(profile.PortRoles),
+		PortNetworkGroups: cloneNonEmptySlice(profile.PortNetworkGroups),
 	}
-	if options.UplinkSpeed <= 0 {
-		options.UplinkSpeed = options.Speed
+	if options.LinkSpeed > 0 {
+		layout.Speed = options.LinkSpeed
+		layout.UplinkSpeed = options.LinkSpeed
+		layout.Media = ""
+		layout.UplinkMedia = ""
+		layout.PortGroups = nil
 	}
-	if options.Media == "" {
-		options.Media = mediaForSpeed(options.Speed)
+	if options.UplinkSpeed > 0 {
+		layout.UplinkSpeed = options.UplinkSpeed
+		if layout.UplinkMedia == "" || layout.UplinkMedia == layout.Media {
+			layout.UplinkMedia = ""
+		}
 	}
-	if options.UplinkMedia == "" {
-		options.UplinkMedia = mediaForSpeed(options.UplinkSpeed)
+	return layout
+}
+
+// normalizePortLayout applies profile-neutral defaults used by generated ports.
+func normalizePortLayout(layout portLayout) portLayout {
+	if layout.Speed <= 0 {
+		layout.Speed = 1000
 	}
-	return options
+	if layout.UplinkSpeed <= 0 {
+		layout.UplinkSpeed = layout.Speed
+	}
+	if layout.Media == "" {
+		layout.Media = mediaForSpeed(layout.Speed)
+	}
+	if layout.UplinkMedia == "" {
+		layout.UplinkMedia = mediaForSpeed(layout.UplinkSpeed)
+	}
+	return layout
 }
 
 // mediaForSpeed returns the UniFi media label implied by a link speed.
@@ -277,4 +337,14 @@ func mediaForSpeed(speed int) string {
 		return mediaSFPPlus
 	}
 	return "GE"
+}
+
+// normalizeGatewayRole normalizes configured gateway role labels.
+func normalizeGatewayRole(role string) string {
+	return strings.ToLower(strings.TrimSpace(role))
+}
+
+// normalizeGatewayNetworkGroup normalizes configured network group labels.
+func normalizeGatewayNetworkGroup(networkGroup string) string {
+	return strings.TrimSpace(networkGroup)
 }

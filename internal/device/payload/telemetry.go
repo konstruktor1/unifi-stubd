@@ -7,82 +7,220 @@ import (
 	"fmt"
 	"net"
 	"time"
+
+	"github.com/konstruktor1/unifi-stubd/internal/device"
 )
 
-// applyGatewayTelemetry adds deterministic low-risk gateway metadata fields.
-func applyGatewayTelemetry(payload map[string]any, id Identity, now time.Time, uptime int) {
-	cfgVersion, _ := payload["cfgversion"].(string)
+type emptyObject struct{}
+
+type featureStatusPayload struct {
+	FeatureStatus string `json:"feature_status"`
+}
+
+type hashPayload struct {
+	Hash string `json:"hash"`
+}
+
+type gatewayRulePayload struct {
+	RuleCount     int    `json:"rule_count"`
+	SHA256        string `json:"sha256"`
+	SignatureType string `json:"signature_type"`
+	UpdateTime    string `json:"update_time"`
+}
+
+type ledStatePayload struct {
+	Pattern string `json:"pattern"`
+	Tempo   int    `json:"tempo"`
+}
+
+type speedtestServerPayload struct {
+	CountryCode string  `json:"cc"`
+	City        string  `json:"city"`
+	Country     string  `json:"country"`
+	Latitude    float64 `json:"lat"`
+	Longitude   float64 `json:"lon"`
+	Provider    string  `json:"provider"`
+	ProviderURL string  `json:"provider_url"`
+}
+
+type speedtestStatusPayload struct {
+	Latency        int                    `json:"latency"`
+	RunDate        int                    `json:"rundate"`
+	Runtime        int                    `json:"runtime"`
+	Server         speedtestServerPayload `json:"server"`
+	SourceIf       string                 `json:"source_interface"`
+	StatusDownload int                    `json:"status_download"`
+	StatusPing     int                    `json:"status_ping"`
+	StatusSummary  int                    `json:"status_summary"`
+	StatusUpload   int                    `json:"status_upload"`
+	XputDownload   float64                `json:"xput_download"`
+	XputUpload     float64                `json:"xput_upload"`
+}
+
+type switchCapsPayload struct {
+	FeatureCaps          int `json:"feature_caps"`
+	MaxAggregateSessions int `json:"max_aggregate_sessions"`
+	MaxMirrorSessions    int `json:"max_mirror_sessions"`
+}
+
+type gatewayTelemetry struct {
+	AnonID                 string                 `json:"anon_id"`
+	Architecture           string                 `json:"architecture"`
+	BLECaps                int                    `json:"ble_caps"`
+	BoardRevision          int                    `json:"board_rev"`
+	BOMRevision            string                 `json:"bomrev"`
+	BOMRevisionID          string                 `json:"bomrev_id"`
+	Boot                   emptyObject            `json:"boot"`
+	BootID                 int                    `json:"bootid"`
+	BootROMVersion         string                 `json:"bootrom_version"`
+	CFGVersionEffective    string                 `json:"cfgversion_effective"`
+	Connections            []emptyObject          `json:"connections"`
+	ContentFilteringStatus featureStatusPayload   `json:"content_filtering_status"`
+	DNSShield              hashPayload            `json:"dns_shield"`
+	DPIStats               []emptyObject          `json:"dpi_stats"`
+	Dualboot               bool                   `json:"dualboot"`
+	EverCrash              bool                   `json:"ever_crash"`
+	Fingerprint            string                 `json:"fingerprint"`
+	Fingerprints           []emptyObject          `json:"fingerprints"`
+	FW2Caps                int                    `json:"fw2_caps"`
+	FWCaps                 int                    `json:"fw_caps"`
+	GuestKicks             int                    `json:"guest_kicks"`
+	GuestToken             string                 `json:"guest_token"`
+	GWCapabilities         emptyObject            `json:"gw_caps"`
+	HardwareUUID           string                 `json:"hardware_uuid"`
+	HasDefaultRouteDist    bool                   `json:"has_default_route_distance"`
+	HasSpeaker             bool                   `json:"has_speaker"`
+	HasSSHDisable          bool                   `json:"has_ssh_disable"`
+	HasVTI                 bool                   `json:"has_vti"`
+	HWCapabilities         int                    `json:"hw_caps"`
+	IDsIPSRule             gatewayRulePayload     `json:"ids_ips_rule"`
+	InformMinInterval      int                    `json:"inform_min_interval"`
+	IPv4ActiveLeases       []emptyObject          `json:"ipv4_active_leases"`
+	Isolated               bool                   `json:"isolated"`
+	KernelVersion          string                 `json:"kernel_version"`
+	LastErrorConns         []emptyObject          `json:"last_error_conns"`
+	LEDState               ledStatePayload        `json:"led_state"`
+	LLDPTable              []emptyObject          `json:"lldp_table"`
+	Locating               bool                   `json:"locating"`
+	ManufacturerID         int                    `json:"manufacturer_id"`
+	Netmask                string                 `json:"netmask"`
+	OutletEnabled          bool                   `json:"outlet_enabled"`
+	OutletOverrides        []emptyObject          `json:"outlet_overrides"`
+	OutletTable            []emptyObject          `json:"outlet_table"`
+	PingtestStatus         []emptyObject          `json:"pingtest-status"`
+	QRID                   string                 `json:"qrid"`
+	RebootDuration         int                    `json:"reboot_duration"`
+	SelfrunBeacon          bool                   `json:"selfrun_beacon"`
+	SpeedtestStatus        speedtestStatusPayload `json:"speedtest-status"`
+	SpeedtestStatusUDAPI   []emptyObject          `json:"speedtest-status-udapi"`
+	SSHSessionTable        []emptyObject          `json:"ssh_session_table"`
+	StatsInformInterval    int                    `json:"stats_inform_interval"`
+	SwitchCaps             switchCapsPayload      `json:"switch_caps"`
+	SysErrorCaps           int                    `json:"sys_error_caps"`
+	SysID                  int                    `json:"sysid"`
+	TeleportVersion        int                    `json:"teleport_version"`
+	TimeMS                 int64                  `json:"time_ms"`
+	Timestamp              string                 `json:"timestamp"`
+	TMReady                bool                   `json:"tm_ready"`
+	Triggers               []emptyObject          `json:"triggers"`
+	TriggersDNSFilter      []emptyObject          `json:"triggers_dns_filter"`
+	TriggersGeo            []emptyObject          `json:"triggers_geo"`
+	UDAPICaps              int                    `json:"udapi_caps"`
+	UDAPIVersion           emptyObject            `json:"udapi_version"`
+	UpgradeDuration        int                    `json:"upgrade_duration"`
+	UptimeText             string                 `json:"uptime_str"`
+	USG2Caps               int                    `json:"usg2_caps"`
+	USGCaps                int                    `json:"usg_caps"`
+	WiFiCaps               int                    `json:"wifi_caps"`
+}
+
+// newGatewayTelemetry returns deterministic low-risk gateway metadata fields.
+func newGatewayTelemetry(id device.Identity, now time.Time, uptime int, cfgVersion string) gatewayTelemetry {
 	if cfgVersion == "" {
 		cfgVersion = "?"
 	}
-	payload["anon_id"] = ""
-	payload["architecture"] = "aarch64"
-	payload["ble_caps"] = 0
-	payload["board_rev"] = 1
-	payload["bomrev"] = "unknown"
-	payload["bomrev_id"] = "00000000"
-	payload["boot"] = map[string]any{}
-	payload["bootid"] = -1
-	payload["bootrom_version"] = "unknown"
-	payload["cfgversion_effective"] = cfgVersion
-	payload["connections"] = []map[string]any{}
-	payload["content_filtering_status"] = map[string]any{"feature_status": "UNAVAILABLE_NO_SUBSCRIPTION"}
-	payload["dns_shield"] = map[string]any{"hash": ""}
-	payload["dpi_stats"] = []map[string]any{}
-	payload["dualboot"] = false
-	payload["ever_crash"] = false
-	payload["fingerprint"] = "00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00"
-	payload["fingerprints"] = []map[string]any{}
-	payload["fw2_caps"] = 0
-	payload["fw_caps"] = 0
-	payload["guest_kicks"] = 0
-	payload["guest_token"] = ""
-	payload["gw_caps"] = map[string]any{}
-	payload["hardware_uuid"] = "00000000-0000-4000-8000-000000000000"
-	payload["has_default_route_distance"] = true
-	payload["has_speaker"] = false
-	payload["has_ssh_disable"] = true
-	payload["has_vti"] = true
-	payload["hw_caps"] = 0
-	payload["ids_ips_rule"] = map[string]any{"rule_count": 0, "sha256": "", "signature_type": "", "update_time": ""}
-	payload["inform_min_interval"] = 1
-	payload["ipv4_active_leases"] = []map[string]any{}
-	payload["isolated"] = false
-	payload["kernel_version"] = "6.12.0-stubd"
-	payload["last_error_conns"] = []map[string]any{}
-	payload["led_state"] = map[string]any{"pattern": "0", "tempo": 120}
-	payload["lldp_table"] = []map[string]any{}
-	payload["locating"] = false
-	payload["manufacturer_id"] = 61
-	payload["netmask"] = "255.255.255.0"
-	payload["outlet_enabled"] = false
-	payload["outlet_overrides"] = []map[string]any{}
-	payload["outlet_table"] = []map[string]any{}
-	payload["pingtest-status"] = []map[string]any{}
-	payload["qrid"] = ""
-	payload["reboot_duration"] = 30
-	payload["selfrun_beacon"] = true
-	payload["speedtest-status"] = gatewaySpeedtestStatus()
-	payload["speedtest-status-udapi"] = []map[string]any{}
-	payload["ssh_session_table"] = []map[string]any{}
-	payload["stats_inform_interval"] = 0
-	payload["switch_caps"] = map[string]any{"feature_caps": 1048576, "max_aggregate_sessions": 0, "max_mirror_sessions": 1}
-	payload["sys_error_caps"] = 0
-	payload["sysid"] = gatewaySysID(id.MAC)
-	payload["teleport_version"] = 1
-	payload["time_ms"] = now.UnixMilli()
-	payload["timestamp"] = now.UTC().Format("2006-01-02T15:04:05")
-	payload["tm_ready"] = false
-	payload["triggers"] = []map[string]any{}
-	payload["triggers_dns_filter"] = []map[string]any{}
-	payload["triggers_geo"] = []map[string]any{}
-	payload["udapi_caps"] = 0
-	payload["udapi_version"] = map[string]any{}
-	payload["upgrade_duration"] = 150
-	payload["uptime_str"] = formatUptime(uptime)
-	payload["usg2_caps"] = 0
-	payload["usg_caps"] = 0
-	payload["wifi_caps"] = 0
+	emptyList := []emptyObject{}
+	return gatewayTelemetry{
+		AnonID:              "",
+		Architecture:        "aarch64",
+		BLECaps:             0,
+		BoardRevision:       1,
+		BOMRevision:         "unknown",
+		BOMRevisionID:       "00000000",
+		Boot:                emptyObject{},
+		BootID:              -1,
+		BootROMVersion:      "unknown",
+		CFGVersionEffective: cfgVersion,
+		Connections:         emptyList,
+		ContentFilteringStatus: featureStatusPayload{
+			FeatureStatus: "UNAVAILABLE_NO_SUBSCRIPTION",
+		},
+		DNSShield:           hashPayload{Hash: ""},
+		DPIStats:            emptyList,
+		Dualboot:            false,
+		EverCrash:           false,
+		Fingerprint:         "00:00:00:00:00:00:00:00:00:00:00:00:00:00:00:00",
+		Fingerprints:        emptyList,
+		FW2Caps:             0,
+		FWCaps:              0,
+		GuestKicks:          0,
+		GuestToken:          "",
+		GWCapabilities:      emptyObject{},
+		HardwareUUID:        "00000000-0000-4000-8000-000000000000",
+		HasDefaultRouteDist: true,
+		HasSpeaker:          false,
+		HasSSHDisable:       true,
+		HasVTI:              true,
+		HWCapabilities:      0,
+		IDsIPSRule: gatewayRulePayload{
+			RuleCount:     0,
+			SHA256:        "",
+			SignatureType: "",
+			UpdateTime:    "",
+		},
+		InformMinInterval:    1,
+		IPv4ActiveLeases:     emptyList,
+		Isolated:             false,
+		KernelVersion:        "6.12.0-stubd",
+		LastErrorConns:       emptyList,
+		LEDState:             ledStatePayload{Pattern: "0", Tempo: 120},
+		LLDPTable:            emptyList,
+		Locating:             false,
+		ManufacturerID:       61,
+		Netmask:              "255.255.255.0",
+		OutletEnabled:        false,
+		OutletOverrides:      emptyList,
+		OutletTable:          emptyList,
+		PingtestStatus:       emptyList,
+		QRID:                 "",
+		RebootDuration:       30,
+		SelfrunBeacon:        true,
+		SpeedtestStatus:      gatewaySpeedtestStatus(),
+		SpeedtestStatusUDAPI: emptyList,
+		SSHSessionTable:      emptyList,
+		StatsInformInterval:  0,
+		SwitchCaps: switchCapsPayload{
+			FeatureCaps:          1048576,
+			MaxAggregateSessions: 0,
+			MaxMirrorSessions:    1,
+		},
+		SysErrorCaps:      0,
+		SysID:             gatewaySysID(id.MAC),
+		TeleportVersion:   1,
+		TimeMS:            now.UnixMilli(),
+		Timestamp:         now.UTC().Format("2006-01-02T15:04:05"),
+		TMReady:           false,
+		Triggers:          emptyList,
+		TriggersDNSFilter: emptyList,
+		TriggersGeo:       emptyList,
+		UDAPICaps:         0,
+		UDAPIVersion:      emptyObject{},
+		UpgradeDuration:   150,
+		UptimeText:        formatUptime(uptime),
+		USG2Caps:          0,
+		USGCaps:           0,
+		WiFiCaps:          0,
+	}
 }
 
 // formatUptime mirrors compact firmware-style uptime text for gateway status
@@ -110,19 +248,27 @@ func formatUptime(seconds int) string {
 }
 
 // gatewaySpeedtestStatus returns an idle speed-test block for gateway payloads.
-func gatewaySpeedtestStatus() map[string]any {
-	return map[string]any{
-		jsonKeyLatency:    0,
-		"rundate":         0,
-		"runtime":         0,
-		"server":          map[string]any{"cc": "", "city": "", "country": "", "lat": 0.0, "lon": 0.0, "provider": "", "provider_url": ""},
-		jsonKeySourceIf:   "",
-		"status_download": 0,
-		"status_ping":     0,
-		"status_summary":  0,
-		"status_upload":   0,
-		"xput_download":   0.0,
-		"xput_upload":     0.0,
+func gatewaySpeedtestStatus() speedtestStatusPayload {
+	return speedtestStatusPayload{
+		Latency: 0,
+		RunDate: 0,
+		Runtime: 0,
+		Server: speedtestServerPayload{
+			CountryCode: "",
+			City:        "",
+			Country:     "",
+			Latitude:    0.0,
+			Longitude:   0.0,
+			Provider:    "",
+			ProviderURL: "",
+		},
+		SourceIf:       "",
+		StatusDownload: 0,
+		StatusPing:     0,
+		StatusSummary:  0,
+		StatusUpload:   0,
+		XputDownload:   0.0,
+		XputUpload:     0.0,
 	}
 }
 

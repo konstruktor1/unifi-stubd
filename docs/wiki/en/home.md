@@ -72,7 +72,7 @@ Not goals:
 | --- | --- |
 | `cmd/unifi-stubd/` | CLI, config layering, validation, daemon orchestration |
 | `internal/config/` | YAML schema and defaults |
-| `internal/device/` | profiles, resolved ports, payload entry point |
+| `internal/device/` | profiles, registry, identities, and resolved ports |
 | `internal/device/payload/` | switch/gateway JSON payload renderer |
 | `internal/observe/` | read-only observation model |
 | `internal/platform/` | OS facade for read-only host integrations |
@@ -89,4 +89,3 @@ When a change affects behavior, update the detailed documentation first and then
 update the wiki only if the user/operator navigation changes. Avoid copying
 full sections from the reference docs into the wiki; link to them and summarize
 the decision.
-

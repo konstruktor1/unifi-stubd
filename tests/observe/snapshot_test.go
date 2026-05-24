@@ -13,6 +13,20 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/observe"
 )
 
+func groupedSnapshotPorts(count int) []device.Port {
+	return device.BuildPorts(device.Profile{
+		Ports:       count,
+		PortSpeed:   10000,
+		UplinkSpeed: 25000,
+		PortMedia:   "SFP+",
+		UplinkMedia: "SFP28",
+		PortGroups: []device.PortGroup{
+			{Count: count - 1, Speed: 10000, Media: "SFP+"},
+			{Count: 1, Speed: 25000, Media: "SFP28", Uplink: true},
+		},
+	}, device.PortBuildOptions{})
+}
+
 // TestReadInterfaceStatsFromSysfsFixture verifies sysfs counter and speed reads
 // from fixture data.
 func TestReadInterfaceStatsFromSysfsFixture(t *testing.T) {
@@ -240,16 +254,7 @@ func TestRemoteMACsByBridgeMemberDetectsUplinkNeighbor(t *testing.T) {
 // TestApplySnapshotIgnoresBridgeMembers verifies bridge metadata and ignored
 // members are not rendered as access ports.
 func TestApplySnapshotIgnoresBridgeMembers(t *testing.T) {
-	ports := device.SwitchPortsWithOptions(4, device.PortOptions{
-		Speed:       10000,
-		UplinkSpeed: 25000,
-		Media:       "SFP+",
-		UplinkMedia: "SFP28",
-		PortGroups: []device.PortGroup{
-			{Count: 3, Speed: 10000, Media: "SFP+"},
-			{Count: 1, Speed: 25000, Media: "SFP28", Uplink: true},
-		},
-	})
+	ports := groupedSnapshotPorts(4)
 	out := observe.Apply(ports, observe.Snapshot{
 		UplinkPortIndex: 4,
 		Interface:       "eno1",
@@ -284,16 +289,7 @@ func TestApplySnapshotIgnoresBridgeMembers(t *testing.T) {
 // TestApplySnapshotUpdatesUplinkPort verifies uplink observation updates speed,
 // counters, and MAC metadata.
 func TestApplySnapshotUpdatesUplinkPort(t *testing.T) {
-	ports := device.SwitchPortsWithOptions(4, device.PortOptions{
-		Speed:       10000,
-		UplinkSpeed: 25000,
-		Media:       "SFP+",
-		UplinkMedia: "SFP28",
-		PortGroups: []device.PortGroup{
-			{Count: 3, Speed: 10000, Media: "SFP+"},
-			{Count: 1, Speed: 25000, Media: "SFP28", Uplink: true},
-		},
-	})
+	ports := groupedSnapshotPorts(4)
 	out := observe.Apply(ports, observe.Snapshot{
 		UplinkPortIndex: 4,
 		Stats: observe.InterfaceStats{
@@ -325,16 +321,7 @@ func TestApplySnapshotUpdatesUplinkPort(t *testing.T) {
 // TestApplySnapshotDistributesBridgeFDBDevices verifies deterministic bridge
 // member assignment across generated ports.
 func TestApplySnapshotDistributesBridgeFDBDevices(t *testing.T) {
-	ports := device.SwitchPortsWithOptions(5, device.PortOptions{
-		Speed:       10000,
-		UplinkSpeed: 25000,
-		Media:       "SFP+",
-		UplinkMedia: "SFP28",
-		PortGroups: []device.PortGroup{
-			{Count: 4, Speed: 10000, Media: "SFP+"},
-			{Count: 1, Speed: 25000, Media: "SFP28", Uplink: true},
-		},
-	})
+	ports := groupedSnapshotPorts(5)
 	out := observe.Apply(ports, observe.Snapshot{
 		UplinkPortIndex: 5,
 		Interface:       "eth0",
@@ -428,16 +415,7 @@ func TestApplySnapshotDistributesBridgeFDBDevices(t *testing.T) {
 // TestApplySnapshotHonorsBridgeMemberPortMap verifies explicit member pinning
 // overrides automatic port assignment.
 func TestApplySnapshotHonorsBridgeMemberPortMap(t *testing.T) {
-	ports := device.SwitchPortsWithOptions(5, device.PortOptions{
-		Speed:       10000,
-		UplinkSpeed: 25000,
-		Media:       "SFP+",
-		UplinkMedia: "SFP28",
-		PortGroups: []device.PortGroup{
-			{Count: 4, Speed: 10000, Media: "SFP+"},
-			{Count: 1, Speed: 25000, Media: "SFP28", Uplink: true},
-		},
-	})
+	ports := groupedSnapshotPorts(5)
 	out := observe.Apply(ports, observe.Snapshot{
 		UplinkPortIndex: 5,
 		Interface:       "eno1",

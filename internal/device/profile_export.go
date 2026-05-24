@@ -1,7 +1,7 @@
-// Package profiledata renders validated records as canonical YAML for template
+// Package device renders validated records as canonical YAML for template
 // and export CLI actions. The registry remains the source of truth for defaults
 // and built-in override markers.
-package profiledata
+package device
 
 import (
 	"fmt"
@@ -10,9 +10,9 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// ExportYAML returns a profile as canonical YAML.
-func (r Registry) ExportYAML(name string) ([]byte, error) {
-	profile, ok := r.Lookup(name)
+// ExportProfileYAML returns a profile as canonical YAML.
+func (r ProfileRegistry) ExportProfileYAML(name string) ([]byte, error) {
+	profile, ok := r.LookupProfile(name)
 	if !ok {
 		return nil, fmt.Errorf("profile %q not found", strings.TrimSpace(name))
 	}
@@ -81,6 +81,11 @@ func TemplateYAML(kind string) ([]byte, error) {
 	default:
 		return nil, fmt.Errorf("invalid profile template kind %q; use switch or gateway", kind)
 	}
+}
+
+// ProfileTemplateYAML returns a starter profile template for kind.
+func ProfileTemplateYAML(kind string) ([]byte, error) {
+	return TemplateYAML(kind)
 }
 
 // profileYAML renders a detached profile with runtime-only source metadata
