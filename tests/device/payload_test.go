@@ -418,7 +418,6 @@ func TestTenGigGatewayProfileReportsPortLayout(t *testing.T) {
 		EthernetOverrides []map[string]any `json:"ethernet_overrides"`
 		IfTable           []map[string]any `json:"if_table"`
 		NetworkTable      []map[string]any `json:"network_table"`
-		PortTable         []map[string]any `json:"port_table"`
 		ReportedNetworks  []map[string]any `json:"reported_networks"`
 		UplinkTable       []map[string]any `json:"uplink_table"`
 		ConfigNetworkWAN  map[string]any   `json:"config_network_wan"`
@@ -432,7 +431,7 @@ func TestTenGigGatewayProfileReportsPortLayout(t *testing.T) {
 	if err := json.Unmarshal(payload, &doc); err != nil {
 		t.Fatal(err)
 	}
-	for _, key := range []string{"ethernet_table", "internet", "port_overrides"} {
+	for _, key := range []string{"ethernet_table", "internet", "port_overrides", "port_table"} {
 		if _, ok := raw[key]; ok {
 			t.Fatalf("gateway payload contains unsupported table/key %q", key)
 		}
@@ -473,23 +472,14 @@ func TestTenGigGatewayProfileReportsPortLayout(t *testing.T) {
 	if len(doc.NetworkTable) != 4 {
 		t.Fatalf("network_table length = %d, want 4", len(doc.NetworkTable))
 	}
-	if len(doc.PortTable) != 4 {
-		t.Fatalf("port_table length = %d, want 4", len(doc.PortTable))
-	}
 	if got := doc.NetworkTable[2]["networkgroup"].(string); got != "WAN2" {
 		t.Fatalf("network_table port 3 networkgroup = %q, want WAN2", got)
 	}
-	if got := doc.PortTable[2]["networkgroup"].(string); got != "WAN2" {
-		t.Fatalf("port_table port 3 networkgroup = %q, want WAN2", got)
+	if _, ok := doc.ConfigPortTable[2]["native_networkconf_id"]; ok {
+		t.Fatalf("config_port_table unexpectedly sets native_networkconf_id: %#v", doc.ConfigPortTable[2]["native_networkconf_id"])
 	}
-	if got := doc.PortTable[2]["media"].(string); got != "SFP+" {
-		t.Fatalf("port_table port 3 media = %q, want SFP+", got)
-	}
-	if _, ok := doc.PortTable[2]["native_networkconf_id"]; ok {
-		t.Fatalf("port_table unexpectedly sets native_networkconf_id: %#v", doc.PortTable[2]["native_networkconf_id"])
-	}
-	if _, ok := doc.PortTable[2]["portconf_id"]; ok {
-		t.Fatalf("port_table unexpectedly sets portconf_id: %#v", doc.PortTable[2]["portconf_id"])
+	if _, ok := doc.ConfigPortTable[2]["portconf_id"]; ok {
+		t.Fatalf("config_port_table unexpectedly sets portconf_id: %#v", doc.ConfigPortTable[2]["portconf_id"])
 	}
 	if doc.OutletEnabled {
 		t.Fatal("outlet_enabled = true, want false for gateway stub")
@@ -584,7 +574,6 @@ func TestCloudGatewayFiberProfileReportsGatewayPayload(t *testing.T) {
 		EthernetOverrides []map[string]any `json:"ethernet_overrides"`
 		IfTable           []map[string]any `json:"if_table"`
 		NetworkTable      []map[string]any `json:"network_table"`
-		PortTable         []map[string]any `json:"port_table"`
 		ReportedNetworks  []map[string]any `json:"reported_networks"`
 		UplinkTable       []map[string]any `json:"uplink_table"`
 		ConfigNetworkWAN  map[string]any   `json:"config_network_wan"`
@@ -610,9 +599,6 @@ func TestCloudGatewayFiberProfileReportsGatewayPayload(t *testing.T) {
 	}
 	if len(doc.ReportedNetworks) != 7 {
 		t.Fatalf("reported_networks length = %d, want 7", len(doc.ReportedNetworks))
-	}
-	if len(doc.PortTable) != 7 {
-		t.Fatalf("port_table length = %d, want 7", len(doc.PortTable))
 	}
 	if len(doc.UplinkTable) != 1 {
 		t.Fatalf("uplink_table length = %d, want 1", len(doc.UplinkTable))
@@ -1078,7 +1064,6 @@ func TestGatewayPayloadReportsExplicitTrafficRates(t *testing.T) {
 	var doc struct {
 		IfTable      []map[string]any `json:"if_table"`
 		NetworkTable []map[string]any `json:"network_table"`
-		PortTable    []map[string]any `json:"port_table"`
 		UplinkTable  []map[string]any `json:"uplink_table"`
 		WAN1         map[string]any   `json:"wan1"`
 	}
@@ -1110,22 +1095,15 @@ func TestGatewayPayloadReportsExplicitTrafficRates(t *testing.T) {
 	if got := int64(doc.WAN1["tx_bytes"].(float64)); got != 4000 {
 		t.Fatalf("wan1 tx_bytes = %d, want 4000", got)
 	}
-	if got := int64(doc.PortTable[1]["rx_bytes-r"].(float64)); got != 30 {
-		t.Fatalf("gateway port_table WAN rx rate = %d, want 30", got)
-	}
-	if got := int64(doc.PortTable[1]["tx_bytes"].(float64)); got != 4000 {
-		t.Fatalf("gateway port_table WAN tx_bytes = %d, want 4000", got)
-	}
 	assertNoExperimentalRateFields(t, doc.IfTable[0])
 	assertNoExperimentalRateFields(t, wanStats)
-	assertNoExperimentalRateFields(t, doc.PortTable[1])
 	assertNoExperimentalRateFields(t, doc.UplinkTable[0])
 	assertNoExperimentalRateFields(t, doc.WAN1)
 }
 
-// TestGatewayPayloadSynchronizesResolvedPortTables verifies gateway tables all
+// TestGatewayPayloadSynchronizesResolvedTables verifies gateway tables all
 // consume the same resolved PortView data.
-func TestGatewayPayloadSynchronizesResolvedPortTables(t *testing.T) {
+func TestGatewayPayloadSynchronizesResolvedTables(t *testing.T) {
 	profile, ok := device.LookupProfile("uxg-lite")
 	if !ok {
 		t.Fatal("profile not found")
@@ -1175,7 +1153,6 @@ func TestGatewayPayloadSynchronizesResolvedPortTables(t *testing.T) {
 		EthernetOverrides []map[string]any `json:"ethernet_overrides"`
 		IfTable           []map[string]any `json:"if_table"`
 		NetworkTable      []map[string]any `json:"network_table"`
-		PortTable         []map[string]any `json:"port_table"`
 		ReportedNetworks  []map[string]any `json:"reported_networks"`
 		ConfigNetworkWAN  map[string]any   `json:"config_network_wan"`
 		ConfigNetworkWAN2 map[string]any   `json:"config_network_wan2,omitempty"`
@@ -1195,7 +1172,6 @@ func TestGatewayPayloadSynchronizesResolvedPortTables(t *testing.T) {
 			{"ethernet_overrides", doc.EthernetOverrides[index-1]},
 			{"if_table", doc.IfTable[index-1]},
 			{"network_table", doc.NetworkTable[index-1]},
-			{"port_table", doc.PortTable[index-1]},
 			{"reported_networks", doc.ReportedNetworks[index-1]},
 		}
 		for _, item := range rows {
@@ -1216,7 +1192,6 @@ func TestGatewayPayloadSynchronizesResolvedPortTables(t *testing.T) {
 			{"ethernet_overrides", doc.EthernetOverrides[index-1]},
 			{"if_table", doc.IfTable[index-1]},
 			{"network_table", doc.NetworkTable[index-1]},
-			{"port_table", doc.PortTable[index-1]},
 		} {
 			if got := item.row["mac"].(string); got != mac {
 				t.Fatalf("%s port %d mac = %q, want %q", item.name, index, got, mac)

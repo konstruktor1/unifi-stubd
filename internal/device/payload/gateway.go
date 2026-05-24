@@ -20,7 +20,6 @@ type gatewayPayload struct {
 	ConfigPortTable   []gatewayConfigPortRow       `json:"config_port_table"`
 	EthernetOverrides []gatewayEthernetOverrideRow `json:"ethernet_overrides"`
 	ReportedNetworks  []gatewayReportedNetworkRow  `json:"reported_networks"`
-	PortTable         []gatewayPortRow             `json:"port_table"`
 	Uplink            string                       `json:"uplink"`
 	UplinkTable       []gatewayUplinkRow           `json:"uplink_table"`
 	HasEth1           bool                         `json:"has_eth1"`
@@ -146,32 +145,6 @@ type gatewayConfigPortRow struct {
 	connectionFields
 }
 
-type gatewayPortRow struct {
-	PortIdx      int                    `json:"port_idx"`
-	IfName       string                 `json:"ifname"`
-	Name         string                 `json:"name"`
-	Enable       bool                   `json:"enable"`
-	Up           bool                   `json:"up"`
-	NetworkGroup string                 `json:"networkgroup"`
-	Role         string                 `json:"role"`
-	IsUplink     bool                   `json:"is_uplink"`
-	OpMode       string                 `json:"op_mode"`
-	FullDuplex   bool                   `json:"full_duplex"`
-	Autoneg      bool                   `json:"autoneg"`
-	FlowctrlRX   bool                   `json:"flowctrl_rx"`
-	FlowctrlTX   bool                   `json:"flowctrl_tx"`
-	MACTable     []device.MacTableEntry `json:"mac_table"`
-	RXDropped    int                    `json:"rx_dropped"`
-	TXDropped    int                    `json:"tx_dropped"`
-	MAC          string                 `json:"mac,omitempty"`
-	IP           string                 `json:"ip,omitempty"`
-	linkFields
-	counterFields
-	optionalRateFields
-	SourceInterface string `json:"source_interface"`
-	connectionFields
-}
-
 type gatewayEthernetOverrideRow struct {
 	Name         string `json:"name"`
 	IfName       string `json:"ifname"`
@@ -247,7 +220,6 @@ func buildGatewayPayload(base basePayload, profile device.Profile, id device.Ide
 		ConfigPortTable:   gatewayConfigPortTable(ports),
 		EthernetOverrides: gatewayEthernetOverrides(ports),
 		ReportedNetworks:  gatewayReportedNetworks(ports),
-		PortTable:         gatewayPortTable(ports),
 		Uplink:            gatewayInterfaceName(profile, gatewayUplinkPortIndex(ports)),
 		UplinkTable:       gatewayUplinkTable(profile, id, ports),
 		HasEth1:           len(ports) > 1,
@@ -446,43 +418,6 @@ func gatewayConfigPortTable(ports []PortView) []gatewayConfigPortRow {
 			linkFields:       portLinkFields(view.Speed, view.Media),
 			SourceInterface:  view.SourceInterface,
 			connectionFields: gatewayConnectionFields(view),
-		}
-		out = append(out, row)
-	}
-	return out
-}
-
-// gatewayPortTable renders physical gateway ports for controller views that
-// treat UXG/UDM ports as switch-like rows. It intentionally avoids port profile
-// or VLAN assignments; those remain controller-owned configuration.
-func gatewayPortTable(ports []PortView) []gatewayPortRow {
-	out := make([]gatewayPortRow, 0, len(ports))
-	for _, view := range ports {
-		iface := view.GatewayInterface
-		row := gatewayPortRow{
-			PortIdx:            view.Index,
-			IfName:             iface.IfName,
-			Name:               view.Name,
-			Enable:             view.Enabled,
-			Up:                 view.Up,
-			NetworkGroup:       iface.NetworkGroup,
-			Role:               view.Role,
-			IsUplink:           view.Uplink,
-			OpMode:             payloadKindGateway,
-			FullDuplex:         true,
-			Autoneg:            true,
-			FlowctrlRX:         false,
-			FlowctrlTX:         false,
-			MACTable:           view.MACs,
-			RXDropped:          0,
-			TXDropped:          0,
-			MAC:                iface.MAC,
-			IP:                 iface.IP,
-			linkFields:         portLinkFields(view.Speed, view.Media),
-			counterFields:      portCounterFields(view.Port),
-			optionalRateFields: explicitPortRateFields(view.Port),
-			SourceInterface:    view.SourceInterface,
-			connectionFields:   gatewayConnectionFields(view),
 		}
 		out = append(out, row)
 	}
