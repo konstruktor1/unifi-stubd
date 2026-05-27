@@ -208,6 +208,30 @@ Client neighbors are reported through `network_table[].host_table` with
 `hostname` and `ip` when configured; upstream switch neighbors are not rendered
 as gateway hosts.
 
+Gateway interface names are profile data, not host interface names. The selected
+profile's `gateway_interface_prefix` and one-based physical port index produce
+the controller-facing names (`eth0`, `eth1`, ...). `port_overrides[].interface`
+is only the local source used to read MAC, IP, link, speed, and counters; that
+host name is rendered as `source_interface`. For example, a UXG-Pro lab where
+OPNsense `ixl0` is cabled to physical port 3 should report:
+
+```yaml
+profile: uxgpro
+uplink_port: 3
+port_overrides:
+  - port: 3
+    role: wan
+    network_group: WAN
+    interface: ixl0
+    speed: 10000
+    media: SFP+
+```
+
+The resulting gateway rows use `ifname: eth2` because physical profile port 3
+is `eth2`; `source_interface: ixl0` records where the local facts came from.
+The role and network group describe the port's function. They do not rename the
+physical profile interface.
+
 For gateway lab displays, `port_overrides[].wan_uptime_percent`,
 `wan_latency_ms`, `wan_downtime_seconds`, and `wan_connected` are deterministic
 status hints only. They can make the controller see a configured WAN/WAN2 as
@@ -236,6 +260,21 @@ downtime, and uptime percentage. The daemon still does not change host
 interfaces, routes, VLANs, firewall rules, or controller provisioning state.
 When ICMP is blocked or the local `ping` binary is unavailable, `-status` and
 `-status-json` expose the last probe error instead of attempting a repair.
+
+`wan_health.source` values:
+
+- `off`: keep WAN health inactive. The payload uses link state and any explicit
+  `wan_*` hints already present on the port.
+- `static`: document that only static `port_overrides[].wan_*` values should be
+  used. No command is executed.
+- `ping`: run local read-only pings for `targets[]` and overlay only WAN health
+  fields on the resolved port. Target ports must be effective `wan` or `wan2`
+  ports after `port_overrides` have been applied.
+
+Provider and ISP names are not inferred. The gateway payload can report
+`speedtest-status.latency` and success/failure-like status values from WAN
+health, but it does not run a UniFi speed-test service and does not populate
+`speedtest-status.server.provider`, `isp_name`, or `isp_info`.
 
 For `UXGPRO`, the gateway `port_table` is physical inventory plus optional
 operator-provided assignment metadata. The daemon still does not create VLANs

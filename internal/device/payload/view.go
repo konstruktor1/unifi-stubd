@@ -64,6 +64,8 @@ func BuildPortViews(profile device.Profile, id device.Identity, ports []device.P
 		netmask := gatewayInterfaceNetmask(port)
 		physicalIfName := gatewayInterfaceName(profile, port.Index)
 		gatewayName := gatewayInterfaceNameForPort(profile, port)
+		// sourceInterface is the local observation source. It may be a Linux,
+		// FreeBSD, or OPNsense name and must stay separate from GatewayInterface.IfName.
 		sourceInterface := strings.TrimSpace(port.Interface)
 		enabled := !port.Disabled
 		macs := append([]device.MacTableEntry(nil), port.MACs...)

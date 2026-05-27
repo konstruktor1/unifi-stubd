@@ -231,6 +231,8 @@ func gatewayNeedsCompleteEthernetOverrides(ports []PortView) bool {
 	return false
 }
 
+// gatewayPhysicalPortIfName returns the controller-facing profile interface for
+// one physical port. It is intentionally not the local source_interface.
 func gatewayPhysicalPortIfName(view PortView) string {
 	if ifname := strings.TrimSpace(view.PhysicalIfName); ifname != "" {
 		return ifname
@@ -348,6 +350,9 @@ func gatewayLogicalInterfacePorts(ports []PortView) []PortView {
 			out = append(out, view)
 			continue
 		}
+		// Multiple physical ports may intentionally map to the same logical
+		// gateway role/interface. Keep one controller interface row and prefer
+		// the row with the strongest live signal.
 		if gatewayPreferInterfaceView(view, out[index]) {
 			out[index] = view
 		}
@@ -431,6 +436,8 @@ func gatewayNetworkTable(_ device.Profile, _ device.Identity, ports []PortView, 
 func gatewayNetworkInterfaceName(view PortView) string {
 	switch gatewayPortRole(view.Port) {
 	case gatewayPortRoleLAN, gatewayPortRoleLAN2:
+		// UniFi Network expects LAN network rows to follow the physical
+		// profile-port identity. Host source names remain source_interface.
 		if ifname := gatewayPhysicalPortIfName(view); ifname != "" {
 			return ifname
 		}

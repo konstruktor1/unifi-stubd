@@ -26,7 +26,9 @@ type Port struct {
 	Index int
 	// Name is the display name reported for the port.
 	Name string
-	// Interface is the optional host interface that supplied this port's data.
+	// Interface is the optional local host interface that supplied this port's
+	// data. Gateway renderers expose it as source_interface, never as the
+	// controller-facing ifname.
 	Interface string
 	// MAC is the optional interface MAC address reported for this port.
 	MAC string
@@ -34,9 +36,11 @@ type Port struct {
 	IP string
 	// Netmask is the optional IPv4 netmask reported for this port.
 	Netmask string
-	// Role is the gateway-facing role, such as wan, lan, wan2, or lan2.
+	// Role is the effective gateway function, such as wan, lan, wan2, or lan2.
+	// It can differ from ProfileRole when a lab uses a different physical port.
 	Role string
-	// ProfileRole is the immutable gateway role assigned by the selected profile.
+	// ProfileRole is the immutable gateway role assigned by the selected
+	// profile. It records the hardware default even when Role is overridden.
 	ProfileRole string
 	// NetworkGroup is the UniFi network group, such as WAN, WAN2, or LAN.
 	NetworkGroup string
@@ -51,6 +55,7 @@ type Port struct {
 	// VLAN is the optional controller-facing VLAN ID.
 	VLAN int
 	// WANUptimePercent is the controller-facing WAN availability percentage.
+	// It is telemetry only and must not drive host networking.
 	WANUptimePercent *float64
 	// WANLatencyMS is the controller-facing WAN latency in milliseconds.
 	WANLatencyMS int

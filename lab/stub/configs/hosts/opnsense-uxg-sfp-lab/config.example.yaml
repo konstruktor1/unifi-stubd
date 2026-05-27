@@ -10,6 +10,14 @@ ip: 192.0.2.29
 hostname: opnsense-uxg-sfp-lab
 link_speed: 0
 uplink_speed: profile
+# UXG-Pro profile mapping:
+#   port 1 -> eth0, profile role wan,  1G RJ45
+#   port 2 -> eth1, profile role lan,  1G RJ45
+#   port 3 -> eth2, profile role wan2, 10G SFP+
+#   port 4 -> eth3, profile role lan2, 10G SFP+
+# This lab makes physical port 3 the effective WAN. The controller-facing
+# ifname remains eth2; the FreeBSD interface ixl0 is emitted as
+# source_interface only.
 uplink_port: 3
 interval_seconds: 10
 no_discovery: false
@@ -45,13 +53,18 @@ port_overrides:
     media: GE
   - port: 3
     name: WAN SFP+
+    # Effective gateway function for this physical profile port.
     role: wan
     network_group: WAN
+    # Assignment metadata mirrors lab/controller display state. The stub does
+    # not create, edit, or apply VLANs or UniFi network objects.
     portconf_id: portconf-opnsense-wan
     networkconf_id: network-opnsense-wan
     native_networkconf_id: network-opnsense-wan
     network_name: opnsense_wan
     vlan: 3
+    # Local OPNsense/FreeBSD source for MAC/IP/link/speed facts. This value
+    # must never become a controller ifname.
     interface: ixl0
     mac: 02:00:5e:00:53:ca
     ip: 198.51.100.9
@@ -78,6 +91,8 @@ port_overrides:
     media: SFP+
 
 wan_health:
+  # static uses the wan_* hints above. Use ping only when this host should run a
+  # local read-only probe and report the result as gateway telemetry.
   source: static
   interval_seconds: 10
   timeout_ms: 1000

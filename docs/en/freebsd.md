@@ -12,6 +12,8 @@ Supported in the FreeBSD package:
 - Built-in advanced-adoption SSH shim
 - Static profile payloads, port overrides, uplink port override, and configured
   uplink neighbor entries
+- Optional `wan_health.source: ping` for gateway profiles. It runs local
+  read-only pings and reports only WAN telemetry.
 - `operation_mode: port-map` for explicit read-only port states. Interface
   metadata is copied from existing OS interfaces when available.
 - FreeBSD bridge FDB parsing for `ifconfig <bridge> addr`
@@ -106,6 +108,33 @@ The packaged config source is
 `operation_mode: stub` for the lowest-risk package default. Use `port-map` only
 in isolated labs where every profile port is explicitly configured as
 `interface`, `disabled`, or `unmapped`.
+
+For OPNsense gateway labs, keep the UniFi-facing interface name separated from
+the FreeBSD interface name:
+
+```yaml
+profile: uxgpro
+uplink_port: 3
+port_overrides:
+  - port: 3
+    role: wan
+    network_group: WAN
+    interface: ixl0
+    speed: 10000
+    media: SFP+
+wan_health:
+  source: ping
+  interval_seconds: 10
+  timeout_ms: 1000
+  targets:
+    - port: 3
+      host: 1.1.1.1
+```
+
+With `uxgpro`, physical port 3 is controller `ifname: eth2`; `ixl0` is only
+reported as `source_interface`. The ping source updates connectivity and
+latency telemetry, but it does not run a UniFi speed test, detect the ISP, or
+change OPNsense interfaces, routes, firewall rules, or VLANs.
 
 For OPNsense log metadata, keep `log_source: off` unless the service user can
 read the selected file. A read-only runtime test on OPNsense 26.1/FreeBSD 14.3

@@ -299,18 +299,22 @@
         "source": {
           "type": "string",
           "enum": ["off", "static", "ping"],
-          "default": "off"
+          "default": "off",
+          "description": "Read-only gateway WAN health source. off disables active probing, static uses port_overrides wan_* hints, ping runs the local OS ping command."
         },
         "interval_seconds": {
           "type": "integer",
-          "minimum": 1
+          "minimum": 1,
+          "description": "Sampling interval for active WAN health probes."
         },
         "timeout_ms": {
           "type": "integer",
-          "minimum": 1
+          "minimum": 1,
+          "description": "Per-target timeout for active WAN health probes."
         },
         "targets": {
           "type": "array",
+          "description": "Ping targets mapped to effective gateway WAN or WAN2 ports.",
           "items": {
             "$ref": "#/$defs/wan_health_target"
           }
@@ -323,11 +327,13 @@
       "properties": {
         "port": {
           "type": "integer",
-          "minimum": 1
+          "minimum": 1,
+          "description": "One-based represented UniFi port index. The resolved port role must be wan or wan2 when source is ping."
         },
         "host": {
           "type": "string",
-          "minLength": 1
+          "minLength": 1,
+          "description": "IP address or hostname passed to the local ping command."
         }
       },
       "required": ["port", "host"]
@@ -344,7 +350,8 @@
           "type": "string"
         },
         "interface": {
-          "type": "string"
+          "type": "string",
+          "description": "Local host interface used as read-only source data for this port. Gateway payloads expose it as source_interface, not as controller ifname."
         },
         "mac": {
           "type": "string"
@@ -357,7 +364,8 @@
         },
         "role": {
           "type": "string",
-          "enum": ["", "wan", "lan", "wan2", "lan2", "unassigned"]
+          "enum": ["", "wan", "lan", "wan2", "lan2", "unassigned"],
+          "description": "Effective gateway function for this profile port. It does not rename the profile-derived controller ifname."
         },
       "network_group": {
         "type": "string"
@@ -376,7 +384,8 @@
       },
       "vlan": {
         "type": "integer",
-        "minimum": 0
+        "minimum": 0,
+        "description": "Controller display metadata mirrored into gateway tables. The daemon does not create or edit VLANs."
       },
       "wan_uptime_percent": {
         "type": "number",

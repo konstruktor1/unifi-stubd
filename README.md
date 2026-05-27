@@ -263,7 +263,9 @@ may update local stub adoption state, but controller provisioning must not
 mutate host networking, services, packages, firewall rules, routes, or users.
 
 `unifi-stubd` is not a UniFi gateway replacement and does not reproduce full
-UniFi DPI, firewall, routing, DHCP, or active WAN health behavior.
+UniFi DPI, firewall, routing, DHCP, speed-test, or provider-detection behavior.
+Gateway WAN health is limited to optional read-only telemetry such as static
+WAN hints or local ping samples.
 
 ## Configuration
 
@@ -289,6 +291,12 @@ Without arguments, `unifi-stubd` tries to read
 defaults. If `-config <path>` is set explicitly, a missing file is an error.
 CLI flags override YAML values.
 
+YAML is the canonical runtime format. JSON is also accepted because JSON is a
+valid YAML subset, but packaged examples use block-style YAML for readability.
+Only the local operator-edited YAML file is trusted for runtime choices:
+controller `setparam` data can update local adoption state, but it is not
+applied to host networking.
+
 The systemd unit runs as the dedicated `unifi-stubd` user and grants only
 `CAP_NET_BIND_SERVICE` so the lab SSH shim can keep UniFi-compatible port 22
 without running the daemon as root.
@@ -299,6 +307,42 @@ management VLAN metadata and for `preexisting-interface` mode when a switch
 stub should report and source management traffic from an already created VLAN
 interface such as `vmbr0.20`; the daemon still does not create host VLAN
 interfaces.
+
+Gateway YAML has three separate concepts that should not be mixed:
+
+- Profile data describes the represented hardware: port count, media, speed,
+  default role, and generated controller interface names such as `eth0`,
+  `eth1`, or `eth2`.
+- `port_overrides` describes local lab assignment and telemetry for one
+  physical profile port: `role`, `network_group`, optional assignment IDs,
+  optional VLAN display metadata, optional host `interface`, and optional WAN
+  health hints.
+- `source_interface` is diagnostic metadata copied from the host interface
+  named by `port_overrides[].interface`. Host names such as `ixl0`, `vtnet0`,
+  or `eth0` from the local OS must stay in `source_interface`; gateway `ifname`
+  fields stay controller-facing profile names.
+
+For `uxgpro`, the default profile ports are:
+
+```text
+port 1 -> eth0, profile role wan,  1G RJ45
+port 2 -> eth1, profile role lan,  1G RJ45
+port 3 -> eth2, profile role wan2, 10G SFP+
+port 4 -> eth3, profile role lan2, 10G SFP+
+```
+
+If an OPNsense lab uses port 3 as the active WAN, set `uplink_port: 3` and give
+port 3 `role: wan`, `network_group: WAN`, and `interface: ixl0`. The controller
+still sees `ifname: eth2` because that is the profile interface for physical
+port 3; `ixl0` is reported only as `source_interface`.
+
+WAN health is also explicit YAML. `source: off` reports no active probe,
+`source: static` uses the `wan_*` hints from `port_overrides`, and
+`source: ping` runs the local OS `ping` command against configured targets.
+Ping results update only controller telemetry fields such as connected state,
+latency, downtime, uptime percentage, `internet_health`, and the
+`speedtest-status` latency/status block. They do not perform a UniFi speed test
+and do not discover ISP/provider names.
 
 Local health/status output:
 

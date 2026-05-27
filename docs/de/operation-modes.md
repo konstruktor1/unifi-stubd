@@ -216,6 +216,31 @@ gespiegelt. Client-Nachbarn werden ueber `network_table[].host_table` mit
 `hostname` und `ip` gemeldet, wenn diese konfiguriert sind; Upstream-Switch-
 Nachbarn werden nicht als Gateway-Hosts gerendert.
 
+Gateway-Interface-Namen sind Profildaten, keine Host-Interface-Namen. Das
+gewaehlte Profil erzeugt aus `gateway_interface_prefix` und physischem
+Profil-Portindex die controllerseitigen Namen (`eth0`, `eth1`, ...).
+`port_overrides[].interface` ist nur die lokale Quelle fuer MAC, IP, Link,
+Speed und Counter; dieser Hostname erscheint als `source_interface`. Ein
+UXG-Pro-Lab, in dem OPNsense `ixl0` an physischem Port 3 haengt, sollte zum
+Beispiel so beschrieben werden:
+
+```yaml
+profile: uxgpro
+uplink_port: 3
+port_overrides:
+  - port: 3
+    role: wan
+    network_group: WAN
+    interface: ixl0
+    speed: 10000
+    media: SFP+
+```
+
+Die Gateway-Zeilen melden daraus `ifname: eth2`, weil Profil-Port 3 physisch
+`eth2` ist; `source_interface: ixl0` dokumentiert nur, woher die lokalen Fakten
+kommen. Rolle und Network Group beschreiben die Funktion des Ports. Sie
+benennen das physische Profil-Interface nicht um.
+
 Fuer Gateway-Lab-Anzeigen sind `port_overrides[].wan_uptime_percent`,
 `wan_latency_ms`, `wan_downtime_seconds` und `wan_connected` nur deterministische
 Status-Hinweise. Damit kann der Controller ein konfiguriertes WAN/WAN2 als
@@ -244,6 +269,21 @@ und Uptime-Prozent. Der Dienst aendert weiterhin keine Host-Interfaces, Routen,
 VLANs, Firewall-Regeln oder Controller-Provisioning-Daten. Wenn ICMP blockiert
 ist oder das lokale `ping`-Binary fehlt, zeigen `-status` und `-status-json` den
 letzten Probe-Fehler statt automatisch etwas zu reparieren.
+
+`wan_health.source` kennt diese Werte:
+
+- `off`: WAN-Health bleibt inaktiv. Der Payload nutzt Link-State und explizite
+  `wan_*`-Hints, die bereits am Port konfiguriert sind.
+- `static`: dokumentiert, dass nur statische `port_overrides[].wan_*`-Werte
+  genutzt werden sollen. Es wird kein Kommando ausgefuehrt.
+- `ping`: fuehrt lokale read-only Pings fuer `targets[]` aus und ueberschreibt
+  danach nur WAN-Health-Felder am bereits aufgeloesten Port. Ziel-Ports muessen
+  nach `port_overrides` effektiv `wan` oder `wan2` sein.
+
+Provider- und ISP-Namen werden nicht geraten. Der Gateway-Payload kann
+`speedtest-status.latency` und erfolgsartige Statuswerte aus WAN-Health melden,
+fuehrt aber keinen UniFi-Speedtest-Dienst aus und befuellt weder
+`speedtest-status.server.provider` noch `isp_name` oder `isp_info`.
 
 Bei `UXGPRO` ist die Gateway-`port_table` physische Inventur plus optional
 explizit konfigurierte Zuweisungsmetadaten. Der Dienst legt weiterhin keine

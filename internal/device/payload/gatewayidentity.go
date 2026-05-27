@@ -50,7 +50,9 @@ func normalizeGatewayNetworkGroup(networkGroup string) string {
 	return strings.TrimSpace(networkGroup)
 }
 
-// gatewayInterfaceName maps a one-based port index to a profile-selected interface prefix.
+// gatewayInterfaceName maps a one-based physical profile port index to the
+// controller-facing gateway interface name. It deliberately ignores host
+// interface names such as ixl0 or vtnet0; those belong in source_interface.
 func gatewayInterfaceName(profile device.Profile, portIndex int) string {
 	if portIndex < 1 {
 		portIndex = 1
@@ -63,8 +65,8 @@ func gatewayInterfaceName(profile device.Profile, portIndex int) string {
 }
 
 // gatewayInterfaceNameForPort keeps the controller-facing interface identity
-// tied to the physical profile port. Gateway remaps change role/networkgroup;
-// they do not rename ethN identities.
+// tied to the physical profile port. Gateway remaps change Role/NetworkGroup;
+// they do not rename the profile ethN identity.
 func gatewayInterfaceNameForPort(profile device.Profile, port device.Port) string {
 	return gatewayInterfaceName(profile, port.Index)
 }

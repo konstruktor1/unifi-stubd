@@ -186,6 +186,8 @@ func gatewayWANStatusText(connected bool) string {
 func gatewayWANHealthFor(view PortView, uptime int) gatewayWANHealth {
 	up := view.Up && view.Enabled
 	connected := up
+	// WANConnected may come from static YAML hints or active wan_health ping
+	// samples. It overlays reachability telemetry only; link state remains in up.
 	if view.Port.WANConnected != nil {
 		connected = *view.Port.WANConnected
 	}

@@ -72,6 +72,8 @@ type PortNeighbor struct {
 type PortOverride = device.PortOverride
 
 // WANHealthConfig configures optional read-only gateway WAN health reporting.
+// The fields are operator YAML only; controller provisioning does not enable
+// probes or write these settings.
 type WANHealthConfig struct {
 	// Source selects off, static, or ping.
 	Source string `yaml:"source"`

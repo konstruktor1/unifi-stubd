@@ -87,6 +87,9 @@ func applyWANHealth(ports []device.Port, flags runtimeFlags, profile device.Prof
 			log.Printf("wan_health ping warning: port=%d host=%s error=%s", result.Port, result.Host, result.LastError)
 		}
 	}
+	// Reuse the normal override path so active samples can only touch the same
+	// WAN telemetry fields as static YAML hints. Role, VLAN, assignment IDs,
+	// addresses, and source interfaces are intentionally left untouched.
 	return device.ApplyPortOverrides(ports, device.PortOverridesFromWANHealthResults(deviceWANHealthResults(results)))
 }
 
