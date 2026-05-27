@@ -30,31 +30,82 @@ type switchEthernetRow struct {
 }
 
 type switchPortRow struct {
-	PortIdx      int                    `json:"port_idx"`
-	IfName       string                 `json:"ifname"`
-	Name         string                 `json:"name"`
-	Enable       bool                   `json:"enable"`
-	Up           bool                   `json:"up"`
-	IsUplink     bool                   `json:"is_uplink"`
-	OpMode       string                 `json:"op_mode"`
-	FullDuplex   bool                   `json:"full_duplex"`
-	Autoneg      bool                   `json:"autoneg"`
-	FlowctrlRX   bool                   `json:"flowctrl_rx"`
-	FlowctrlTX   bool                   `json:"flowctrl_tx"`
-	PortPOE      bool                   `json:"port_poe"`
-	POEEnable    bool                   `json:"poe_enable"`
-	POECaps      int                    `json:"poe_caps"`
-	RXDropped    int                    `json:"rx_dropped"`
-	TXDropped    int                    `json:"tx_dropped"`
-	Satisfaction int                    `json:"satisfaction"`
-	STPState     string                 `json:"stp_state"`
-	STPPathcost  int                    `json:"stp_pathcost"`
-	MACTable     []device.MacTableEntry `json:"mac_table"`
+	PortIdx        int                    `json:"port_idx"`
+	IfName         string                 `json:"ifname"`
+	Name           string                 `json:"name"`
+	Enable         bool                   `json:"enable"`
+	Up             bool                   `json:"up"`
+	IsUplink       bool                   `json:"is_uplink"`
+	OpMode         string                 `json:"op_mode"`
+	FullDuplex     bool                   `json:"full_duplex"`
+	Autoneg        bool                   `json:"autoneg"`
+	FlowctrlRX     bool                   `json:"flowctrl_rx"`
+	FlowctrlTX     bool                   `json:"flowctrl_tx"`
+	PortPOE        bool                   `json:"port_poe"`
+	POEEnable      bool                   `json:"poe_enable"`
+	POECaps        int                    `json:"poe_caps"`
+	RXDropped      int                    `json:"rx_dropped"`
+	TXDropped      int                    `json:"tx_dropped"`
+	Satisfaction   int                    `json:"satisfaction"`
+	STPState       string                 `json:"stp_state"`
+	STPPathcost    int                    `json:"stp_pathcost"`
+	MACTable       []device.MacTableEntry `json:"mac_table"`
+	LastConnection *switchLastConnection  `json:"last_connection"`
 	linkFields
 	counterFields
 	RXBytesRate     int64  `json:"rx_bytes-r"`
 	TXBytesRate     int64  `json:"tx_bytes-r"`
 	SourceInterface string `json:"source_interface"`
+}
+
+type switchLastConnection struct {
+	Connected bool   `json:"connected"`
+	MAC       string `json:"mac"`
+	IP        string `json:"ip,omitempty"`
+	Hostname  string `json:"hostname,omitempty"`
+	Type      string `json:"type,omitempty"`
+}
+
+type switchPayload struct {
+	basePayload
+	IfTable       []switchInterfaceRow `json:"if_table"`
+	EthernetTable []switchEthernetRow  `json:"ethernet_table"`
+	PortTable     []switchPortRow      `json:"port_table"`
+}
+
+// buildSwitchPayload fills the tables expected by UniFi switch devices.
+func buildSwitchPayload(base basePayload, profile device.Profile, id device.Identity, ports []PortView, numPorts int, ifSpeed int) switchPayload {
+	ifaceName := profile.Payload.ManagementInterface
+	iface := switchInterfaceRow{
+		Name:           ifaceName,
+		MAC:            id.MAC,
+		IP:             id.IP,
+		NumPort:        numPorts,
+		Up:             true,
+		Speed:          ifSpeed,
+		FullDuplex:     true,
+		VLAN:           id.ManagementVLAN,
+		ManagementVLAN: id.ManagementVLAN,
+	}
+	return switchPayload{
+		basePayload: base,
+		IfTable:     []switchInterfaceRow{iface},
+		EthernetTable: []switchEthernetRow{
+			{
+				Name:    ifaceName,
+				MAC:     id.MAC,
+				NumPort: intRef(numPorts),
+			},
+			{
+				// srv0 is a synthetic secondary interface seen by controllers on
+				// switch-like payloads. It is derived from the fake MAC and does not
+				// represent a host interface.
+				Name: "srv0",
+				MAC:  incrementMAC(id.MAC),
+			},
+		},
+		PortTable: portTable(ports),
+	}
 }
 
 // incrementMAC derives the secondary switch interface MAC from the device MAC.
@@ -73,6 +124,7 @@ func portTable(ports []PortView) []switchPortRow {
 	out := make([]switchPortRow, 0, len(ports))
 	for _, p := range ports {
 		rxRate, txRate := portRateFields(p.Port)
+		macTable := switchPortMACTable(p)
 		// Every switch row is rendered from PortView so switch and gateway
 		// payloads agree on observed counters, source interface, link state, and
 		// MAC-table metadata.
@@ -96,7 +148,8 @@ func portTable(ports []PortView) []switchPortRow {
 			Satisfaction:    100,
 			STPState:        "forwarding",
 			STPPathcost:     20000,
-			MACTable:        p.MACs,
+			MACTable:        macTable,
+			LastConnection:  switchLastConnectionFor(macTable),
 			linkFields:      portLinkFields(p.Speed, p.Media),
 			counterFields:   portCounterFields(p.Port),
 			RXBytesRate:     rxRate,
@@ -106,6 +159,63 @@ func portTable(ports []PortView) []switchPortRow {
 		out = append(out, row)
 	}
 	return out
+}
+
+func switchPortMACTable(port PortView) []device.MacTableEntry {
+	if !port.Uplink {
+		return port.MACs
+	}
+	out := make([]device.MacTableEntry, 0, len(port.MACs))
+	for _, entry := range port.MACs {
+		if switchSuppressesUplinkNeighbor(entry.Type) {
+			continue
+		}
+		out = append(out, entry)
+	}
+	return out
+}
+
+func switchSuppressesUplinkNeighbor(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "uxg", "ugw", "usg", "gateway":
+		return true
+	default:
+		return false
+	}
+}
+
+func switchLastConnectionFor(entries []device.MacTableEntry) *switchLastConnection {
+	if len(entries) == 0 {
+		return nil
+	}
+	entry := entries[0]
+	return &switchLastConnection{
+		Connected: true,
+		MAC:       entry.MAC,
+		IP:        entry.IP,
+		Hostname:  entry.Hostname,
+		Type:      entry.Type,
+	}
+}
+
+// managementInterfaceSpeed chooses a stable management speed from generated ports.
+func managementInterfaceSpeed(ports []device.Port) int {
+	for _, port := range ports {
+		if port.Uplink && port.Speed > 0 {
+			return port.Speed
+		}
+	}
+	if len(ports) > 0 && ports[0].Speed > 0 {
+		return ports[0].Speed
+	}
+	return 0
+}
+
+func managementInterfaceSpeedOrDefault(ports []device.Port) int {
+	if speed := managementInterfaceSpeed(ports); speed > 0 {
+		return speed
+	}
+	return 1000
 }
 
 // switchInterfaceName maps one-based UniFi ports to zero-based eth names used

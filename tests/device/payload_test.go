@@ -382,13 +382,18 @@ func TestGatewayProfileReportsDeviceTypeAndPortNames(t *testing.T) {
 }
 
 // TestTenGigGatewayProfileReportsPortLayout verifies high-speed gateway profile
-// roles, media, and table synchronization.
+// media and controller-facing gateway port tables.
 func TestTenGigGatewayProfileReportsPortLayout(t *testing.T) {
 	profile, ok := device.LookupProfile("uxgpro")
 	if !ok {
 		t.Fatal("profile not found")
 	}
-	ports := device.BuildPorts(profile, device.PortBuildOptions{})
+	linkDown := false
+	ports := device.ApplyPortOverrides(device.BuildPorts(profile, device.PortBuildOptions{UplinkPort: 3}), []device.PortOverride{
+		{Port: 1, Up: &linkDown},
+		{Port: 2, Up: &linkDown},
+		{Port: 3, Role: "wan", NetworkGroup: "WAN"},
+	})
 	payload, err := switchPayload(device.Identity{
 		MAC:          "02:11:22:33:44:62",
 		IP:           "192.0.2.50",
@@ -410,28 +415,35 @@ func TestTenGigGatewayProfileReportsPortLayout(t *testing.T) {
 		t.Fatal(err)
 	}
 	var doc struct {
-		DeviceType        string           `json:"type"`
-		InformIP          string           `json:"inform_ip"`
-		NumPort           int              `json:"num_port"`
-		Uplink            string           `json:"uplink"`
-		ConfigPortTable   []map[string]any `json:"config_port_table"`
-		EthernetOverrides []map[string]any `json:"ethernet_overrides"`
-		IfTable           []map[string]any `json:"if_table"`
-		NetworkTable      []map[string]any `json:"network_table"`
-		ReportedNetworks  []map[string]any `json:"reported_networks"`
-		UplinkTable       []map[string]any `json:"uplink_table"`
-		ConfigNetworkWAN  map[string]any   `json:"config_network_wan"`
-		ConfigNetworkWAN2 map[string]any   `json:"config_network_wan2"`
-		WAN1              map[string]any   `json:"wan1"`
-		WAN2              map[string]any   `json:"wan2"`
-		OutletEnabled     bool             `json:"outlet_enabled"`
-		OutletOverrides   []map[string]any `json:"outlet_overrides"`
-		OutletTable       []map[string]any `json:"outlet_table"`
+		DeviceType       string           `json:"type"`
+		FWCaps           int              `json:"fw_caps"`
+		InformIP         string           `json:"inform_ip"`
+		NumPort          int              `json:"num_port"`
+		UDAPICaps        int              `json:"udapi_caps"`
+		UDAPIVersion     map[string]any   `json:"udapi_version"`
+		Uplink           string           `json:"uplink"`
+		UplinkDepth      int              `json:"uplink_depth"`
+		LastUplink       any              `json:"last_uplink"`
+		IfTable          []map[string]any `json:"if_table"`
+		NetworkTable     []map[string]any `json:"network_table"`
+		ConfigPortTable  []map[string]any `json:"config_port_table"`
+		EthernetTable    []map[string]any `json:"ethernet_table"`
+		EthernetOverride []map[string]any `json:"ethernet_overrides"`
+		PortTable        []map[string]any `json:"port_table"`
+		ConfigNetworkWAN map[string]any   `json:"config_network_wan"`
+		OutletEnable     bool             `json:"outlet_enabled"`
+		OutletTable      []map[string]any `json:"outlet_table"`
+		OutletOvr        []map[string]any `json:"outlet_overrides"`
+		UplinkTable      []map[string]any `json:"uplink_table"`
+		WAN1             map[string]any   `json:"wan1"`
 	}
 	if err := json.Unmarshal(payload, &doc); err != nil {
 		t.Fatal(err)
 	}
-	for _, key := range []string{"ethernet_table", "internet", "port_overrides", "port_table"} {
+	for _, key := range []string{
+		"internet",
+		"port_overrides",
+	} {
 		if _, ok := raw[key]; ok {
 			t.Fatalf("gateway payload contains unsupported table/key %q", key)
 		}
@@ -445,55 +457,231 @@ func TestTenGigGatewayProfileReportsPortLayout(t *testing.T) {
 	if doc.NumPort != 4 {
 		t.Fatalf("num_port = %d, want 4", doc.NumPort)
 	}
-	if len(doc.IfTable) != 4 {
-		t.Fatalf("if_table length = %d, want 4", len(doc.IfTable))
+	if doc.UplinkDepth != 0 || doc.LastUplink != nil {
+		t.Fatalf("gateway root hints = uplink_depth %d last_uplink %#v, want 0/null", doc.UplinkDepth, doc.LastUplink)
+	}
+	if doc.FWCaps == 0 || doc.UDAPICaps == 0 {
+		t.Fatalf("gateway caps fw=%d udapi=%d, want non-zero", doc.FWCaps, doc.UDAPICaps)
+	}
+	if doc.UDAPIVersion["version"] == nil {
+		t.Fatalf("udapi_version = %#v, want version metadata", doc.UDAPIVersion)
 	}
 	if len(doc.ConfigPortTable) != 4 {
 		t.Fatalf("config_port_table length = %d, want 4", len(doc.ConfigPortTable))
 	}
-	if len(doc.EthernetOverrides) != 4 {
-		t.Fatalf("ethernet_overrides length = %d, want 4", len(doc.EthernetOverrides))
+	if len(doc.EthernetTable) != 4 {
+		t.Fatalf("ethernet_table length = %d, want 4", len(doc.EthernetTable))
 	}
-	if len(doc.ReportedNetworks) != 4 {
-		t.Fatalf("reported_networks length = %d, want 4", len(doc.ReportedNetworks))
+	if len(doc.EthernetOverride) != 2 {
+		t.Fatalf("ethernet_overrides length = %d, want 2", len(doc.EthernetOverride))
 	}
-	if got := int(doc.IfTable[0]["speed"].(float64)); got != 1000 {
-		t.Fatalf("if_table eth0 speed = %d, want 1000", got)
+	if len(doc.PortTable) != 4 {
+		t.Fatalf("port_table length = %d, want 4", len(doc.PortTable))
 	}
-	if got := int(doc.IfTable[2]["speed"].(float64)); got != 10000 {
-		t.Fatalf("if_table eth2 speed = %d, want 10000", got)
+	if got := doc.PortTable[2]["ifname"].(string); got != "eth2" {
+		t.Fatalf("port_table port 3 ifname = %q, want eth2", got)
+	}
+	if got := doc.PortTable[2]["media"].(string); got != "SFP+" {
+		t.Fatalf("port_table port 3 media = %q, want SFP+", got)
+	}
+	if got := doc.PortTable[2]["networkgroup"].(string); got != "WAN" {
+		t.Fatalf("port_table port 3 networkgroup = %q, want WAN", got)
+	}
+	if got := doc.PortTable[2]["network_name"].(string); got != "wan" {
+		t.Fatalf("port_table port 3 network_name = %q, want wan", got)
+	}
+	if got := int(doc.PortTable[2]["max_speed"].(float64)); got != 10000 {
+		t.Fatalf("port_table port 3 max_speed = %d, want 10000", got)
+	}
+	ifRow := rowByPortIndex(t, doc.IfTable, 3)
+	if got := ifRow["ifname"].(string); got != "eth2" {
+		t.Fatalf("if_table port 3 ifname = %q, want eth2", got)
+	}
+	if got := int(ifRow["speed"].(float64)); got != 10000 {
+		t.Fatalf("if_table port 3 speed = %d, want 10000", got)
+	}
+	if doc.OutletEnable || len(doc.OutletTable) != 0 || len(doc.OutletOvr) != 0 {
+		t.Fatalf("outlet fields = enabled %t table %d overrides %d, want disabled empty", doc.OutletEnable, len(doc.OutletTable), len(doc.OutletOvr))
+	}
+	if got := doc.ConfigNetworkWAN["type"].(string); got != "dhcp" {
+		t.Fatalf("config_network_wan type = %q, want dhcp", got)
+	}
+	assertGatewayConfigNetworkWAN(t, doc.ConfigNetworkWAN, "192.0.2.2", "255.255.255.0")
+	if got := doc.ConfigNetworkWAN["ifname"].(string); got != "eth2" {
+		t.Fatalf("config_network_wan ifname = %q, want eth2", got)
+	}
+	if got := int(doc.ConfigNetworkWAN["port_idx"].(float64)); got != 3 {
+		t.Fatalf("config_network_wan port_idx = %d, want 3", got)
 	}
 	if len(doc.UplinkTable) != 1 {
 		t.Fatalf("uplink_table length = %d, want 1", len(doc.UplinkTable))
 	}
-	if doc.Uplink != "eth0" {
-		t.Fatalf("uplink = %q, want eth0", doc.Uplink)
+	if got := doc.WAN1["ifname"].(string); got != "eth2" {
+		t.Fatalf("wan1 ifname = %q, want eth2", got)
+	}
+	if got := int(doc.WAN1["port_idx"].(float64)); got != 3 {
+		t.Fatalf("wan1 port_idx = %d, want 3", got)
+	}
+	if got := doc.WAN1["media"].(string); got != "SFP+" {
+		t.Fatalf("wan1 media = %q, want SFP+", got)
+	}
+	if got := int(doc.WAN1["max_speed"].(float64)); got != 10000 {
+		t.Fatalf("wan1 max_speed = %d, want 10000", got)
+	}
+	if doc.Uplink != "eth2" {
+		t.Fatalf("uplink = %q, want eth2", doc.Uplink)
 	}
 	if len(doc.NetworkTable) != 4 {
 		t.Fatalf("network_table length = %d, want 4", len(doc.NetworkTable))
 	}
-	if got := doc.NetworkTable[2]["networkgroup"].(string); got != "WAN2" {
-		t.Fatalf("network_table port 3 networkgroup = %q, want WAN2", got)
+	networkWAN := rowByPortIndex(t, doc.NetworkTable, 3)
+	if got := networkWAN["ifname"].(string); got != "eth2" {
+		t.Fatalf("network_table WAN ifname = %q, want eth2", got)
 	}
-	if _, ok := doc.ConfigPortTable[2]["native_networkconf_id"]; ok {
-		t.Fatalf("config_port_table unexpectedly sets native_networkconf_id: %#v", doc.ConfigPortTable[2]["native_networkconf_id"])
+	if got := networkWAN["max_speed"].(string); got != "10000" {
+		t.Fatalf("network_table WAN max_speed = %q, want 10000", got)
 	}
-	if _, ok := doc.ConfigPortTable[2]["portconf_id"]; ok {
-		t.Fatalf("config_port_table unexpectedly sets portconf_id: %#v", doc.ConfigPortTable[2]["portconf_id"])
+}
+
+// TestGatewayNetworkBindingsKeepProfilePortInterfaces verifies that explicit
+// controller assignment metadata changes the WAN/LAN function without renaming
+// the profile port interface that Network uses to identify the connector.
+func TestGatewayNetworkBindingsKeepProfilePortInterfaces(t *testing.T) {
+	profile, ok := device.LookupProfile("uxgpro")
+	if !ok {
+		t.Fatal("profile not found")
 	}
-	if doc.OutletEnabled {
-		t.Fatal("outlet_enabled = true, want false for gateway stub")
+	ports := device.ApplyPortOverrides(device.BuildPorts(profile, device.PortBuildOptions{UplinkPort: 3}), []device.PortOverride{
+		{Port: 1, Role: "unassigned", NetworkGroup: "Unassigned"},
+		{Port: 2, Role: "unassigned", NetworkGroup: "Unassigned"},
+		{
+			Port:                3,
+			Role:                "wan",
+			NetworkGroup:        "WAN",
+			NetworkConfID:       "wan-network-id",
+			NativeNetworkConfID: "wan-network-id",
+		},
+		{
+			Port:                4,
+			Role:                "lan",
+			NetworkGroup:        "LAN",
+			Interface:           "vtnet0",
+			NetworkConfID:       "lan-network-id",
+			NativeNetworkConfID: "lan-network-id",
+		},
+	})
+	payload, err := switchPayload(device.Identity{
+		MAC:          "02:11:22:33:44:68",
+		IP:           "192.0.2.50",
+		Hostname:     "unifi-stubd-uxg",
+		Model:        profile.Model,
+		ModelDisplay: profile.ModelDisplay,
+		DeviceType:   profile.DeviceType,
+		Version:      profile.Version,
+		Serial:       "021122334468",
+		InformURL:    "http://192.0.2.10:8080/inform",
+	}, ports)
+	if err != nil {
+		t.Fatal(err)
 	}
-	if len(doc.OutletOverrides) != 0 {
-		t.Fatalf("outlet_overrides length = %d, want 0", len(doc.OutletOverrides))
+
+	var doc struct {
+		Uplink           string                    `json:"uplink"`
+		IfTable          []map[string]any          `json:"if_table"`
+		NetworkTable     []map[string]any          `json:"network_table"`
+		PortTable        []map[string]any          `json:"port_table"`
+		ConfigNetworkWAN map[string]any            `json:"config_network_wan"`
+		ConfigNetworkLAN map[string]any            `json:"config_network_lan"`
+		UptimeStats      map[string]map[string]any `json:"uptime_stats"`
+		WAN1             map[string]any            `json:"wan1"`
+		Wans             []map[string]any          `json:"wans"`
+		EthernetOverride []map[string]any          `json:"ethernet_overrides"`
+		LANIP            string                    `json:"lan_ip"`
+		HasEth1          bool                      `json:"has_eth1"`
 	}
-	if len(doc.OutletTable) != 0 {
-		t.Fatalf("outlet_table length = %d, want 0", len(doc.OutletTable))
+	if err := json.Unmarshal(payload, &doc); err != nil {
+		t.Fatal(err)
 	}
-	assertGatewayConfigNetwork(t, doc.ConfigNetworkWAN, "eth0", "WAN", "wan", 1)
-	assertGatewayConfigNetwork(t, doc.ConfigNetworkWAN2, "eth2", "WAN2", "wan2", 3)
-	assertGatewayWANStatus(t, doc.WAN1, "eth0", "WAN", "wan", 1)
-	assertGatewayWANStatus(t, doc.WAN2, "eth2", "WAN2", "wan2", 3)
+	for name, row := range map[string]map[string]any{
+		"if_table":           rowByPortIndex(t, doc.IfTable, 3),
+		"network_table":      rowByPortIndex(t, doc.NetworkTable, 3),
+		"config_network_wan": doc.ConfigNetworkWAN,
+		"wan1":               doc.WAN1,
+		"uptime_stats":       doc.UptimeStats["WAN"],
+		"wans":               doc.Wans[0],
+	} {
+		got := row["ifname"]
+		if name == "wans" {
+			got = row["interface"]
+		} else if got == nil {
+			t.Fatalf("%s has no ifname: %#v", name, row)
+		}
+		if got != "eth2" {
+			t.Fatalf("%s WAN interface = %q, want eth2", name, got)
+		}
+	}
+	if doc.Uplink != "eth2" {
+		t.Fatalf("uplink = %q, want eth2", doc.Uplink)
+	}
+	if len(doc.EthernetOverride) != 4 {
+		t.Fatalf("ethernet_overrides length = %d, want 4", len(doc.EthernetOverride))
+	}
+	for index, want := range map[int]string{1: "Unassigned", 2: "Unassigned", 3: "WAN", 4: "LAN"} {
+		row := rowByPortIndex(t, doc.EthernetOverride, index)
+		if got := row["networkgroup"].(string); got != want {
+			t.Fatalf("ethernet_overrides port %d networkgroup = %q, want %q", index, got, want)
+		}
+	}
+	for _, index := range []int{1, 2} {
+		if got := rowByPortIndex(t, doc.EthernetOverride, index)["disabled"].(bool); !got {
+			t.Fatalf("ethernet_overrides port %d disabled = false, want true", index)
+		}
+	}
+	for _, index := range []int{3, 4} {
+		if _, ok := rowByPortIndex(t, doc.EthernetOverride, index)["disabled"]; ok {
+			t.Fatalf("ethernet_overrides port %d has disabled field", index)
+		}
+	}
+	if got := rowByPortIndex(t, doc.EthernetOverride, 3)["ifname"].(string); got != "eth2" {
+		t.Fatalf("ethernet_overrides WAN ifname = %q, want eth2", got)
+	}
+	port := rowByPortIndex(t, doc.PortTable, 3)
+	if got := port["name"].(string); got != "eth2" {
+		t.Fatalf("port_table port 3 name = %q, want eth2", got)
+	}
+	if got := rowByPortIndex(t, doc.PortTable, 1)["ip"].(string); got != "192.0.2.50" {
+		t.Fatalf("port_table port 1 health fallback ip = %q, want 192.0.2.50", got)
+	}
+	lan := rowByPortIndex(t, doc.NetworkTable, 4)
+	if got := lan["ifname"].(string); got != "eth3" {
+		t.Fatalf("LAN network_table ifname = %q, want eth3", got)
+	}
+	if got := doc.ConfigNetworkLAN["ifname"].(string); got != "eth3" {
+		t.Fatalf("config_network_lan ifname = %q, want eth3", got)
+	}
+	if got := int(doc.ConfigNetworkLAN["port_idx"].(float64)); got != 4 {
+		t.Fatalf("config_network_lan port_idx = %d, want 4", got)
+	}
+	if got := rowByPortIndex(t, doc.PortTable, 4)["ifname"].(string); got != "eth3" {
+		t.Fatalf("port_table LAN ifname = %q, want eth3", got)
+	}
+	if got := rowByPortIndex(t, doc.EthernetOverride, 4)["ifname"].(string); got != "eth3" {
+		t.Fatalf("ethernet_overrides LAN ifname = %q, want eth3", got)
+	}
+	lanOverride := rowByPortIndex(t, doc.EthernetOverride, 4)
+	lanPort := firstRowByString(t, doc.PortTable, "ifname", lanOverride["ifname"].(string))
+	if got := int(lanPort["port_idx"].(float64)); got != 4 {
+		t.Fatalf("controller LAN lookup port_idx = %d, want 4", got)
+	}
+	if got := lanPort["ip"].(string); got != "192.0.2.50" {
+		t.Fatalf("controller LAN lookup ip = %q, want 192.0.2.50", got)
+	}
+	if doc.LANIP != "192.0.2.50" {
+		t.Fatalf("lan_ip = %q, want 192.0.2.50", doc.LANIP)
+	}
+	if !doc.HasEth1 {
+		t.Fatal("has_eth1 = false, want true")
+	}
 }
 
 // TestGatewayPayloadReportsManagementVLANOnUplink verifies that management VLAN
@@ -566,21 +754,31 @@ func TestCloudGatewayFiberProfileReportsGatewayPayload(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(payload, &raw); err != nil {
+		t.Fatal(err)
+	}
 	var doc struct {
-		DeviceType        string           `json:"type"`
-		NumPort           int              `json:"num_port"`
-		Uplink            string           `json:"uplink"`
-		ConfigPortTable   []map[string]any `json:"config_port_table"`
-		EthernetOverrides []map[string]any `json:"ethernet_overrides"`
-		IfTable           []map[string]any `json:"if_table"`
-		NetworkTable      []map[string]any `json:"network_table"`
-		ReportedNetworks  []map[string]any `json:"reported_networks"`
-		UplinkTable       []map[string]any `json:"uplink_table"`
-		ConfigNetworkWAN  map[string]any   `json:"config_network_wan"`
-		ConfigNetworkWAN2 map[string]any   `json:"config_network_wan2"`
+		DeviceType       string           `json:"type"`
+		NumPort          int              `json:"num_port"`
+		Uplink           string           `json:"uplink"`
+		IfTable          []map[string]any `json:"if_table"`
+		NetworkTable     []map[string]any `json:"network_table"`
+		ConfigPortTable  []map[string]any `json:"config_port_table"`
+		EthernetTable    []map[string]any `json:"ethernet_table"`
+		EthernetOverride []map[string]any `json:"ethernet_overrides"`
+		PortTable        []map[string]any `json:"port_table"`
+		ConfigNetworkWAN map[string]any   `json:"config_network_wan"`
+		UplinkTable      []map[string]any `json:"uplink_table"`
+		WAN1             map[string]any   `json:"wan1"`
 	}
 	if err := json.Unmarshal(payload, &doc); err != nil {
 		t.Fatal(err)
+	}
+	for _, key := range []string{"internet", "port_overrides"} {
+		if _, ok := raw[key]; ok {
+			t.Fatalf("gateway payload contains unexpected top-level key %q", key)
+		}
 	}
 	if doc.DeviceType != "udm" {
 		t.Fatalf("type = %q, want udm", doc.DeviceType)
@@ -588,20 +786,30 @@ func TestCloudGatewayFiberProfileReportsGatewayPayload(t *testing.T) {
 	if doc.NumPort != 7 {
 		t.Fatalf("num_port = %d, want 7", doc.NumPort)
 	}
-	if len(doc.IfTable) != 7 {
-		t.Fatalf("if_table length = %d, want 7", len(doc.IfTable))
-	}
 	if len(doc.ConfigPortTable) != 7 {
 		t.Fatalf("config_port_table length = %d, want 7", len(doc.ConfigPortTable))
 	}
-	if len(doc.EthernetOverrides) != 7 {
-		t.Fatalf("ethernet_overrides length = %d, want 7", len(doc.EthernetOverrides))
+	if len(doc.EthernetTable) != 7 {
+		t.Fatalf("ethernet_table length = %d, want 7", len(doc.EthernetTable))
 	}
-	if len(doc.ReportedNetworks) != 7 {
-		t.Fatalf("reported_networks length = %d, want 7", len(doc.ReportedNetworks))
+	if len(doc.EthernetOverride) != 5 {
+		t.Fatalf("ethernet_overrides length = %d, want 5", len(doc.EthernetOverride))
+	}
+	if len(doc.PortTable) != 7 {
+		t.Fatalf("port_table length = %d, want 7", len(doc.PortTable))
 	}
 	if len(doc.UplinkTable) != 1 {
 		t.Fatalf("uplink_table length = %d, want 1", len(doc.UplinkTable))
+	}
+	if got := doc.ConfigNetworkWAN["type"].(string); got != "dhcp" {
+		t.Fatalf("config_network_wan type = %q, want dhcp", got)
+	}
+	assertGatewayConfigNetworkWAN(t, doc.ConfigNetworkWAN, "192.0.2.2", "255.255.255.0")
+	if got := doc.ConfigNetworkWAN["ifname"].(string); got != "eth5" {
+		t.Fatalf("config_network_wan ifname = %q, want eth5", got)
+	}
+	if got := doc.WAN1["ifname"].(string); got != "eth5" {
+		t.Fatalf("wan1 ifname = %q, want eth5", got)
 	}
 	if doc.Uplink != "eth5" {
 		t.Fatalf("uplink = %q, want eth5", doc.Uplink)
@@ -609,22 +817,11 @@ func TestCloudGatewayFiberProfileReportsGatewayPayload(t *testing.T) {
 	if len(doc.NetworkTable) != 7 {
 		t.Fatalf("network_table length = %d, want 7", len(doc.NetworkTable))
 	}
-	if got := doc.NetworkTable[4]["networkgroup"].(string); got != "WAN2" {
-		t.Fatalf("network_table port 5 networkgroup = %q, want WAN2", got)
-	}
-	if got := doc.NetworkTable[5]["networkgroup"].(string); got != "WAN" {
-		t.Fatalf("network_table port 6 networkgroup = %q, want WAN", got)
-	}
-	if got := doc.NetworkTable[6]["networkgroup"].(string); got != "LAN" {
-		t.Fatalf("network_table port 7 networkgroup = %q, want LAN", got)
-	}
-	assertGatewayConfigNetwork(t, doc.ConfigNetworkWAN, "eth5", "WAN", "wan", 6)
-	assertGatewayConfigNetwork(t, doc.ConfigNetworkWAN2, "eth4", "WAN2", "wan2", 5)
 }
 
-// TestGatewayPortAssignmentsCanBeOverriddenFromConfigModel verifies that config
-// overrides can adjust gateway port role and network assignment.
-func TestGatewayPortAssignmentsCanBeOverriddenFromConfigModel(t *testing.T) {
+// TestGatewayPortOverridesOnlyAffectObservedLinkFacts verifies that interface
+// overrides can attach host observations without changing status-row IDs.
+func TestGatewayPortOverridesOnlyAffectObservedLinkFacts(t *testing.T) {
 	profile, ok := device.LookupProfile("uxgpro")
 	if !ok {
 		t.Fatal("profile not found")
@@ -651,8 +848,7 @@ func TestGatewayPortAssignmentsCanBeOverriddenFromConfigModel(t *testing.T) {
 	}
 
 	var doc struct {
-		ConfigPortTable []map[string]any `json:"config_port_table"`
-		NetworkTable    []map[string]any `json:"network_table"`
+		NetworkTable []map[string]any `json:"network_table"`
 	}
 	if err := json.Unmarshal(payload, &doc); err != nil {
 		t.Fatal(err)
@@ -660,8 +856,189 @@ func TestGatewayPortAssignmentsCanBeOverriddenFromConfigModel(t *testing.T) {
 	if got := doc.NetworkTable[2]["source_interface"].(string); got != "vlan09" {
 		t.Fatalf("network_table port 3 source_interface = %q, want vlan09", got)
 	}
-	if got := doc.NetworkTable[3]["networkgroup"].(string); got != "LAN" {
-		t.Fatalf("network_table port 4 networkgroup = %q, want LAN", got)
+}
+
+// TestGatewayWANHealthHintsFollowPortOverrides verifies that WAN SLA-style
+// telemetry stays deterministic and config-driven.
+func TestGatewayWANHealthHintsFollowPortOverrides(t *testing.T) {
+	profile, ok := device.LookupProfile("uxgpro")
+	if !ok {
+		t.Fatal("profile not found")
+	}
+	connected := true
+	disconnected := false
+	ports := device.ApplyPortOverrides(device.BuildPorts(profile, device.PortBuildOptions{}), []device.PortOverride{
+		{
+			Port:               1,
+			Role:               "wan",
+			NetworkGroup:       "WAN",
+			WANUptimePercent:   float64Ref(99.5),
+			WANLatencyMS:       7,
+			WANDowntimeSeconds: 30,
+			WANConnected:       &connected,
+		},
+		{
+			Port:               3,
+			Role:               "wan2",
+			NetworkGroup:       "WAN2",
+			WANUptimePercent:   float64Ref(0),
+			WANLatencyMS:       0,
+			WANDowntimeSeconds: 3600,
+			WANConnected:       &disconnected,
+		},
+	})
+	payload, err := switchPayload(device.Identity{
+		MAC:           "02:11:22:33:44:67",
+		IP:            "192.0.2.50",
+		Hostname:      "unifi-stubd-uxg",
+		Model:         profile.Model,
+		ModelDisplay:  profile.ModelDisplay,
+		DeviceType:    profile.DeviceType,
+		Version:       profile.Version,
+		Serial:        "021122334467",
+		InformURL:     "http://192.0.2.10:8080/inform",
+		UptimeSeconds: 3600,
+	}, ports)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var doc struct {
+		UptimeStats  map[string]map[string]any `json:"uptime_stats"`
+		IfTable      []map[string]any          `json:"if_table"`
+		NetworkTable []map[string]any          `json:"network_table"`
+		PortTable    []map[string]any          `json:"port_table"`
+		Speedtest    map[string]any            `json:"speedtest-status"`
+		Internet     map[string]any            `json:"internet_health"`
+		LastWAN      map[string]string         `json:"last_wan_status"`
+		LastWANIP    string                    `json:"last_wan_ip"`
+		UplinkTable  []map[string]any          `json:"uplink_table"`
+		WAN1         map[string]any            `json:"wan1"`
+		WAN2         map[string]any            `json:"wan2"`
+	}
+	if err := json.Unmarshal(payload, &doc); err != nil {
+		t.Fatal(err)
+	}
+	if got := doc.UptimeStats["WAN"]["uptime"].(float64); got != 99.5 {
+		t.Fatalf("WAN uptime_stats uptime = %.1f, want 99.5", got)
+	}
+	if got := doc.UptimeStats["WAN"]["availability"].(float64); got != 99.5 {
+		t.Fatalf("WAN availability = %.1f, want 99.5", got)
+	}
+	if got := int(doc.UptimeStats["WAN"]["latency"].(float64)); got != 7 {
+		t.Fatalf("WAN latency = %d, want 7", got)
+	}
+	if got := int(doc.UptimeStats["WAN"]["downtime"].(float64)); got != 30 {
+		t.Fatalf("WAN downtime = %d, want 30", got)
+	}
+	if got := doc.UptimeStats["WAN"]["isWanConnected"].(bool); !got {
+		t.Fatal("WAN isWanConnected = false, want true")
+	}
+	if got := doc.UptimeStats["WAN"]["uplink_ifname"].(string); got != "eth0" {
+		t.Fatalf("WAN uplink_ifname = %q, want eth0", got)
+	}
+	if got := int(doc.WAN1["latency"].(float64)); got != 7 {
+		t.Fatalf("wan1 latency = %d, want 7", got)
+	}
+	if got := doc.WAN1["uplink_ifname"].(string); got != "eth0" {
+		t.Fatalf("wan1 uplink_ifname = %q, want eth0", got)
+	}
+	for name, row := range map[string]map[string]any{
+		"if_table":      rowByPortIndex(t, doc.IfTable, 1),
+		"network_table": rowByPortIndex(t, doc.NetworkTable, 1),
+		"port_table":    rowByPortIndex(t, doc.PortTable, 1),
+	} {
+		if got := int(row["latency"].(float64)); got != 7 {
+			t.Fatalf("%s WAN latency = %d, want 7", name, got)
+		}
+		if got := row["isWanConnected"].(bool); !got {
+			t.Fatalf("%s isWanConnected = false, want true", name)
+		}
+	}
+	uplinkIf := rowByPortIndex(t, doc.IfTable, 1)
+	if got := int(uplinkIf["uptime"].(float64)); got != 3600 {
+		t.Fatalf("if_table uplink uptime = %d, want 3600", got)
+	}
+	if got := uplinkIf["speedtest_status"].(string); got != "Success" {
+		t.Fatalf("if_table uplink speedtest_status = %q, want Success", got)
+	}
+	if got := int(uplinkIf["speedtest_ping"].(float64)); got != 7 {
+		t.Fatalf("if_table uplink speedtest_ping = %d, want 7", got)
+	}
+	if got := int(uplinkIf["speedtest_lastrun"].(float64)); got <= 0 {
+		t.Fatalf("if_table uplink speedtest_lastrun = %d, want > 0", got)
+	}
+	if got := int(doc.Speedtest["latency"].(float64)); got != 7 {
+		t.Fatalf("speedtest-status latency = %d, want 7", got)
+	}
+	if got := int(doc.Speedtest["status_summary"].(float64)); got != 2 {
+		t.Fatalf("speedtest-status status_summary = %d, want 2", got)
+	}
+	if got := doc.Internet["status"].(string); got != "ok" {
+		t.Fatalf("internet_health status = %q, want ok", got)
+	}
+	if got := int(doc.Internet["latency"].(float64)); got != 7 {
+		t.Fatalf("internet_health latency = %d, want 7", got)
+	}
+	if got := doc.LastWAN["WAN"]; got != "online" {
+		t.Fatalf("last_wan_status WAN = %q, want online", got)
+	}
+	if got := doc.LastWANIP; got != "192.0.2.2" {
+		t.Fatalf("last_wan_ip = %q, want 192.0.2.2", got)
+	}
+	if len(doc.UplinkTable) != 1 {
+		t.Fatalf("uplink_table length = %d, want 1", len(doc.UplinkTable))
+	}
+	if got := int(doc.UplinkTable[0]["uptime"].(float64)); got != 3600 {
+		t.Fatalf("uplink_table uptime = %d, want 3600", got)
+	}
+	if got := doc.UplinkTable[0]["speedtest_status"].(string); got != "Success" {
+		t.Fatalf("uplink_table speedtest_status = %q, want Success", got)
+	}
+	if got := int(doc.UplinkTable[0]["speedtest_ping"].(float64)); got != 7 {
+		t.Fatalf("uplink_table speedtest_ping = %d, want 7", got)
+	}
+	if got := int(doc.UplinkTable[0]["speedtest_lastrun"].(float64)); got <= 0 {
+		t.Fatalf("uplink_table speedtest_lastrun = %d, want > 0", got)
+	}
+	if got := doc.UptimeStats["WAN2"]["isWanConnected"].(bool); got {
+		t.Fatal("WAN2 isWanConnected = true, want false")
+	}
+	if got := int(doc.UptimeStats["WAN2"]["downtime"].(float64)); got != 3600 {
+		t.Fatalf("WAN2 downtime = %d, want 3600", got)
+	}
+	if got := doc.WAN2["uplink_ifname"].(string); got != "eth2" {
+		t.Fatalf("wan2 uplink_ifname = %q, want eth2", got)
+	}
+}
+
+// TestWANHealthResultsBecomeHealthOnlyOverrides verifies active probe results
+// cannot rewrite assignment, addressing, VLAN, or link-state fields.
+func TestWANHealthResultsBecomeHealthOnlyOverrides(t *testing.T) {
+	overrides := device.PortOverridesFromWANHealthResults([]device.WANHealthResult{
+		{Port: 3, Connected: true, LatencyMS: 8, DowntimeSeconds: 0, UptimePercent: 100},
+	})
+	if len(overrides) != 1 {
+		t.Fatalf("len(overrides) = %d, want 1", len(overrides))
+	}
+	override := overrides[0]
+	if override.Port != 3 ||
+		override.WANConnected == nil ||
+		!*override.WANConnected ||
+		override.WANLatencyMS != 8 ||
+		override.WANDowntimeSeconds != 0 ||
+		override.WANUptimePercent == nil ||
+		*override.WANUptimePercent != 100 {
+		t.Fatalf("health fields = %+v", override)
+	}
+	if override.Role != "" ||
+		override.NetworkGroup != "" ||
+		override.IP != "" ||
+		override.VLAN != 0 ||
+		override.PortConfID != "" ||
+		override.NetworkConfID != "" ||
+		override.Up != nil {
+		t.Fatalf("non-health field was set: %+v", override)
 	}
 }
 
@@ -698,8 +1075,7 @@ func TestGatewayPayloadReportsHostTableClientMetadata(t *testing.T) {
 	}
 
 	var doc struct {
-		ConfigPortTable []map[string]any `json:"config_port_table"`
-		NetworkTable    []map[string]any `json:"network_table"`
+		NetworkTable []map[string]any `json:"network_table"`
 	}
 	if err := json.Unmarshal(payload, &doc); err != nil {
 		t.Fatal(err)
@@ -715,18 +1091,12 @@ func TestGatewayPayloadReportsHostTableClientMetadata(t *testing.T) {
 	if hosts, ok := doc.NetworkTable[0]["host_table"].([]any); ok && len(hosts) != 0 {
 		t.Fatalf("gateway WAN host_table should not expose uplink neighbor: %#v", hosts)
 	}
-	connection := doc.ConfigPortTable[1]["last_connection"].(map[string]any)
-	if connection["hostname"] != "lab-host-2" || connection["ip"] != "192.0.2.52" {
-		t.Fatalf("config_port_table last_connection metadata = %#v", connection)
-	}
-	if got, ok := doc.ConfigPortTable[1]["connected"].(bool); !ok || !got {
-		t.Fatalf("config_port_table connected = %#v, want true", doc.ConfigPortTable[1]["connected"])
-	}
 }
 
-// TestGatewayPayloadReportsDownstreamDeviceOnLANHostTable verifies downstream
-// LAN clients are reported on the LAN host table.
-func TestGatewayPayloadReportsDownstreamDeviceOnLANHostTable(t *testing.T) {
+// TestGatewayLANPortReportsSwitchLikeNeighborWithoutLANHostTable verifies LAN
+// gateway ports behave like physical switchports without turning downstream
+// infrastructure into routed LAN clients.
+func TestGatewayLANPortReportsSwitchLikeNeighborWithoutLANHostTable(t *testing.T) {
 	profile, ok := device.LookupProfile("uxgpro")
 	if !ok {
 		t.Fatal("profile not found")
@@ -759,20 +1129,35 @@ func TestGatewayPayloadReportsDownstreamDeviceOnLANHostTable(t *testing.T) {
 
 	var doc struct {
 		NetworkTable []map[string]any `json:"network_table"`
+		PortTable    []map[string]any `json:"port_table"`
 	}
 	if err := json.Unmarshal(payload, &doc); err != nil {
 		t.Fatal(err)
 	}
-	hosts, ok := doc.NetworkTable[3]["host_table"].([]any)
-	if !ok || len(hosts) != 1 {
-		t.Fatalf("LAN2 host_table = %#v", doc.NetworkTable[3]["host_table"])
+	if hosts, ok := doc.NetworkTable[3]["host_table"].([]any); ok && len(hosts) != 0 {
+		t.Fatalf("LAN2 host_table exposes infrastructure device: %#v", hosts)
 	}
-	host := hosts[0].(map[string]any)
-	if host["mac"] != "28:70:4e:c3:b7:b8" || host["ip"] != "10.10.0.21" || host["type"] != "usw" {
-		t.Fatalf("downstream host_table metadata = %#v", host)
+	port := rowByPortIndex(t, doc.PortTable, 4)
+	lastConnection, ok := port["last_connection"].(map[string]any)
+	if !ok {
+		t.Fatalf("LAN port last_connection = %#v, want switch-like neighbor", port["last_connection"])
 	}
-	if got := int(host["vlan"].(float64)); got != 1001 {
-		t.Fatalf("downstream host_table vlan = %d, want 1001", got)
+	if got := lastConnection["hostname"]; got != "management-downlink" {
+		t.Fatalf("LAN port last_connection hostname = %v, want management-downlink", got)
+	}
+	if got := lastConnection["type"]; got != "usw" {
+		t.Fatalf("LAN port last_connection type = %v, want usw", got)
+	}
+	macs, ok := port["mac_table"].([]any)
+	if !ok || len(macs) != 1 {
+		t.Fatalf("LAN port mac_table = %#v, want one infrastructure neighbor", port["mac_table"])
+	}
+	entry := macs[0].(map[string]any)
+	if got := entry["hostname"]; got != "management-downlink" {
+		t.Fatalf("LAN port mac_table hostname = %v, want management-downlink", got)
+	}
+	if got := entry["type"]; got != "usw" {
+		t.Fatalf("LAN port mac_table type = %v, want usw", got)
 	}
 }
 
@@ -878,6 +1263,20 @@ func TestApplyPortOverridesKeepsMediaOrderAndCounters(t *testing.T) {
 	}
 }
 
+// TestValidatePortOverrideAcceptsUnassignedRole keeps active gateway configs
+// with disabled or unused ports loadable under strict YAML validation.
+func TestValidatePortOverrideAcceptsUnassignedRole(t *testing.T) {
+	err := device.ValidatePortOverride(device.PortOverride{
+		Port:         1,
+		Name:         "Port 1",
+		Role:         "unassigned",
+		NetworkGroup: "Unassigned",
+	}, 4)
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
 // TestGatewayPayloadReportsPortOverrideMACs verifies MAC/IP override data is
 // reflected in gateway interface rows.
 func TestGatewayPayloadReportsPortOverrideMACs(t *testing.T) {
@@ -905,8 +1304,11 @@ func TestGatewayPayloadReportsPortOverrideMACs(t *testing.T) {
 	}
 
 	var doc struct {
-		IfTable      []map[string]any `json:"if_table"`
-		NetworkTable []map[string]any `json:"network_table"`
+		IfTable          []map[string]any `json:"if_table"`
+		NetworkTable     []map[string]any `json:"network_table"`
+		ConfigPortTable  []map[string]any `json:"config_port_table"`
+		EthernetOverride []map[string]any `json:"ethernet_overrides"`
+		PortTable        []map[string]any `json:"port_table"`
 	}
 	if err := json.Unmarshal(payload, &doc); err != nil {
 		t.Fatal(err)
@@ -922,6 +1324,69 @@ func TestGatewayPayloadReportsPortOverrideMACs(t *testing.T) {
 	}
 	if got := doc.NetworkTable[1]["address"].(string); got != "192.0.2.1/24" {
 		t.Fatalf("LAN network_table address = %q", got)
+	}
+}
+
+// TestGatewayPayloadCanMirrorControllerPortAssignments verifies controller
+// port assignment metadata is emitted only when an operator explicitly mirrors it.
+func TestGatewayPayloadCanMirrorControllerPortAssignments(t *testing.T) {
+	profile, ok := device.LookupProfile("uxgpro")
+	if !ok {
+		t.Fatal("profile not found")
+	}
+	ports := device.ApplyPortOverrides(device.BuildPorts(profile, device.PortBuildOptions{UplinkPort: 3}), []device.PortOverride{
+		{
+			Port:                3,
+			Role:                "wan",
+			NetworkGroup:        "WAN",
+			PortConfID:          "portconf-real-wan",
+			NetworkConfID:       "network-real-wan",
+			NativeNetworkConfID: "network-real-wan",
+			NetworkName:         "real_wan",
+			VLAN:                3,
+		},
+	})
+	payload, err := switchPayload(device.Identity{
+		MAC:          "02:00:5e:00:53:01",
+		IP:           "192.0.2.1",
+		Hostname:     "opnsense",
+		Model:        profile.Model,
+		ModelDisplay: profile.ModelDisplay,
+		DeviceType:   profile.DeviceType,
+		Version:      profile.Version,
+		Serial:       "02005E005301",
+		InformURL:    "http://192.0.2.10:8080/inform",
+	}, ports)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var doc struct {
+		IfTable          []map[string]any `json:"if_table"`
+		ConfigPortTable  []map[string]any `json:"config_port_table"`
+		EthernetOverride []map[string]any `json:"ethernet_overrides"`
+		PortTable        []map[string]any `json:"port_table"`
+	}
+	if err := json.Unmarshal(payload, &doc); err != nil {
+		t.Fatal(err)
+	}
+	for _, table := range [][]map[string]any{doc.ConfigPortTable, doc.PortTable} {
+		row := table[2]
+		if got := row["portconf_id"].(string); got != "portconf-real-wan" {
+			t.Fatalf("portconf_id = %q", got)
+		}
+		if got := row["networkconf_id"].(string); got != "network-real-wan" {
+			t.Fatalf("networkconf_id = %q", got)
+		}
+		if got := row["native_networkconf_id"].(string); got != "network-real-wan" {
+			t.Fatalf("native_networkconf_id = %q", got)
+		}
+		if got := row["network_name"].(string); got != "real_wan" {
+			t.Fatalf("network_name = %q", got)
+		}
+		if got := int(row["vlan"].(float64)); got != 3 {
+			t.Fatalf("vlan = %d, want 3", got)
+		}
 	}
 }
 
@@ -975,7 +1440,6 @@ func TestUXGGatewayPayloadUsesInterfaceOverrideData(t *testing.T) {
 		IfTable      []map[string]any `json:"if_table"`
 		NetworkTable []map[string]any `json:"network_table"`
 		UplinkTable  []map[string]any `json:"uplink_table"`
-		WAN1         map[string]any   `json:"wan1"`
 	}
 	if err := json.Unmarshal(payload, &doc); err != nil {
 		t.Fatal(err)
@@ -985,12 +1449,6 @@ func TestUXGGatewayPayloadUsesInterfaceOverrideData(t *testing.T) {
 	}
 	if got := doc.IfTable[1]["ip"].(string); got != "198.51.100.9" {
 		t.Fatalf("WAN if_table ip = %q", got)
-	}
-	if got := doc.NetworkTable[0]["networkgroup"].(string); got != "LAN" {
-		t.Fatalf("LAN networkgroup = %q", got)
-	}
-	if got := doc.NetworkTable[1]["networkgroup"].(string); got != "WAN" {
-		t.Fatalf("WAN networkgroup = %q", got)
 	}
 	if got := doc.NetworkTable[0]["max_speed"].(string); got != "10000" {
 		t.Fatalf("LAN max_speed = %q", got)
@@ -1065,7 +1523,6 @@ func TestGatewayPayloadReportsExplicitTrafficRates(t *testing.T) {
 		IfTable      []map[string]any `json:"if_table"`
 		NetworkTable []map[string]any `json:"network_table"`
 		UplinkTable  []map[string]any `json:"uplink_table"`
-		WAN1         map[string]any   `json:"wan1"`
 	}
 	if err := json.Unmarshal(payload, &doc); err != nil {
 		t.Fatal(err)
@@ -1089,16 +1546,9 @@ func TestGatewayPayloadReportsExplicitTrafficRates(t *testing.T) {
 	if got := int64(doc.UplinkTable[0]["tx_errors"].(float64)); got != 4 {
 		t.Fatalf("uplink tx_errors = %d, want 4", got)
 	}
-	if got := int64(doc.WAN1["rx_bytes-r"].(float64)); got != 30 {
-		t.Fatalf("wan1 rx rate = %d, want 30", got)
-	}
-	if got := int64(doc.WAN1["tx_bytes"].(float64)); got != 4000 {
-		t.Fatalf("wan1 tx_bytes = %d, want 4000", got)
-	}
 	assertNoExperimentalRateFields(t, doc.IfTable[0])
 	assertNoExperimentalRateFields(t, wanStats)
 	assertNoExperimentalRateFields(t, doc.UplinkTable[0])
-	assertNoExperimentalRateFields(t, doc.WAN1)
 }
 
 // TestGatewayPayloadSynchronizesResolvedTables verifies gateway tables all
@@ -1149,15 +1599,11 @@ func TestGatewayPayloadSynchronizesResolvedTables(t *testing.T) {
 	}
 
 	var doc struct {
-		ConfigPortTable   []map[string]any `json:"config_port_table"`
-		EthernetOverrides []map[string]any `json:"ethernet_overrides"`
-		IfTable           []map[string]any `json:"if_table"`
-		NetworkTable      []map[string]any `json:"network_table"`
-		ReportedNetworks  []map[string]any `json:"reported_networks"`
-		ConfigNetworkWAN  map[string]any   `json:"config_network_wan"`
-		ConfigNetworkWAN2 map[string]any   `json:"config_network_wan2,omitempty"`
-		WAN1              map[string]any   `json:"wan1"`
-		WAN2              map[string]any   `json:"wan2,omitempty"`
+		IfTable          []map[string]any `json:"if_table"`
+		NetworkTable     []map[string]any `json:"network_table"`
+		ConfigPortTable  []map[string]any `json:"config_port_table"`
+		EthernetOverride []map[string]any `json:"ethernet_overrides"`
+		PortTable        []map[string]any `json:"port_table"`
 	}
 	if err := json.Unmarshal(payload, &doc); err != nil {
 		t.Fatal(err)
@@ -1168,32 +1614,35 @@ func TestGatewayPayloadSynchronizesResolvedTables(t *testing.T) {
 			name string
 			row  map[string]any
 		}{
-			{"config_port_table", doc.ConfigPortTable[index-1]},
-			{"ethernet_overrides", doc.EthernetOverrides[index-1]},
 			{"if_table", doc.IfTable[index-1]},
 			{"network_table", doc.NetworkTable[index-1]},
-			{"reported_networks", doc.ReportedNetworks[index-1]},
+			{"config_port_table", doc.ConfigPortTable[index-1]},
+			{"port_table", doc.PortTable[index-1]},
 		}
 		for _, item := range rows {
 			if got := item.row["ifname"].(string); got != ifname {
 				t.Fatalf("%s port %d ifname = %q, want %q", item.name, index, got, ifname)
 			}
-			if got := item.row["networkgroup"].(string); got != networkGroup {
-				t.Fatalf("%s port %d networkgroup = %q, want %q", item.name, index, got, networkGroup)
-			}
 			if got := item.row["source_interface"].(string); got != sourceInterface {
 				t.Fatalf("%s port %d source_interface = %q, want %q", item.name, index, got, sourceInterface)
+			}
+			if got := item.row["networkgroup"].(string); got != networkGroup {
+				t.Fatalf("%s port %d networkgroup = %q, want %q", item.name, index, got, networkGroup)
 			}
 		}
 		for _, item := range []struct {
 			name string
 			row  map[string]any
 		}{
-			{"ethernet_overrides", doc.EthernetOverrides[index-1]},
 			{"if_table", doc.IfTable[index-1]},
 			{"network_table", doc.NetworkTable[index-1]},
+			{"port_table", doc.PortTable[index-1]},
 		} {
-			if got := item.row["mac"].(string); got != mac {
+			got, ok := item.row["mac"].(string)
+			if !ok {
+				continue
+			}
+			if got != mac {
 				t.Fatalf("%s port %d mac = %q, want %q", item.name, index, got, mac)
 			}
 		}
@@ -1207,13 +1656,63 @@ func TestGatewayPayloadSynchronizesResolvedTables(t *testing.T) {
 
 	assertGatewayPortSync(1, "eth0", "02:00:5e:00:53:11", "LAN", "vtnet0", 2500)
 	assertGatewayPortSync(2, "eth1", "02:00:5e:00:53:12", "WAN", "ixl0", 10000)
-	assertGatewayConfigNetwork(t, doc.ConfigNetworkWAN, "eth1", "WAN", "wan", 2)
-	assertGatewayWANStatus(t, doc.WAN1, "eth1", "WAN", "wan", 2)
-	if doc.ConfigNetworkWAN2 != nil {
-		t.Fatalf("config_network_wan2 = %#v, want omitted", doc.ConfigNetworkWAN2)
+}
+
+// TestGatewayRoleRemapKeepsProfilePortInterface verifies role overrides keep
+// the physical profile interface and only change the controller-visible role.
+func TestGatewayRoleRemapKeepsProfilePortInterface(t *testing.T) {
+	profile, ok := device.LookupProfile("uxgpro")
+	if !ok {
+		t.Fatal("profile not found")
 	}
-	if doc.WAN2 != nil {
-		t.Fatalf("wan2 = %#v, want omitted", doc.WAN2)
+	ports := device.ApplyPortOverrides(device.BuildPorts(profile, device.PortBuildOptions{}), []device.PortOverride{
+		{Port: 4, Role: "lan", NetworkGroup: "LAN", Interface: "vtnet0"},
+	})
+	payload, err := switchPayload(device.Identity{
+		MAC:          "02:00:5e:00:53:20",
+		IP:           "192.0.2.1",
+		Hostname:     "opnsense",
+		Model:        profile.Model,
+		ModelDisplay: profile.ModelDisplay,
+		DeviceType:   profile.DeviceType,
+		Version:      profile.Version,
+		Serial:       "02005E005320",
+		InformURL:    "http://192.0.2.10:8080/inform",
+	}, ports)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var doc struct {
+		IfTable      []map[string]any `json:"if_table"`
+		NetworkTable []map[string]any `json:"network_table"`
+		PortTable    []map[string]any `json:"port_table"`
+	}
+	if err := json.Unmarshal(payload, &doc); err != nil {
+		t.Fatal(err)
+	}
+	ifRow := rowByPortIndex(t, doc.IfTable, 4)
+	if got := ifRow["ifname"].(string); got != "eth3" {
+		t.Fatalf("port 4 LAN if_table ifname = %q, want eth3", got)
+	}
+	if got := ifRow["source_interface"].(string); got != "vtnet0" {
+		t.Fatalf("port 4 if_table source_interface = %q, want vtnet0", got)
+	}
+	networkRow := rowByPortIndex(t, doc.NetworkTable, 4)
+	if got := networkRow["ifname"].(string); got != "eth3" {
+		t.Fatalf("port 4 LAN network_table ifname = %q, want eth3", got)
+	}
+	for _, row := range []map[string]any{networkRow} {
+		if got := row["source_interface"].(string); got != "vtnet0" {
+			t.Fatalf("port 4 source_interface = %q, want vtnet0", got)
+		}
+	}
+	portRow := doc.PortTable[3]
+	if got := portRow["ifname"].(string); got != "eth3" {
+		t.Fatalf("port_table port 4 ifname = %q, want eth3", got)
+	}
+	if got := portRow["source_interface"].(string); got != "vtnet0" {
+		t.Fatalf("port_table port 4 source_interface = %q, want vtnet0", got)
 	}
 }
 
@@ -1269,12 +1768,6 @@ func TestCustomGatewayPayloadUsesProfileRolesWithoutModelSpecialCase(t *testing.
 	if doc.Uplink != "eth0" {
 		t.Fatalf("uplink = %q, want eth0", doc.Uplink)
 	}
-	if got := doc.IfTable[0]["networkgroup"]; got != "LAN" {
-		t.Fatalf("port 1 networkgroup = %v, want LAN", got)
-	}
-	if got := doc.IfTable[1]["networkgroup"]; got != "WAN" {
-		t.Fatalf("port 2 networkgroup = %v, want WAN", got)
-	}
 	if got := doc.NetworkTable[0]["ip"]; got != "192.0.2.70" {
 		t.Fatalf("LAN ip = %v, want management IP", got)
 	}
@@ -1305,6 +1798,52 @@ func TestApplyUplinkNeighborAddsConfiguredNeighbor(t *testing.T) {
 	}
 	if entry.Age == 0 || entry.Uptime == 0 {
 		t.Fatalf("uplink neighbor missing defaults: %+v", entry)
+	}
+}
+
+// TestSwitchPayloadSkipsGatewayUplinkNeighborMacTable avoids making the
+// upstream gateway look like a downstream station on the switch uplink.
+func TestSwitchPayloadSkipsGatewayUplinkNeighborMacTable(t *testing.T) {
+	profile, ok := device.LookupProfile("us48p500")
+	if !ok {
+		t.Fatal("profile not found")
+	}
+	ports := device.BuildPorts(profile, device.PortBuildOptions{UplinkPort: 49})
+	ports[48].MACs = nil
+	ports = device.ApplyUplinkNeighbor(ports, &device.MacTableEntry{
+		MAC:  "02:aa:bb:cc:dd:01",
+		IP:   "192.0.2.1",
+		Type: "uxg",
+	})
+
+	if len(ports[48].MACs) != 1 {
+		t.Fatalf("gateway neighbor was not retained in port data: %+v", ports[48].MACs)
+	}
+	payload, err := switchPayload(device.Identity{
+		MAC:          "02:11:22:33:44:60",
+		IP:           "192.0.2.50",
+		Hostname:     "server-lan1",
+		Model:        profile.Model,
+		ModelDisplay: profile.ModelDisplay,
+		Version:      profile.Version,
+		Serial:       "021122334460",
+		InformURL:    "http://192.0.2.10:8080/inform",
+	}, ports)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		PortTable []map[string]any `json:"port_table"`
+	}
+	if err := json.Unmarshal(payload, &doc); err != nil {
+		t.Fatal(err)
+	}
+	port := rowByPortIndex(t, doc.PortTable, 49)
+	if macs, ok := port["mac_table"].([]any); ok && len(macs) != 0 {
+		t.Fatalf("gateway uplink mac_table = %#v, want empty", macs)
+	}
+	if port["last_connection"] != nil {
+		t.Fatalf("gateway uplink last_connection = %#v, want null", port["last_connection"])
 	}
 }
 
@@ -1703,41 +2242,49 @@ func assertNoExperimentalRateFields(t *testing.T, row map[string]any) {
 	}
 }
 
-// assertGatewayConfigNetwork checks the shared gateway config-network row
-// contract used across WAN and LAN tests.
-func assertGatewayConfigNetwork(t *testing.T, row map[string]any, ifname, networkGroup, role string, portIndex int) {
+// assertGatewayConfigNetworkWAN checks the UXG-style WAN config block. Port
+// anchoring is reported through uplink, if_table, and port tables.
+func assertGatewayConfigNetworkWAN(t *testing.T, row map[string]any, ip, netmask string) {
 	t.Helper()
-	if got := row["type"].(string); got != "dhcp" {
-		t.Fatalf("config network type = %q, want dhcp", got)
+	if got := row["ip"].(string); got != ip {
+		t.Fatalf("config_network_wan ip = %q, want %q", got, ip)
 	}
-	if got := row["ifname"].(string); got != ifname {
-		t.Fatalf("config network ifname = %q, want %q", got, ifname)
+	if got := row["netmask"].(string); got != netmask {
+		t.Fatalf("config_network_wan netmask = %q, want %q", got, netmask)
 	}
-	if got := row["networkgroup"].(string); got != networkGroup {
-		t.Fatalf("config network networkgroup = %q, want %q", got, networkGroup)
+	if got := row["speed"].(string); got != "auto" {
+		t.Fatalf("config_network_wan speed = %q, want auto", got)
 	}
-	if got := row["role"].(string); got != role {
-		t.Fatalf("config network role = %q, want %q", got, role)
+	if got := row["autoneg"].(bool); !got {
+		t.Fatal("config_network_wan autoneg = false, want true")
 	}
-	if got := int(row["port_idx"].(float64)); got != portIndex {
-		t.Fatalf("config network port_idx = %d, want %d", got, portIndex)
+	if got := row["full_duplex"].(bool); !got {
+		t.Fatal("config_network_wan full_duplex = false, want true")
 	}
 }
 
-// assertGatewayWANStatus checks the shared gateway WAN status row contract.
-func assertGatewayWANStatus(t *testing.T, row map[string]any, ifname, networkGroup, role string, portIndex int) {
+func rowByPortIndex(t *testing.T, rows []map[string]any, portIndex int) map[string]any {
 	t.Helper()
-	if row == nil {
-		t.Fatal("wan status is nil")
+	for _, row := range rows {
+		if got, ok := row["port_idx"].(float64); ok && int(got) == portIndex {
+			return row
+		}
 	}
-	assertGatewayConfigNetwork(t, row, ifname, networkGroup, role, portIndex)
-	if got, ok := row["up"].(bool); !ok || !got {
-		t.Fatalf("wan status up = %#v, want true", row["up"])
+	t.Fatalf("no row with port_idx %d in %#v", portIndex, rows)
+	return nil
+}
+
+func firstRowByString(t *testing.T, rows []map[string]any, key, value string) map[string]any {
+	t.Helper()
+	for _, row := range rows {
+		if got, ok := row[key].(string); ok && got == value {
+			return row
+		}
 	}
-	if got := int(row["uptime"].(float64)); got < 1 {
-		t.Fatalf("wan status uptime = %d, want >= 1", got)
-	}
-	if got := int(row["latency"].(float64)); got != 0 {
-		t.Fatalf("wan status latency = %d, want 0", got)
-	}
+	t.Fatalf("no row with %s=%q in %#v", key, value, rows)
+	return nil
+}
+
+func float64Ref(value float64) *float64 {
+	return &value
 }

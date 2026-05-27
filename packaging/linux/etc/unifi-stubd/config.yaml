@@ -53,9 +53,28 @@ port_neighbors: []
 #     name: backup_wan
 #     role: wan2
 #     network_group: WAN2
+#     wan_uptime_percent: 100
+#     wan_latency_ms: 7
+#     wan_connected: true
 #   - port: 5
 #     up: false
 port_overrides: []
+
+# Optional read-only gateway WAN health. Default is off; static uses the
+# port_overrides wan_* fields above. ping runs the local OS ping command and
+# only writes WAN telemetry fields into the inform payload.
+# wan_health:
+#   source: ping
+#   interval_seconds: 10
+#   timeout_ms: 1000
+#   targets:
+#     - port: 3
+#       host: 1.1.1.1
+wan_health:
+  source: off
+  interval_seconds: 10
+  timeout_ms: 1000
+  targets: []
 
 # Passive Linux observation is read-only. operation_mode: bridge-observe
 # represents one host bridge as virtual switch ports. operation_mode: observe is

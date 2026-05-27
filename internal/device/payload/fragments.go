@@ -61,6 +61,27 @@ func portLinkFields(speed int, media string) linkFields {
 	}
 }
 
+func gatewayPortLinkFieldsFor(speed int, media string) gatewayPortLinkFields {
+	return gatewayPortLinkFields{
+		Speed:     speed,
+		MaxSpeed:  speed,
+		SpeedCaps: gatewaySpeedCapsCode(speed, media),
+		Media:     media,
+	}
+}
+
+func gatewaySpeedCapsCode(speed int, media string) int {
+	media = strings.ToUpper(strings.TrimSpace(media))
+	switch {
+	case speed >= 25000 || strings.Contains(media, "SFP28"):
+		return 1048864
+	case speed >= 10000 || strings.Contains(media, "SFP+"):
+		return 1048864
+	default:
+		return 1048623
+	}
+}
+
 // portCounterFields renders raw counters plus packet fallbacks shared by switch
 // and gateway payload rows.
 func portCounterFields(port device.Port) counterFields {
@@ -111,6 +132,11 @@ func intRef(value int) *int {
 }
 
 func int64Ref(value int64) *int64 {
+	out := value
+	return &out
+}
+
+func float64Ref(value float64) *float64 {
 	out := value
 	return &out
 }

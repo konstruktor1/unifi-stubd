@@ -144,8 +144,9 @@
 - [ ] Full gateway status payload for `UGW3`/`UXG`.
 - [ ] Gateway UI validation for Settings > Internet, Devices, and Ports views
   across pinned UniFi Network versions.
-- [ ] WAN health fields for uptime, latency, peak utilization, and ISP label
-  where the controller accepts read-only values.
+- [x] Config-driven WAN uptime, latency, downtime, and connected-state hints.
+- [ ] WAN peak utilization and ISP label where the controller accepts read-only
+  values.
 - [ ] Active lease and host-table shaping for gateway client visibility without
   inventing per-client traffic counters.
 - [ ] UniFi UI verification for switch and gateway traffic activity after

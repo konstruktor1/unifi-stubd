@@ -31,15 +31,15 @@ port_neighbors:
 port_overrides:
   - port: 1
     name: Port 1
-    role: lan
-    network_group: LAN
+    role: unassigned
+    network_group: Unassigned
     up: false
     speed: 0
     media: GE
   - port: 2
     name: Port 2
-    role: lan
-    network_group: LAN
+    role: unassigned
+    network_group: Unassigned
     up: false
     speed: 0
     media: GE
@@ -47,22 +47,41 @@ port_overrides:
     name: WAN SFP+
     role: wan
     network_group: WAN
+    portconf_id: portconf-opnsense-wan
+    networkconf_id: network-opnsense-wan
+    native_networkconf_id: network-opnsense-wan
+    network_name: opnsense_wan
+    vlan: 3
     interface: ixl0
     mac: 02:00:5e:00:53:ca
     ip: 198.51.100.9
     netmask: 255.255.255.0
+    wan_uptime_percent: 100
+    wan_latency_ms: 7
+    wan_connected: true
     speed: 10000
     media: SFP+
   - port: 4
     name: LAN SFP+ to server-lan1
     role: lan
     network_group: LAN
+    portconf_id: portconf-opnsense-lan
+    networkconf_id: network-opnsense-lan
+    native_networkconf_id: network-opnsense-lan
+    network_name: opnsense_lan
+    vlan: 1
     interface: vtnet0
     mac: 02:00:5e:00:53:04
     ip: 192.0.2.1
     netmask: 255.255.255.0
     speed: 10000
     media: SFP+
+
+wan_health:
+  source: static
+  interval_seconds: 10
+  timeout_ms: 1000
+  targets: []
 
 observe_interface: ""
 observe_bridge: ""

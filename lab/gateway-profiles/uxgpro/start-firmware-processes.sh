@@ -5,7 +5,7 @@ set -euo pipefail
 preload="${UNIFI_FW_SIM_PRELOAD:-${UXGPRO_SIM_PRELOAD:-/mock/libubnthal_redirect.so}}"
 log_dir="${UNIFI_FW_SIM_LOG_DIR:-${UXGPRO_SIM_LOG_DIR:-/tmp}}"
 model="${UNIFI_FW_SIM_MODEL:-${UXGPRO_SIM_MODEL:-UXGPRO}}"
-mac="${UNIFI_FW_SIM_MAC:-${UXGPRO_SIM_MAC:-02:15:6d:de:ad:00}}"
+device_mac="${UNIFI_FW_SIM_MAC:-${UXGPRO_SIM_MAC:-02:15:6d:de:ad:00}}"
 
 if [[ ! -r "$preload" ]]; then
     echo "missing LD_PRELOAD shim: $preload" >&2
@@ -26,9 +26,78 @@ mkdir -p /data/udapi-config/ubios-udapi-server "$log_dir"
 
 dropbear_pid=""
 
+udapi_config="${UNIFI_FW_SIM_UDAPI_CONFIG:-${UXGPRO_SIM_UDAPI_CONFIG:-/data/udapi-config/ubios-udapi-server/ubios-udapi-server.state}}"
+
+static_address="${UNIFI_FW_SIM_STATIC_ADDRESS:-${UXGPRO_SIM_STATIC_ADDRESS:-}}"
+static_interface="${UNIFI_FW_SIM_STATIC_INTERFACE:-${UXGPRO_SIM_STATIC_INTERFACE:-eth0}}"
+default_gateway="${UNIFI_FW_SIM_DEFAULT_GATEWAY:-${UXGPRO_SIM_DEFAULT_GATEWAY:-}}"
+configure_static_interface() {
+    [[ -n "$static_address" ]] || return 0
+    ip link set "$static_interface" up || true
+    ip addr flush dev "$static_interface" scope global || true
+    ip addr add "$static_address" dev "$static_interface"
+    if [[ -n "$default_gateway" ]]; then
+        ip route replace default via "$default_gateway" dev "$static_interface" || true
+    fi
+}
+
+dummy_interfaces_value="${UNIFI_FW_SIM_DUMMY_INTERFACES:-${UXGPRO_SIM_DUMMY_INTERFACES:-}}"
+configure_dummy_interfaces() {
+    [[ -n "$dummy_interfaces_value" ]] || return 0
+    IFS=';' read -r -a dummy_interfaces <<< "$dummy_interfaces_value"
+    for dummy_interface in "${dummy_interfaces[@]}"; do
+        [[ -z "$dummy_interface" ]] && continue
+        IFS=',' read -r iface iface_mac address <<< "$dummy_interface"
+        [[ -z "${iface:-}" ]] && continue
+
+        ip link show "$iface" >/dev/null 2>&1 || ip link add "$iface" type dummy
+        if [[ -n "${iface_mac:-}" ]]; then
+            ip link set "$iface" address "$iface_mac"
+        fi
+        ip link set "$iface" up
+        if [[ -n "${address:-}" ]]; then
+            ip addr flush dev "$iface" scope global || true
+            ip addr add "$address" dev "$iface"
+        fi
+    done
+}
+
+bridge_interfaces_value="${UNIFI_FW_SIM_BRIDGE_INTERFACES:-${UXGPRO_SIM_BRIDGE_INTERFACES:-}}"
+configure_bridge_interfaces() {
+    [[ -n "$bridge_interfaces_value" ]] || return 0
+    IFS=';' read -r -a bridge_interfaces <<< "$bridge_interfaces_value"
+    for bridge_interface in "${bridge_interfaces[@]}"; do
+        [[ -z "$bridge_interface" ]] && continue
+        IFS=',' read -r bridge bridge_mac bridge_address bridge_ports <<< "$bridge_interface"
+        [[ -n "${bridge:-}" ]] || continue
+        [[ -n "${bridge_ports:-}" ]] || continue
+
+        ip link show "$bridge" >/dev/null 2>&1 || ip link add "$bridge" type bridge
+        if [[ -n "${bridge_mac:-}" ]]; then
+            ip link set "$bridge" address "$bridge_mac" || true
+        fi
+        IFS='+' read -r -a bridge_port_list <<< "$bridge_ports"
+        for bridge_port in "${bridge_port_list[@]}"; do
+            [[ -n "$bridge_port" ]] || continue
+            ip link show "$bridge_port" >/dev/null 2>&1 || continue
+            ip addr flush dev "$bridge_port" scope global || true
+            ip link set "$bridge_port" up || true
+            ip link set "$bridge_port" master "$bridge" || true
+        done
+        ip link set "$bridge" up
+        if [[ -n "${bridge_address:-}" ]]; then
+            ip addr flush dev "$bridge" scope global || true
+            ip addr add "$bridge_address" dev "$bridge"
+        fi
+    done
+}
+
+configure_dummy_interfaces
+configure_bridge_interfaces
+
 env LD_PRELOAD="$preload" \
     /usr/bin/ubios-udapi-server \
-        -c /data/udapi-config/ubios-udapi-server/ubios-udapi-server.state \
+        -c "$udapi_config" \
         -x -t \
     >"$log_dir/ubios-udapi-server.run.log" \
     2>"$log_dir/ubios-udapi-server.run.err" &
@@ -52,33 +121,9 @@ if [[ ! -S /var/run/ubnt-udapi-server.sock ]]; then
     exit 1
 fi
 
-static_address="${UNIFI_FW_SIM_STATIC_ADDRESS:-${UXGPRO_SIM_STATIC_ADDRESS:-}}"
-if [[ -n "$static_address" ]]; then
-    static_interface="${UNIFI_FW_SIM_STATIC_INTERFACE:-${UXGPRO_SIM_STATIC_INTERFACE:-eth0}}"
-    ip link set "$static_interface" up || true
-    ip addr flush dev "$static_interface" scope global || true
-    ip addr add "$static_address" dev "$static_interface"
-fi
-
-dummy_interfaces_value="${UNIFI_FW_SIM_DUMMY_INTERFACES:-${UXGPRO_SIM_DUMMY_INTERFACES:-}}"
-if [[ -n "$dummy_interfaces_value" ]]; then
-    IFS=';' read -r -a dummy_interfaces <<< "$dummy_interfaces_value"
-    for dummy_interface in "${dummy_interfaces[@]}"; do
-        [[ -z "$dummy_interface" ]] && continue
-        IFS=',' read -r iface mac address <<< "$dummy_interface"
-        [[ -z "${iface:-}" ]] && continue
-
-        ip link show "$iface" >/dev/null 2>&1 || ip link add "$iface" type dummy
-        if [[ -n "${mac:-}" ]]; then
-            ip link set "$iface" address "$mac"
-        fi
-        ip link set "$iface" up
-        if [[ -n "${address:-}" ]]; then
-            ip addr flush dev "$iface" scope global || true
-            ip addr add "$address" dev "$iface"
-        fi
-    done
-fi
+configure_static_interface
+configure_dummy_interfaces
+configure_bridge_interfaces
 
 start_dropbear="${UNIFI_FW_SIM_START_DROPBEAR:-${UXGPRO_SIM_START_DROPBEAR:-0}}"
 if [[ "$start_dropbear" == "1" ]]; then
@@ -100,7 +145,7 @@ fi
 env "${bridge_env[@]}" \
     /usr/bin/udapi-bridge \
     -m "$model" \
-    -M "$mac" \
+    -M "$device_mac" \
     --rest-api-port 1080 \
     --rest-api-secure-port 0 \
     --rest-api-interface lo \

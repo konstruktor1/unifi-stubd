@@ -10,6 +10,8 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/config"
 )
 
+const sourceOff = "off"
+
 // TestDefaultSeparatesConfigAndStatePaths verifies packaged defaults keep
 // config and writable state paths separate.
 func TestDefaultSeparatesConfigAndStatePaths(t *testing.T) {
@@ -28,6 +30,12 @@ func TestDefaultSeparatesConfigAndStatePaths(t *testing.T) {
 	}
 	if cfg.TrafficRatesEnabled {
 		t.Fatal("TrafficRatesEnabled default = true, want false")
+	}
+	if cfg.WANHealth.Source != sourceOff ||
+		cfg.WANHealth.IntervalSeconds != 10 ||
+		cfg.WANHealth.TimeoutMS != 1000 ||
+		len(cfg.WANHealth.Targets) != 0 {
+		t.Fatalf("WANHealth default = %+v", cfg.WANHealth)
 	}
 	if cfg.Profile == "" {
 		t.Fatal("Profile default is empty")
@@ -94,9 +102,25 @@ port_overrides:
     netmask: 255.255.255.0
     role: lan
     network_group: LAN
+    portconf_id: portconf-real-wan
+    networkconf_id: network-wan
+    native_networkconf_id: network-real-wan
+    network_name: real_wan
+    vlan: 3
+    wan_uptime_percent: 99.5
+    wan_latency_ms: 7
+    wan_downtime_seconds: 30
+    wan_connected: true
     speed: 1000
   - port: 5
     up: false
+wan_health:
+  source: ping
+  interval_seconds: 10
+  timeout_ms: 1000
+  targets:
+    - port: 3
+      host: 1.1.1.1
 lldp_source: lldpd
 traffic_rates_enabled: true
 log_source: journalctl
@@ -196,16 +220,35 @@ status_path: /tmp/unifi-stubd/status.json
 		cfg.PortOverrides[0].Netmask != "255.255.255.0" ||
 		cfg.PortOverrides[0].Role != "lan" ||
 		cfg.PortOverrides[0].NetworkGroup != "LAN" ||
+		cfg.PortOverrides[0].PortConfID != "portconf-real-wan" ||
+		cfg.PortOverrides[0].NetworkConfID != "network-wan" ||
+		cfg.PortOverrides[0].NativeNetworkConfID != "network-real-wan" ||
+		cfg.PortOverrides[0].NetworkName != "real_wan" ||
+		cfg.PortOverrides[0].VLAN != 3 ||
+		cfg.PortOverrides[0].WANUptimePercent == nil ||
+		*cfg.PortOverrides[0].WANUptimePercent != 99.5 ||
+		cfg.PortOverrides[0].WANLatencyMS != 7 ||
+		cfg.PortOverrides[0].WANDowntimeSeconds != 30 ||
+		cfg.PortOverrides[0].WANConnected == nil ||
+		!*cfg.PortOverrides[0].WANConnected ||
 		cfg.PortOverrides[0].Speed != 1000 {
 		t.Fatalf("first PortOverride = %+v", cfg.PortOverrides[0])
 	}
 	if cfg.PortOverrides[1].Up == nil || *cfg.PortOverrides[1].Up {
 		t.Fatalf("second PortOverride.Up = %v, want false", cfg.PortOverrides[1].Up)
 	}
+	if cfg.WANHealth.Source != "ping" ||
+		cfg.WANHealth.IntervalSeconds != 10 ||
+		cfg.WANHealth.TimeoutMS != 1000 ||
+		len(cfg.WANHealth.Targets) != 1 ||
+		cfg.WANHealth.Targets[0].Port != 3 ||
+		cfg.WANHealth.Targets[0].Host != "1.1.1.1" {
+		t.Fatalf("WANHealth = %+v", cfg.WANHealth)
+	}
 	if cfg.LLDPSource != "lldpd" {
 		t.Fatalf("LLDPSource = %q", cfg.LLDPSource)
 	}
-	if cfg.TrafficSource != "off" {
+	if cfg.TrafficSource != sourceOff {
 		t.Fatalf("TrafficSource default was not preserved: %q", cfg.TrafficSource)
 	}
 	if !cfg.TrafficRatesEnabled {

@@ -148,8 +148,10 @@
 - [ ] Vollstaendiger Gateway-Statuspayload fuer `UGW3`/`UXG`.
 - [ ] Gateway-UI-Validierung fuer Settings > Internet, Devices und Ports ueber
   gepinnte UniFi-Network-Versionen.
-- [ ] WAN-Health-Felder fuer Uptime, Latency, Peak Utilization und ISP-Label,
-  sofern der Controller read-only Werte akzeptiert.
+- [x] Konfigurationsgesteuerte WAN-Uptime-, Latency-, Downtime- und
+  Connected-State-Hinweise.
+- [ ] WAN-Peak-Utilization und ISP-Label, sofern der Controller read-only Werte
+  akzeptiert.
 - [ ] Active-Lease- und Host-Table-Shape fuer Gateway-Client-Sichtbarkeit, ohne
   erfundene Per-Client-Traffic-Counter.
 - [ ] UniFi-UI-Verifikation fuer Switch- und Gateway-Traffic-Activity nach

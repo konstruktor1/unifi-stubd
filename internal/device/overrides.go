@@ -1,13 +1,8 @@
 // Package device applies operator-specified port state, speed, media, counters,
-// identity, and role metadata after profile generation. Setter order is explicit
-// because speed, media, and up/down state interact in controller-visible ways.
+// identity, and role metadata after profile generation.
 package device
 
-import (
-	"fmt"
-	"net"
-	"strings"
-)
+import "fmt"
 
 // ApplyPortOverrides applies per-port overrides to ports.
 func ApplyPortOverrides(ports []Port, overrides []PortOverride) []Port {
@@ -34,10 +29,34 @@ func ClonePortOverrides(overrides []PortOverride) []PortOverride {
 	out := make([]PortOverride, len(overrides))
 	for index, override := range overrides {
 		out[index] = override
-		if override.Up != nil {
-			up := *override.Up
-			out[index].Up = &up
+		out[index].Up = cloneBoolRef(override.Up)
+		out[index].WANUptimePercent = cloneFloat64Ref(override.WANUptimePercent)
+		out[index].WANConnected = cloneBoolRef(override.WANConnected)
+	}
+	return out
+}
+
+// PortOverridesFromWANHealthResults converts active WAN health samples into
+// health-only port overrides. It intentionally leaves role, assignment,
+// addressing, VLAN, and link-state fields unset.
+func PortOverridesFromWANHealthResults(results []WANHealthResult) []PortOverride {
+	if len(results) == 0 {
+		return nil
+	}
+	out := make([]PortOverride, 0, len(results))
+	for _, result := range results {
+		if result.Port < 1 {
+			continue
 		}
+		connected := result.Connected
+		uptime := clampFloat64(result.UptimePercent, 0, 100)
+		out = append(out, PortOverride{
+			Port:               result.Port,
+			WANConnected:       &connected,
+			WANLatencyMS:       nonNegativeInt(result.LatencyMS),
+			WANDowntimeSeconds: nonNegativeInt(result.DowntimeSeconds),
+			WANUptimePercent:   &uptime,
+		})
 	}
 	return out
 }
@@ -49,6 +68,18 @@ func ValidatePortOverride(override PortOverride, portCount int) error {
 	}
 	if override.Speed < 0 {
 		return fmt.Errorf("invalid speed override %d on port %d; use 0 or a positive Mbps value", override.Speed, override.Port)
+	}
+	if override.VLAN < 0 {
+		return fmt.Errorf("invalid vlan override %d on port %d; use 0 or a positive VLAN ID", override.VLAN, override.Port)
+	}
+	if override.WANUptimePercent != nil && (*override.WANUptimePercent < 0 || *override.WANUptimePercent > 100) {
+		return fmt.Errorf("invalid wan_uptime_percent override %.2f on port %d; use 0..100", *override.WANUptimePercent, override.Port)
+	}
+	if override.WANLatencyMS < 0 {
+		return fmt.Errorf("invalid wan_latency_ms override %d on port %d; use 0 or a positive millisecond value", override.WANLatencyMS, override.Port)
+	}
+	if override.WANDowntimeSeconds < 0 {
+		return fmt.Errorf("invalid wan_downtime_seconds override %d on port %d; use 0 or a positive seconds value", override.WANDowntimeSeconds, override.Port)
 	}
 	for _, field := range portOverrideStringFields {
 		if err := field.validate(override); err != nil {
@@ -75,6 +106,11 @@ func PortOverrideEmpty(override PortOverride) bool {
 		override.TXPackets == 0 &&
 		override.RXErrors == 0 &&
 		override.TXErrors == 0 &&
+		override.VLAN == 0 &&
+		override.WANUptimePercent == nil &&
+		override.WANLatencyMS == 0 &&
+		override.WANDowntimeSeconds == 0 &&
+		override.WANConnected == nil &&
 		!override.TrafficRatesSet
 }
 
@@ -83,271 +119,8 @@ func NormalizePortOverride(override PortOverride) PortOverride {
 	for _, field := range portOverrideStringFields {
 		field.setOverride(&override, field.normalize(field.get(override)))
 	}
-	if override.Up != nil {
-		up := *override.Up
-		override.Up = &up
-	}
+	override.Up = cloneBoolRef(override.Up)
+	override.WANUptimePercent = cloneFloat64Ref(override.WANUptimePercent)
+	override.WANConnected = cloneBoolRef(override.WANConnected)
 	return override
-}
-
-// validGatewayRole keeps override roles aligned with the gateway renderer's
-// known WAN/LAN role set.
-func validGatewayRole(role string) bool {
-	switch role {
-	case gatewayPortRoleWAN, gatewayPortRoleLAN, gatewayPortRoleWAN2, gatewayPortRoleLAN2:
-		return true
-	default:
-		return false
-	}
-}
-
-// portOverrideSetter applies one ordered group of override fields.
-type portOverrideSetter func(*Port, PortOverride)
-
-// Setter order is policy: string metadata is normalized first, speed may set a
-// default media label, explicit media can override that label, link-down can
-// clear speed, and disabled finally clears all live port state.
-var portOverrideSetters = []portOverrideSetter{
-	setPortOverrideStrings,
-	setPortOverrideSpeed,
-	setPortOverrideCounters,
-	setPortOverrideRates,
-	setPortOverrideMedia,
-	setPortOverrideLinkState,
-	setPortOverrideDisabled,
-}
-
-// setPortOverrideStrings applies identity and role text before speed/media
-// dependent fields are resolved.
-func setPortOverrideStrings(port *Port, override PortOverride) {
-	for _, field := range portOverrideStringFields {
-		if field.applyAfterSpeed {
-			continue
-		}
-		field.setPort(port, field.normalize(field.get(override)))
-	}
-}
-
-// setPortOverrideSpeed applies explicit speed before media so default media can
-// still be replaced by a later explicit media override.
-func setPortOverrideSpeed(port *Port, override PortOverride) {
-	if override.Speed <= 0 {
-		return
-	}
-	port.Speed = override.Speed
-	// A speed override also implies the controller media label unless the
-	// operator supplied an explicit media override later in the setter order.
-	if strings.TrimSpace(override.Media) == "" {
-		port.Media = mediaForSpeed(override.Speed)
-	}
-}
-
-// setPortOverrideCounters overlays non-zero operator or observation counters
-// onto the generated port.
-func setPortOverrideCounters(port *Port, override PortOverride) {
-	for _, binding := range portCounterOverrides {
-		if value := binding.get(override); value != 0 {
-			binding.set(port, value)
-		}
-	}
-}
-
-// setPortOverrideRates marks operator-provided or observed byte rates as
-// explicit so the renderer does not synthesize heartbeat rates for that port.
-func setPortOverrideRates(port *Port, override PortOverride) {
-	if !override.TrafficRatesSet {
-		return
-	}
-	port.RXBytesRate = override.RXBytesRate
-	port.TXBytesRate = override.TXBytesRate
-	port.TrafficRatesEnabled = true
-	port.TrafficRatesSet = true
-}
-
-// portCounterOverride binds one override counter to its generated port field.
-type portCounterOverride struct {
-	get func(PortOverride) int64
-	set func(*Port, int64)
-}
-
-// portCounterOverrides lists counter fields that can be supplied by config or
-// observation.
-var portCounterOverrides = []portCounterOverride{
-	{func(override PortOverride) int64 { return override.RXBytes }, func(port *Port, value int64) { port.RXBytes = value }},
-	{func(override PortOverride) int64 { return override.TXBytes }, func(port *Port, value int64) { port.TXBytes = value }},
-	{func(override PortOverride) int64 { return override.RXPackets }, func(port *Port, value int64) { port.RXPackets = value }},
-	{func(override PortOverride) int64 { return override.TXPackets }, func(port *Port, value int64) { port.TXPackets = value }},
-	{func(override PortOverride) int64 { return override.RXErrors }, func(port *Port, value int64) { port.RXErrors = value }},
-	{func(override PortOverride) int64 { return override.TXErrors }, func(port *Port, value int64) { port.TXErrors = value }},
-}
-
-// setPortOverrideMedia applies explicit media after speed so it can override
-// the speed-derived label.
-func setPortOverrideMedia(port *Port, override PortOverride) {
-	for _, field := range portOverrideStringFields {
-		if field.applyAfterSpeed {
-			field.setPort(port, field.normalize(field.get(override)))
-		}
-	}
-}
-
-// setPortOverrideLinkState applies explicit up/down state after counters and
-// media so disconnected ports render consistently.
-func setPortOverrideLinkState(port *Port, override PortOverride) {
-	if override.Up == nil {
-		return
-	}
-	port.Up = *override.Up
-	if !*override.Up && override.Speed <= 0 {
-		// Link-down without an explicit speed should render as disconnected, not
-		// as a forced-speed port that happens to be down.
-		port.Speed = 0
-	}
-}
-
-// setPortOverrideDisabled is the final override step because disabling a port
-// must clear link, speed, and learned MAC state after all other metadata merges.
-func setPortOverrideDisabled(port *Port, override PortOverride) {
-	if !override.Disabled {
-		return
-	}
-	port.Disabled = true
-	port.Up = false
-	port.Speed = 0
-	port.MACs = nil
-}
-
-// portOverrideStringField centralizes normalization, validation, and application
-// rules for text-like override fields.
-type portOverrideStringField struct {
-	get             func(PortOverride) string
-	setOverride     func(*PortOverride, string)
-	setPort         func(*Port, string)
-	normalize       func(string) string
-	validateValue   func(PortOverride, string) error
-	applyAfterSpeed bool
-}
-
-// portOverrideStringFields is ordered so fields that depend on speed can be
-// applied after speed-derived defaults.
-var portOverrideStringFields = []portOverrideStringField{
-	{
-		get:         func(override PortOverride) string { return override.Name },
-		setOverride: func(override *PortOverride, value string) { override.Name = value },
-		setPort:     func(port *Port, value string) { setNonEmptyString(value, func() { port.Name = value }) },
-		normalize:   strings.TrimSpace,
-	},
-	{
-		get:         func(override PortOverride) string { return override.Interface },
-		setOverride: func(override *PortOverride, value string) { override.Interface = value },
-		setPort:     func(port *Port, value string) { setNonEmptyString(value, func() { port.Interface = value }) },
-		normalize:   strings.TrimSpace,
-		validateValue: func(override PortOverride, value string) error {
-			if strings.Contains(value, "/") {
-				return fmt.Errorf("invalid interface override %q on port %d", value, override.Port)
-			}
-			return nil
-		},
-	},
-	{
-		get:         func(override PortOverride) string { return override.MAC },
-		setOverride: func(override *PortOverride, value string) { override.MAC = value },
-		setPort:     func(port *Port, value string) { setNonEmptyString(value, func() { port.MAC = value }) },
-		normalize:   lowerTrimmed,
-		validateValue: func(override PortOverride, value string) error {
-			if _, err := net.ParseMAC(value); err != nil {
-				return fmt.Errorf("invalid port override mac %q on port %d: %w", value, override.Port, err)
-			}
-			return nil
-		},
-	},
-	{
-		get:         func(override PortOverride) string { return override.IP },
-		setOverride: func(override *PortOverride, value string) { override.IP = value },
-		setPort:     func(port *Port, value string) { setNonEmptyString(value, func() { port.IP = value }) },
-		normalize:   strings.TrimSpace,
-		validateValue: func(override PortOverride, value string) error {
-			if net.ParseIP(value).To4() == nil {
-				return fmt.Errorf("invalid port override ip %q on port %d", value, override.Port)
-			}
-			return nil
-		},
-	},
-	{
-		get:         func(override PortOverride) string { return override.Netmask },
-		setOverride: func(override *PortOverride, value string) { override.Netmask = value },
-		setPort:     func(port *Port, value string) { setNonEmptyString(value, func() { port.Netmask = value }) },
-		normalize:   strings.TrimSpace,
-		validateValue: func(override PortOverride, value string) error {
-			if net.ParseIP(value).To4() == nil {
-				return fmt.Errorf("invalid port override netmask %q on port %d", value, override.Port)
-			}
-			return nil
-		},
-	},
-	{
-		get:         func(override PortOverride) string { return override.Role },
-		setOverride: func(override *PortOverride, value string) { override.Role = value },
-		setPort:     func(port *Port, value string) { setNonEmptyString(value, func() { port.Role = value }) },
-		normalize:   normalizeGatewayRole,
-		validateValue: func(override PortOverride, value string) error {
-			if !validGatewayRole(value) {
-				return fmt.Errorf("invalid port override role %q on port %d; use wan, lan, wan2, or lan2", override.Role, override.Port)
-			}
-			return nil
-		},
-	},
-	{
-		get:         func(override PortOverride) string { return override.NetworkGroup },
-		setOverride: func(override *PortOverride, value string) { override.NetworkGroup = value },
-		setPort:     func(port *Port, value string) { setNonEmptyString(value, func() { port.NetworkGroup = value }) },
-		normalize:   normalizeGatewayNetworkGroup,
-		validateValue: func(override PortOverride, value string) error {
-			if strings.ContainsAny(value, "\r\n\t") {
-				return fmt.Errorf("invalid port override network_group %q on port %d", value, override.Port)
-			}
-			return nil
-		},
-	},
-	{
-		get:             func(override PortOverride) string { return override.Media },
-		setOverride:     func(override *PortOverride, value string) { override.Media = value },
-		setPort:         func(port *Port, value string) { setNonEmptyString(value, func() { port.Media = value }) },
-		normalize:       strings.TrimSpace,
-		applyAfterSpeed: true,
-	},
-}
-
-// validate checks one normalized text override against the field-specific
-// payload policy.
-func (field portOverrideStringField) validate(override PortOverride) error {
-	value := field.normalize(field.get(override))
-	if value == "" || field.validateValue == nil {
-		return nil
-	}
-	return field.validateValue(override, value)
-}
-
-// portOverrideStringsEmpty checks normalized text fields before validation
-// decides whether an override has any effect.
-func portOverrideStringsEmpty(override PortOverride) bool {
-	for _, field := range portOverrideStringFields {
-		if field.normalize(field.get(override)) != "" {
-			return false
-		}
-	}
-	return true
-}
-
-// lowerTrimmed normalizes MAC-like override text before validation or display.
-func lowerTrimmed(value string) string {
-	return strings.ToLower(strings.TrimSpace(value))
-}
-
-// setNonEmptyString applies optional text overrides only when a normalized value
-// is present.
-func setNonEmptyString(value string, set func()) {
-	if value != "" {
-		set()
-	}
 }

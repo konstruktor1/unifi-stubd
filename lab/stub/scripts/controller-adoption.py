@@ -16,7 +16,16 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Drive lab UniFi adoption over the controller API.")
     parser.add_argument(
         "action",
-        choices=["version", "forget", "wait-clean", "wait-present", "wait-pending", "adopt", "wait-adopted"],
+        choices=[
+            "version",
+            "forget",
+            "wait-clean",
+            "wait-absent",
+            "wait-present",
+            "wait-pending",
+            "adopt",
+            "wait-adopted",
+        ],
     )
     parser.add_argument("--base-url", default=os.environ.get("UNIFI_STUB_LAB_API_URL", "https://127.0.0.1:8443"))
     parser.add_argument("--site", default=os.environ.get("UNIFI_STUB_LAB_SITE", "default"))
@@ -38,12 +47,17 @@ def main() -> int:
 
     mac = args.mac.lower()
     if args.action == "forget":
-        client.command(args.site, "sitemgr", {"cmd": "delete-device", "mac": mac}, allow_error=True)
-        print(f"controller forget requested: mac={mac}")
+        data = client.command(args.site, "sitemgr", {"cmd": "delete-device", "mac": mac}, allow_error=True)
+        meta = data.get("meta", {})
+        print(f"controller forget requested: mac={mac} meta={meta}")
         return 0
     if args.action == "wait-clean":
         wait_until_clean(client, args.site, mac, args.timeout)
         print(f"controller device not adopted: mac={mac}")
+        return 0
+    if args.action == "wait-absent":
+        wait_until_absent(client, args.site, mac, args.timeout)
+        print(f"controller device absent: mac={mac}")
         return 0
     if args.action == "adopt":
         client.command(args.site, "devmgr", {"cmd": "adopt", "macs": [mac]})
@@ -154,6 +168,16 @@ def wait_until_clean(client: ControllerClient, site: str, mac: str, timeout: int
             return
         time.sleep(2)
     raise RuntimeError(f"timed out waiting for controller device {mac} to leave adopted state")
+
+
+def wait_until_absent(client: ControllerClient, site: str, mac: str, timeout: int) -> None:
+    deadline = time.time() + timeout
+    while time.time() <= deadline:
+        devices = [device for device in client.devices(site) if str(device.get("mac", "")).lower() == mac]
+        if not devices:
+            return
+        time.sleep(2)
+    raise RuntimeError(f"timed out waiting for controller device {mac} to disappear")
 
 
 def controller_version_summary(client: ControllerClient, expected_version: str | None) -> str:

@@ -228,8 +228,10 @@ Fuer den MVP:
 `UGW3`, `UXG`, `UXGPRO` und `UCGF` sind in diesem Release nur
 Identitaets-/Profil-Stubs. Fuer einen vollstaendigen Gateway-Payload fehlen
 weiterhin WAN/LAN-State, Routing, DHCP, Firewall, DPI und Health-Felder. Der
-aktuelle Gateway-Payload sendet Gateway-Tabellen wie `network_table`, `uplink`
-und `uplink_table`, aber der Controller kann Gateway-Ports weiterhin aus seinem
-internen Modell rendern statt aus einer Switch-artigen `port_table`.
+aktuelle Gateway-Payload sendet Gateway-Tabellen wie `network_table`, eine
+read-only physische `port_table`, `uplink`, `uplink_table`,
+`config_port_table` und `ethernet_overrides`. Explizit konfigurierte
+WAN-/LAN-Zuweisungsmetadaten koennen gespiegelt werden; sie werden aber nicht
+aus Controller-Provisioning gelernt und nicht auf Host-Netzwerk angewandt.
 Gateway-Modelle wie `UGW4`, andere Cloud-Gateway-Geraete und EFG erst spaeter
 pruefen.

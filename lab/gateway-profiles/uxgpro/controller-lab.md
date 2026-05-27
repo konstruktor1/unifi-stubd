@@ -18,8 +18,11 @@ private Docker network so `mcad` can reach `http://unifi:8080/inform`.
 - `unifi-db`: MongoDB `7.0`, pinned because MongoDB does not support automatic
   major-version upgrades.
 
-The firmware and database share a Docker network marked `internal: true`. The
-firmware container cannot reach the host network or the internet. The
+The firmware and database share a Docker network marked `internal: true` by
+default. The firmware container cannot reach the host network or the internet
+in that isolated mode, so the controller may show WAN rows with `0%` uptime and
+red health even when port assignment is correct. Start the lab with
+`UNIFI_LAB_INTERNAL=false` for explicit WAN egress through Docker NAT. The
 controller also joins a normal Docker network so its UI can be published to
 localhost on HTTPS port `8443`.
 
@@ -28,10 +31,15 @@ an SSH daemon before it sends normal inform traffic. No SSH port is published
 to the host; it is only reachable inside the private Docker lab network.
 
 The lab also creates dummy `eth1`, `eth2`, and `eth3` interfaces by default so
-decoded gateway inform payloads show WAN/LAN interface reporting beyond the
-single Docker `eth0` link. Override `UXGPRO_SIM_DUMMY_INTERFACES` with
+the firmware sees all four UXG-Pro Ethernet ports instead of only Docker's
+single `eth0` link. The default mapping follows the firmware board config:
+`eth0` and `eth2` are WAN-capable ports, while `eth1` and `eth3` are attached
+to a lab `br0` LAN bridge. Override `UXGPRO_SIM_DUMMY_INTERFACES` with
 semicolon-separated `interface,mac,address` entries, or set it to an empty
-string to disable the extra interfaces.
+string to disable the extra interfaces. Override
+`UXGPRO_SIM_BRIDGE_INTERFACES` with semicolon-separated
+`bridge,mac,address,port+port` entries, or set it to an empty string to disable
+the LAN bridge.
 
 The lab uses static internal addresses because `ubios-udapi-server` rewrites
 `/etc/resolv.conf` inside the firmware container and also takes control of
@@ -84,6 +92,23 @@ https://localhost:8443
 ```
 
 The certificate is self-signed.
+
+If another local UniFi lab already uses `8443`, start this profile with
+`UNIFI_HTTPS_PORT=9443` and open `https://localhost:9443`.
+
+For a lab where the firmware WAN should have outbound internet checks, opt in
+to Docker NAT egress:
+
+```sh
+UNIFI_LAB_INTERNAL=false UNIFI_HTTPS_PORT=9443 SIM_DIR="$SIM" docker compose \
+  -f "$PROFILE/controller-lab.compose.yaml" \
+  up -d --build
+```
+
+The firmware start script installs a default route via
+`UXGPRO_SIM_DEFAULT_GATEWAY`, which defaults to `172.31.244.1` for the default
+lab subnet. Override that value if `UNIFI_LAB_SUBNET` uses a different Docker
+gateway.
 
 ## Inform Host
 
@@ -155,8 +180,8 @@ The lab now makes the firmware telegrams visible end to end:
   MITM.
 - The TNBU packet header and decoded payload report MAC
   `02:15:6d:de:ad:00` and serial `02156DDEAD00`.
-- Gateway interface state is visible in `if_table` and `network_table`; the
-  switch-style `port_table` remains `null`.
+- Gateway interface state is visible in `if_table`, `network_table`,
+  `ethernet_table`, and the physical `port_table`.
 - Before portal adoption, the controller answers the real UXG-Pro firmware
   inform stream with HTTP `404`.
 - After logging into the web portal and clicking `Adopt`, the controller
@@ -169,6 +194,9 @@ The lab now makes the firmware telegrams visible end to end:
   stream includes additional gateway blocks, but raw adopted payloads are kept
   local because they require the adopted inform key and include sensitive
   controller data.
+- The Settings > Internet WAN table is backed by controller-owned state plus
+  device-reported gateway facts. This lab note records observations only; it
+  does not add a controller API configuration path to `unifi-stubd`.
 
 Quick status summary from the firmware container:
 
@@ -228,6 +256,12 @@ SIM_DIR="$SIM" docker compose \
     -t connect \
     -s http://unifi:8080/inform
 ```
+
+With `UNIFI_LAB_INTERNAL=false`, the firmware can reach external health-check
+targets through `eth0` and the controller can mark the WAN subsystem healthy.
+The per-WAN rows can still show `0%` uptime/red status until the simulated
+firmware reports the same SLA/uptime telemetry that a real gateway's latency
+monitor emits.
 
 ## Reset
 

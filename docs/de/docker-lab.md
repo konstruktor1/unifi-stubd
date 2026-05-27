@@ -43,8 +43,8 @@ Das Target prueft:
   Container-`eth0`-Adresse fuer den neuen Switch-Management-LAN-Pfad.
 - `port-map`-Dry-Run-Payload aus container-lokalen veth-Interfaces.
 - Gateway-Dry-Run-Payload aus dem `uxg-lite`-Profil, inklusive `if_table`,
-  `network_table`, `config_port_table`, `ethernet_overrides` und
-  `reported_networks` aus der gemeinsamen Port-View.
+  `network_table`, read-only physischer `port_table`, `reported_networks`,
+  `uplink_table` und `wan1` aus der gemeinsamen Port-View.
 - Einen Inform-Request pro Modus durch den MITM.
 - Controller-API-Login gegen die Docker-UniFi-Network-Application.
 - Controller-`/status`-Versionspruefung fuer das gepinnte Docker-Image.
@@ -70,11 +70,15 @@ make integration-docker
 Das Skript erzeugt pro Lauf Wegwerf-MACs/IPs, stoppt und entfernt temporaere
 Stub-Container und Volumes und fordert den Controller auf, adoptierten State
 fuer die Test-MACs zu loeschen. Controller-Volumes werden nicht zurueckgesetzt.
+Die Controller-Loeschanfrage ist Best-Effort; verlaessliche Isolation kommt von
+frischen Wegwerf-MACs pro Lauf.
 
 UniFi Network kann nicht adoptierte Pending-Zeilen bis zum Discovery-TTL im
 Prozessspeicher behalten. Im beobachteten Docker-Lab sind diese Zeilen nicht in
 MongoDB persistiert. Frische Wegwerf-MACs vermeiden Kollisionen zwischen
-wiederholten Laeufen.
+wiederholten Laeufen. Im Lab-Helfer bedeutet `wait-clean` "nicht adoptiert";
+`wait-absent` nur verwenden, wenn ein Test wirklich das Verschwinden der Zeile
+braucht.
 
 `UNIFI_STUB_DOCKER_KEEP_RESOURCES=1` nur setzen, wenn ein adoptiertes Testgeraet
 oder das Stub-State-Volume nach einem fehlschlagenden Lauf absichtlich

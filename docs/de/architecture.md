@@ -186,11 +186,14 @@ Renderer erhaelt:
 - eine geordnete, aufgeloeste Portliste.
 
 Switch-Payloads leiten `if_table`, `ethernet_table` und `port_table` aus diesen
-Daten ab. Gateway-Payloads leiten `if_table`, `network_table`, `uplink_table`,
-`config_port_table`, `ethernet_overrides` und `reported_networks` aus denselben
-Daten ab. Dadurch bleiben Speed, Medium, MAC, IP, Source-Interface,
-WAN-/LAN-Rolle, Network-Group, Counter, MAC-Table-Eintraege und
-Management-LAN-Metadaten synchron.
+Daten ab. Gateway-Payloads leiten `if_table`, `network_table`, `port_table`,
+`config_port_table`, `ethernet_overrides`, `uplink_table`, `reported_networks`
+und WAN-Statuszeilen aus denselben Daten ab. Explizit konfigurierte
+Zuweisungsmetadaten wie `portconf_id`, `networkconf_id`,
+`native_networkconf_id`, `network_name` und `vlan` koennen in den
+Gateway-Porttabellen gespiegelt werden. Dadurch bleiben Speed, Medium, MAC, IP,
+Source-Interface, WAN-/LAN-Rolle, Network-Group, Counter,
+MAC-Table-Eintraege und Management-LAN-Metadaten synchron.
 
 Management-LAN ist Payload-Metadatum oder Bindung an ein bereits bestehendes
 lokales Interface. `planned-host-vlan` bleibt nur Dry-Run-Plan. Der Daemon legt

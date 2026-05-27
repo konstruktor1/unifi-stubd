@@ -33,6 +33,7 @@ type PortView struct {
 	Index               int
 	Name                string
 	SwitchInterfaceName string
+	PhysicalIfName      string
 	Role                string
 	NetworkGroup        string
 	SourceInterface     string
@@ -61,7 +62,8 @@ func BuildPortViews(profile device.Profile, id device.Identity, ports []device.P
 		networkGroup := gatewayNetworkGroup(port)
 		ip := gatewayInterfaceIP(id, port)
 		netmask := gatewayInterfaceNetmask(port)
-		gatewayName := gatewayInterfaceName(profile, port.Index)
+		physicalIfName := gatewayInterfaceName(profile, port.Index)
+		gatewayName := gatewayInterfaceNameForPort(profile, port)
 		sourceInterface := strings.TrimSpace(port.Interface)
 		enabled := !port.Disabled
 		macs := append([]device.MacTableEntry(nil), port.MACs...)
@@ -70,6 +72,7 @@ func BuildPortViews(profile device.Profile, id device.Identity, ports []device.P
 			Index:               port.Index,
 			Name:                port.Name,
 			SwitchInterfaceName: switchInterfaceName(port.Index),
+			PhysicalIfName:      physicalIfName,
 			Role:                role,
 			NetworkGroup:        networkGroup,
 			SourceInterface:     sourceInterface,

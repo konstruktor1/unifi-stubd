@@ -84,7 +84,7 @@ Checkliste:
 - zuerst dry-run;
 - keine echten MAC-/IP-Kollisionen;
 - ein disposable Device pro Profiltest;
-- Controller Forget/Remove nach dem Test;
+- Controller Forget/Remove nach dem Test, aber nur als Best-Effort behandeln;
 - lokaler State-Cleanup nach Stop;
 - keine Controller-Tokens, privaten URLs oder echten MACs committen.
 
@@ -99,4 +99,3 @@ Checkliste:
 | reale Linux-Bridge | physische Bridge-Observation | FreeBSD-Verhalten |
 | realer FreeBSD-Host | FreeBSD-Runtime-Basics | Linux-Bridge-Verhalten |
 | realer Controller | Adoption gegen deployed Controller | Sicherheit bei MAC-/IP-Kollisionen |
-

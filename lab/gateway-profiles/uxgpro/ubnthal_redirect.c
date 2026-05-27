@@ -11,7 +11,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/socket.h>
 #include <sys/stat.h>
+#include <sys/uio.h>
 #include <unistd.h>
 
 /*
@@ -20,6 +22,90 @@
  * set of host-management commands is turned into no-ops.
  */
 static char redirected_fds[4096];
+
+static int patch_udapi_user_check_enabled(void) {
+    const char *value = getenv("UXGPRO_SIM_PATCH_UDAPI_USER_CHECK");
+    return value == NULL || strcmp(value, "0") != 0;
+}
+
+static int byte_span_contains(const char *buf, size_t len, const char *needle) {
+    size_t needle_len = strlen(needle);
+    if (needle_len == 0 || len < needle_len) {
+        return 0;
+    }
+    for (size_t i = 0; i <= len - needle_len; i++) {
+        if (memcmp(buf + i, needle, needle_len) == 0) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+static int byte_span_replace(char *buf, size_t len, const char *from, const char *to) {
+    size_t from_len = strlen(from);
+    size_t to_len = strlen(to);
+    int replaced = 0;
+
+    if (from_len == 0 || from_len != to_len || len < from_len) {
+        return 0;
+    }
+    for (size_t i = 0; i <= len - from_len; i++) {
+        if (memcmp(buf + i, from, from_len) == 0) {
+            memcpy(buf + i, to, to_len);
+            replaced = 1;
+            i += from_len - 1;
+        }
+    }
+    return replaced;
+}
+
+static int patch_lab_response(char *buf, size_t len) {
+    int patched = 0;
+
+    if (!patch_udapi_user_check_enabled() ||
+        !byte_span_contains(buf, len, "/user/check") ||
+        !byte_span_contains(buf, len, "A12")) {
+        return 0;
+    }
+
+    patched |= byte_span_replace(buf, len, "\"error\":1", "\"error\":0");
+    patched |= byte_span_replace(buf, len, "\"error\": 1", "\"error\": 0");
+    patched |= byte_span_replace(buf, len, "\"statusCode\":500", "\"statusCode\":200");
+    patched |= byte_span_replace(buf, len, "\"statusCode\": 500", "\"statusCode\": 200");
+
+    if (patched && getenv("UBNTHAL_REDIRECT_DEBUG") != NULL) {
+        fprintf(stderr, "ubnthal_redirect: patched UDAPI /user/check A12 response\n");
+    }
+    return patched;
+}
+
+static int response_patch_needed(const void *buf, size_t len) {
+    return buf != NULL && len > 0 &&
+        patch_udapi_user_check_enabled() &&
+        byte_span_contains((const char *)buf, len, "/user/check") &&
+        byte_span_contains((const char *)buf, len, "A12");
+}
+
+static ssize_t write_patched_buffer(
+    ssize_t (*writer)(int, const void *, size_t),
+    int fd,
+    const void *buf,
+    size_t count
+) {
+    if (!response_patch_needed(buf, count)) {
+        return writer(fd, buf, count);
+    }
+
+    char *copy = malloc(count);
+    if (copy == NULL) {
+        return writer(fd, buf, count);
+    }
+    memcpy(copy, buf, count);
+    patch_lab_response(copy, count);
+    ssize_t result = writer(fd, copy, count);
+    free(copy);
+    return result;
+}
 
 /* Return true for paths that already point at the mock tree. */
 static int is_mock_path(const char *path) {
@@ -186,6 +272,126 @@ int lstat(const char *pathname, struct stat *statbuf) {
 }
 
 /* Debug redirected low-level reads without changing the returned bytes. */
+ssize_t write(int fd, const void *buf, size_t count) {
+    static ssize_t (*real_write)(int, const void *, size_t) = NULL;
+    if (real_write == NULL) {
+        real_write = dlsym(RTLD_NEXT, "write");
+    }
+    return write_patched_buffer(real_write, fd, buf, count);
+}
+
+/* Some socket writers use send() instead of write(). */
+ssize_t send(int sockfd, const void *buf, size_t len, int flags) {
+    static ssize_t (*real_send)(int, const void *, size_t, int) = NULL;
+    if (real_send == NULL) {
+        real_send = dlsym(RTLD_NEXT, "send");
+    }
+
+    if (!response_patch_needed(buf, len)) {
+        return real_send(sockfd, buf, len, flags);
+    }
+
+    char *copy = malloc(len);
+    if (copy == NULL) {
+        return real_send(sockfd, buf, len, flags);
+    }
+    memcpy(copy, buf, len);
+    patch_lab_response(copy, len);
+    ssize_t result = real_send(sockfd, copy, len, flags);
+    free(copy);
+    return result;
+}
+
+/* sendmsg() is another common Unix-socket response path. */
+ssize_t sendmsg(int sockfd, const struct msghdr *msg, int flags) {
+    static ssize_t (*real_sendmsg)(int, const struct msghdr *, int) = NULL;
+    if (real_sendmsg == NULL) {
+        real_sendmsg = dlsym(RTLD_NEXT, "sendmsg");
+    }
+
+    if (msg == NULL || msg->msg_iov == NULL || msg->msg_iovlen == 0) {
+        return real_sendmsg(sockfd, msg, flags);
+    }
+
+    int patched_index = -1;
+    for (size_t i = 0; i < msg->msg_iovlen; i++) {
+        if (response_patch_needed(msg->msg_iov[i].iov_base, msg->msg_iov[i].iov_len)) {
+            patched_index = (int)i;
+            break;
+        }
+    }
+
+    if (patched_index < 0) {
+        return real_sendmsg(sockfd, msg, flags);
+    }
+
+    struct msghdr msg_copy = *msg;
+    struct iovec *copy_iov = calloc(msg->msg_iovlen, sizeof(*copy_iov));
+    if (copy_iov == NULL) {
+        return real_sendmsg(sockfd, msg, flags);
+    }
+    memcpy(copy_iov, msg->msg_iov, msg->msg_iovlen * sizeof(*copy_iov));
+
+    char *copy = malloc(msg->msg_iov[patched_index].iov_len);
+    if (copy == NULL) {
+        free(copy_iov);
+        return real_sendmsg(sockfd, msg, flags);
+    }
+    memcpy(copy, msg->msg_iov[patched_index].iov_base, msg->msg_iov[patched_index].iov_len);
+    patch_lab_response(copy, msg->msg_iov[patched_index].iov_len);
+    copy_iov[patched_index].iov_base = copy;
+    msg_copy.msg_iov = copy_iov;
+
+    ssize_t result = real_sendmsg(sockfd, &msg_copy, flags);
+    free(copy);
+    free(copy_iov);
+    return result;
+}
+
+/* Boost/asio may batch a single response payload through writev(). */
+ssize_t writev(int fd, const struct iovec *iov, int iovcnt) {
+    static ssize_t (*real_writev)(int, const struct iovec *, int) = NULL;
+    if (real_writev == NULL) {
+        real_writev = dlsym(RTLD_NEXT, "writev");
+    }
+
+    if (iov == NULL || iovcnt <= 0) {
+        return real_writev(fd, iov, iovcnt);
+    }
+
+    int patched_index = -1;
+    for (int i = 0; i < iovcnt; i++) {
+        if (response_patch_needed(iov[i].iov_base, iov[i].iov_len)) {
+            patched_index = i;
+            break;
+        }
+    }
+
+    if (patched_index < 0) {
+        return real_writev(fd, iov, iovcnt);
+    }
+
+    struct iovec *copy_iov = calloc((size_t)iovcnt, sizeof(*copy_iov));
+    if (copy_iov == NULL) {
+        return real_writev(fd, iov, iovcnt);
+    }
+    memcpy(copy_iov, iov, (size_t)iovcnt * sizeof(*copy_iov));
+
+    char *copy = malloc(iov[patched_index].iov_len);
+    if (copy == NULL) {
+        free(copy_iov);
+        return real_writev(fd, iov, iovcnt);
+    }
+    memcpy(copy, iov[patched_index].iov_base, iov[patched_index].iov_len);
+    patch_lab_response(copy, iov[patched_index].iov_len);
+    copy_iov[patched_index].iov_base = copy;
+
+    ssize_t result = real_writev(fd, copy_iov, iovcnt);
+    free(copy);
+    free(copy_iov);
+    return result;
+}
+
 ssize_t read(int fd, void *buf, size_t count) {
     static ssize_t (*real_read)(int, void *, size_t) = NULL;
     if (real_read == NULL) {

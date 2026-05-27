@@ -83,6 +83,9 @@
         "$ref": "#/$defs/port_override"
       }
     },
+    "wan_health": {
+      "$ref": "#/$defs/wan_health"
+    },
     "bridge_observe": {
       "$ref": "#/$defs/bridge_observe"
     },
@@ -289,6 +292,46 @@
       },
       "required": ["port"]
     },
+    "wan_health": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "source": {
+          "type": "string",
+          "enum": ["off", "static", "ping"],
+          "default": "off"
+        },
+        "interval_seconds": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "timeout_ms": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "targets": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/wan_health_target"
+          }
+        }
+      }
+    },
+    "wan_health_target": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "port": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "host": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": ["port", "host"]
+    },
     "port_override": {
       "type": "object",
       "additionalProperties": false,
@@ -314,14 +357,46 @@
         },
         "role": {
           "type": "string",
-          "enum": ["", "wan", "lan", "wan2", "lan2"]
+          "enum": ["", "wan", "lan", "wan2", "lan2", "unassigned"]
         },
-        "network_group": {
-          "type": "string"
-        },
-        "speed": {
-          "type": "integer",
-          "minimum": 0
+      "network_group": {
+        "type": "string"
+      },
+      "portconf_id": {
+        "type": "string"
+      },
+      "networkconf_id": {
+        "type": "string"
+      },
+      "native_networkconf_id": {
+        "type": "string"
+      },
+      "network_name": {
+        "type": "string"
+      },
+      "vlan": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "wan_uptime_percent": {
+        "type": "number",
+        "minimum": 0,
+        "maximum": 100
+      },
+      "wan_latency_ms": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "wan_downtime_seconds": {
+        "type": "integer",
+        "minimum": 0
+      },
+      "wan_connected": {
+        "type": "boolean"
+      },
+      "speed": {
+        "type": "integer",
+        "minimum": 0
         },
         "media": {
           "type": "string"

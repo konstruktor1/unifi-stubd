@@ -82,7 +82,7 @@ Checklist:
 - dry-run first;
 - no real MAC/IP collisions;
 - one disposable device per profile test;
-- controller forget/remove after test;
+- controller forget/remove after test, treated as best-effort;
 - local state cleanup after stop;
 - no controller tokens, private URLs, or real MACs committed.
 
@@ -97,4 +97,3 @@ Checklist:
 | real Linux bridge | physical bridge observation | FreeBSD behavior |
 | real FreeBSD host | FreeBSD runtime basics | Linux bridge behavior |
 | real controller | adoption against deployed controller | safety under MAC/IP collisions |
-

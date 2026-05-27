@@ -228,8 +228,8 @@ The `ucg-fiber` profile reports a UniFi Cloud Gateway Fiber identity with four
 stub-only; it does not run UniFi OS or any controller applications.
 
 Profiles describe hardware. Use YAML `port_overrides` to map lab assignments
-such as WAN, LAN, or backup WAN onto those profile ports via `role` and
-`network_group`.
+such as WAN, LAN, or backup WAN onto those profile ports via `role`,
+`network_group`, and optional WAN health hints.
 
 ### Send Discovery Traffic
 
@@ -263,7 +263,7 @@ may update local stub adoption state, but controller provisioning must not
 mutate host networking, services, packages, firewall rules, routes, or users.
 
 `unifi-stubd` is not a UniFi gateway replacement and does not reproduce full
-UniFi DPI, firewall, routing, DHCP, or WAN health behavior.
+UniFi DPI, firewall, routing, DHCP, or active WAN health behavior.
 
 ## Configuration
 

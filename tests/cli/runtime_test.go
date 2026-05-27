@@ -230,6 +230,40 @@ port_mappings:
 	}
 }
 
+// TestValidateWANHealthRejectsNonWANTarget verifies active probes are limited to
+// gateway WAN roles after profile and port overrides are resolved.
+func TestValidateWANHealthRejectsNonWANTarget(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(configPath, []byte(`operation_mode: stub
+profile: uxgpro
+mac: auto
+ip: 192.0.2.50
+hostname: auto
+wan_health:
+  source: ping
+  interval_seconds: 10
+  timeout_ms: 1000
+  targets:
+    - port: 2
+      host: 1.1.1.1
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cmd := stubdCommand("-validate", "-config", configPath)
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("command succeeded; output:\n%s", out)
+	}
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) || exitErr.ExitCode() != 1 {
+		t.Fatalf("exit = %v, want code 1; output:\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "wan_health target port 2") ||
+		!strings.Contains(string(out), "role") {
+		t.Fatalf("output did not contain WAN health validation:\n%s", out)
+	}
+}
+
 // TestPortMapRendersDisabledAndUnmappedDifferently verifies disabled ports and
 // omitted mappings have distinct payload effects.
 func TestPortMapRendersDisabledAndUnmappedDifferently(t *testing.T) {
@@ -804,7 +838,12 @@ status_path: `+statusPath+`
 			OperationMode       string `json:"operation_mode"`
 			InformURL           string `json:"inform_url"`
 			TrafficRatesEnabled bool   `json:"traffic_rates_enabled"`
-			ManagementLAN       struct {
+			WANHealth           struct {
+				Source          string `json:"source"`
+				IntervalSeconds int    `json:"interval_seconds"`
+				TimeoutMS       int    `json:"timeout_ms"`
+			} `json:"wan_health"`
+			ManagementLAN struct {
 				Enabled bool `json:"enabled"`
 				VLAN    int  `json:"vlan"`
 			} `json:"management_lan"`
@@ -855,6 +894,11 @@ status_path: `+statusPath+`
 	}
 	if !doc.Config.TrafficRatesEnabled {
 		t.Fatal("TrafficRatesEnabled = false, want true")
+	}
+	if doc.Config.WANHealth.Source != "off" ||
+		doc.Config.WANHealth.IntervalSeconds != 10 ||
+		doc.Config.WANHealth.TimeoutMS != 1000 {
+		t.Fatalf("WANHealth = %+v", doc.Config.WANHealth)
 	}
 	if !doc.Config.ManagementLAN.Enabled || doc.Config.ManagementLAN.VLAN != 77 {
 		t.Fatalf("ManagementLAN = %+v", doc.Config.ManagementLAN)

@@ -181,10 +181,13 @@ renderer receives:
 - a resolved ordered port list.
 
 Switch payloads derive `if_table`, `ethernet_table`, and `port_table` from that
-data. Gateway payloads derive `if_table`, `network_table`, `uplink_table`,
-`config_port_table`, `ethernet_overrides`, and `reported_networks` from the
-same data. This keeps speed, media, MAC, IP, source interface, WAN/LAN role,
-network group, counters, MAC table entries, and management-LAN metadata aligned.
+data. Gateway payloads derive `if_table`, `network_table`, `port_table`,
+`config_port_table`, `ethernet_overrides`, `uplink_table`, `reported_networks`,
+and WAN status rows from the same data. Explicit operator-provided assignment
+metadata such as `portconf_id`, `networkconf_id`, `native_networkconf_id`,
+`network_name`, and `vlan` may be mirrored in the gateway port tables. This
+keeps speed, media, MAC, IP, source interface, WAN/LAN role, network group,
+counters, MAC table entries, and management-LAN metadata aligned.
 
 Management LAN is payload metadata or binding to a preexisting local interface.
 `planned-host-vlan` remains dry-run-plan only. The daemon does not create host

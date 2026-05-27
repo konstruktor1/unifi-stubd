@@ -226,7 +226,9 @@ For the MVP:
 `UGW3`, `UXG`, `UXGPRO`, and `UCGF` are only identity/profile stubs in this
 release. A full gateway payload still needs WAN/LAN state, routing, DHCP,
 firewall, DPI, and health fields. The current gateway payload sends gateway
-tables such as `network_table`, `uplink`, and `uplink_table`, but the
-controller may still render gateway ports from its internal model instead of a
-switch-style `port_table`. Gateway models such as `UGW4`, other Cloud Gateway
-devices, and EFG should be checked later.
+tables such as `network_table`, a read-only physical `port_table`, `uplink`,
+`uplink_table`, `config_port_table`, and `ethernet_overrides`. Explicit
+operator-provided WAN/LAN assignment metadata may be mirrored, but it is not
+learned from controller provisioning or applied to host networking. Gateway
+models such as `UGW4`, other Cloud Gateway devices, and EFG should be checked
+later.

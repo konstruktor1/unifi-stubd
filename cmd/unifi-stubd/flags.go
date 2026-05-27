@@ -39,6 +39,7 @@ type runtimeFlags struct {
 	uplinkNeighbor      *device.MacTableEntry
 	portNeighbors       []device.PortNeighbor
 	portOverrides       []device.PortOverride
+	wanHealth           appconfig.WANHealthConfig
 	bridgeObserve       appconfig.BridgeObserve
 	portMappings        []appconfig.PortMapping
 	observeInterface    string
@@ -77,6 +78,7 @@ func parseRuntimeFlags(defaults appconfig.Config) (runtimeFlags, map[string]bool
 		uplinkNeighbor:   configUplinkNeighbor(defaults.UplinkNeighbor),
 		portNeighbors:    configPortNeighbors(defaults.PortNeighbors),
 		portOverrides:    configPortOverrides(defaults.PortOverrides),
+		wanHealth:        cloneWANHealth(defaults.WANHealth),
 		bridgeObserve:    cloneBridgeObserve(defaults.BridgeObserve),
 		portMappings:     clonePortMappings(defaults.PortMappings),
 		managementLAN:    defaults.ManagementLAN,

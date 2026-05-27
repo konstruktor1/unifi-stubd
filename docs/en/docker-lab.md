@@ -42,8 +42,8 @@ The target verifies:
   container `eth0` address, proving the new switch management LAN config path.
 - `port-map` dry-run payload from container-local veth interfaces.
 - Gateway dry-run payload from the `uxg-lite` profile, including
-  `if_table`, `network_table`, `config_port_table`, `ethernet_overrides`, and
-  `reported_networks` from the shared port view.
+  `if_table`, `network_table`, read-only physical `port_table`,
+  `reported_networks`, `uplink_table`, and `wan1` from the shared port view.
 - One inform request per mode through the MITM.
 - Controller API login against the Docker UniFi Network Application.
 - Controller `/status` version check for the pinned Docker image.
@@ -68,11 +68,15 @@ make integration-docker
 
 The script derives throwaway MAC/IP identities for every run, stops and removes
 temporary stub containers and volumes, and asks the controller to delete any
-adopted state for the test MACs. Controller volumes are not reset.
+adopted state for the test MACs. Controller volumes are not reset. The
+controller delete request is best-effort; tests must treat fresh throwaway MACs
+as the reliable isolation boundary.
 
 UniFi Network can keep non-adopted Pending rows in process memory until its
 discovery TTL expires. Those rows are not persisted in MongoDB in the observed
-Docker lab. Fresh throwaway MACs avoid collisions between repeated runs.
+Docker lab. Fresh throwaway MACs avoid collisions between repeated runs. In the
+lab helper, `wait-clean` means "not adopted"; use `wait-absent` only when a
+test truly needs the row to disappear.
 
 Set `UNIFI_STUB_DOCKER_KEEP_RESOURCES=1` only when you intentionally want to
 inspect the adopted test device or stub state volume after a failing run.

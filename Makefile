@@ -75,6 +75,7 @@ validate-config:
 	$(GO) run ./cmd/unifi-stubd -dry-run-plan -config lab/stub/configs/hosts/stub-gateway-smoke/config.yaml >/dev/null
 	$(GO) run ./cmd/unifi-stubd -dry-run-plan -config lab/stub/configs/hosts/server-lan1-sfp-lab/config.example.yaml >/dev/null
 	$(GO) run ./cmd/unifi-stubd -dry-run-plan -config lab/stub/configs/hosts/opnsense-uxg-sfp-lab/config.example.yaml >/dev/null
+	tmp="$$(mktemp)"; trap 'rm -f "$$tmp"' EXIT; $(GO) run ./cmd/unifi-stubd -dry-run -config lab/stub/configs/hosts/opnsense-uxg-sfp-lab/config.example.yaml > "$$tmp"; python3 lab/stub/scripts/assert-payload.py opnsense-uxg "$$tmp"
 	$(GO) run ./cmd/unifi-stubd -profile-validate tests/fixtures/profiles
 
 integration-docker:

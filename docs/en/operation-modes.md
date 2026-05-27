@@ -177,6 +177,9 @@ port_overrides:
     name: backup_wan
     role: wan2
     network_group: WAN2
+    wan_uptime_percent: 100
+    wan_latency_ms: 7
+    wan_connected: true
     speed: 2500
   - port: 4
     speed: 100
@@ -195,16 +198,48 @@ the local `/proc/net/arp` cache when available. This can add client IPv4
 addresses to the MAC table without changing host networking. Hostnames are not
 guessed from DNS; set `hostname` or `name` explicitly for deterministic labels.
 
-Gateway models report WAN/LAN assignments through `config_port_table`,
-`ethernet_overrides`, `network_table`, and `reported_networks`. Client
-neighbors are reported through `network_table[].host_table` with `hostname` and
-`ip` when configured; upstream switch neighbors are not rendered as gateway
-hosts. Use `role` and `network_group` for gateway port visualization instead of
-changing the hardware profile.
+Gateway models report observed WAN/LAN link facts through `if_table`,
+`network_table`, a read-only physical `port_table`, `config_port_table`,
+`ethernet_overrides`, `reported_networks`, `uplink`, `uplink_table`, and
+`wan1`. WAN-like ports also report `uptime_stats` rows. Explicit assignment
+IDs, network names, and VLAN metadata from
+`port_overrides` are mirrored in the gateway port tables when configured.
+Client neighbors are reported through `network_table[].host_table` with
+`hostname` and `ip` when configured; upstream switch neighbors are not rendered
+as gateway hosts.
 
-For `UXGPRO`, the controller renders gateway ports from its gateway model and
-reported WAN/LAN state. Do not expect it to expose the same switch `port_table`
-view as a UniFi switch profile.
+For gateway lab displays, `port_overrides[].wan_uptime_percent`,
+`wan_latency_ms`, `wan_downtime_seconds`, and `wan_connected` are deterministic
+status hints only. They can make the controller see a configured WAN/WAN2 as
+online, degraded, or down without creating routes, changing interfaces, or
+accepting provisioning from the controller.
+
+`wan_health` can optionally replace those static WAN hints with active,
+read-only ping samples after profile ports, observation data, and
+`port_overrides` have been merged. This works for gateway profiles in `stub`,
+`bridge-observe`, and `port-map`; switch profiles do not render WAN health
+payload fields. The default source is `off`, so no network probe runs unless the
+operator opts in:
+
+```yaml
+wan_health:
+  source: ping
+  interval_seconds: 10
+  timeout_ms: 1000
+  targets:
+    - port: 3
+      host: 192.0.2.1
+```
+
+Ping results only update WAN telemetry fields such as connected state, latency,
+downtime, and uptime percentage. The daemon still does not change host
+interfaces, routes, VLANs, firewall rules, or controller provisioning state.
+When ICMP is blocked or the local `ping` binary is unavailable, `-status` and
+`-status-json` expose the last probe error instead of attempting a repair.
+
+For `UXGPRO`, the gateway `port_table` is physical inventory plus optional
+operator-provided assignment metadata. The daemon still does not create VLANs
+or apply UniFi Network gateway settings to the host.
 
 `port_overrides[].interface` is read-only. It lets the daemon copy an existing
 host interface MAC, IPv4 address, link state, and available counter/speed data
