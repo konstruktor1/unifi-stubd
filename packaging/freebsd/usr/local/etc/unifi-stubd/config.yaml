@@ -21,28 +21,54 @@ uplink_neighbor:
   vlan: 1
   type: usw
 port_neighbors: []
-# Profiles describe hardware. Use port_overrides for OPNsense/FreeBSD lab
-# assignments such as WAN/LAN/backup_wan without changing the selected profile.
-# port_overrides can also name a host interface. In stub mode this is still
-# read-only; the daemon only copies MAC/IP/link state into the inform payload.
-# Example:
+# Optional per-port overrides applied after profile data. Profiles describe
+# hardware. Use these overrides for OPNsense/FreeBSD lab assignments such as
+# WAN/LAN/backup_wan without changing the selected device profile.
+# For gateway profiles, controller `ifname` values stay derived from the
+# physical profile port (`gateway_interface_prefix` + port-1). A FreeBSD or
+# OPNsense host interface configured below is copied into `source_interface`
+# only; it is not a controller `ifname` and is not renamed by role changes.
+#
+# UXG-Pro profile mapping:
+#   port 1 -> eth0, profile role wan,  1G RJ45
+#   port 2 -> eth1, profile role lan,  1G RJ45
+#   port 3 -> eth2, profile role wan2, 10G SFP+
+#   port 4 -> eth3, profile role lan2, 10G SFP+
+#
+# OPNsense SFP WAN example:
+# uplink_port: 3
 # port_overrides:
-#   - port: 1
-#     name: LAN
-#     role: lan
-#     network_group: LAN
-#     interface: vtnet0
-#   - port: 2
+#   - port: 3
 #     name: WAN
 #     role: wan
 #     network_group: WAN
 #     interface: ixl0
-#   - port: 3
-#     name: backup_wan
-#     role: wan2
-#     network_group: WAN2
-#     interface: vlan09
+#     speed: 10000
+#     media: SFP+
+# Result: controller ifname eth2, source_interface ixl0.
 port_overrides: []
+
+# Optional read-only gateway WAN health. Default is off; static uses the
+# port_overrides wan_* fields above. ping runs the local OS ping command and
+# only writes WAN telemetry fields into the inform payload.
+# source:
+#   off    - no active measurement
+#   static - rely on configured port_overrides wan_* values only
+#   ping   - probe targets with local ping; target ports must be wan/wan2
+# Ping updates latency/connectivity/status fields only. It does not run UniFi
+# speed tests, detect ISP/provider names, change routes, or touch VLANs.
+# wan_health:
+#   source: ping
+#   interval_seconds: 10
+#   timeout_ms: 1000
+#   targets:
+#     - port: 3
+#       host: 1.1.1.1
+wan_health:
+  source: off
+  interval_seconds: 10
+  timeout_ms: 1000
+  targets: []
 
 observe_interface: ""
 observe_bridge: ""

@@ -42,6 +42,24 @@ Identitaetsprofil verfuegbar. Es meldet Device-Type `udm` mit vier
 und einem 10G-SFP+-LAN-Port. Es ist Stub-only und startet weder UniFi OS noch
 gebuendelte Controller-Anwendungen.
 
+## YAML-Konfigurationsnotiz
+
+Die Runtime-Config ist ein einzelnes, vom Operator gepflegtes YAML-Dokument.
+Block-YAML ist empfohlen. JSON-kompatibles YAML ist nur gueltig, wenn die ganze
+Config ein vollstaendiges JSON-Objekt ist; nach einer schliessenden `}` darf
+kein Block-YAML wie `wan_health:` angehaengt werden. Nach jeder Aenderung
+validieren:
+
+```sh
+unifi-stubd -validate -config /etc/unifi-stubd/config.yaml
+unifi-stubd -status-json
+```
+
+Auf FreeBSD/OPNsense gilt derselbe Ablauf mit
+`/usr/local/etc/unifi-stubd/config.yaml`. Controller-`setparam`-/`system_cfg`-
+Daten sind keine Runtime-Config-Quelle und duerfen nicht als Autoritaet fuer
+Host-Netzwerk verstanden werden.
+
 ## Modi
 
 ### `stub`
@@ -269,6 +287,9 @@ und Uptime-Prozent. Der Dienst aendert weiterhin keine Host-Interfaces, Routen,
 VLANs, Firewall-Regeln oder Controller-Provisioning-Daten. Wenn ICMP blockiert
 ist oder das lokale `ping`-Binary fehlt, zeigen `-status` und `-status-json` den
 letzten Probe-Fehler statt automatisch etwas zu reparieren.
+Der Probe nutzt die normale Routing-Tabelle des Hosts. `targets[].port` waehlt
+nur den Gateway-Port, dessen Telemetrie aktualisiert wird; das ICMP-Paket wird
+nicht an `port_overrides[].interface` gebunden.
 
 `wan_health.source` kennt diese Werte:
 
@@ -288,6 +309,8 @@ fuehrt aber keinen UniFi-Speedtest-Dienst aus und befuellt weder
 Bei `UXGPRO` ist die Gateway-`port_table` physische Inventur plus optional
 explizit konfigurierte Zuweisungsmetadaten. Der Dienst legt weiterhin keine
 VLANs an und wendet keine UniFi-Network-Gateway-Settings auf den Host an.
+Felder wie `network_group`, `networkconf_id`, `native_networkconf_id`,
+`network_name` und `vlan` sind nur Controller-/Payload-Metadaten.
 
 `port_overrides[].interface` ist read-only. Der Dienst kopiert damit MAC,
 IPv4-Adresse, Link-State und verfuegbare Counter-/Speed-Daten eines bestehenden

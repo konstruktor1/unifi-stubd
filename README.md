@@ -297,6 +297,17 @@ Only the local operator-edited YAML file is trusted for runtime choices:
 controller `setparam` data can update local adoption state, but it is not
 applied to host networking.
 
+Keep the config as one YAML document. Block-style YAML is recommended because
+new sections such as `wan_health` can be added clearly. If a file is written as
+JSON-compatible YAML, every setting must live inside that one JSON object; do
+not append block YAML after the closing `}`. After editing, validate and inspect
+the local status before restarting a service:
+
+```sh
+unifi-stubd -validate -config /etc/unifi-stubd/config.yaml
+unifi-stubd -status-json
+```
+
 The systemd unit runs as the dedicated `unifi-stubd` user and grants only
 `CAP_NET_BIND_SERVICE` so the lab SSH shim can keep UniFi-compatible port 22
 without running the daemon as root.
@@ -322,6 +333,12 @@ Gateway YAML has three separate concepts that should not be mixed:
   or `eth0` from the local OS must stay in `source_interface`; gateway `ifname`
   fields stay controller-facing profile names.
 
+Gateway assignment fields such as `network_group`, `portconf_id`,
+`networkconf_id`, `native_networkconf_id`, `network_name`, and `vlan` are
+mirrored into the payload so the controller can display the intended lab
+assignment. They do not create VLANs, edit controller network profiles, change
+host interfaces, or apply controller provisioning.
+
 For `uxgpro`, the default profile ports are:
 
 ```text
@@ -342,7 +359,9 @@ WAN health is also explicit YAML. `source: off` reports no active probe,
 Ping results update only controller telemetry fields such as connected state,
 latency, downtime, uptime percentage, `internet_health`, and the
 `speedtest-status` latency/status block. They do not perform a UniFi speed test
-and do not discover ISP/provider names.
+and do not discover ISP/provider names. The probe follows the host's normal
+routing table; it is not bound to a port source interface and it does not
+rewrite WAN/LAN assignments.
 
 Local health/status output:
 

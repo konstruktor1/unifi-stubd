@@ -113,6 +113,15 @@ isolierten Labs verwenden, in denen jeder Profil-Port explizit als `interface`,
 Fuer OPNsense-Gateway-Labs muessen UniFi-seitiger Interface-Name und
 FreeBSD-Interface-Name getrennt bleiben:
 
+Die UXG-Pro-Profilports sind feste Profildaten:
+
+```text
+port 1 -> eth0, Profilrolle wan,  1G RJ45
+port 2 -> eth1, Profilrolle lan,  1G RJ45
+port 3 -> eth2, Profilrolle wan2, 10G SFP+
+port 4 -> eth3, Profilrolle lan2, 10G SFP+
+```
+
 ```yaml
 profile: uxgpro
 uplink_port: 3
@@ -136,7 +145,25 @@ Bei `uxgpro` ist physischer Port 3 controllerseitig `ifname: eth2`; `ixl0`
 wird nur als `source_interface` gemeldet. Die Ping-Quelle aktualisiert
 Connectivity- und Latenz-Telemetrie, fuehrt aber keinen UniFi-Speedtest aus,
 erkennt keinen Provider und aendert keine OPNsense-Interfaces, Routen,
-Firewall-Regeln oder VLANs.
+Firewall-Regeln oder VLANs. Der Ping folgt der Routing-Tabelle des
+OPNsense-Hosts; `targets[].port` waehlt nur die WAN-Telemetriezeile, nicht das
+ICMP-Quellinterface.
+
+Nach jeder Config-Aenderung das eine YAML-Dokument validieren, den Dienst neu
+starten und den lokalen Status pruefen:
+
+```sh
+unifi-stubd -validate -config /usr/local/etc/unifi-stubd/config.yaml
+service unifi-stubd restart
+unifi-stubd -status-json
+```
+
+Beim SFP-WAN-Beispiel oben muss der Controller WAN auf Port 3 mit
+`ifname: eth2`, `source_interface: ixl0`, `uplink: eth2` und bei erfolgreichem
+Ping WAN-Health-Latenz/Connectivity sehen. Host-Namen wie `ixl0`, `igb0` oder
+`vtnet0` duerfen nicht in controllerseitigen `ifname`-Feldern erscheinen.
+Provider- und ISP-Felder bleiben leer, weil automatische Provider-Erkennung
+nicht implementiert ist.
 
 Fuer OPNsense-Logmetadaten `log_source: off` lassen, solange der Service-User
 die ausgewaehlte Datei nicht lesen kann. Ein read-only Runtime-Test auf

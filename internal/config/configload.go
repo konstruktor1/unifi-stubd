@@ -8,7 +8,9 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// Load reads path and overlays its YAML values on top of Default.
+// Load reads one operator-owned YAML document and overlays it on top of
+// Default. Controller setparam/system_cfg data is persisted elsewhere and is
+// not treated as runtime authority for host networking or gateway mapping.
 func Load(path string) (Config, error) {
 	cfg := Default()
 	data, err := os.ReadFile(path)

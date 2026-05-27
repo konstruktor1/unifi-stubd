@@ -112,6 +112,15 @@ in isolated labs where every profile port is explicitly configured as
 For OPNsense gateway labs, keep the UniFi-facing interface name separated from
 the FreeBSD interface name:
 
+UXG-Pro profile ports are fixed profile data:
+
+```text
+port 1 -> eth0, profile role wan,  1G RJ45
+port 2 -> eth1, profile role lan,  1G RJ45
+port 3 -> eth2, profile role wan2, 10G SFP+
+port 4 -> eth3, profile role lan2, 10G SFP+
+```
+
 ```yaml
 profile: uxgpro
 uplink_port: 3
@@ -134,7 +143,24 @@ wan_health:
 With `uxgpro`, physical port 3 is controller `ifname: eth2`; `ixl0` is only
 reported as `source_interface`. The ping source updates connectivity and
 latency telemetry, but it does not run a UniFi speed test, detect the ISP, or
-change OPNsense interfaces, routes, firewall rules, or VLANs.
+change OPNsense interfaces, routes, firewall rules, or VLANs. The ping follows
+the OPNsense host routing table; `targets[].port` selects which WAN telemetry
+row is updated, not which source interface the ICMP packet uses.
+
+After every config edit, validate the single YAML document, restart the service,
+and inspect local status:
+
+```sh
+unifi-stubd -validate -config /usr/local/etc/unifi-stubd/config.yaml
+service unifi-stubd restart
+unifi-stubd -status-json
+```
+
+For the SFP WAN example above, the controller payload should show WAN on port 3
+with `ifname: eth2`, `source_interface: ixl0`, `uplink: eth2`, and WAN health
+latency/connectivity when ping succeeds. Host names such as `ixl0`, `igb0`, or
+`vtnet0` must not appear in controller `ifname` fields. Provider and ISP fields
+remain unset because automatic provider detection is not implemented.
 
 For OPNsense log metadata, keep `log_source: off` unless the service user can
 read the selected file. A read-only runtime test on OPNsense 26.1/FreeBSD 14.3

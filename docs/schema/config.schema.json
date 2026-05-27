@@ -300,12 +300,12 @@
           "type": "string",
           "enum": ["off", "static", "ping"],
           "default": "off",
-          "description": "Read-only gateway WAN health source. off disables active probing, static uses port_overrides wan_* hints, ping runs the local OS ping command."
+          "description": "Read-only gateway WAN health source. off disables active probing, static uses port_overrides wan_* hints, ping runs the local OS ping command and updates WAN telemetry only."
         },
         "interval_seconds": {
           "type": "integer",
           "minimum": 1,
-          "description": "Sampling interval for active WAN health probes."
+          "description": "Sampling interval for active WAN health probes. It has no effect when source is off or static."
         },
         "timeout_ms": {
           "type": "integer",
@@ -314,7 +314,7 @@
         },
         "targets": {
           "type": "array",
-          "description": "Ping targets mapped to effective gateway WAN or WAN2 ports.",
+          "description": "Ping targets mapped to effective gateway WAN or WAN2 ports. The port selects the telemetry row; the ICMP packet follows normal host routing.",
           "items": {
             "$ref": "#/$defs/wan_health_target"
           }
@@ -344,74 +344,92 @@
       "properties": {
         "port": {
           "type": "integer",
-          "minimum": 1
+          "minimum": 1,
+          "description": "One-based represented profile port index."
         },
         "name": {
-          "type": "string"
+          "type": "string",
+          "description": "Optional controller display name for this represented port."
         },
         "interface": {
           "type": "string",
           "description": "Local host interface used as read-only source data for this port. Gateway payloads expose it as source_interface, not as controller ifname."
         },
         "mac": {
-          "type": "string"
+          "type": "string",
+          "description": "Optional MAC override for the represented port."
         },
         "ip": {
-          "type": "string"
+          "type": "string",
+          "description": "Optional IPv4 address shown for the represented gateway interface."
         },
         "netmask": {
-          "type": "string"
+          "type": "string",
+          "description": "Optional IPv4 netmask paired with ip for the represented gateway interface."
         },
         "role": {
           "type": "string",
           "enum": ["", "wan", "lan", "wan2", "lan2", "unassigned"],
           "description": "Effective gateway function for this profile port. It does not rename the profile-derived controller ifname."
         },
-      "network_group": {
-        "type": "string"
-      },
-      "portconf_id": {
-        "type": "string"
-      },
-      "networkconf_id": {
-        "type": "string"
-      },
-      "native_networkconf_id": {
-        "type": "string"
-      },
-      "network_name": {
-        "type": "string"
-      },
-      "vlan": {
-        "type": "integer",
-        "minimum": 0,
-        "description": "Controller display metadata mirrored into gateway tables. The daemon does not create or edit VLANs."
-      },
-      "wan_uptime_percent": {
-        "type": "number",
-        "minimum": 0,
-        "maximum": 100
-      },
-      "wan_latency_ms": {
-        "type": "integer",
-        "minimum": 0
-      },
-      "wan_downtime_seconds": {
-        "type": "integer",
-        "minimum": 0
-      },
-      "wan_connected": {
-        "type": "boolean"
-      },
-      "speed": {
-        "type": "integer",
-        "minimum": 0
+        "network_group": {
+          "type": "string",
+          "description": "Controller network group label mirrored into gateway tables, for example WAN, WAN2, or LAN. This is payload metadata only."
+        },
+        "portconf_id": {
+          "type": "string",
+          "description": "Optional controller port profile assignment ID mirrored into gateway port tables. It is not applied to the host."
+        },
+        "networkconf_id": {
+          "type": "string",
+          "description": "Optional controller network assignment ID mirrored into gateway WAN/LAN metadata. It is not applied to the controller or host."
+        },
+        "native_networkconf_id": {
+          "type": "string",
+          "description": "Optional native network assignment ID mirrored into gateway switch-port metadata. It is display/payload data only."
+        },
+        "network_name": {
+          "type": "string",
+          "description": "Optional controller network display name mirrored into gateway tables."
+        },
+        "vlan": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 4094,
+          "description": "Controller display metadata mirrored into gateway tables. The daemon does not create VLANs, edit VLAN profiles, or mutate host interfaces."
+        },
+        "wan_uptime_percent": {
+          "type": "number",
+          "minimum": 0,
+          "maximum": 100,
+          "description": "Static WAN telemetry hint used when wan_health is off or static, or overwritten by ping results when wan_health.source is ping."
+        },
+        "wan_latency_ms": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Static WAN latency telemetry hint in milliseconds."
+        },
+        "wan_downtime_seconds": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Static WAN downtime telemetry hint in seconds."
+        },
+        "wan_connected": {
+          "type": "boolean",
+          "description": "Static WAN connected-state telemetry hint."
+        },
+        "speed": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Optional represented link speed in Mbps. It changes payload display only."
         },
         "media": {
-          "type": "string"
+          "type": "string",
+          "description": "Optional represented media label such as RJ45 or SFP+."
         },
         "up": {
-          "type": "boolean"
+          "type": "boolean",
+          "description": "Optional represented link-state override. It does not administratively change the host port."
         }
       },
       "required": ["port"]

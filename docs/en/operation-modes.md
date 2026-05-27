@@ -40,6 +40,22 @@ identity profile. It reports `udm` device type with four 2.5G RJ45 LAN ports,
 one 10G RJ45 `WAN2` port, one 10G SFP+ `WAN` port, and one 10G SFP+ LAN port.
 It is stub-only and does not run UniFi OS or bundled controller applications.
 
+## YAML Configuration Note
+
+Runtime config is one operator-owned YAML document. Block-style YAML is the
+recommended form. JSON-compatible YAML is accepted only when the whole config is
+one complete JSON object; do not append block YAML such as `wan_health:` after a
+closing `}`. Validate after every edit:
+
+```sh
+unifi-stubd -validate -config /etc/unifi-stubd/config.yaml
+unifi-stubd -status-json
+```
+
+On FreeBSD/OPNsense, use `/usr/local/etc/unifi-stubd/config.yaml` for the same
+commands. Controller `setparam`/`system_cfg` data is not a runtime config
+source and must not be treated as authority for host networking.
+
 ## Modes
 
 ### `stub`
@@ -260,6 +276,9 @@ downtime, and uptime percentage. The daemon still does not change host
 interfaces, routes, VLANs, firewall rules, or controller provisioning state.
 When ICMP is blocked or the local `ping` binary is unavailable, `-status` and
 `-status-json` expose the last probe error instead of attempting a repair.
+The probe uses the host's ordinary routing table. `targets[].port` selects the
+gateway port whose telemetry is updated; it does not bind the ICMP packet to
+`port_overrides[].interface`.
 
 `wan_health.source` values:
 
@@ -278,7 +297,9 @@ health, but it does not run a UniFi speed-test service and does not populate
 
 For `UXGPRO`, the gateway `port_table` is physical inventory plus optional
 operator-provided assignment metadata. The daemon still does not create VLANs
-or apply UniFi Network gateway settings to the host.
+or apply UniFi Network gateway settings to the host. Fields such as
+`network_group`, `networkconf_id`, `native_networkconf_id`, `network_name`, and
+`vlan` are controller/payload metadata only.
 
 `port_overrides[].interface` is read-only. It lets the daemon copy an existing
 host interface MAC, IPv4 address, link state, and available counter/speed data
