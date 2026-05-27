@@ -7,10 +7,36 @@ semantic version tags once releases are published.
 
 ## [Unreleased]
 
+## [0.1.3-alpha] - 2026-05-27
+
+### Added
+
+- Added read-only WAN health telemetry for gateway profiles with `off`,
+  `static`, and `ping` sources.
+- Added UXG-Pro OPNsense SFP WAN/LAN lab coverage, including profile-derived
+  controller `ifname` handling and host `source_interface` diagnostics.
+- Added FreeBSD/OPNsense package-config guidance for gateway port mapping and
+  WAN health.
+
+### Changed
+
+- Refactored device profiles, port overrides, payload construction, status
+  output, serve orchestration, adoption helpers, inform framing, and platform
+  observation code into smaller modules.
+- Split gateway payload construction into identity, network, table, neighbor,
+  health, and type modules.
+- Expanded gateway YAML, schema, and operation-mode documentation to clarify
+  `ifname` versus `source_interface`, VLAN/network metadata, and read-only
+  safety boundaries.
+
 ### Fixed
 
 - Documented the required `github-pages` environment policy for automatic
   package-repository deployments from `v*` release tags.
+- Fixed gateway Docker/lab payload shape so gateway stubs do not emit
+  switch-style fields that confuse UniFi Network inform handling.
+- Fixed UXG-Pro OPNsense SFP lab expectations so host interface names such as
+  `ixl0` and `vtnet0` cannot leak into controller `ifname` fields.
 
 ## [0.1.2-alpha] - 2026-05-22
 

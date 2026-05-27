@@ -46,10 +46,10 @@ environment must allow deployments from `main` and `v*` tags.
 Create a pre-release for alpha package sets:
 
 ```sh
-gh release create v0.1.1-alpha --prerelease \
-  --title "unifi-stubd v0.1.1-alpha" \
-  --notes-file dist/releases/v0.1.1-alpha/release-notes.md \
-  dist/releases/v0.1.1-alpha/*
+gh release create v0.1.3-alpha --prerelease \
+  --title "unifi-stubd v0.1.3-alpha" \
+  --notes-file dist/releases/v0.1.3-alpha/release-notes.md \
+  dist/releases/v0.1.3-alpha/*
 ```
 
 ## GitHub Pages Package Repositories
@@ -63,10 +63,10 @@ https://konstruktor1.github.io/unifi-stubd/
 Build all package artifacts first, then generate the static repository site:
 
 ```sh
-PKG_VERSION=0.1.1-alpha PKG_RELEASE=1 PKG_GOARCH=amd64 make package
-PKG_VERSION=0.1.1-alpha PKG_RELEASE=1 PKG_GOARCH=arm64 make package
-PKG_VERSION=0.1.1-alpha PKG_RELEASE=1 PKG_FREEBSD_GOARCH=amd64 make package-freebsd-tgz
-PKG_VERSION=0.1.1-alpha PKG_RELEASE=1 PKG_FREEBSD_GOARCH=arm64 make package-freebsd-tgz
+PKG_VERSION=0.1.3-alpha PKG_RELEASE=1 PKG_GOARCH=amd64 make package
+PKG_VERSION=0.1.3-alpha PKG_RELEASE=1 PKG_GOARCH=arm64 make package
+PKG_VERSION=0.1.3-alpha PKG_RELEASE=1 PKG_FREEBSD_GOARCH=amd64 make package-freebsd-tgz
+PKG_VERSION=0.1.3-alpha PKG_RELEASE=1 PKG_FREEBSD_GOARCH=arm64 make package-freebsd-tgz
 make package-repos
 ```
 
@@ -76,7 +76,7 @@ the package repository manually, run the workflow from `main`:
 
 ```sh
 gh workflow run package-pages.yml --ref main \
-  -f version=0.1.1-alpha \
+  -f version=0.1.3-alpha \
   -f package_release=1
 ```
 
