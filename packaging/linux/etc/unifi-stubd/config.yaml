@@ -42,6 +42,9 @@ port_neighbors: []
 # physical profile port (`gateway_interface_prefix` + port-1). A host interface
 # configured below is copied into `source_interface` only; it is not a
 # controller `ifname` and is not renamed by role changes.
+# Gateway management/transport addresses are not WAN/LAN assignments. Configure
+# WAN, LAN, WAN2, and LAN2 explicitly through port_overrides. Keep unused ports
+# unassigned and without ip so they do not inherit LAN gateway data.
 # Example:
 # port_overrides:
 #   - port: 2
@@ -166,11 +169,12 @@ management_lan:
   controller_reachable: off
   adoption_strategy: untagged-first
 
-# This lab shim intentionally listens like a factory-default UniFi device.
-# Use only in isolated lab or management networks.
-ssh_listen: 0.0.0.0:22
+# Optional advanced-adoption SSH shim. The normal path is inform-based
+# adoption through controller_url, so packaged defaults keep SSH closed.
+# Enable only in an isolated lab when the controller must use SSH/set-inform.
+ssh_listen: ""
 ssh_user: ubnt
-# Use the controller's expected advanced-adoption credentials only in a lab.
+# Factory credentials are only relevant when ssh_listen is explicitly enabled.
 ssh_password: ubnt
 ssh_host_key_path: /var/lib/unifi-stubd/ssh_host_rsa_key
 

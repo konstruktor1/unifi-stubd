@@ -13,7 +13,6 @@ import (
 // controller display hints only.
 func gatewayPortTable(ports []PortView, uptime int) []gatewayPortRow {
 	out := make([]gatewayPortRow, 0, len(ports))
-	lanIP := gatewayFirstLANIP(ports)
 	for _, view := range ports {
 		iface := view.GatewayInterface
 		ifname := gatewayPhysicalPortIfName(view)
@@ -22,7 +21,7 @@ func gatewayPortTable(ports []PortView, uptime int) []gatewayPortRow {
 			IfName:                  ifname,
 			Name:                    ifname,
 			MAC:                     strings.ToLower(strings.TrimSpace(iface.MAC)),
-			IP:                      gatewayPortTableIP(view, lanIP),
+			IP:                      gatewayPortTableIP(view),
 			NetworkGroup:            iface.NetworkGroup,
 			Role:                    view.Role,
 			Type:                    "ethernet",
@@ -61,28 +60,14 @@ func gatewayPortTable(ports []PortView, uptime int) []gatewayPortRow {
 	return out
 }
 
-func gatewayFirstLANIP(ports []PortView) string {
-	for _, role := range []string{gatewayPortRoleLAN, gatewayPortRoleLAN2} {
-		for _, view := range ports {
-			if gatewayPortRole(view.Port) != role {
-				continue
-			}
-			if ip := strings.TrimSpace(view.GatewayInterface.IP); ip != "" && ip != gatewayNoIP {
-				return ip
-			}
-		}
-	}
-	return ""
-}
-
-func gatewayPortTableIP(view PortView, lanIP string) string {
+func gatewayPortTableIP(view PortView) string {
 	ip := strings.TrimSpace(view.GatewayInterface.IP)
-	if ip == "" || ip == gatewayNoIP {
-		if strings.EqualFold(strings.TrimSpace(view.NetworkGroup), gatewayNetworkGroupNone) &&
-			strings.TrimSpace(lanIP) != "" {
-			return lanIP
-		}
+	if ip == gatewayNoIP {
+		return ""
 	}
+	// Do not synthesize LAN fallback IPs for unassigned or disabled physical
+	// ports. Gateway data-plane addresses must come from the resolved port
+	// role/profile data or explicit port_overrides, not from management state.
 	return ip
 }
 

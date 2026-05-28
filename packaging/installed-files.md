@@ -10,13 +10,14 @@ installed service path after package installation.
 ## Linux Packaged Files
 
 Linux packages create a dedicated `unifi-stubd` service user for the systemd
-unit. The unit grants `CAP_NET_BIND_SERVICE` so the lab SSH shim can bind port
-22 without running the daemon as root.
+unit. Packaged defaults keep the adoption SSH shim closed. The unit still
+grants `CAP_NET_BIND_SERVICE` so isolated labs can explicitly bind a
+UniFi-compatible low port without running the daemon as root.
 
 | Linux path | Repository source | Notes |
 | --- | --- | --- |
 | `/etc/unifi-stubd/config.yaml` | `packaging/linux/etc/unifi-stubd/config.yaml` | Main service config, packaged as config/noreplace |
-| `/var/lib/unifi-stubd/ssh_host_rsa_key` | generated at first SSH adoption start | Host key for the built-in adoption SSH shim |
+| `/var/lib/unifi-stubd/ssh_host_rsa_key` | generated at first SSH adoption start | Host key for the optional adoption SSH shim |
 | `/var/lib/unifi-stubd/adoption.env` | generated at runtime | Persisted adoption state from controller responses |
 | `/var/lib/unifi-stubd/status.json` | generated at runtime | Non-sensitive status snapshot for health checks |
 | `/usr/local/bin/unifi-stubd` | built from `cmd/unifi-stubd` | Static Linux binary |
@@ -37,7 +38,7 @@ the GitHub Pages paths `/freebsd/amd64/` and `/freebsd/arm64/`.
 | FreeBSD path | Repository source | Notes |
 | --- | --- | --- |
 | `/usr/local/etc/unifi-stubd/config.yaml` | `packaging/freebsd/usr/local/etc/unifi-stubd/config.yaml` | Main service config |
-| `/usr/local/etc/unifi-stubd/ssh_host_rsa_key` | generated at first SSH adoption start | Host key for the built-in adoption SSH shim |
+| `/usr/local/etc/unifi-stubd/ssh_host_rsa_key` | generated at first SSH adoption start | Host key for the optional adoption SSH shim |
 | `/var/db/unifi-stubd/adoption.env` | generated at runtime | Persisted adoption state from controller responses |
 | `/var/db/unifi-stubd/status.json` | generated at runtime | Non-sensitive status snapshot for health checks |
 | `/usr/local/bin/unifi-stubd` | built from `cmd/unifi-stubd` | Static FreeBSD binary |

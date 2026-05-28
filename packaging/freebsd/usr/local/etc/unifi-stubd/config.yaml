@@ -46,6 +46,13 @@ port_neighbors: []
 #     speed: 10000
 #     media: SFP+
 # Result: controller ifname eth2, source_interface ixl0.
+# Add LAN as its own explicit port override, for example port 4 with role lan,
+# interface vtnet0, and its routed LAN IP. Do not use management_lan as a
+# gateway LAN shortcut. Controller transport/management addresses belong to
+# top-level runtime fields and must not be copied into WAN/LAN rows unless they
+# are intentionally the address of that gateway port.
+# Keep unused ports role: unassigned and without ip; disconnected inventory
+# ports must not inherit the LAN IP.
 port_overrides: []
 
 # Optional read-only gateway WAN health. Default is off; static uses the
@@ -129,9 +136,12 @@ management_lan:
   controller_reachable: off
   adoption_strategy: untagged-first
 
-ssh_listen: 0.0.0.0:22
+# Optional advanced-adoption SSH shim. The normal path is inform-based
+# adoption through controller_url, so packaged defaults keep SSH closed.
+# Enable only in an isolated lab when the controller must use SSH/set-inform.
+ssh_listen: ""
 ssh_user: ubnt
-# Use the controller's expected advanced-adoption credentials only in a lab.
+# Factory credentials are only relevant when ssh_listen is explicitly enabled.
 ssh_password: ubnt
 ssh_host_key_path: /usr/local/etc/unifi-stubd/ssh_host_rsa_key
 

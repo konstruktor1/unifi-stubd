@@ -65,7 +65,7 @@ Implemented:
 - Experimental stub-only `UXG` Gateway Lite identity profile.
 - Experimental stub-only `UXGPRO` 10G gateway identity profile.
 - Experimental stub-only `UCGF` Cloud Gateway Fiber identity profile.
-- Built-in SSH shim for advanced adoption commands.
+- Optional SSH shim for advanced adoption commands.
 - YAML configuration under `/etc/unifi-stubd/config.yaml`.
 - OpenRC and systemd service definitions.
 - Package builders for Debian, RPM, Arch Linux, and `.tar.gz`.
@@ -309,8 +309,9 @@ unifi-stubd -status-json
 ```
 
 The systemd unit runs as the dedicated `unifi-stubd` user and grants only
-`CAP_NET_BIND_SERVICE` so the lab SSH shim can keep UniFi-compatible port 22
-without running the daemon as root.
+`CAP_NET_BIND_SERVICE`. Packaged defaults keep the advanced-adoption SSH shim
+closed; the capability is present only so isolated labs can opt into a
+UniFi-compatible low port without running the daemon as root.
 
 The configuration schema is in `docs/schema/config.schema.json`; the profile
 schema is in `docs/schema/profile.schema.json`. Use `management_lan` for switch
@@ -333,11 +334,25 @@ Gateway YAML has three separate concepts that should not be mixed:
   or `eth0` from the local OS must stay in `source_interface`; gateway `ifname`
   fields stay controller-facing profile names.
 
+The gateway may still know the management or transport path used to reach the
+controller through top-level identity and runtime fields such as `ip`,
+`controller_url`, `inform_url`, `discovery_interface`, and
+`discovery_targets`. That path is not a WAN or LAN assignment. Do not use
+`management_lan` to describe gateway data-plane ports; use `port_overrides` for
+WAN, LAN, WAN2, and LAN2. A controller-management address must not be copied
+into gateway WAN/LAN rows unless the operator explicitly assigns that address
+to a gateway port.
+
 Gateway assignment fields such as `network_group`, `portconf_id`,
 `networkconf_id`, `native_networkconf_id`, `network_name`, and `vlan` are
 mirrored into the payload so the controller can display the intended lab
 assignment. They do not create VLANs, edit controller network profiles, change
 host interfaces, or apply controller provisioning.
+
+Ports with `role: unassigned`, disabled ports, or disconnected ports without an
+explicit gateway role are reported as physical inventory only. They must not
+inherit the LAN IP as a fallback. This keeps unused profile ports from looking
+like additional gateway interfaces in controller web or mobile views.
 
 For `uxgpro`, the default profile ports are:
 
@@ -403,9 +418,10 @@ make integration-docker
 
 FreeBSD/OPNsense support is documented in
 [English](docs/en/freebsd.md) and [Deutsch](docs/de/freebsd.md). It is
-currently conservative: discovery, inform, adoption SSH, profiles, port
-overrides, uplink overrides, configured uplink neighbors, explicit `port-map`
-interface reads, syslog status metadata, and `lldpd` LLDP reads are supported.
+currently conservative: discovery, inform, optional adoption SSH, profiles,
+port overrides, uplink overrides, configured uplink neighbors, explicit
+`port-map` interface reads, syslog status metadata, and `lldpd` LLDP reads are
+supported.
 Full `bridge-observe` parity and macvlan lifecycle work are not implemented
 there.
 

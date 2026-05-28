@@ -9,7 +9,7 @@ Supported in the FreeBSD package:
 
 - `operation_mode: stub`
 - UniFi discovery and inform traffic
-- Built-in advanced-adoption SSH shim
+- Optional advanced-adoption SSH shim, disabled by default with `ssh_listen: ""`
 - Static profile payloads, port overrides, uplink port override, and configured
   uplink neighbor entries
 - Optional `wan_health.source: ping` for gateway profiles. It runs local
@@ -146,6 +146,26 @@ latency telemetry, but it does not run a UniFi speed test, detect the ISP, or
 change OPNsense interfaces, routes, firewall rules, or VLANs. The ping follows
 the OPNsense host routing table; `targets[].port` selects which WAN telemetry
 row is updated, not which source interface the ICMP packet uses.
+
+If the gateway also represents a LAN on another physical port, configure that
+LAN explicitly in `port_overrides`. Do not use `management_lan` as a gateway
+LAN shortcut. The management or transport address used to reach the controller
+can stay in top-level runtime fields, while routed LAN data belongs only to the
+LAN port:
+
+```yaml
+port_overrides:
+  - port: 4
+    role: lan
+    network_group: LAN
+    interface: vtnet0
+    ip: 192.0.2.1
+    netmask: 255.255.255.0
+```
+
+Unused or disabled profile ports should stay `role: unassigned` and should not
+carry an `ip`. The payload reports them as physical inventory only, so the
+controller does not receive extra LAN/Gateway hints on disconnected ports.
 
 After every config edit, validate the single YAML document, restart the service,
 and inspect local status:

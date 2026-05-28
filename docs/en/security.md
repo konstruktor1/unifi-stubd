@@ -27,10 +27,11 @@ The controller must not blindly mutate host configuration. For the MVP:
 
 Discovery and inform belong only in the lab or management network. The project should not run on production VLANs with unrelated controllers.
 
-The packaged Linux lab config exposes the adoption SSH shim on `0.0.0.0:22`
-with UniFi factory credentials for controller compatibility. Run it only in an
-isolated lab or management VLAN, and override `ssh_listen` when that boundary is
-not guaranteed.
+Packaged configs keep the adoption SSH shim closed by default
+(`ssh_listen: ""`). The normal adoption path is inform-based through
+`controller_url`. Enable `ssh_listen` only in an isolated lab when the
+controller must use advanced adoption or `set-inform` over SSH; the factory
+credentials are then exposed on the configured listen address.
 
 ## Personal and Client Data
 

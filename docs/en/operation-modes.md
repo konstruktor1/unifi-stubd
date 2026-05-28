@@ -248,6 +248,21 @@ is `eth2`; `source_interface: ixl0` records where the local facts came from.
 The role and network group describe the port's function. They do not rename the
 physical profile interface.
 
+Gateway management and gateway data-plane state are intentionally separate. The
+stub can use a management or transport network to reach the controller through
+top-level identity/runtime fields such as `ip`, `controller_url`,
+`discovery_interface`, and `discovery_targets`. That does not make the
+management address a LAN or WAN port address. Gateway WAN/LAN ownership comes
+from profile ports plus `port_overrides`; a controller-management address
+should stay out of `wan1`, `config_network_wan`,
+`config_network_lan`, `network_table`, and `port_table` unless it is explicitly
+configured as the address of that gateway port.
+
+Unused physical profile ports are also kept separate from routed LAN state.
+Ports marked `role: unassigned`, disabled ports, or disconnected ports without
+an explicit gateway role are physical inventory only and do not inherit the LAN
+IP. This avoids extra LAN/Gateway hints in controller web and mobile views.
+
 For gateway lab displays, `port_overrides[].wan_uptime_percent`,
 `wan_latency_ms`, `wan_downtime_seconds`, and `wan_connected` are deterministic
 status hints only. They can make the controller see a configured WAN/WAN2 as
@@ -425,3 +440,7 @@ must already exist, and the daemon uses its IPv4 address for the reported
 management IP, discovery source, and outbound inform source binding. `mode:
 planned-host-vlan` is dry-run-plan only. The daemon still does not create VLAN
 interfaces or apply controller provisioning to the host.
+
+Gateway profiles do not use `management_lan` for WAN/LAN modeling. Keep
+gateway data-plane assignments in `port_overrides` and keep controller
+transport/management reachability in the top-level runtime fields.

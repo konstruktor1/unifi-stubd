@@ -27,10 +27,12 @@ Der Controller darf nicht ungeprueft Host-Konfigurationen veraendern. Fuer den M
 
 Discovery und Inform gehoeren nur ins Lab- oder Management-Netz. Das Projekt sollte nicht auf produktiven VLANs mit fremden Controllern laufen.
 
-Die paketierte Linux-Lab-Konfiguration stellt den Adoption-SSH-Shim aus
-Kompatibilitaetsgruenden auf `0.0.0.0:22` mit UniFi-Factory-Credentials bereit.
-Das darf nur in einem isolierten Lab- oder Management-VLAN laufen; andernfalls
-`ssh_listen` ueberschreiben.
+Paketierte Konfigurationen lassen den Adoption-SSH-Shim standardmaessig
+geschlossen (`ssh_listen: ""`). Der normale Adoption-Pfad laeuft inform-basiert
+ueber `controller_url`. `ssh_listen` nur in einem isolierten Lab aktivieren,
+wenn der Controller Advanced Adoption oder `set-inform` per SSH nutzen muss;
+die Factory-Credentials sind dann auf der konfigurierten Listen-Adresse
+erreichbar.
 
 ## Personen- und Clientdaten
 

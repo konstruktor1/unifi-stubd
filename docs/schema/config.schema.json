@@ -26,7 +26,8 @@
     },
     "ip": {
       "type": "string",
-      "format": "ipv4"
+      "format": "ipv4",
+      "description": "Controller-facing device identity or transport IP. For gateway profiles this is not automatically a WAN or LAN port address; assign gateway data-plane IPs with port_overrides[].ip."
     },
     "hostname": {
       "type": "string"
@@ -151,16 +152,20 @@
       }
     },
     "management_lan": {
-      "$ref": "#/$defs/management_lan"
+      "$ref": "#/$defs/management_lan",
+      "description": "Switch management VLAN model. Gateway profiles keep WAN/LAN data-plane assignments in port_overrides instead of management_lan."
     },
     "ssh_listen": {
-      "type": "string"
+      "type": "string",
+      "description": "Optional built-in advanced-adoption SSH listen address. Leave empty for the normal inform-based adoption path; enable only in isolated labs that need SSH/set-inform compatibility."
     },
     "ssh_user": {
-      "type": "string"
+      "type": "string",
+      "description": "Username accepted by the optional advanced-adoption SSH shim when ssh_listen is enabled."
     },
     "ssh_password": {
-      "type": "string"
+      "type": "string",
+      "description": "Password accepted by the optional advanced-adoption SSH shim when ssh_listen is enabled."
     },
     "ssh_host_key_path": {
       "type": "string"
@@ -175,6 +180,7 @@
   "$defs": {
     "management_lan": {
       "type": "object",
+      "description": "Structured switch management VLAN metadata and optional preexisting-interface source binding. It does not create host VLANs and is not used to model gateway WAN/LAN ports.",
       "additionalProperties": false,
       "properties": {
         "enabled": {

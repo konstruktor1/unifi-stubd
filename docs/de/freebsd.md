@@ -9,7 +9,8 @@ Im FreeBSD-Paket unterstuetzt:
 
 - `operation_mode: stub`
 - UniFi Discovery und Inform-Traffic
-- Eingebauter SSH-Shim fuer Advanced Adoption
+- Optionaler SSH-Shim fuer Advanced Adoption, standardmaessig mit
+  `ssh_listen: ""` deaktiviert
 - Statische Profil-Payloads, Port-Overrides, Uplink-Port-Override und
   konfigurierte Uplink-Neighbor-Eintraege
 - Optionales `wan_health.source: ping` fuer Gateway-Profile. Es fuehrt lokale
@@ -148,6 +149,28 @@ erkennt keinen Provider und aendert keine OPNsense-Interfaces, Routen,
 Firewall-Regeln oder VLANs. Der Ping folgt der Routing-Tabelle des
 OPNsense-Hosts; `targets[].port` waehlt nur die WAN-Telemetriezeile, nicht das
 ICMP-Quellinterface.
+
+Wenn das Gateway zusaetzlich ein LAN auf einem anderen physischen Port
+darstellt, dieses LAN explizit in `port_overrides` konfigurieren.
+`management_lan` ist kein Gateway-LAN-Kuerzel. Die Management- oder
+Transportadresse, mit der der Stub den Controller erreicht, kann in den
+Top-Level-Runtime-Feldern bleiben; routed LAN-Daten gehoeren nur an den
+LAN-Port:
+
+```yaml
+port_overrides:
+  - port: 4
+    role: lan
+    network_group: LAN
+    interface: vtnet0
+    ip: 192.0.2.1
+    netmask: 255.255.255.0
+```
+
+Ungenutzte oder deaktivierte Profilports sollen `role: unassigned` bleiben und
+keine `ip` tragen. Der Payload meldet sie nur als physische Inventur, damit der
+Controller keine zusaetzlichen LAN-/Gateway-Hinweise auf getrennten Ports
+erhaelt.
 
 Nach jeder Config-Aenderung das eine YAML-Dokument validieren, den Dienst neu
 starten und den lokalen Status pruefen:

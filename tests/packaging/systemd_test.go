@@ -1,9 +1,11 @@
-// Packaging tests protect service hardening choices. The systemd unit must keep
-// low-port SSH compatibility without running the daemon as root.
+// Packaging tests protect service hardening choices. Packaged defaults keep the
+// adoption SSH shim closed while still allowing isolated labs to opt into a
+// low-port listener without running the daemon as root.
 package packaging_test
 
 import (
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -28,5 +30,26 @@ func TestLinuxSystemdServiceRunsNonRootWithBindCapability(t *testing.T) {
 	}
 	if strings.Contains(text, "User=root") || strings.Contains(text, "Group=root") {
 		t.Fatalf("systemd unit still runs as root:\n%s", text)
+	}
+}
+
+// TestPackagedConfigsKeepAdoptionSSHClosed verifies inform-based adoption is
+// the default package path. Advanced-adoption SSH is opt-in.
+func TestPackagedConfigsKeepAdoptionSSHClosed(t *testing.T) {
+	for _, path := range []string{
+		"../../packaging/linux/etc/unifi-stubd/config.yaml",
+		"../../packaging/freebsd/usr/local/etc/unifi-stubd/config.yaml",
+	} {
+		data, err := os.ReadFile(path)
+		if err != nil {
+			t.Fatal(err)
+		}
+		text := string(data)
+		if !strings.Contains(text, `ssh_listen: ""`) {
+			t.Fatalf("%s does not keep ssh_listen closed by default", filepath.Clean(path))
+		}
+		if strings.Contains(text, "ssh_listen: 0.0.0.0:22") {
+			t.Fatalf("%s enables adoption SSH by default", filepath.Clean(path))
+		}
 	}
 }

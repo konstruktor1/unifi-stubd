@@ -11,9 +11,9 @@ RestartSec=5s
 StateDirectory=unifi-stubd
 ConfigurationDirectory=unifi-stubd
 
-# The packaged config keeps the lab adoption SSH shim on port 22 for UniFi
-# compatibility. The service itself stays non-root and receives only the low
-# port bind capability needed for that listener.
+# Packaged defaults keep the advanced-adoption SSH shim closed. The service
+# still stays non-root and receives only the low-port bind capability needed
+# when an isolated lab explicitly enables ssh_listen on a privileged port.
 User=unifi-stubd
 Group=unifi-stubd
 AmbientCapabilities=CAP_NET_BIND_SERVICE

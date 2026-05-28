@@ -649,8 +649,10 @@ func TestGatewayNetworkBindingsKeepProfilePortInterfaces(t *testing.T) {
 	if got := port["name"].(string); got != "eth2" {
 		t.Fatalf("port_table port 3 name = %q, want eth2", got)
 	}
-	if got := rowByPortIndex(t, doc.PortTable, 1)["ip"].(string); got != "192.0.2.50" {
-		t.Fatalf("port_table port 1 health fallback ip = %q, want 192.0.2.50", got)
+	for _, index := range []int{1, 2} {
+		if got, ok := rowByPortIndex(t, doc.PortTable, index)["ip"]; ok {
+			t.Fatalf("port_table port %d has IP %v, want no IP on unassigned port", index, got)
+		}
 	}
 	lan := rowByPortIndex(t, doc.NetworkTable, 4)
 	if got := lan["ifname"].(string); got != "eth3" {

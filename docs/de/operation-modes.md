@@ -259,6 +259,22 @@ Die Gateway-Zeilen melden daraus `ifname: eth2`, weil Profil-Port 3 physisch
 kommen. Rolle und Network Group beschreiben die Funktion des Ports. Sie
 benennen das physische Profil-Interface nicht um.
 
+Gateway-Management und Gateway-Datenebene bleiben absichtlich getrennt. Der
+Stub kann ein Management- oder Transportnetz nutzen, um den Controller ueber
+Top-Level-Felder wie `ip`, `controller_url`, `discovery_interface` und
+`discovery_targets` zu erreichen. Daraus wird aber keine LAN- oder WAN-Adresse
+eines Gateway-Ports. Gateway-WAN/LAN-Zuordnung kommt aus Profilports plus
+`port_overrides`; eine Controller-Management-Adresse soll nicht in `wan1`,
+`config_network_wan`, `config_network_lan`, `network_table` oder `port_table`
+auftauchen, ausser es ist explizit als Adresse dieses Gateway-Ports
+konfiguriert.
+
+Ungenutzte physische Profilports bleiben ebenfalls von routed LAN-State
+getrennt. Ports mit `role: unassigned`, deaktivierte Ports oder disconnected
+Ports ohne explizite Gateway-Rolle sind nur physische Inventur und erben keine
+LAN-IP. So entstehen keine zusaetzlichen LAN-/Gateway-Hinweise in Controller-Web
+oder Mobile-App.
+
 Fuer Gateway-Lab-Anzeigen sind `port_overrides[].wan_uptime_percent`,
 `wan_latency_ms`, `wan_downtime_seconds` und `wan_connected` nur deterministische
 Status-Hinweise. Damit kann der Controller ein konfiguriertes WAN/WAN2 als
@@ -440,3 +456,7 @@ gemeldete Management-IP, als Discovery-Quelle und als gebundene lokale
 Inform-Source. `mode: planned-host-vlan` ist nur fuer `-dry-run-plan`. Der
 Dienst legt weiterhin keine VLAN-Interfaces an und wendet keine Controller-
 Provisionierung auf dem Host an.
+
+Gateway-Profile nutzen `management_lan` nicht fuer WAN-/LAN-Modellierung.
+Gateway-Datenebene gehoert in `port_overrides`; Controller-Transport und
+Management-Erreichbarkeit bleiben in den Top-Level-Runtime-Feldern.
