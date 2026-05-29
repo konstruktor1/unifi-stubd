@@ -7,6 +7,27 @@ semantic version tags once releases are published.
 
 ## [Unreleased]
 
+## [0.1.4-alpha] - 2026-05-29
+
+### Changed
+
+- Kept packaged advanced-adoption SSH closed by default and clarified that
+  `ssh_listen` is an explicit lab-only opt-in.
+- Tightened gateway profile documentation so management reachability and
+  gateway WAN/LAN data-plane assignments stay separate.
+- Removed gateway payload fallbacks that made disconnected or unassigned ports
+  look like routed LAN interfaces.
+- Disabled Dependabot version updates for now to keep alpha dependency changes
+  manual and reviewable.
+
+### Fixed
+
+- Added gateway-native `rx_rate` and `tx_rate` telemetry beside explicit byte
+  rates so UniFi Network's gateway dashboard aggregation receives live WAN
+  throughput instead of rendering `0 bps`.
+- Added total `bytes-r` rate fields for explicit interface-rate rows while
+  keeping raw gateway inform payloads read-only and deterministic.
+
 ## [0.1.3-alpha] - 2026-05-27
 
 ### Added

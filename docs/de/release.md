@@ -48,10 +48,10 @@ Workflow laeuft auch fuer `v*`-Tags und GitHub-Pre-Releases, deshalb muss das
 Alpha-Paketsets als Pre-Release veroeffentlichen:
 
 ```sh
-gh release create v0.1.3-alpha --prerelease \
-  --title "unifi-stubd v0.1.3-alpha" \
-  --notes-file dist/releases/v0.1.3-alpha/release-notes.md \
-  dist/releases/v0.1.3-alpha/*
+gh release create v0.1.4-alpha --prerelease \
+  --title "unifi-stubd v0.1.4-alpha" \
+  --notes-file dist/releases/v0.1.4-alpha/release-notes.md \
+  dist/releases/v0.1.4-alpha/*
 ```
 
 ## GitHub-Pages-Paketquellen
@@ -66,10 +66,10 @@ Zuerst alle Paket-Artefakte bauen, danach die statische Repository-Seite
 erzeugen:
 
 ```sh
-PKG_VERSION=0.1.3-alpha PKG_RELEASE=1 PKG_GOARCH=amd64 make package
-PKG_VERSION=0.1.3-alpha PKG_RELEASE=1 PKG_GOARCH=arm64 make package
-PKG_VERSION=0.1.3-alpha PKG_RELEASE=1 PKG_FREEBSD_GOARCH=amd64 make package-freebsd-tgz
-PKG_VERSION=0.1.3-alpha PKG_RELEASE=1 PKG_FREEBSD_GOARCH=arm64 make package-freebsd-tgz
+PKG_VERSION=0.1.4-alpha PKG_RELEASE=1 PKG_GOARCH=amd64 make package
+PKG_VERSION=0.1.4-alpha PKG_RELEASE=1 PKG_GOARCH=arm64 make package
+PKG_VERSION=0.1.4-alpha PKG_RELEASE=1 PKG_FREEBSD_GOARCH=amd64 make package-freebsd-tgz
+PKG_VERSION=0.1.4-alpha PKG_RELEASE=1 PKG_FREEBSD_GOARCH=arm64 make package-freebsd-tgz
 make package-repos
 ```
 
@@ -79,7 +79,7 @@ manuellen Rebuild oder Retry den Workflow von `main` aus starten:
 
 ```sh
 gh workflow run package-pages.yml --ref main \
-  -f version=0.1.3-alpha \
+  -f version=0.1.4-alpha \
   -f package_release=1
 ```
 
