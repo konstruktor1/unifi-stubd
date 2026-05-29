@@ -60,6 +60,8 @@ type statusConfig struct {
 	DBusEnabled         bool                     `json:"dbus_enabled"`
 	DBusBus             string                   `json:"dbus_bus"`
 	SyslogPath          string                   `json:"syslog_path,omitempty"`
+	InstanceGuard       string                   `json:"instance_guard"`
+	InstanceGuardPath   string                   `json:"instance_guard_path,omitempty"`
 }
 
 // statusUplinkNeighbor summarizes the configured uplink MAC-table neighbor.

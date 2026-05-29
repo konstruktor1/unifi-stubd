@@ -27,6 +27,11 @@ The controller must not blindly mutate host configuration. For the MVP:
 
 Discovery and inform belong only in the lab or management network. The project should not run on production VLANs with unrelated controllers.
 
+Packaged daemon starts use `instance_guard: fail` by default. A second live
+process on the same host is rejected before SSH, discovery, or inform traffic
+starts. Use `instance_guard: warn` or `instance_guard: off` only for intentional
+multi-stub labs with a reviewed lock path.
+
 Packaged configs keep the adoption SSH shim closed by default
 (`ssh_listen: ""`). The normal adoption path is inform-based through
 `controller_url`. Enable `ssh_listen` only in an isolated lab when the

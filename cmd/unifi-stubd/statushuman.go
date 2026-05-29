@@ -32,6 +32,8 @@ func printHumanStatus(status localStatus) {
 	fmt.Printf("ssh_listen: %s\n", valueOrDash(status.Config.SSHListen))
 	fmt.Printf("state_path: %s\n", status.Config.StatePath)
 	fmt.Printf("status_path: %s\n", status.Config.StatusPath)
+	fmt.Printf("instance_guard: %s\n", status.Config.InstanceGuard)
+	fmt.Printf("instance_guard_path: %s\n", valueOrDash(status.Config.InstanceGuardPath))
 	fmt.Printf("adoption_state: %s\n", status.Adoption.State)
 	fmt.Printf("adopted: %t\n", status.Adoption.Adopted)
 	fmt.Printf("authkey_set: %t\n", status.Adoption.AuthKeySet)

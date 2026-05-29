@@ -28,6 +28,12 @@ func TestDefaultSeparatesConfigAndStatePaths(t *testing.T) {
 	if cfg.StatusPath != "/var/lib/unifi-stubd/status.json" {
 		t.Fatalf("StatusPath = %q", cfg.StatusPath)
 	}
+	if cfg.InstanceGuard != "fail" {
+		t.Fatalf("InstanceGuard = %q", cfg.InstanceGuard)
+	}
+	if cfg.InstanceGuardPath != "/var/lib/unifi-stubd/instance.lock" {
+		t.Fatalf("InstanceGuardPath = %q", cfg.InstanceGuardPath)
+	}
 	if cfg.TrafficRatesEnabled {
 		t.Fatal("TrafficRatesEnabled default = true, want false")
 	}
@@ -129,6 +135,8 @@ dbus_enabled: true
 dbus_bus: session
 syslog_path: /var/log/custom-messages
 ssh_listen: 0.0.0.0:22
+instance_guard: warn
+instance_guard_path: /tmp/unifi-stubd/instance.lock
 state_path: /tmp/unifi-stubd/adoption.env
 status_path: /tmp/unifi-stubd/status.json
 `), 0o600); err != nil {
@@ -271,6 +279,12 @@ status_path: /tmp/unifi-stubd/status.json
 	}
 	if cfg.SSHListen != "0.0.0.0:22" {
 		t.Fatalf("SSHListen = %q", cfg.SSHListen)
+	}
+	if cfg.InstanceGuard != "warn" {
+		t.Fatalf("InstanceGuard = %q", cfg.InstanceGuard)
+	}
+	if cfg.InstanceGuardPath != "/tmp/unifi-stubd/instance.lock" {
+		t.Fatalf("InstanceGuardPath = %q", cfg.InstanceGuardPath)
 	}
 	if cfg.SSHUser != "ubnt" {
 		t.Fatalf("SSHUser default was not preserved: %q", cfg.SSHUser)

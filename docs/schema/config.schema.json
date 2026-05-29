@@ -132,6 +132,15 @@
     "syslog_path": {
       "type": "string"
     },
+    "instance_guard": {
+      "type": "string",
+      "enum": ["fail", "warn", "off"],
+      "description": "Host-global duplicate instance guard. fail aborts a second live daemon, warn logs and continues, off disables the guard for intentional multi-instance labs."
+    },
+    "instance_guard_path": {
+      "type": "string",
+      "description": "Advisory lock file path used by instance_guard."
+    },
     "version": {
       "type": "string"
     },

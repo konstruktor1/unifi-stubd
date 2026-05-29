@@ -118,6 +118,12 @@ dbus_enabled: false
 dbus_bus: system
 syslog_path: /var/log/messages
 
+# Host-global duplicate instance guard. The package default aborts a second
+# live daemon before SSH, discovery, or inform traffic starts. Use warn or off
+# only for intentional multi-stub labs on the same host.
+instance_guard: fail
+instance_guard_path: /var/db/unifi-stubd/instance.lock
+
 interval_seconds: 10
 no_discovery: false
 discovery_interface: ""

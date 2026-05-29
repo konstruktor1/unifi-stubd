@@ -4,6 +4,7 @@
 package cli_test
 
 import (
+	"bytes"
 	"encoding/binary"
 	"encoding/json"
 	"errors"
@@ -15,9 +16,13 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
+	"syscall"
 	"testing"
+	"time"
 
 	"github.com/konstruktor1/unifi-stubd/internal/inform"
+	"golang.org/x/sys/unix"
 )
 
 // TestDryRunPlanHonorsOperationModeOverride verifies YAML and CLI operation
@@ -760,6 +765,181 @@ func TestDoubleDashVersionFlagPrintsBinaryVersion(t *testing.T) {
 	}
 }
 
+// TestInstanceGuardFailRejectsSecondRealProcessStart verifies the actual
+// operator failure mode: one running stub process holds the guard, and a second
+// stub process is rejected before it sends an inform.
+func TestInstanceGuardFailRejectsSecondRealProcessStart(t *testing.T) {
+	dir := t.TempDir()
+	lockPath := filepath.Join(dir, "instance.lock")
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	first, firstDone, firstOutput := startStubdDaemon(t,
+		"-no-discovery",
+		"-controller", server.URL+"/inform",
+		"-instance-guard-path", lockPath,
+		"-ssh-state", filepath.Join(dir, "first-adoption.env"),
+		"-status-path", filepath.Join(dir, "first-status.json"),
+		"-profile", "us8",
+		"-ip", "192.0.2.50",
+		"-hostname", "first-real-process",
+		"-uplink-speed", "profile",
+		"-interval", "1h",
+	)
+	defer stopStubdDaemon(t, first, firstDone, firstOutput)
+	waitForRequestCount(t, &requests, 1, firstOutput)
+	firstRequestCount := requests.Load()
+
+	second := stubdCommand(
+		"-once",
+		"-no-discovery",
+		"-controller", server.URL+"/inform",
+		"-instance-guard-path", lockPath,
+		"-ssh-state", filepath.Join(dir, "second-adoption.env"),
+		"-status-path", filepath.Join(dir, "second-status.json"),
+		"-profile", "us8",
+		"-ip", "192.0.2.51",
+		"-hostname", "second-real-process",
+		"-uplink-speed", "profile",
+	)
+	out, err := second.CombinedOutput()
+	if err == nil {
+		t.Fatalf("second process succeeded; output:\n%s", out)
+	}
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) || exitErr.ExitCode() != 1 {
+		t.Fatalf("second process exit = %v, want code 1; output:\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "another unifi-stubd instance is already running") ||
+		!strings.Contains(string(out), lockPath) ||
+		!strings.Contains(string(out), "first-real-process") {
+		t.Fatalf("second process output did not identify the running instance:\n%s", out)
+	}
+	if got := requests.Load(); got != firstRequestCount {
+		t.Fatalf("controller requests after rejected second process = %d, want %d", got, firstRequestCount)
+	}
+}
+
+// TestInstanceGuardFailRejectsSecondLiveStart verifies the default guard aborts
+// before a second daemon can send controller traffic.
+func TestInstanceGuardFailRejectsSecondLiveStart(t *testing.T) {
+	dir := t.TempDir()
+	lockPath := filepath.Join(dir, "instance.lock")
+	lock := holdInstanceGuardLock(t, lockPath, `{"pid":1234,"hostname":"existing-stub"}`)
+	defer closeInstanceGuardLock(t, lock)
+
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	cmd := stubdCommand(
+		"-once",
+		"-no-discovery",
+		"-controller", server.URL+"/inform",
+		"-instance-guard-path", lockPath,
+		"-profile", "us8",
+		"-ip", "192.0.2.50",
+		"-hostname", "second-fail",
+		"-uplink-speed", "profile",
+	)
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("command succeeded; output:\n%s", out)
+	}
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) || exitErr.ExitCode() != 1 {
+		t.Fatalf("exit = %v, want code 1; output:\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "another unifi-stubd instance is already running") ||
+		!strings.Contains(string(out), lockPath) ||
+		!strings.Contains(string(out), "existing-stub") {
+		t.Fatalf("output did not contain instance guard conflict:\n%s", out)
+	}
+	if got := requests.Load(); got != 0 {
+		t.Fatalf("controller requests = %d, want 0", got)
+	}
+}
+
+// TestInstanceGuardWarnAllowsSecondLiveStart verifies explicit lab opt-in logs
+// the conflict but still lets a second instance run.
+func TestInstanceGuardWarnAllowsSecondLiveStart(t *testing.T) {
+	dir := t.TempDir()
+	lockPath := filepath.Join(dir, "instance.lock")
+	lock := holdInstanceGuardLock(t, lockPath, `{"pid":1234,"hostname":"existing-stub"}`)
+	defer closeInstanceGuardLock(t, lock)
+
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	output := runStubd(t,
+		"-once",
+		"-no-discovery",
+		"-controller", server.URL+"/inform",
+		"-instance-guard", "warn",
+		"-instance-guard-path", lockPath,
+		"-ssh-state", filepath.Join(dir, "warn-adoption.env"),
+		"-status-path", filepath.Join(dir, "warn-status.json"),
+		"-profile", "us8",
+		"-ip", "192.0.2.50",
+		"-hostname", "second-warn",
+		"-uplink-speed", "profile",
+	)
+	if !strings.Contains(output, "instance guard warning") ||
+		!strings.Contains(output, "another unifi-stubd instance is already running") {
+		t.Fatalf("output did not contain instance guard warning:\n%s", output)
+	}
+	if got := requests.Load(); got != 1 {
+		t.Fatalf("controller requests = %d, want 1", got)
+	}
+}
+
+// TestInstanceGuardOffAllowsIntentionalMultiInstance verifies explicit opt-out
+// skips duplicate instance checks.
+func TestInstanceGuardOffAllowsIntentionalMultiInstance(t *testing.T) {
+	dir := t.TempDir()
+	lockPath := filepath.Join(dir, "instance.lock")
+	lock := holdInstanceGuardLock(t, lockPath, `{"pid":1234,"hostname":"existing-stub"}`)
+	defer closeInstanceGuardLock(t, lock)
+
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	output := runStubd(t,
+		"-once",
+		"-no-discovery",
+		"-controller", server.URL+"/inform",
+		"-instance-guard", "off",
+		"-instance-guard-path", lockPath,
+		"-ssh-state", filepath.Join(dir, "off-adoption.env"),
+		"-status-path", filepath.Join(dir, "off-status.json"),
+		"-profile", "us8",
+		"-ip", "192.0.2.50",
+		"-hostname", "second-off",
+		"-uplink-speed", "profile",
+	)
+	if strings.Contains(output, "instance guard warning") {
+		t.Fatalf("output contained instance guard warning with guard off:\n%s", output)
+	}
+	if got := requests.Load(); got != 1 {
+		t.Fatalf("controller requests = %d, want 1", got)
+	}
+}
+
 // TestStatusJSONReportsAdoptionAndLastInformWithoutAuthKey verifies status JSON
 // reports sanitized adoption and inform state.
 func TestStatusJSONReportsAdoptionAndLastInformWithoutAuthKey(t *testing.T) {
@@ -825,6 +1005,8 @@ port_overrides:
     up: false
 state_path: `+statePath+`
 status_path: `+statusPath+`
+instance_guard: warn
+instance_guard_path: `+filepath.Join(dir, "instance.lock")+`
 `), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -843,7 +1025,9 @@ status_path: `+statusPath+`
 				IntervalSeconds int    `json:"interval_seconds"`
 				TimeoutMS       int    `json:"timeout_ms"`
 			} `json:"wan_health"`
-			ManagementLAN struct {
+			InstanceGuard     string `json:"instance_guard"`
+			InstanceGuardPath string `json:"instance_guard_path"`
+			ManagementLAN     struct {
 				Enabled bool `json:"enabled"`
 				VLAN    int  `json:"vlan"`
 			} `json:"management_lan"`
@@ -899,6 +1083,9 @@ status_path: `+statusPath+`
 		doc.Config.WANHealth.IntervalSeconds != 10 ||
 		doc.Config.WANHealth.TimeoutMS != 1000 {
 		t.Fatalf("WANHealth = %+v", doc.Config.WANHealth)
+	}
+	if doc.Config.InstanceGuard != "warn" || doc.Config.InstanceGuardPath == "" {
+		t.Fatalf("InstanceGuard = %q path=%q", doc.Config.InstanceGuard, doc.Config.InstanceGuardPath)
 	}
 	if !doc.Config.ManagementLAN.Enabled || doc.Config.ManagementLAN.VLAN != 77 {
 		t.Fatalf("ManagementLAN = %+v", doc.Config.ManagementLAN)
@@ -978,6 +1165,7 @@ func TestInformCipherFallbackStatusIsRecorded(t *testing.T) {
 		"-controller", server.URL+"/inform",
 		"-ssh-state", statePath,
 		"-status-path", statusPath,
+		"-instance-guard-path", filepath.Join(dir, "instance.lock"),
 		"-profile", "us8",
 		"-ip", "192.0.2.50",
 		"-hostname", "fallback-host",
@@ -1031,6 +1219,7 @@ traffic_rates_enabled: true
 no_discovery: true
 status_path: `+statusPath+`
 state_path: `+filepath.Join(dir, "adoption.env")+`
+instance_guard_path: `+filepath.Join(dir, "instance.lock")+`
 `), 0o600); err != nil {
 		t.Fatal(err)
 	}
@@ -1131,6 +1320,7 @@ VERSION=5.0.17.1
 		"-controller", server.URL+"/inform",
 		"-ssh-state", statePath,
 		"-status-path", statusPath,
+		"-instance-guard-path", filepath.Join(dir, "instance.lock"),
 		"-profile", "us8",
 		"-ip", "192.0.2.50",
 		"-hostname", "reset-host",
@@ -1198,6 +1388,92 @@ func runStubdStdout(t *testing.T, args ...string) string {
 func stubdCommand(args ...string) *exec.Cmd {
 	cmdArgs := append([]string{"run", "../../cmd/unifi-stubd"}, args...)
 	return exec.Command("go", cmdArgs...)
+}
+
+func startStubdDaemon(t *testing.T, args ...string) (*exec.Cmd, <-chan error, *bytes.Buffer) {
+	t.Helper()
+	cmd := stubdCommand(args...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	output := &bytes.Buffer{}
+	cmd.Stdout = output
+	cmd.Stderr = output
+	if err := cmd.Start(); err != nil {
+		t.Fatalf("start first stubd process: %v\n%s", err, output.String())
+	}
+	done := make(chan error, 1)
+	go func() {
+		done <- cmd.Wait()
+	}()
+	return cmd, done, output
+}
+
+func stopStubdDaemon(t *testing.T, cmd *exec.Cmd, done <-chan error, output *bytes.Buffer) {
+	t.Helper()
+	select {
+	case <-done:
+		return
+	default:
+	}
+	if cmd.Process == nil {
+		return
+	}
+	_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGINT)
+	select {
+	case <-done:
+		return
+	case <-time.After(5 * time.Second):
+		_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
+	}
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatalf("stubd process did not exit after SIGKILL:\n%s", output.String())
+	}
+}
+
+func waitForRequestCount(t *testing.T, requests *atomic.Int32, want int32, output *bytes.Buffer) {
+	t.Helper()
+	deadline := time.Now().Add(20 * time.Second)
+	for time.Now().Before(deadline) {
+		if requests.Load() >= want {
+			return
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+	t.Fatalf("timed out waiting for %d controller requests, got %d; process output:\n%s", want, requests.Load(), output.String())
+}
+
+func holdInstanceGuardLock(t *testing.T, path string, metadata string) *os.File {
+	t.Helper()
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
+		t.Fatalf("create lock directory: %v", err)
+	}
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_RDWR|os.O_TRUNC, 0o600)
+	if err != nil {
+		t.Fatalf("open lock file: %v", err)
+	}
+	if _, err := file.WriteString(metadata + "\n"); err != nil {
+		_ = file.Close()
+		t.Fatalf("write lock metadata: %v", err)
+	}
+	if err := unix.Flock(int(file.Fd()), unix.LOCK_EX|unix.LOCK_NB); err != nil {
+		_ = file.Close()
+		t.Fatalf("lock file: %v", err)
+	}
+	return file
+}
+
+func closeInstanceGuardLock(t *testing.T, file *os.File) {
+	t.Helper()
+	if file == nil {
+		return
+	}
+	if err := unix.Flock(int(file.Fd()), unix.LOCK_UN); err != nil {
+		t.Fatalf("unlock file: %v", err)
+	}
+	if err := file.Close(); err != nil {
+		t.Fatalf("close lock file: %v", err)
+	}
 }
 
 // extractDryRunPayloadJSON extracts the JSON payload section from dry-run text.

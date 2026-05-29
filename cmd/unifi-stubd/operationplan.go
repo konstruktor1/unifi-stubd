@@ -90,6 +90,8 @@ func printRuntimePlan(flags runtimeFlags, profile device.Profile, macText, ipTex
 	fmt.Printf("dbus_enabled: %t\n", flags.dbusEnabled)
 	fmt.Printf("dbus_bus: %s\n", strings.TrimSpace(flags.dbusBus))
 	fmt.Printf("syslog_path: %s\n", strings.TrimSpace(flags.syslogPath))
+	fmt.Printf("instance_guard: %s\n", strings.TrimSpace(flags.instanceGuard))
+	fmt.Printf("instance_guard_path: %s\n", strings.TrimSpace(flags.instanceGuardPath))
 	printManagementLANPlan(flags)
 	if iface := effectiveDiscoveryInterface(flags); iface != "" {
 		fmt.Printf("discovery_interface: %s\n", iface)

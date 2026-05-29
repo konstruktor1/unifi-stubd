@@ -7,6 +7,14 @@ semantic version tags once releases are published.
 
 ## [Unreleased]
 
+## [0.1.5-alpha] - 2026-05-29
+
+### Added
+
+- Added a host-global `instance_guard` with `fail`, `warn`, and `off` modes so
+  packaged daemon starts reject duplicate live instances before SSH, discovery,
+  or inform traffic starts.
+
 ### Fixed
 
 - Render gateway-native `rx_rate` and `tx_rate` telemetry as bit/s and include

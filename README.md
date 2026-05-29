@@ -146,11 +146,11 @@ when the FreeBSD builder runner is online:
 
 ```sh
 ARCH=amd64 # or arm64
-fetch https://konstruktor1.github.io/unifi-stubd/freebsd/${ARCH}/unifi-stubd_0.1.4-alpha-1_freebsd_${ARCH}.tar.gz
+fetch https://konstruktor1.github.io/unifi-stubd/freebsd/${ARCH}/unifi-stubd_0.1.5-alpha-1_freebsd_${ARCH}.tar.gz
 fetch https://konstruktor1.github.io/unifi-stubd/checksums.txt
-grep "freebsd/${ARCH}/unifi-stubd_0.1.4-alpha-1_freebsd_${ARCH}.tar.gz" checksums.txt
-sha256 unifi-stubd_0.1.4-alpha-1_freebsd_${ARCH}.tar.gz
-sudo tar -xzf unifi-stubd_0.1.4-alpha-1_freebsd_${ARCH}.tar.gz -C /
+grep "freebsd/${ARCH}/unifi-stubd_0.1.5-alpha-1_freebsd_${ARCH}.tar.gz" checksums.txt
+sha256 unifi-stubd_0.1.5-alpha-1_freebsd_${ARCH}.tar.gz
+sudo tar -xzf unifi-stubd_0.1.5-alpha-1_freebsd_${ARCH}.tar.gz -C /
 sudo vi /usr/local/etc/unifi-stubd/config.yaml
 sudo sysrc unifi_stubd_enable=YES
 sudo service unifi-stubd start
@@ -300,6 +300,7 @@ Runtime layout:
 /var/lib/unifi-stubd/ssh_host_rsa_key
 /var/lib/unifi-stubd/adoption.env
 /var/lib/unifi-stubd/status.json
+/var/lib/unifi-stubd/instance.lock
 /var/log/unifi-stubd.log
 /var/log/unifi-stubd.err
 ```
@@ -314,6 +315,11 @@ valid YAML subset, but packaged examples use block-style YAML for readability.
 Only the local operator-edited YAML file is trusted for runtime choices:
 controller `setparam` data can update local adoption state, but it is not
 applied to host networking.
+
+Live daemon starts use `instance_guard: fail` by default. A second live process
+on the same host is rejected before SSH, discovery, or inform traffic starts.
+Intentional multi-stub labs can opt in with `instance_guard: warn` or
+`instance_guard: off` and a reviewed `instance_guard_path`.
 
 Keep the config as one YAML document. Block-style YAML is recommended because
 new sections such as `wan_health` can be added clearly. If a file is written as

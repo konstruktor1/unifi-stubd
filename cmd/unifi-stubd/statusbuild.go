@@ -58,6 +58,8 @@ func buildLocalStatus(flags runtimeFlags, profile device.Profile, mac net.Hardwa
 			DBusEnabled:         flags.dbusEnabled,
 			DBusBus:             flags.dbusBus,
 			SyslogPath:          flags.syslogPath,
+			InstanceGuard:       flags.instanceGuard,
+			InstanceGuardPath:   flags.instanceGuardPath,
 		},
 		Adoption: statusAdoption{
 			State:      adoptionStateText(store),

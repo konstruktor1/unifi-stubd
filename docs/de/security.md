@@ -27,6 +27,11 @@ Der Controller darf nicht ungeprueft Host-Konfigurationen veraendern. Fuer den M
 
 Discovery und Inform gehoeren nur ins Lab- oder Management-Netz. Das Projekt sollte nicht auf produktiven VLANs mit fremden Controllern laufen.
 
+Paketierte Daemon-Starts nutzen standardmaessig `instance_guard: fail`. Ein
+zweiter Live-Prozess auf demselben Host wird vor SSH, Discovery oder Inform
+abgebrochen. `instance_guard: warn` oder `instance_guard: off` nur fuer bewusst
+geplante Multi-Stub-Labs mit geprueftem Lock-Pfad verwenden.
+
 Paketierte Konfigurationen lassen den Adoption-SSH-Shim standardmaessig
 geschlossen (`ssh_listen: ""`). Der normale Adoption-Pfad laeuft inform-basiert
 ueber `controller_url`. `ssh_listen` nur in einem isolierten Lab aktivieren,

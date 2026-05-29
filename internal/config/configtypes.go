@@ -62,6 +62,10 @@ type Config struct {
 	DBusBus string `yaml:"dbus_bus"`
 	// SyslogPath is the syslog file read by log_source: syslog.
 	SyslogPath string `yaml:"syslog_path"`
+	// InstanceGuard controls host-global duplicate instance detection.
+	InstanceGuard string `yaml:"instance_guard"`
+	// InstanceGuardPath stores the advisory lock used by instance_guard.
+	InstanceGuardPath string `yaml:"instance_guard_path"`
 	// Version overrides the firmware version from the selected profile.
 	Version string `yaml:"version"`
 	// IntervalSeconds is the loop interval for discovery and inform traffic.

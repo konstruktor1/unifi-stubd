@@ -106,6 +106,12 @@ Das Device-Paket ist die einzige Quelle fuer Profil- und Portdaten. Renderer-
 spezifische Views werden aus `device.Profile` und `device.Port` abgeleitet; sie
 sind keine eigenen Profil- oder Portmodelle.
 
+Echte Daemon-Starts nutzen vor SSH, Discovery oder Inform eine host-globale
+advisory Instanzsperre. `instance_guard: fail` ist der Default und bricht eine
+zweite Live-Instanz auf demselben Host ab. Bewusste Multi-Stub-Labs muessen mit
+`instance_guard: warn` oder `instance_guard: off` und geprueftem Lock-Pfad
+explizit opt-in setzen.
+
 Der Payload-Renderer darf nicht anhand von Modellnamen wie `UXG`, `UXGPRO` oder
 `US48P500` Verhalten waehlen. Renderer-Verhalten wird durch Profilfelder
 gesteuert: `payload.kind`, Port-Rollen, Port-Medien, Management-Interface und

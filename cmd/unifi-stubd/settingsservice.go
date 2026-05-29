@@ -4,6 +4,14 @@ import appconfig "github.com/konstruktor1/unifi-stubd/internal/config"
 
 func serviceRuntimeSettings() []runtimeSetting {
 	return []runtimeSetting{
+		stringSetting("instance-guard", "duplicate instance guard mode: fail, warn, or off",
+			func(flags *runtimeFlags) *string { return &flags.instanceGuard },
+			func(cfg *appconfig.Config) *string { return &cfg.InstanceGuard },
+		),
+		stringSetting("instance-guard-path", "advisory lock path used by the duplicate instance guard",
+			func(flags *runtimeFlags) *string { return &flags.instanceGuardPath },
+			func(cfg *appconfig.Config) *string { return &cfg.InstanceGuardPath },
+		),
 		stringSetting("ssh-listen", "optional built-in adoption SSH listen address, for example 0.0.0.0:22",
 			func(flags *runtimeFlags) *string { return &flags.sshListen },
 			func(cfg *appconfig.Config) *string { return &cfg.SSHListen },

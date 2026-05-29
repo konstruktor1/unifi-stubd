@@ -102,6 +102,12 @@ The device package is the single source of truth for profile and port data.
 Renderer-specific views are derived from `device.Profile` and `device.Port`;
 they are not separate profile or port models.
 
+Live daemon starts use a host-global advisory instance guard before SSH,
+discovery, or inform traffic starts. `instance_guard: fail` is the default and
+aborts a second live instance on the same host. Intentional multi-stub labs must
+opt in explicitly with `instance_guard: warn` or `instance_guard: off` and a
+reviewed lock path.
+
 The payload renderer must not branch on model names such as `UXG`, `UXGPRO`, or
 `US48P500` to decide behavior. Renderer behavior is driven by profile fields:
 `payload.kind`, port roles, port media, management interface, and explicit

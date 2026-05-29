@@ -52,6 +52,8 @@ type runtimeFlags struct {
 	dbusEnabled         bool
 	dbusBus             string
 	syslogPath          string
+	instanceGuard       string
+	instanceGuardPath   string
 	controller          string
 	interval            time.Duration
 	dryRun              bool

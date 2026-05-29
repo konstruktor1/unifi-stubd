@@ -41,6 +41,9 @@ func validateOperationFlags(flags *runtimeFlags) error {
 	if err := validateRuntimeMetadataSources(flags); err != nil {
 		return err
 	}
+	if err := validateInstanceGuard(flags); err != nil {
+		return err
+	}
 	if strings.EqualFold(strings.TrimSpace(flags.macText), "host") && mode != operationModeHostDirect {
 		return fmt.Errorf("mac: host is only allowed with -operation-mode host-direct")
 	}

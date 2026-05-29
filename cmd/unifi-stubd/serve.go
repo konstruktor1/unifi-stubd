@@ -68,6 +68,16 @@ func serveSwitchEmulation() error {
 		return nil
 	}
 
+	instanceGuard, err := acquireInstanceGuard(flags, prepared.profile, identity.mac.String(), identity.hostname)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if err := instanceGuard.Close(); err != nil {
+			log.Printf("instance guard close failed: %v", err)
+		}
+	}()
+
 	sshServer, err := startAdoptionSSH(flags, identity.mac, identity.ip, identity.hostname)
 	if err != nil {
 		return err
