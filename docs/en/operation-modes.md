@@ -411,6 +411,11 @@ by default so existing labs keep their previous controller display. The rate
 source is the same interface counter path used by
 `port_overrides[].interface`, `port-map`, and bridge observation; it does not
 enable packet capture, NetFlow/IPFIX, DPI, or packet/error rate fields.
+Gateway-native `rx_rate` and `tx_rate` fields are rendered as bit/s throughput;
+`rx_bytes-r`, `tx_bytes-r`, and `bytes-r` remain byte/s counters.
+The runtime status file records the latest sanitized inform traffic fields with
+explicit byte/s and bit/s names so controller graphs can be compared against the
+host interface counters.
 
 `dbus_enabled: true` only checks optional system or session D-Bus connectivity.
 D-Bus is not required for normal stub operation.

@@ -145,28 +145,60 @@ type persistedRunStatus struct {
 
 // lastInformStatus summarizes the latest controller inform exchange.
 type lastInformStatus struct {
-	Time            string   `json:"time,omitempty"`
-	URL             string   `json:"url,omitempty"`
-	StatusCode      int      `json:"status_code,omitempty"`
-	ResponseType    string   `json:"response_type,omitempty"`
-	ControllerState string   `json:"controller_state,omitempty"`
-	CFGVersion      string   `json:"cfgversion,omitempty"`
-	Version         string   `json:"version,omitempty"`
-	AttemptedAESGCM bool     `json:"attempted_aes_gcm,omitempty"`
-	UsedAESGCM      bool     `json:"used_aes_gcm,omitempty"`
-	FallbackToCBC   bool     `json:"fallback_to_cbc,omitempty"`
-	RawBytes        int      `json:"raw_bytes,omitempty"`
-	JSONBytes       int      `json:"json_bytes,omitempty"`
-	IntervalSeconds int      `json:"interval_seconds,omitempty"`
-	IncludeBlocks   []string `json:"include_blocks,omitempty"`
-	ResetRequested  bool     `json:"reset_requested,omitempty"`
-	ResetApplied    bool     `json:"reset_applied,omitempty"`
-	ResetReason     string   `json:"reset_reason,omitempty"`
-	HasMgmtCFG      bool     `json:"has_mgmt_cfg,omitempty"`
-	HasSystemCFG    bool     `json:"has_system_cfg,omitempty"`
-	SystemCFGBytes  int      `json:"system_cfg_bytes,omitempty"`
-	SystemCFGKeys   []string `json:"system_cfg_keys,omitempty"`
-	Ignored         bool     `json:"ignored,omitempty"`
-	IgnoredReason   string   `json:"ignored_reason,omitempty"`
-	Error           string   `json:"error,omitempty"`
+	Time            string                   `json:"time,omitempty"`
+	URL             string                   `json:"url,omitempty"`
+	StatusCode      int                      `json:"status_code,omitempty"`
+	ResponseType    string                   `json:"response_type,omitempty"`
+	ControllerState string                   `json:"controller_state,omitempty"`
+	CFGVersion      string                   `json:"cfgversion,omitempty"`
+	Version         string                   `json:"version,omitempty"`
+	AttemptedAESGCM bool                     `json:"attempted_aes_gcm,omitempty"`
+	UsedAESGCM      bool                     `json:"used_aes_gcm,omitempty"`
+	FallbackToCBC   bool                     `json:"fallback_to_cbc,omitempty"`
+	RawBytes        int                      `json:"raw_bytes,omitempty"`
+	JSONBytes       int                      `json:"json_bytes,omitempty"`
+	Traffic         *lastInformTrafficStatus `json:"traffic,omitempty"`
+	IntervalSeconds int                      `json:"interval_seconds,omitempty"`
+	IncludeBlocks   []string                 `json:"include_blocks,omitempty"`
+	ResetRequested  bool                     `json:"reset_requested,omitempty"`
+	ResetApplied    bool                     `json:"reset_applied,omitempty"`
+	ResetReason     string                   `json:"reset_reason,omitempty"`
+	HasMgmtCFG      bool                     `json:"has_mgmt_cfg,omitempty"`
+	HasSystemCFG    bool                     `json:"has_system_cfg,omitempty"`
+	SystemCFGBytes  int                      `json:"system_cfg_bytes,omitempty"`
+	SystemCFGKeys   []string                 `json:"system_cfg_keys,omitempty"`
+	Ignored         bool                     `json:"ignored,omitempty"`
+	IgnoredReason   string                   `json:"ignored_reason,omitempty"`
+	Error           string                   `json:"error,omitempty"`
+}
+
+// lastInformTrafficStatus reports the payload traffic fields from the most
+// recent inform in explicit units so operators can compare them with UI graphs.
+type lastInformTrafficStatus struct {
+	Root lastInformTrafficRates `json:"root,omitempty"`
+	Rows []lastInformTrafficRow `json:"rows,omitempty"`
+}
+
+// lastInformTrafficRow is one table row that carried traffic counters or rates.
+type lastInformTrafficRow struct {
+	Table           string                 `json:"table"`
+	PortIdx         int                    `json:"port_idx,omitempty"`
+	IfName          string                 `json:"ifname,omitempty"`
+	SourceInterface string                 `json:"source_interface,omitempty"`
+	Role            string                 `json:"role,omitempty"`
+	NetworkGroup    string                 `json:"networkgroup,omitempty"`
+	Up              *bool                  `json:"up,omitempty"`
+	Rates           lastInformTrafficRates `json:"rates"`
+}
+
+// lastInformTrafficRates keeps payload counter values and their units explicit.
+type lastInformTrafficRates struct {
+	Bytes                     *int64 `json:"bytes,omitempty"`
+	RXBytes                   *int64 `json:"rx_bytes,omitempty"`
+	TXBytes                   *int64 `json:"tx_bytes,omitempty"`
+	BytesRateBytesPerSecond   *int64 `json:"bytes_rate_bytes_per_second,omitempty"`
+	RXBytesRateBytesPerSecond *int64 `json:"rx_bytes_rate_bytes_per_second,omitempty"`
+	TXBytesRateBytesPerSecond *int64 `json:"tx_bytes_rate_bytes_per_second,omitempty"`
+	RXRateBitsPerSecond       *int64 `json:"rx_rate_bits_per_second,omitempty"`
+	TXRateBitsPerSecond       *int64 `json:"tx_rate_bits_per_second,omitempty"`
 }

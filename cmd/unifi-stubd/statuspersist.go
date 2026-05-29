@@ -25,8 +25,8 @@ func loadPersistedRunStatus(path string) (persistedRunStatus, error) {
 	return status, nil
 }
 
-// saveLastInformStatus persists only the last sanitized inform summary, keeping
-// runtime status narrow and safe to inspect.
+// saveLastInformStatus persists only the last sanitized inform summary and
+// counter metadata, keeping runtime status narrow and safe to inspect.
 func saveLastInformStatus(path string, last lastInformStatus) error {
 	if path == "" {
 		return errors.New("status path is required")
@@ -47,12 +47,13 @@ func saveLastInformStatus(path string, last lastInformStatus) error {
 
 // newLastInformStatus starts a sanitized status record before the controller
 // response is decoded.
-func newLastInformStatus(url string, store adoption.Store) lastInformStatus {
+func newLastInformStatus(url string, store adoption.Store, payload []byte) lastInformStatus {
 	return lastInformStatus{
 		Time:            time.Now().Format(time.RFC3339),
 		URL:             url,
 		ControllerState: adoptionStateText(store),
 		CFGVersion:      store.CFGVersion,
 		Version:         store.Version,
+		Traffic:         lastInformTrafficFromPayload(payload),
 	}
 }

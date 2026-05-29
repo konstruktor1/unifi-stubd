@@ -7,6 +7,14 @@ semantic version tags once releases are published.
 
 ## [Unreleased]
 
+### Fixed
+
+- Render gateway-native `rx_rate` and `tx_rate` telemetry as bit/s and include
+  matching gateway root rate summaries while leaving `*_bytes-r` fields in
+  byte/s.
+- Record the latest sanitized inform traffic fields in runtime status with
+  explicit byte/s and bit/s units for controller/UI correlation checks.
+
 ## [0.1.4-alpha] - 2026-05-29
 
 ### Changed

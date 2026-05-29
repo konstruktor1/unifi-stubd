@@ -30,11 +30,11 @@ func sendInformHeartbeat(mac net.HardwareAddr, informURL, statePath, statusPath 
 	}
 	resp, cipher, err := sendInform(mac, informURL, store, payload, sourceIP)
 	if err != nil {
-		recordLastInform(statusPath, newLastInformStatus(informURL, store), 0, "", cipher, 0, 0, err)
+		recordLastInform(statusPath, newLastInformStatus(informURL, store, payload), 0, "", cipher, 0, 0, err)
 		log.Printf("inform send failed: %v", err)
 		return
 	}
-	last := newLastInformStatus(informURL, store)
+	last := newLastInformStatus(informURL, store, payload)
 	last.StatusCode = resp.StatusCode
 	last.AttemptedAESGCM = cipher.AttemptedAESGCM
 	last.UsedAESGCM = cipher.UsedAESGCM

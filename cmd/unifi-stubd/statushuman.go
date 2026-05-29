@@ -176,6 +176,7 @@ func printLastInform(last lastInformStatus) {
 	fmt.Printf("last_inform_fallback_to_cbc: %t\n", last.FallbackToCBC)
 	fmt.Printf("last_inform_raw_bytes: %d\n", last.RawBytes)
 	fmt.Printf("last_inform_json_bytes: %d\n", last.JSONBytes)
+	printLastInformTraffic(last.Traffic)
 	if last.IntervalSeconds > 0 {
 		fmt.Printf("last_inform_interval_seconds: %d\n", last.IntervalSeconds)
 	}
@@ -203,6 +204,51 @@ func printLastInform(last lastInformStatus) {
 	}
 	if last.Error != "" {
 		fmt.Printf("last_inform_error: %s\n", last.Error)
+	}
+}
+
+func printLastInformTraffic(traffic *lastInformTrafficStatus) {
+	if traffic == nil {
+		return
+	}
+	printTrafficRates("last_inform_traffic_root", traffic.Root)
+	for _, row := range traffic.Rows {
+		prefix := "last_inform_traffic_row"
+		fmt.Printf("%s: table=%s port_idx=%d ifname=%s source_interface=%s\n",
+			prefix,
+			row.Table,
+			row.PortIdx,
+			valueOrDash(row.IfName),
+			valueOrDash(row.SourceInterface),
+		)
+		printTrafficRates(prefix, row.Rates)
+	}
+}
+
+func printTrafficRates(prefix string, rates lastInformTrafficRates) {
+	if rates.Bytes != nil {
+		fmt.Printf("%s_bytes: %d\n", prefix, *rates.Bytes)
+	}
+	if rates.RXBytes != nil {
+		fmt.Printf("%s_rx_bytes: %d\n", prefix, *rates.RXBytes)
+	}
+	if rates.TXBytes != nil {
+		fmt.Printf("%s_tx_bytes: %d\n", prefix, *rates.TXBytes)
+	}
+	if rates.BytesRateBytesPerSecond != nil {
+		fmt.Printf("%s_bytes_rate_bytes_per_second: %d\n", prefix, *rates.BytesRateBytesPerSecond)
+	}
+	if rates.RXBytesRateBytesPerSecond != nil {
+		fmt.Printf("%s_rx_bytes_rate_bytes_per_second: %d\n", prefix, *rates.RXBytesRateBytesPerSecond)
+	}
+	if rates.TXBytesRateBytesPerSecond != nil {
+		fmt.Printf("%s_tx_bytes_rate_bytes_per_second: %d\n", prefix, *rates.TXBytesRateBytesPerSecond)
+	}
+	if rates.RXRateBitsPerSecond != nil {
+		fmt.Printf("%s_rx_rate_bits_per_second: %d\n", prefix, *rates.RXRateBitsPerSecond)
+	}
+	if rates.TXRateBitsPerSecond != nil {
+		fmt.Printf("%s_tx_rate_bits_per_second: %d\n", prefix, *rates.TXRateBitsPerSecond)
 	}
 }
 

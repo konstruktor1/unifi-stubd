@@ -55,9 +55,14 @@ type gatewayNetworkStats struct {
 }
 
 type gatewayTrafficSummary struct {
-	Bytes   int64 `json:"bytes,omitempty"`
-	RXBytes int64 `json:"rx_bytes,omitempty"`
-	TXBytes int64 `json:"tx_bytes,omitempty"`
+	Bytes       int64  `json:"bytes,omitempty"`
+	RXBytes     int64  `json:"rx_bytes,omitempty"`
+	TXBytes     int64  `json:"tx_bytes,omitempty"`
+	BytesRate   *int64 `json:"bytes-r,omitempty"`
+	RXBytesRate *int64 `json:"rx_bytes-r,omitempty"`
+	TXBytesRate *int64 `json:"tx_bytes-r,omitempty"`
+	RXRate      *int64 `json:"rx_rate,omitempty"`
+	TXRate      *int64 `json:"tx_rate,omitempty"`
 }
 
 type gatewayAssignmentFields struct {

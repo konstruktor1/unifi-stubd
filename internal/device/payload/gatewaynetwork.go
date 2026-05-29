@@ -137,6 +137,15 @@ func gatewayTrafficSummaryFor(ports []PortView, role string) gatewayTrafficSumma
 			RXBytes: port.TXBytes,
 			TXBytes: port.RXBytes,
 		}
+		if port.TrafficRatesSet || port.TrafficRatesEnabled {
+			rxByteRate := port.TXBytesRate
+			txByteRate := port.RXBytesRate
+			out.BytesRate = int64Ref(rxByteRate + txByteRate)
+			out.RXBytesRate = int64Ref(rxByteRate)
+			out.TXBytesRate = int64Ref(txByteRate)
+			out.RXRate = int64Ref(bytesPerSecondToBitsPerSecond(rxByteRate))
+			out.TXRate = int64Ref(bytesPerSecondToBitsPerSecond(txByteRate))
+		}
 		return out
 	}
 	return gatewayTrafficSummary{}

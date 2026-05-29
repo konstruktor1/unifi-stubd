@@ -426,6 +426,11 @@ ist per Default aus, damit bestehende Labs ihre bisherige Controller-Darstellung
 behalten. Quelle ist derselbe Interface-Counter-Pfad wie bei
 `port_overrides[].interface`, `port-map` und Bridge-Observation; Packet Capture,
 NetFlow/IPFIX, DPI oder Paket-/Error-Rate-Felder werden dadurch nicht aktiviert.
+Gateway-native `rx_rate`- und `tx_rate`-Felder werden als Bit/s-Durchsatz
+gerendert; `rx_bytes-r`, `tx_bytes-r` und `bytes-r` bleiben Byte/s-Zaehler.
+Die Runtime-Statusdatei schreibt die letzten bereinigten Inform-Traffic-Felder
+mit expliziten Byte/s- und Bit/s-Namen, damit Controller-Graphen gegen die
+Host-Interface-Zaehler verglichen werden koennen.
 
 `dbus_enabled: true` prueft nur optionale System- oder Session-D-Bus-
 Konnektivitaet. D-Bus ist fuer den normalen Stub-Betrieb nicht erforderlich.

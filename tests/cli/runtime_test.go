@@ -1010,6 +1010,82 @@ func TestInformCipherFallbackStatusIsRecorded(t *testing.T) {
 	}
 }
 
+// TestLastInformTrafficStatusRecordsPayloadUnits verifies status output
+// exposes the exact traffic fields from the last inform with explicit units.
+func TestLastInformTrafficStatusRecordsPayloadUnits(t *testing.T) {
+	dir := t.TempDir()
+	statusPath := filepath.Join(dir, "status.json")
+	configPath := filepath.Join(dir, "config.yaml")
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	if err := os.WriteFile(configPath, []byte(`controller_url: `+server.URL+`/inform
+operation_mode: stub
+profile: uxg-lite
+mac: 02:00:5e:00:54:01
+ip: 192.0.2.50
+hostname: traffic-status-gateway
+traffic_rates_enabled: true
+no_discovery: true
+status_path: `+statusPath+`
+state_path: `+filepath.Join(dir, "adoption.env")+`
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	_ = runStubd(t, "-once", "-config", configPath)
+
+	data, err := os.ReadFile(statusPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var doc struct {
+		LastInform struct {
+			Traffic *struct {
+				Root struct {
+					RXBytesRateBytesPerSecond *int64 `json:"rx_bytes_rate_bytes_per_second"`
+					TXBytesRateBytesPerSecond *int64 `json:"tx_bytes_rate_bytes_per_second"`
+					RXRateBitsPerSecond       *int64 `json:"rx_rate_bits_per_second"`
+					TXRateBitsPerSecond       *int64 `json:"tx_rate_bits_per_second"`
+				} `json:"root"`
+				Rows []struct {
+					Table string `json:"table"`
+					Rates struct {
+						RXBytesRateBytesPerSecond *int64 `json:"rx_bytes_rate_bytes_per_second"`
+						RXRateBitsPerSecond       *int64 `json:"rx_rate_bits_per_second"`
+					} `json:"rates"`
+				} `json:"rows"`
+			} `json:"traffic"`
+		} `json:"last_inform"`
+	}
+	if err := json.Unmarshal(data, &doc); err != nil {
+		t.Fatalf("status JSON invalid: %v\n%s", err, data)
+	}
+	if doc.LastInform.Traffic == nil {
+		t.Fatalf("last inform traffic missing:\n%s", data)
+	}
+	if doc.LastInform.Traffic.Root.RXBytesRateBytesPerSecond == nil ||
+		doc.LastInform.Traffic.Root.TXBytesRateBytesPerSecond == nil ||
+		doc.LastInform.Traffic.Root.RXRateBitsPerSecond == nil ||
+		doc.LastInform.Traffic.Root.TXRateBitsPerSecond == nil {
+		t.Fatalf("root traffic rates missing: %+v", doc.LastInform.Traffic.Root)
+	}
+	hasGatewayBitRateRow := false
+	for _, row := range doc.LastInform.Traffic.Rows {
+		if row.Table == "if_table" &&
+			row.Rates.RXBytesRateBytesPerSecond != nil &&
+			row.Rates.RXRateBitsPerSecond != nil {
+			hasGatewayBitRateRow = true
+			break
+		}
+	}
+	if !hasGatewayBitRateRow {
+		t.Fatalf("traffic rows did not include gateway byte/s and bit/s rates: %+v", doc.LastInform.Traffic.Rows)
+	}
+}
+
 // TestControllerRestoreDefaultResetsAdoptionState verifies controller reset
 // requests clear only local adoption state.
 func TestControllerRestoreDefaultResetsAdoptionState(t *testing.T) {
