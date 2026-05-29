@@ -79,11 +79,12 @@ jobs:
           set -eu
           version="${RAW_VERSION#v}"
           PKG_VERSION="$version" PKG_RELEASE="$PACKAGE_RELEASE" make package-freebsd-pkg-repos
+          tar -C dist/freebsd-pkg-repos -czf dist/freebsd-pkg-repos.tar.gz repo
 
       - uses: actions/upload-artifact@v7
         with:
           name: freebsd-pkg-repos
-          path: dist/freebsd-pkg-repos/repo/
+          path: dist/freebsd-pkg-repos.tar.gz
           retention-days: 7
 
   build-and-deploy:
@@ -110,7 +111,12 @@ jobs:
       - uses: actions/download-artifact@v7
         with:
           name: freebsd-pkg-repos
-          path: dist/freebsd-pkg-repos/repo
+          path: dist/freebsd-pkg-repos-archive
+
+      - name: Extract native FreeBSD pkg repositories
+        run: |
+          mkdir -p dist/freebsd-pkg-repos
+          tar -xzf dist/freebsd-pkg-repos-archive/freebsd-pkg-repos.tar.gz -C dist/freebsd-pkg-repos
 
       - name: Build static package repositories
         env:
