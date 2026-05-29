@@ -49,9 +49,17 @@ Build the FreeBSD/OPNsense stub package tarball:
 make package-freebsd-tgz
 ```
 
-The FreeBSD targets default to `amd64`, matching common OPNsense installs. Use
-`PKG_FREEBSD_GOARCH=arm64` when targeting an ARM FreeBSD host. The tarball is
-written to `dist/packages/` and stages this layout:
+Build native FreeBSD `pkg` repositories through the configured FreeBSD builder:
+
+```sh
+make package-freebsd-pkg-repos
+```
+
+The tarball target defaults to `amd64`, matching common OPNsense installs. Use
+`PKG_FREEBSD_GOARCH=arm64` when targeting an ARM FreeBSD host. Native `pkg`
+repositories include `FreeBSD:14` and `FreeBSD:15` builds for `amd64`,
+`aarch64`, and `armv7`. The tarball is written to `dist/packages/` and stages
+this layout:
 
 ```text
 /usr/local/bin/unifi-stubd
@@ -90,6 +98,33 @@ The `sha256` output should match the checksum entry. The tarball contains
 neutral defaults only. Review or replace
 `/usr/local/etc/unifi-stubd/config.yaml` after extraction and before enabling
 the service.
+
+## Install Published pkg Repositories
+
+Native alpha `pkg` repositories are grouped by FreeBSD ABI. Check the ABI on the
+target host first:
+
+```sh
+pkg config ABI
+```
+
+Then configure the matching repository path, for example for `FreeBSD:14:amd64`:
+
+```sh
+sudo mkdir -p /usr/local/etc/pkg/repos
+sudo tee /usr/local/etc/pkg/repos/unifi-stubd.conf >/dev/null <<'PKGCONF'
+unifi-stubd: {
+  url: "https://konstruktor1.github.io/unifi-stubd/freebsd/pkg/FreeBSD:14:amd64",
+  enabled: yes,
+  signature_type: none
+}
+PKGCONF
+sudo pkg update -r unifi-stubd
+sudo pkg install unifi-stubd
+```
+
+These repositories are unsigned alpha artifacts. Keep them scoped to isolated
+lab or management networks.
 
 ## Service
 

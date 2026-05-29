@@ -23,7 +23,7 @@ PKG_ENV_NONFPM := PKG_VERSION='$(PKG_VERSION)' \
 PKG_ENV := NFPM='$(NFPM)' \
   $(PKG_ENV_NONFPM)
 
-.PHONY: build build-freebsd check clean-dist coverage fmt help integration-docker lint package package-arch package-deb package-freebsd-tgz package-repos package-rpm package-tgz policy switch-emulation switch-payload test validate-config vulncheck
+.PHONY: build build-freebsd check clean-dist coverage fmt help integration-docker lint package package-arch package-deb package-freebsd-pkg-repos package-freebsd-tgz package-repos package-rpm package-tgz policy switch-emulation switch-payload test validate-config vulncheck
 
 help:
 	@printf '%s\n' \
@@ -41,6 +41,7 @@ help:
 		'  make package      Build deb, rpm, archlinux, and tgz packages' \
 		'  make package-repos  Build unsigned alpha package repositories in dist/package-site' \
 		'  make package-freebsd-tgz  Build FreeBSD/OPNsense stub-only tgz' \
+		'  make package-freebsd-pkg-repos  Build native FreeBSD pkg repositories through the configured FreeBSD builder' \
 		'  make clean-dist   Remove package build output'
 
 build:
@@ -103,6 +104,9 @@ package-tgz:
 
 package-freebsd-tgz:
 	$(PKG_ENV_NONFPM) PKG_GOOS='freebsd' PKG_GOARCH='$(PKG_FREEBSD_GOARCH)' PKG_FORMATS='tgz' sh scripts/package.sh tgz
+
+package-freebsd-pkg-repos:
+	$(PKG_ENV_NONFPM) sh scripts/package-freebsd-pkg-repos.sh
 
 package-repos:
 	sh scripts/build-package-repos.sh

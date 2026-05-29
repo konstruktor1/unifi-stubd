@@ -27,26 +27,15 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build-and-deploy:
+  build-packages:
     runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v6
 
-      - name: Set up Go from latest stable release
-        if: github.ref == 'refs/heads/main'
-        uses: actions/setup-go@v6
+      - uses: actions/setup-go@v6
         with:
           go-version: stable
           check-latest: true
-
-      - name: Set up Go from module version
-        if: github.ref != 'refs/heads/main'
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
 
       - name: Install repository tools
         run: |
@@ -65,7 +54,67 @@ jobs:
           PKG_VERSION="$version" PKG_RELEASE="$PACKAGE_RELEASE" PKG_FREEBSD_GOARCH=amd64 make package-freebsd-tgz
           PKG_VERSION="$version" PKG_RELEASE="$PACKAGE_RELEASE" PKG_FREEBSD_GOARCH=arm64 make package-freebsd-tgz
 
+      - uses: actions/upload-artifact@v7
+        with:
+          name: package-artifacts
+          path: dist/packages/
+          retention-days: 7
+
+  build-freebsd-pkg-repos:
+    runs-on: [self-hosted, Linux, X64, freebsd-pkg-builder]
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-go@v6
+        with:
+          go-version: stable
+          check-latest: true
+
+      - name: Build native FreeBSD pkg repositories
+        env:
+          RAW_VERSION: ${{ inputs.version || github.event.release.tag_name || github.ref_name }}
+          PACKAGE_RELEASE: ${{ inputs.package_release || '1' }}
+          FREEBSD_PKG_REMOTE: unifi-stubd-freebsd-builder
+        run: |
+          set -eu
+          version="${RAW_VERSION#v}"
+          PKG_VERSION="$version" PKG_RELEASE="$PACKAGE_RELEASE" make package-freebsd-pkg-repos
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: freebsd-pkg-repos
+          path: dist/freebsd-pkg-repos/repo/
+          retention-days: 7
+
+  build-and-deploy:
+    needs:
+      - build-packages
+      - build-freebsd-pkg-repos
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install repository tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dpkg-dev createrepo-c libarchive-tools pacman-package-manager zstd
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: package-artifacts
+          path: dist/packages
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: freebsd-pkg-repos
+          path: dist/freebsd-pkg-repos/repo
+
       - name: Build static package repositories
+        env:
+          FREEBSD_PKG_REPO_DIR: dist/freebsd-pkg-repos/repo
         run: scripts/build-package-repos.sh
 
       - uses: actions/configure-pages@v6

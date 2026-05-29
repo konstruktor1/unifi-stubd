@@ -67,6 +67,7 @@ PKG_VERSION=0.1.4-alpha PKG_RELEASE=1 PKG_GOARCH=amd64 make package
 PKG_VERSION=0.1.4-alpha PKG_RELEASE=1 PKG_GOARCH=arm64 make package
 PKG_VERSION=0.1.4-alpha PKG_RELEASE=1 PKG_FREEBSD_GOARCH=amd64 make package-freebsd-tgz
 PKG_VERSION=0.1.4-alpha PKG_RELEASE=1 PKG_FREEBSD_GOARCH=arm64 make package-freebsd-tgz
+PKG_VERSION=0.1.4-alpha PKG_RELEASE=1 make package-freebsd-pkg-repos
 make package-repos
 ```
 
@@ -80,12 +81,12 @@ gh workflow run package-pages.yml --ref main \
   -f package_release=1
 ```
 
-`make package-repos` writes `dist/package-site/` with APT, RPM, Arch Linux, and
-FreeBSD/OPNsense tarball paths. The FreeBSD paths include generated index pages
-for `freebsd/amd64/` and `freebsd/arm64/`, direct tarball links, and install
-commands. The generator requires `dpkg-scanpackages`, `createrepo_c`, and
-`repo-add`; the GitHub Pages workflow installs those tools on Ubuntu before
-publishing. Keep alpha repository instructions visibly unsigned
+`make package-repos` writes `dist/package-site/` with APT, RPM, Arch Linux,
+FreeBSD/OPNsense tarball paths, and native FreeBSD `pkg` repository paths when
+`dist/freebsd-pkg-repos/repo/` exists. The Package Repositories workflow builds
+those native FreeBSD repositories on the self-hosted runner labelled
+`freebsd-pkg-builder`, then deploys the combined static site from Ubuntu. Keep
+alpha repository instructions visibly unsigned
 (`trusted=yes`, `gpgcheck=0`, `SigLevel = Never`) until a project release key
 exists.
 

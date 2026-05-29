@@ -140,8 +140,9 @@ SigLevel = Never
 Server = https://konstruktor1.github.io/unifi-stubd/arch/$arch
 ```
 
-FreeBSD/OPNsense builds are published as tarballs for both `amd64` and
-`arm64`, not as a FreeBSD `pkg` repository yet:
+FreeBSD/OPNsense builds are published as tarballs for `amd64` and `arm64`.
+The package site also publishes unsigned native FreeBSD `pkg` repositories
+when the FreeBSD builder runner is online:
 
 ```sh
 ARCH=amd64 # or arm64
@@ -153,6 +154,23 @@ sudo tar -xzf unifi-stubd_0.1.4-alpha-1_freebsd_${ARCH}.tar.gz -C /
 sudo vi /usr/local/etc/unifi-stubd/config.yaml
 sudo sysrc unifi_stubd_enable=YES
 sudo service unifi-stubd start
+```
+
+Native FreeBSD `pkg` repository URLs are grouped by `pkg config ABI`, for
+example:
+
+```sh
+pkg config ABI
+sudo mkdir -p /usr/local/etc/pkg/repos
+sudo tee /usr/local/etc/pkg/repos/unifi-stubd.conf >/dev/null <<'PKGCONF'
+unifi-stubd: {
+  url: "https://konstruktor1.github.io/unifi-stubd/freebsd/pkg/FreeBSD:14:amd64",
+  enabled: yes,
+  signature_type: none
+}
+PKGCONF
+sudo pkg update -r unifi-stubd
+sudo pkg install unifi-stubd
 ```
 
 Packages install neutral defaults only. Copy the host-specific config to
@@ -460,10 +478,13 @@ make package-rpm
 make package-arch
 make package-tgz
 make package-freebsd-tgz
+make package-freebsd-pkg-repos
 ```
 
-FreeBSD/OPNsense package builds default to `amd64`; set
-`PKG_FREEBSD_GOARCH=arm64` for ARM FreeBSD hosts.
+FreeBSD/OPNsense tarball builds default to `amd64`; set
+`PKG_FREEBSD_GOARCH=arm64` for ARM FreeBSD hosts. Native FreeBSD `pkg`
+repositories are built through the configured FreeBSD builder and include
+`FreeBSD:14` and `FreeBSD:15` repos for `amd64`, `aarch64`, and `armv7`.
 
 Common overrides:
 
@@ -481,7 +502,9 @@ make package-repos
 ```
 
 The generated site is written to `dist/package-site/` and contains APT, RPM,
-Arch Linux, and FreeBSD/OPNsense tarball paths for the alpha channel.
+Arch Linux, FreeBSD/OPNsense tarball paths, and native FreeBSD `pkg`
+repository paths for the alpha channel when the FreeBSD builder output is
+present.
 
 Release packages are intentionally neutral. They install the daemon, service
 files, documentation, and the packaged example config only. Keep real controller

@@ -6,6 +6,7 @@ cd "$(dirname "$0")/.."
 PACKAGE_DIR="${PACKAGE_DIR:-dist/packages}"
 SITE_DIR="${SITE_DIR:-dist/package-site}"
 CHANNEL="${CHANNEL:-alpha}"
+FREEBSD_PKG_REPO_DIR="${FREEBSD_PKG_REPO_DIR:-dist/freebsd-pkg-repos/repo}"
 
 fail() {
   printf '%s\n' "$1" >&2
@@ -129,13 +130,14 @@ write_index() {
     <pre>Server = https://konstruktor1.github.io/unifi-stubd/arch/\$arch</pre>
     <h2>FreeBSD and OPNsense</h2>
     <p>
-      FreeBSD and OPNsense artifacts are tarballs for now, not native
-      FreeBSD <code>pkg</code> repositories. Both amd64 and arm64 tarballs are
-      published with rc.d service files and neutral defaults.
+      FreeBSD and OPNsense artifacts are published as manual tarballs and,
+      when the FreeBSD builder is available, unsigned native FreeBSD
+      <code>pkg</code> repositories.
     </p>
     <ul>
       <li><a href="freebsd/amd64/">FreeBSD amd64 tarballs</a></li>
       <li><a href="freebsd/arm64/">FreeBSD arm64 tarballs</a></li>
+      <li><a href="freebsd/pkg/">Native FreeBSD pkg repositories</a></li>
     </ul>
     <h2>Checksums</h2>
     <p><a href="checksums.txt">checksums.txt</a></p>
@@ -209,16 +211,124 @@ write_freebsd_index() {
   <main>
     <h1>unifi-stubd FreeBSD and OPNsense tarballs</h1>
     <p>
-      FreeBSD and OPNsense builds are currently published as tarballs, not as a
-      native FreeBSD <code>pkg</code> repository. Use these artifacts only for
-      isolated lab or management networks.
+      FreeBSD and OPNsense builds are published as manual tarballs and,
+      when the FreeBSD builder is available, unsigned native FreeBSD
+      <code>pkg</code> repositories. Use these artifacts only for isolated lab
+      or management networks.
     </p>
     <ul>
       <li><a href="amd64/">FreeBSD amd64 tarballs</a></li>
       <li><a href="arm64/">FreeBSD arm64 tarballs</a></li>
+      <li><a href="pkg/">Native FreeBSD pkg repositories</a></li>
     </ul>
     <p><a href="../checksums.txt">checksums.txt</a></p>
     <p><a href="../">Back to package repositories</a></p>
+  </main>
+</body>
+</html>
+EOF
+}
+
+write_freebsd_pkg_unavailable_index() {
+  pkg_dir="$SITE_DIR/freebsd/pkg"
+  mkdir -p "$pkg_dir"
+  cat >"$pkg_dir/index.html" <<EOF
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>unifi-stubd FreeBSD pkg repositories</title>
+</head>
+<body>
+  <main>
+    <h1>unifi-stubd FreeBSD pkg repositories</h1>
+    <p>
+      Native FreeBSD <code>pkg</code> repositories were not generated in this
+      package-site build. Use the tarballs or rerun the package-pages workflow
+      with the FreeBSD builder runner online.
+    </p>
+    <p><a href="../">Back to FreeBSD and OPNsense artifacts</a></p>
+  </main>
+</body>
+</html>
+EOF
+}
+
+write_freebsd_pkg_index() {
+  pkg_dir="$SITE_DIR/freebsd/pkg"
+  mkdir -p "$pkg_dir"
+  {
+    cat <<EOF
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>unifi-stubd FreeBSD pkg repositories</title>
+</head>
+<body>
+  <main>
+    <h1>unifi-stubd FreeBSD pkg repositories</h1>
+    <p>
+      Unsigned alpha repositories for native FreeBSD <code>pkg</code>. Choose
+      the ABI that matches <code>pkg config ABI</code> on the target host.
+    </p>
+    <ul>
+EOF
+    find "$pkg_dir" -mindepth 1 -maxdepth 1 -type d | sort | while IFS= read -r abi_dir; do
+      abi="$(basename "$abi_dir")"
+      printf '      <li><a href="%s/">%s</a></li>\n' "$abi" "$abi"
+    done
+    cat <<EOF
+    </ul>
+    <p><a href="../../checksums.txt">checksums.txt</a></p>
+    <p><a href="../">Back to FreeBSD and OPNsense artifacts</a></p>
+  </main>
+</body>
+</html>
+EOF
+  } >"$pkg_dir/index.html"
+}
+
+write_freebsd_pkg_abi_index() {
+  abi="$1"
+  abi_dir="$SITE_DIR/freebsd/pkg/$abi"
+  artifact="$(basename "$(find_artifact "$abi_dir"/unifi-stubd-*.pkg)")"
+  cat >"$abi_dir/index.html" <<EOF
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>unifi-stubd ${abi} pkg repository</title>
+</head>
+<body>
+  <main>
+    <h1>unifi-stubd ${abi} pkg repository</h1>
+    <p>
+      Unsigned alpha repository for <code>${abi}</code>. Verify that
+      <code>pkg config ABI</code> on the target host prints this ABI.
+    </p>
+    <ul>
+      <li><a href="${artifact}">${artifact}</a></li>
+      <li><a href="packagesite.pkg">packagesite.pkg</a></li>
+      <li><a href="data.pkg">data.pkg</a></li>
+      <li><a href="meta.conf">meta.conf</a></li>
+      <li><a href="../../../checksums.txt">checksums.txt</a></li>
+    </ul>
+    <h2>Repository Config</h2>
+    <pre>sudo mkdir -p /usr/local/etc/pkg/repos
+sudo tee /usr/local/etc/pkg/repos/unifi-stubd.conf &gt;/dev/null &lt;&lt;'PKGCONF'
+unifi-stubd: {
+  url: "https://konstruktor1.github.io/unifi-stubd/freebsd/pkg/${abi}",
+  enabled: yes,
+  signature_type: none
+}
+PKGCONF
+sudo pkg update -r unifi-stubd
+sudo pkg install unifi-stubd</pre>
+    <p><a href="../">Back to FreeBSD pkg repositories</a></p>
   </main>
 </body>
 </html>
@@ -241,8 +351,9 @@ write_freebsd_arch_index() {
   <main>
     <h1>unifi-stubd FreeBSD ${arch} tarball</h1>
     <p>
-      This is a tarball artifact for FreeBSD and OPNsense. It is not a native
-      FreeBSD <code>pkg</code> package yet.
+      This is a manual tarball artifact for FreeBSD and OPNsense. Native
+      FreeBSD <code>pkg</code> repositories, when available, are linked from
+      the FreeBSD index page.
     </p>
     <ul>
       <li><a href="${artifact}">${artifact}</a></li>
@@ -333,6 +444,32 @@ copy_freebsd_tarballs() {
   write_freebsd_arch_index arm64
 }
 
+copy_freebsd_pkg_repos() {
+  if [ ! -d "$FREEBSD_PKG_REPO_DIR" ]; then
+    write_freebsd_pkg_unavailable_index
+    return 0
+  fi
+
+  pkg_dir="$SITE_DIR/freebsd/pkg"
+  mkdir -p "$pkg_dir"
+  copied=0
+  for src in "$FREEBSD_PKG_REPO_DIR"/FreeBSD:*; do
+    [ -d "$src" ] || continue
+    abi="$(basename "$src")"
+    dst="$pkg_dir/$abi"
+    mkdir -p "$dst"
+    cp -R "$src"/. "$dst"/
+    write_freebsd_pkg_abi_index "$abi"
+    copied=1
+  done
+
+  if [ "$copied" -eq 0 ]; then
+    write_freebsd_pkg_unavailable_index
+    return 0
+  fi
+  write_freebsd_pkg_index
+}
+
 if [ ! -d "$PACKAGE_DIR" ]; then
   fail "package directory not found: $PACKAGE_DIR"
 fi
@@ -345,6 +482,7 @@ build_apt_repo
 build_rpm_repo
 build_arch_repo
 copy_freebsd_tarballs
+copy_freebsd_pkg_repos
 write_index
 write_checksums
 

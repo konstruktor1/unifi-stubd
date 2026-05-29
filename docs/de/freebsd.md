@@ -51,10 +51,18 @@ FreeBSD-/OPNsense-Stub-Paket als Tarball bauen:
 make package-freebsd-tgz
 ```
 
-Die FreeBSD-Targets verwenden per Default `amd64`, passend zu typischen
+Native FreeBSD-`pkg`-Repositories ueber den konfigurierten FreeBSD-Builder
+bauen:
+
+```sh
+make package-freebsd-pkg-repos
+```
+
+Das Tarball-Target verwendet per Default `amd64`, passend zu typischen
 OPNsense-Installationen. Fuer einen ARM-FreeBSD-Host
-`PKG_FREEBSD_GOARCH=arm64` setzen. Der Tarball landet unter `dist/packages/`
-und enthaelt dieses Layout:
+`PKG_FREEBSD_GOARCH=arm64` setzen. Native `pkg`-Repositories enthalten
+`FreeBSD:14`- und `FreeBSD:15`-Builds fuer `amd64`, `aarch64` und `armv7`.
+Der Tarball landet unter `dist/packages/` und enthaelt dieses Layout:
 
 ```text
 /usr/local/bin/unifi-stubd
@@ -92,6 +100,34 @@ tar -tzf unifi-stubd_0.1.4-alpha-1_freebsd_${ARCH}.tar.gz
 Die `sha256`-Ausgabe muss zum Eintrag in `checksums.txt` passen. Der Tarball
 enthaelt nur neutrale Defaults. Nach dem Entpacken und vor dem Aktivieren des
 Diensts `/usr/local/etc/unifi-stubd/config.yaml` pruefen oder ersetzen.
+
+## Veroeffentlichte pkg-Repositories installieren
+
+Native Alpha-`pkg`-Repositories sind nach FreeBSD-ABI gruppiert. Zuerst die ABI
+des Zielsystems pruefen:
+
+```sh
+pkg config ABI
+```
+
+Danach den passenden Repository-Pfad konfigurieren, zum Beispiel fuer
+`FreeBSD:14:amd64`:
+
+```sh
+sudo mkdir -p /usr/local/etc/pkg/repos
+sudo tee /usr/local/etc/pkg/repos/unifi-stubd.conf >/dev/null <<'PKGCONF'
+unifi-stubd: {
+  url: "https://konstruktor1.github.io/unifi-stubd/freebsd/pkg/FreeBSD:14:amd64",
+  enabled: yes,
+  signature_type: none
+}
+PKGCONF
+sudo pkg update -r unifi-stubd
+sudo pkg install unifi-stubd
+```
+
+Diese Repositories sind unsignierte Alpha-Artefakte. Nur in isolierten Lab-
+oder Management-Netzen verwenden.
 
 ## Service
 

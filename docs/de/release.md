@@ -70,6 +70,7 @@ PKG_VERSION=0.1.4-alpha PKG_RELEASE=1 PKG_GOARCH=amd64 make package
 PKG_VERSION=0.1.4-alpha PKG_RELEASE=1 PKG_GOARCH=arm64 make package
 PKG_VERSION=0.1.4-alpha PKG_RELEASE=1 PKG_FREEBSD_GOARCH=amd64 make package-freebsd-tgz
 PKG_VERSION=0.1.4-alpha PKG_RELEASE=1 PKG_FREEBSD_GOARCH=arm64 make package-freebsd-tgz
+PKG_VERSION=0.1.4-alpha PKG_RELEASE=1 make package-freebsd-pkg-repos
 make package-repos
 ```
 
@@ -84,12 +85,12 @@ gh workflow run package-pages.yml --ref main \
 ```
 
 `make package-repos` schreibt `dist/package-site/` mit APT-, RPM-,
-Arch-Linux- und FreeBSD-/OPNsense-Tarball-Pfaden. Die FreeBSD-Pfade enthalten
-generierte Indexseiten fuer `freebsd/amd64/` und `freebsd/arm64/`, direkte
-Tarball-Links und Installationskommandos. Der Generator benoetigt
-`dpkg-scanpackages`, `createrepo_c` und `repo-add`; der GitHub-Pages-Workflow
-installiert diese Tools auf Ubuntu vor dem Publish. Alpha-Anleitungen bleiben
-sichtbar unsigniert (`trusted=yes`, `gpgcheck=0`, `SigLevel = Never`), bis ein
+Arch-Linux-, FreeBSD-/OPNsense-Tarball-Pfaden und nativen FreeBSD-`pkg`-Repos,
+wenn `dist/freebsd-pkg-repos/repo/` existiert. Der
+Package-Repositories-Workflow baut diese nativen FreeBSD-Repos auf dem
+self-hosted Runner mit Label `freebsd-pkg-builder` und deployed danach die
+kombinierte statische Seite von Ubuntu. Alpha-Anleitungen bleiben sichtbar
+unsigniert (`trusted=yes`, `gpgcheck=0`, `SigLevel = Never`), bis ein
 Projekt-Release-Key existiert.
 
 Die generierte Projektseite verlinkt ausserdem auf Source-Repository, Releases,
