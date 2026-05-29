@@ -42,6 +42,7 @@ func gatewayUplinkTable(_ device.Profile, id device.Identity, ports []PortView, 
 			linkFields:         portLinkFields(view.Speed, view.Media),
 			counterFields:      portCounterFields(view.Port),
 			optionalRateFields: explicitPortRateFields(view.Port),
+			gatewayRateFields:  gatewayPortRateFields(view.Port),
 			SourceInterface:    view.SourceInterface,
 			connectionFields:   gatewayConnectionFields(view),
 		}

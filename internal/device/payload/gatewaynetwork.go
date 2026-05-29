@@ -115,11 +115,31 @@ func gatewayWANStatus(ports []PortView, role string, uptime int) *gatewayWANStat
 			linkFields:         portLinkFields(view.Speed, view.Media),
 			counterFields:      portCounterFields(view.Port),
 			optionalRateFields: explicitPortRateFields(view.Port),
+			gatewayRateFields:  gatewayPortRateFields(view.Port),
 			SourceInterface:    view.SourceInterface,
 		}
 		return &row
 	}
 	return nil
+}
+
+func gatewayTrafficSummaryFor(ports []PortView, role string) gatewayTrafficSummary {
+	for _, view := range gatewayRoleCandidates(ports, role) {
+		if gatewayPortRole(view.Port) != role {
+			continue
+		}
+		port := view.Port
+		// Gateway root counters follow the controller summary convention.
+		// Per-port rows keep interface-local RX/TX direction; the root summary
+		// is WAN-facing and therefore uses the opposite direction.
+		out := gatewayTrafficSummary{
+			Bytes:   port.RXBytes + port.TXBytes,
+			RXBytes: port.TXBytes,
+			TXBytes: port.RXBytes,
+		}
+		return out
+	}
+	return gatewayTrafficSummary{}
 }
 
 func gatewayWans(ports []PortView) []gatewayWANInventoryRow {

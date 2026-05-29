@@ -51,6 +51,7 @@ func gatewayPortTable(ports []PortView, uptime int) []gatewayPortRow {
 			gatewayPortLinkFields:   gatewayPortLinkFieldsFor(view.Speed, view.Media),
 			counterFields:           portCounterFields(view.Port),
 			optionalRateFields:      explicitPortRateFields(view.Port),
+			gatewayRateFields:       gatewayPortRateFields(view.Port),
 			gatewayWANInlineHealth:  gatewayWANInlineHealthFor(view, uptime),
 			SourceInterface:         view.SourceInterface,
 			connectionFields:        gatewayPhysicalPortConnectionFields(view),
@@ -106,6 +107,7 @@ func gatewayPortStatsTable(ports []PortView) []gatewayPortStatsRow {
 			TXDropped:          0,
 			counterFields:      portCounterFields(view.Port),
 			optionalRateFields: explicitPortRateFields(view.Port),
+			gatewayRateFields:  gatewayPortRateFields(view.Port),
 		})
 	}
 	return out
@@ -300,6 +302,7 @@ func gatewayIfTable(_ device.Profile, id device.Identity, ports []PortView, now 
 			linkFields:         portLinkFields(view.Speed, view.Media),
 			counterFields:      portCounterFields(view.Port),
 			optionalRateFields: explicitPortRateFields(view.Port),
+			gatewayRateFields:  gatewayPortRateFields(view.Port),
 			gatewayWANInlineHealth: gatewayWANInlineHealthFor(
 				view,
 				uptime,
@@ -402,7 +405,11 @@ func gatewayNetworkTable(_ device.Profile, _ device.Identity, ports []PortView, 
 			Speed:                strconv.Itoa(view.Speed),
 			MaxSpeed:             strconv.Itoa(view.Speed),
 			MTU:                  "1500",
-			Stats:                gatewayNetworkStats{counterFields: portCounterFields(view.Port), optionalRateFields: explicitPortRateFields(view.Port)},
+			Stats: gatewayNetworkStats{
+				counterFields:      portCounterFields(view.Port),
+				optionalRateFields: explicitPortRateFields(view.Port),
+				gatewayRateFields:  gatewayPortRateFields(view.Port),
+			},
 			gatewayWANInlineHealth: gatewayWANInlineHealthFor(
 				view,
 				uptime,

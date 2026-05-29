@@ -1522,6 +1522,9 @@ func TestGatewayPayloadReportsExplicitTrafficRates(t *testing.T) {
 	}
 
 	var doc struct {
+		Bytes        int64            `json:"bytes"`
+		RXBytes      int64            `json:"rx_bytes"`
+		TXBytes      int64            `json:"tx_bytes"`
 		IfTable      []map[string]any `json:"if_table"`
 		NetworkTable []map[string]any `json:"network_table"`
 		UplinkTable  []map[string]any `json:"uplink_table"`
@@ -1529,8 +1532,27 @@ func TestGatewayPayloadReportsExplicitTrafficRates(t *testing.T) {
 	if err := json.Unmarshal(payload, &doc); err != nil {
 		t.Fatal(err)
 	}
+	var raw map[string]any
+	if err := json.Unmarshal(payload, &raw); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := raw["stat"]; ok {
+		t.Fatalf("gateway payload contains removed stat block: %#v", raw["stat"])
+	}
+	if doc.Bytes != 7000 {
+		t.Fatalf("gateway root bytes = %d, want 7000", doc.Bytes)
+	}
+	if doc.RXBytes != 4000 || doc.TXBytes != 3000 {
+		t.Fatalf("gateway root rx/tx = %d/%d, want 4000/3000", doc.RXBytes, doc.TXBytes)
+	}
 	if got := int64(doc.IfTable[0]["rx_bytes-r"].(float64)); got != 10 {
 		t.Fatalf("LAN if_table rx rate = %d, want 10", got)
+	}
+	if got := int64(doc.IfTable[0]["rx_rate"].(float64)); got != 10 {
+		t.Fatalf("LAN if_table gateway rx rate = %d, want 10", got)
+	}
+	if got := int64(doc.IfTable[0]["bytes-r"].(float64)); got != 30 {
+		t.Fatalf("LAN if_table byte rate = %d, want 30", got)
 	}
 	if got := int64(doc.IfTable[1]["tx_packets"].(float64)); got != 401 {
 		t.Fatalf("WAN if_table tx_packets = %d, want 401", got)
@@ -1539,11 +1561,23 @@ func TestGatewayPayloadReportsExplicitTrafficRates(t *testing.T) {
 	if got := int64(wanStats["tx_bytes-r"].(float64)); got != 40 {
 		t.Fatalf("WAN network_table tx rate = %d, want 40", got)
 	}
+	if got := int64(wanStats["tx_rate"].(float64)); got != 40 {
+		t.Fatalf("WAN network_table gateway tx rate = %d, want 40", got)
+	}
+	if got := int64(wanStats["bytes-r"].(float64)); got != 70 {
+		t.Fatalf("WAN network_table byte rate = %d, want 70", got)
+	}
 	if got := int64(wanStats["rx_packets"].(float64)); got != 301 {
 		t.Fatalf("WAN network_table rx_packets = %d, want 301", got)
 	}
 	if got := int64(doc.UplinkTable[0]["rx_bytes-r"].(float64)); got != 30 {
 		t.Fatalf("uplink rx rate = %d, want 30", got)
+	}
+	if got := int64(doc.UplinkTable[0]["rx_rate"].(float64)); got != 30 {
+		t.Fatalf("uplink gateway rx rate = %d, want 30", got)
+	}
+	if got := int64(doc.UplinkTable[0]["bytes-r"].(float64)); got != 70 {
+		t.Fatalf("uplink byte rate = %d, want 70", got)
 	}
 	if got := int64(doc.UplinkTable[0]["tx_errors"].(float64)); got != 4 {
 		t.Fatalf("uplink tx_errors = %d, want 4", got)
@@ -2188,6 +2222,9 @@ func TestSwitchPayloadPrefersExplicitTrafficRates(t *testing.T) {
 	if got := int64(port["tx_bytes-r"].(float64)); got != 456 {
 		t.Fatalf("tx_bytes-r = %d, want 456", got)
 	}
+	if got := int64(port["bytes-r"].(float64)); got != 579 {
+		t.Fatalf("bytes-r = %d, want 579", got)
+	}
 }
 
 // TestSwitchPayloadSuppressesSyntheticRatesWhenTrafficRatesEnabledWithoutSource
@@ -2229,6 +2266,9 @@ func TestSwitchPayloadSuppressesSyntheticRatesWhenTrafficRatesEnabledWithoutSour
 	}
 	if got := int64(port["tx_bytes-r"].(float64)); got != 0 {
 		t.Fatalf("tx_bytes-r = %d, want 0", got)
+	}
+	if got := int64(port["bytes-r"].(float64)); got != 0 {
+		t.Fatalf("bytes-r = %d, want 0", got)
 	}
 	assertNoExperimentalRateFields(t, port)
 }

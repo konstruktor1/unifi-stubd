@@ -5,6 +5,7 @@ import "github.com/konstruktor1/unifi-stubd/internal/device"
 type gatewayPayload struct {
 	basePayload
 	gatewayTelemetry
+	gatewayTrafficSummary
 	IfTable           []gatewayIfRow                 `json:"if_table"`
 	NetworkTable      []gatewayNetworkRow            `json:"network_table"`
 	ConfigPortTable   []gatewayConfigPortRow         `json:"config_port_table"`
@@ -50,6 +51,13 @@ type gatewayLastUplinkRow struct{}
 type gatewayNetworkStats struct {
 	counterFields
 	optionalRateFields
+	gatewayRateFields
+}
+
+type gatewayTrafficSummary struct {
+	Bytes   int64 `json:"bytes,omitempty"`
+	RXBytes int64 `json:"rx_bytes,omitempty"`
+	TXBytes int64 `json:"tx_bytes,omitempty"`
 }
 
 type gatewayAssignmentFields struct {
@@ -97,6 +105,7 @@ type gatewayIfRow struct {
 	linkFields
 	counterFields
 	optionalRateFields
+	gatewayRateFields
 	gatewayWANInlineHealth
 	gatewayWANUplinkHealthFields
 	SourceInterface string `json:"source_interface"`
@@ -180,6 +189,7 @@ type gatewayWANStatusRow struct {
 	linkFields
 	counterFields
 	optionalRateFields
+	gatewayRateFields
 	SourceInterface string `json:"source_interface"`
 }
 
@@ -245,6 +255,7 @@ type gatewayPortRow struct {
 	gatewayPortLinkFields
 	counterFields
 	optionalRateFields
+	gatewayRateFields
 	gatewayWANInlineHealth
 	SourceInterface string `json:"source_interface"`
 	connectionFields
@@ -280,6 +291,7 @@ type gatewayPortStatsRow struct {
 	TXDropped   int                    `json:"tx_dropped"`
 	counterFields
 	optionalRateFields
+	gatewayRateFields
 }
 
 type gatewayConfigPortRow struct {
@@ -374,6 +386,7 @@ type gatewayUplinkRow struct {
 	linkFields
 	counterFields
 	optionalRateFields
+	gatewayRateFields
 	SourceInterface string `json:"source_interface"`
 	connectionFields
 }

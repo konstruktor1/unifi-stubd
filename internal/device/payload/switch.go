@@ -53,6 +53,7 @@ type switchPortRow struct {
 	LastConnection *switchLastConnection  `json:"last_connection"`
 	linkFields
 	counterFields
+	BytesRate       int64  `json:"bytes-r"`
 	RXBytesRate     int64  `json:"rx_bytes-r"`
 	TXBytesRate     int64  `json:"tx_bytes-r"`
 	SourceInterface string `json:"source_interface"`
@@ -152,6 +153,7 @@ func portTable(ports []PortView) []switchPortRow {
 			LastConnection:  switchLastConnectionFor(macTable),
 			linkFields:      portLinkFields(p.Speed, p.Media),
 			counterFields:   portCounterFields(p.Port),
+			BytesRate:       rxRate + txRate,
 			RXBytesRate:     rxRate,
 			TXBytesRate:     txRate,
 			SourceInterface: p.SourceInterface,

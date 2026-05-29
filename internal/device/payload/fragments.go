@@ -46,8 +46,14 @@ type counterFields struct {
 }
 
 type optionalRateFields struct {
+	BytesRate   *int64 `json:"bytes-r,omitempty"`
 	RXBytesRate *int64 `json:"rx_bytes-r,omitempty"`
 	TXBytesRate *int64 `json:"tx_bytes-r,omitempty"`
+}
+
+type gatewayRateFields struct {
+	RXRate *int64 `json:"rx_rate,omitempty"`
+	TXRate *int64 `json:"tx_rate,omitempty"`
 }
 
 // portLinkFields renders the common link speed, capability, and media fields
@@ -121,8 +127,19 @@ func explicitPortRateFields(port device.Port) optionalRateFields {
 		return optionalRateFields{}
 	}
 	return optionalRateFields{
+		BytesRate:   int64Ref(port.RXBytesRate + port.TXBytesRate),
 		RXBytesRate: int64Ref(port.RXBytesRate),
 		TXBytesRate: int64Ref(port.TXBytesRate),
+	}
+}
+
+func gatewayPortRateFields(port device.Port) gatewayRateFields {
+	if !port.TrafficRatesSet && !port.TrafficRatesEnabled {
+		return gatewayRateFields{}
+	}
+	return gatewayRateFields{
+		RXRate: int64Ref(port.RXBytesRate),
+		TXRate: int64Ref(port.TXBytesRate),
 	}
 }
 
