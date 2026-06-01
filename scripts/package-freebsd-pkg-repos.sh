@@ -36,6 +36,16 @@ file_sha256() {
   fi
 }
 
+file_size() {
+  if stat -f %z "$1" >/dev/null 2>&1; then
+    stat -f %z "$1"
+  elif stat -c %s "$1" >/dev/null 2>&1; then
+    stat -c %s "$1"
+  else
+    wc -c <"$1" | awk '{print $1}'
+  fi
+}
+
 freebsd_pkg_version() {
   version="$(printf '%s' "$PKG_VERSION" | sed 's/^[vV]//; s/[-~]/./g')"
   printf '%s_%s' "$version" "$PKG_RELEASE"
@@ -121,12 +131,25 @@ write_stage() {
   license_sum="$(file_sha256 "$stage/pkgroot/usr/local/share/doc/unifi-stubd/LICENSE")"
   notice_sum="$(file_sha256 "$stage/pkgroot/usr/local/share/doc/unifi-stubd/NOTICE.md")"
   credits_sum="$(file_sha256 "$stage/pkgroot/usr/local/share/doc/unifi-stubd/CREDITS.md")"
+  flatsize="$(
+    printf '%s\n' \
+      "$stage/pkgroot/usr/local/bin/unifi-stubd" \
+      "$stage/pkgroot/usr/local/etc/rc.d/unifi-stubd" \
+      "$stage/pkgroot/usr/local/etc/unifi-stubd/config.yaml" \
+      "$stage/pkgroot/usr/local/share/doc/unifi-stubd/LICENSE" \
+      "$stage/pkgroot/usr/local/share/doc/unifi-stubd/NOTICE.md" \
+      "$stage/pkgroot/usr/local/share/doc/unifi-stubd/CREDITS.md" |
+      while IFS= read -r file; do
+        file_size "$file"
+      done |
+      awk '{sum += $1} END {print sum}'
+  )"
 
   # Write the package manifest directly instead of deriving it from a plist.
-  # Newer pkg-create versions can emit per-file owner/mode/mtime objects from a
-  # plist. pkg 2.3.1 on OPNsense 26.1 crashes when such a package overwrites
-  # unregistered files from an earlier tarball install. Simple checksum entries
-  # match the older, migration-safe package manifest shape.
+  # pkg-create still normalizes file entries into owner/mode/mtime objects when
+  # building the archive. The remote build step repacks the generated package
+  # with this manifest so OPNsense pkg 2.3.1 sees migration-safe checksum-only
+  # file entries when overwriting files from an earlier tarball install.
   cat >"$stage/manifest.ucl" <<EOF
 name = "unifi-stubd"
 origin = "net/unifi-stubd"
@@ -137,6 +160,7 @@ www = "https://github.com/konstruktor1/unifi-stubd"
 prefix = "/usr/local"
 abi = "$abi"
 arch = "$arch"
+flatsize = $flatsize
 licenselogic = "single"
 licenses = [ "$PKG_LICENSE" ]
 categories = [ "net" ]
@@ -167,12 +191,53 @@ rm -rf stage repo repo.tar.gz
 mkdir -p stage repo
 tar -xzf stage.tar.gz -C stage
 find stage -name '._*' -delete
+
+repair_manifest() {
+  abi_dir="$1"
+  pkg_file="$2"
+  pkg_dir="$(dirname "$pkg_file")"
+  pkg_name="$(basename "$pkg_file")"
+  pkg_abs="$(cd "$pkg_dir" && pwd)/$pkg_name"
+  repair_dir="$abi_dir/pkg-repair"
+  tmp_pkg="$pkg_abs.tmp"
+
+  rm -rf "$repair_dir"
+  mkdir -p "$repair_dir"
+  tar -xf "$pkg_abs" -C "$repair_dir"
+  cp "$abi_dir/manifest.ucl" "$repair_dir/+MANIFEST"
+  (
+    cd "$repair_dir"
+    COPYFILE_DISABLE=1 tar -cJf "$tmp_pkg" -P --no-recursion \
+      -s ',^usr/,/usr/,' \
+      -s ',^var/,/var/,' \
+      +COMPACT_MANIFEST \
+      +MANIFEST \
+      usr/local/bin/unifi-stubd \
+      usr/local/etc/rc.d/unifi-stubd \
+      usr/local/etc/unifi-stubd/config.yaml \
+      usr/local/share/doc/unifi-stubd/CREDITS.md \
+      usr/local/share/doc/unifi-stubd/LICENSE \
+      usr/local/share/doc/unifi-stubd/NOTICE.md \
+      usr/local/etc/unifi-stubd \
+      usr/local/share/doc/unifi-stubd \
+      var/db/unifi-stubd
+  )
+  mv "$tmp_pkg" "$pkg_abs"
+  rm -rf "$repair_dir"
+}
+
 for abi_dir in stage/*; do
   [ -d "$abi_dir" ] || continue
   abi="$(basename "$abi_dir")"
   printf '== pkg create %s ==\n' "$abi"
   mkdir -p "repo/$abi"
   pkg create -f txz -r "$abi_dir/pkgroot" -M "$abi_dir/manifest.ucl" -o "repo/$abi"
+  pkg_file="$(ls "repo/$abi"/unifi-stubd-*.pkg | sed -n '1p')"
+  [ -n "$pkg_file" ] || {
+    printf 'missing generated package for %s\n' "$abi" >&2
+    exit 1
+  }
+  repair_manifest "$abi_dir" "$pkg_file"
   pkg repo "repo/$abi"
 done
 tar -czf repo.tar.gz repo

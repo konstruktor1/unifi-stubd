@@ -31,10 +31,11 @@ func TestPackageScriptKeepsOtherTargetArtifacts(t *testing.T) {
 }
 
 // TestFreeBSDPkgManifestUsesSimpleChecksumEntries verifies native FreeBSD pkg
-// packages avoid plist-derived owner/mode/mtime file objects. pkg 2.3.1 on
-// OPNsense 26.1 crashed when migrating a host that already had
-// tarball-installed, unregistered files in place and the package manifest used
-// those file-object entries.
+// packages avoid plist-derived owner/mode/mtime file objects. pkg-create
+// normalizes direct manifest input back into those object entries, and pkg
+// 2.3.1 on OPNsense 26.1 crashed when migrating a host that already had
+// tarball-installed, unregistered files in place. The package builder must
+// repack the generated archive with checksum-only +MANIFEST file entries.
 func TestFreeBSDPkgManifestUsesSimpleChecksumEntries(t *testing.T) {
 	data, err := os.ReadFile("../../scripts/package-freebsd-pkg-repos.sh")
 	if err != nil {
@@ -48,7 +49,13 @@ func TestFreeBSDPkgManifestUsesSimpleChecksumEntries(t *testing.T) {
 	if !strings.Contains(script, "pkg create -f txz -r \"$abi_dir/pkgroot\" -M \"$abi_dir/manifest.ucl\"") {
 		t.Fatal("FreeBSD pkg builder does not create packages from manifest.ucl")
 	}
+	if !strings.Contains(script, "cp \"$abi_dir/manifest.ucl\" \"$repair_dir/+MANIFEST\"") ||
+		!strings.Contains(script, "tar -cJf \"$tmp_pkg\" -P --no-recursion") ||
+		!strings.Contains(script, "repair_manifest \"$abi_dir\" \"$pkg_file\"") {
+		t.Fatal("FreeBSD pkg builder does not repack generated packages with the simple manifest")
+	}
 	for _, required := range []string{
+		`flatsize = $flatsize`,
 		`"/usr/local/bin/unifi-stubd" = "1\$`,
 		`"/usr/local/etc/rc.d/unifi-stubd" = "1\$`,
 		`"/usr/local/etc/unifi-stubd/config.yaml" = "1\$`,
