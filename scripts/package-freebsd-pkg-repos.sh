@@ -106,8 +106,7 @@ write_stage() {
     "$stage/pkgroot/usr/local/etc/unifi-stubd" \
     "$stage/pkgroot/usr/local/etc/rc.d" \
     "$stage/pkgroot/usr/local/share/doc/unifi-stubd" \
-    "$stage/pkgroot/var/db/unifi-stubd" \
-    "$stage/meta"
+    "$stage/pkgroot/var/db/unifi-stubd"
 
   install -m 0755 "$WORK_DIR/bin/unifi-stubd_freebsd_$label" "$stage/pkgroot/usr/local/bin/unifi-stubd"
   install -m 0600 packaging/freebsd/usr/local/etc/unifi-stubd/config.yaml "$stage/pkgroot/usr/local/etc/unifi-stubd/config.yaml"
@@ -116,7 +115,19 @@ write_stage() {
   install -m 0644 NOTICE.md "$stage/pkgroot/usr/local/share/doc/unifi-stubd/NOTICE.md"
   install -m 0644 CREDITS.md "$stage/pkgroot/usr/local/share/doc/unifi-stubd/CREDITS.md"
 
-  cat >"$stage/meta/+MANIFEST" <<EOF
+  binary_sum="$(file_sha256 "$stage/pkgroot/usr/local/bin/unifi-stubd")"
+  rc_sum="$(file_sha256 "$stage/pkgroot/usr/local/etc/rc.d/unifi-stubd")"
+  config_sum="$(file_sha256 "$stage/pkgroot/usr/local/etc/unifi-stubd/config.yaml")"
+  license_sum="$(file_sha256 "$stage/pkgroot/usr/local/share/doc/unifi-stubd/LICENSE")"
+  notice_sum="$(file_sha256 "$stage/pkgroot/usr/local/share/doc/unifi-stubd/NOTICE.md")"
+  credits_sum="$(file_sha256 "$stage/pkgroot/usr/local/share/doc/unifi-stubd/CREDITS.md")"
+
+  # Write the package manifest directly instead of deriving it from a plist.
+  # Newer pkg-create versions can emit per-file owner/mode/mtime objects from a
+  # plist. pkg 2.3.1 on OPNsense 26.1 crashes when such a package overwrites
+  # unregistered files from an earlier tarball install. Simple checksum entries
+  # match the older, migration-safe package manifest shape.
+  cat >"$stage/manifest.ucl" <<EOF
 name = "unifi-stubd"
 origin = "net/unifi-stubd"
 version = "$pkg_version"
@@ -132,24 +143,19 @@ categories = [ "net" ]
 desc = <<EOD
 unifi-stubd is an experimental lab tool that makes a Linux or FreeBSD host appear as a minimal UniFi device to a UniFi Network Controller. It is intended for isolated lab or management networks and does not execute controller-provided shell, upgrade, restart, or host-networking mutations.
 EOD
-EOF
-
-  cat >"$stage/plist" <<'EOF'
-@owner root
-@group wheel
-@mode 0755
-bin/unifi-stubd
-etc/rc.d/unifi-stubd
-@mode 0600
-etc/unifi-stubd/config.yaml
-@mode 0644
-share/doc/unifi-stubd/LICENSE
-share/doc/unifi-stubd/NOTICE.md
-share/doc/unifi-stubd/CREDITS.md
-@mode
-@dir /var/db/unifi-stubd
-@dir etc/unifi-stubd
-@dir share/doc/unifi-stubd
+files = {
+  "/usr/local/bin/unifi-stubd" = "1\$$binary_sum"
+  "/usr/local/etc/rc.d/unifi-stubd" = "1\$$rc_sum"
+  "/usr/local/etc/unifi-stubd/config.yaml" = "1\$$config_sum"
+  "/usr/local/share/doc/unifi-stubd/LICENSE" = "1\$$license_sum"
+  "/usr/local/share/doc/unifi-stubd/NOTICE.md" = "1\$$notice_sum"
+  "/usr/local/share/doc/unifi-stubd/CREDITS.md" = "1\$$credits_sum"
+}
+directories = {
+  "/usr/local/etc/unifi-stubd" = "y"
+  "/usr/local/share/doc/unifi-stubd" = "y"
+  "/var/db/unifi-stubd" = "y"
+}
 EOF
 }
 
@@ -166,7 +172,7 @@ for abi_dir in stage/*; do
   abi="$(basename "$abi_dir")"
   printf '== pkg create %s ==\n' "$abi"
   mkdir -p "repo/$abi"
-  pkg create -f txz -r "$abi_dir/pkgroot" -m "$abi_dir/meta" -p "$abi_dir/plist" -o "repo/$abi"
+  pkg create -f txz -r "$abi_dir/pkgroot" -M "$abi_dir/manifest.ucl" -o "repo/$abi"
   pkg repo "repo/$abi"
 done
 tar -czf repo.tar.gz repo

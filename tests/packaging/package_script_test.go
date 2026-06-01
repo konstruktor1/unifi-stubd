@@ -30,45 +30,33 @@ func TestPackageScriptKeepsOtherTargetArtifacts(t *testing.T) {
 	}
 }
 
-// TestFreeBSDPkgPlistUsesPrefixRelativePaths verifies native FreeBSD pkg
-// packages follow plist semantics. Absolute /usr/local plist entries caused
-// pkg 2.3.1 to crash when migrating a host that already had tarball-installed,
-// unregistered files in place.
-func TestFreeBSDPkgPlistUsesPrefixRelativePaths(t *testing.T) {
+// TestFreeBSDPkgManifestUsesSimpleChecksumEntries verifies native FreeBSD pkg
+// packages avoid plist-derived owner/mode/mtime file objects. pkg 2.3.1 on
+// OPNsense 26.1 crashed when migrating a host that already had
+// tarball-installed, unregistered files in place and the package manifest used
+// those file-object entries.
+func TestFreeBSDPkgManifestUsesSimpleChecksumEntries(t *testing.T) {
 	data, err := os.ReadFile("../../scripts/package-freebsd-pkg-repos.sh")
 	if err != nil {
 		t.Fatal(err)
 	}
 	script := string(data)
-	start := strings.Index(script, "cat >\"$stage/plist\" <<'EOF'\n")
-	if start == -1 {
-		t.Fatal("FreeBSD pkg plist heredoc not found")
+	if strings.Contains(script, "cat >\"$stage/plist\"") ||
+		strings.Contains(script, " -p \"$abi_dir/plist\"") {
+		t.Fatal("FreeBSD pkg builder should use a direct manifest, not a plist")
 	}
-	plist := script[start:]
-	end := strings.Index(plist, "\nEOF\n")
-	if end == -1 {
-		t.Fatal("FreeBSD pkg plist heredoc end not found")
-	}
-	plist = plist[:end]
-	for _, forbidden := range []string{
-		"/usr/local/bin/unifi-stubd",
-		"/usr/local/etc/rc.d/unifi-stubd",
-		"/usr/local/etc/unifi-stubd/config.yaml",
-		"/usr/local/share/doc/unifi-stubd/LICENSE",
-	} {
-		if strings.Contains(plist, forbidden) {
-			t.Fatalf("FreeBSD pkg plist contains prefix-absolute path %q", forbidden)
-		}
+	if !strings.Contains(script, "pkg create -f txz -r \"$abi_dir/pkgroot\" -M \"$abi_dir/manifest.ucl\"") {
+		t.Fatal("FreeBSD pkg builder does not create packages from manifest.ucl")
 	}
 	for _, required := range []string{
-		"bin/unifi-stubd",
-		"etc/rc.d/unifi-stubd",
-		"etc/unifi-stubd/config.yaml",
-		"share/doc/unifi-stubd/LICENSE",
-		"@dir /var/db/unifi-stubd",
+		`"/usr/local/bin/unifi-stubd" = "1\$`,
+		`"/usr/local/etc/rc.d/unifi-stubd" = "1\$`,
+		`"/usr/local/etc/unifi-stubd/config.yaml" = "1\$`,
+		`"/usr/local/share/doc/unifi-stubd/LICENSE" = "1\$`,
+		`"/var/db/unifi-stubd" = "y"`,
 	} {
-		if !strings.Contains(plist, required) {
-			t.Fatalf("FreeBSD pkg plist does not contain %q", required)
+		if !strings.Contains(script, required) {
+			t.Fatalf("FreeBSD pkg manifest does not contain %q", required)
 		}
 	}
 }

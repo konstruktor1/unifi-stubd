@@ -7,13 +7,21 @@ semantic version tags once releases are published.
 
 ## [Unreleased]
 
+## [0.1.7-alpha] - 2026-06-01
+
+### Fixed
+
+- Fixed native FreeBSD `pkg` repository packages to write simple checksum-only
+  file manifest entries directly, avoiding an OPNsense `pkg` 2.3.1 extraction
+  crash when migrating hosts with tarball-installed, unregistered files.
+
 ## [0.1.6-alpha] - 2026-06-01
 
 ### Fixed
 
-- Fixed native FreeBSD `pkg` plist paths so hosts with existing unregistered
-  tarball-installed files can migrate to the package repository without
-  triggering a `pkg` extraction crash.
+- Adjusted native FreeBSD `pkg` plist paths as part of tarball-to-package
+  migration hardening. This was superseded by the direct-manifest package
+  format in `0.1.7-alpha`.
 
 ## [0.1.5-alpha] - 2026-05-29
 
