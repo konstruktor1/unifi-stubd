@@ -4,6 +4,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -25,6 +26,49 @@ func TestPackageScriptKeepsOtherTargetArtifacts(t *testing.T) {
 	for _, path := range []string{linuxTGZ, freebsdTGZ} {
 		if _, err := os.Stat(path); err != nil {
 			t.Fatalf("expected package artifact %s: %v", path, err)
+		}
+	}
+}
+
+// TestFreeBSDPkgPlistUsesPrefixRelativePaths verifies native FreeBSD pkg
+// packages follow plist semantics. Absolute /usr/local plist entries caused
+// pkg 2.3.1 to crash when migrating a host that already had tarball-installed,
+// unregistered files in place.
+func TestFreeBSDPkgPlistUsesPrefixRelativePaths(t *testing.T) {
+	data, err := os.ReadFile("../../scripts/package-freebsd-pkg-repos.sh")
+	if err != nil {
+		t.Fatal(err)
+	}
+	script := string(data)
+	start := strings.Index(script, "cat >\"$stage/plist\" <<'EOF'\n")
+	if start == -1 {
+		t.Fatal("FreeBSD pkg plist heredoc not found")
+	}
+	plist := script[start:]
+	end := strings.Index(plist, "\nEOF\n")
+	if end == -1 {
+		t.Fatal("FreeBSD pkg plist heredoc end not found")
+	}
+	plist = plist[:end]
+	for _, forbidden := range []string{
+		"/usr/local/bin/unifi-stubd",
+		"/usr/local/etc/rc.d/unifi-stubd",
+		"/usr/local/etc/unifi-stubd/config.yaml",
+		"/usr/local/share/doc/unifi-stubd/LICENSE",
+	} {
+		if strings.Contains(plist, forbidden) {
+			t.Fatalf("FreeBSD pkg plist contains prefix-absolute path %q", forbidden)
+		}
+	}
+	for _, required := range []string{
+		"bin/unifi-stubd",
+		"etc/rc.d/unifi-stubd",
+		"etc/unifi-stubd/config.yaml",
+		"share/doc/unifi-stubd/LICENSE",
+		"@dir /var/db/unifi-stubd",
+	} {
+		if !strings.Contains(plist, required) {
+			t.Fatalf("FreeBSD pkg plist does not contain %q", required)
 		}
 	}
 }

@@ -138,18 +138,18 @@ EOF
 @owner root
 @group wheel
 @mode 0755
-/usr/local/bin/unifi-stubd
-/usr/local/etc/rc.d/unifi-stubd
+bin/unifi-stubd
+etc/rc.d/unifi-stubd
 @mode 0600
-/usr/local/etc/unifi-stubd/config.yaml
+etc/unifi-stubd/config.yaml
 @mode 0644
-/usr/local/share/doc/unifi-stubd/LICENSE
-/usr/local/share/doc/unifi-stubd/NOTICE.md
-/usr/local/share/doc/unifi-stubd/CREDITS.md
+share/doc/unifi-stubd/LICENSE
+share/doc/unifi-stubd/NOTICE.md
+share/doc/unifi-stubd/CREDITS.md
 @mode
 @dir /var/db/unifi-stubd
-@dir /usr/local/etc/unifi-stubd
-@dir /usr/local/share/doc/unifi-stubd
+@dir etc/unifi-stubd
+@dir share/doc/unifi-stubd
 EOF
 }
 

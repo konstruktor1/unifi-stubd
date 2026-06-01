@@ -7,6 +7,14 @@ semantic version tags once releases are published.
 
 ## [Unreleased]
 
+## [0.1.6-alpha] - 2026-06-01
+
+### Fixed
+
+- Fixed native FreeBSD `pkg` plist paths so hosts with existing unregistered
+  tarball-installed files can migrate to the package repository without
+  triggering a `pkg` extraction crash.
+
 ## [0.1.5-alpha] - 2026-05-29
 
 ### Added

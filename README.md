@@ -146,11 +146,11 @@ when the FreeBSD builder runner is online:
 
 ```sh
 ARCH=amd64 # or arm64
-fetch https://konstruktor1.github.io/unifi-stubd/freebsd/${ARCH}/unifi-stubd_0.1.5-alpha-1_freebsd_${ARCH}.tar.gz
+fetch https://konstruktor1.github.io/unifi-stubd/freebsd/${ARCH}/unifi-stubd_0.1.6-alpha-1_freebsd_${ARCH}.tar.gz
 fetch https://konstruktor1.github.io/unifi-stubd/checksums.txt
-grep "freebsd/${ARCH}/unifi-stubd_0.1.5-alpha-1_freebsd_${ARCH}.tar.gz" checksums.txt
-sha256 unifi-stubd_0.1.5-alpha-1_freebsd_${ARCH}.tar.gz
-sudo tar -xzf unifi-stubd_0.1.5-alpha-1_freebsd_${ARCH}.tar.gz -C /
+grep "freebsd/${ARCH}/unifi-stubd_0.1.6-alpha-1_freebsd_${ARCH}.tar.gz" checksums.txt
+sha256 unifi-stubd_0.1.6-alpha-1_freebsd_${ARCH}.tar.gz
+sudo tar -xzf unifi-stubd_0.1.6-alpha-1_freebsd_${ARCH}.tar.gz -C /
 sudo vi /usr/local/etc/unifi-stubd/config.yaml
 sudo sysrc unifi_stubd_enable=YES
 sudo service unifi-stubd start
