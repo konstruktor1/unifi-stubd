@@ -43,11 +43,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
       - uses: actions/setup-go@v6
         with:
           go-version: stable
           check-latest: true
-      - run: make package
+      - name: Resolve package version
+        id: package-version
+        run: |
+          set -eu
+          version="$(git describe --tags --abbrev=0 --match 'v[0-9]*' | sed 's/^v//')"
+          test -n "$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+      - run: PKG_VERSION='${{ steps.package-version.outputs.version }}' make package
       - name: Install deb package smoke test
         run: |
           set -eu
@@ -55,7 +64,7 @@ jobs:
           test -n "$deb"
           sudo dpkg -i "$deb"
           test -x /usr/local/bin/unifi-stubd
-          unifi-stubd -version
+          test "$(unifi-stubd -version)" = '${{ steps.package-version.outputs.version }}'
           sudo unifi-stubd -validate -config /etc/unifi-stubd/config.yaml
           dpkg -L unifi-stubd | grep -qx /lib/systemd/system/unifi-stubd.service
       - uses: actions/upload-artifact@v7
