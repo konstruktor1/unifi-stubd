@@ -12,8 +12,6 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/observe/wanhealth"
 )
 
-// validateWANHealthConfig checks the YAML-only WAN health surface before any
-// active probes can run.
 func validateWANHealthConfig(flags runtimeFlags) error {
 	cfg := flags.wanHealth
 	source := wanhealth.NormalizeSource(cfg.Source)
@@ -42,49 +40,43 @@ func validateWANHealthConfig(flags runtimeFlags) error {
 	return nil
 }
 
-// normalizeWANHealthConfig stores the canonical source spelling on runtime
-// flags. Probe timings are kept as config integers so status can echo them.
 func normalizeWANHealthConfig(flags *runtimeFlags) {
 	flags.wanHealth.Source = wanhealth.NormalizeSource(flags.wanHealth.Source)
 }
 
-// validateWANHealthTargetRoles verifies active probes only target gateway WAN
-// ports explicitly selected by local operator overrides.
-func validateWANHealthTargetRoles(flags runtimeFlags, profile device.Profile) error {
+func validateWANHealthTargets(flags runtimeFlags, profile device.Profile) error {
 	if wanhealth.NormalizeSource(flags.wanHealth.Source) != wanhealth.SourcePing {
 		return nil
 	}
-	if !gatewayProfile(profile) {
+	if !isGatewayProfile(profile) {
 		return fmt.Errorf("wan_health.source ping requires a gateway profile")
 	}
-	explicitWANPorts := explicitWANHealthTargetPorts(flags.portOverrides)
-	ports := wanHealthPreviewPorts(flags, profile)
+	wanPorts := explicitWANPorts(flags.portOverrides)
+	ports := healthPreviewPorts(flags, profile)
 	for _, target := range flags.wanHealth.Targets {
-		if !explicitWANPorts[target.Port] {
+		if !wanPorts[target.Port] {
 			return fmt.Errorf("wan_health target port %d must have an explicit port_overrides role wan or wan2", target.Port)
 		}
 		if target.Port < 1 || target.Port > len(ports) {
 			continue
 		}
 		port := ports[target.Port-1]
-		if !wanHealthPort(port) {
+		if !isWANPort(port) {
 			return fmt.Errorf("wan_health target port %d has resolved role %q; use an explicit port_overrides role wan or wan2", target.Port, valueOrDash(port.Role))
 		}
 	}
 	return nil
 }
 
-// applyWANHealth overlays active probe results onto the already resolved port
-// list. Only WAN health fields are set by the generated overrides.
 func applyWANHealth(ports []device.Port, flags runtimeFlags, profile device.Profile) []device.Port {
-	if wanhealth.NormalizeSource(flags.wanHealth.Source) != wanhealth.SourcePing || !gatewayProfile(profile) {
+	if wanhealth.NormalizeSource(flags.wanHealth.Source) != wanhealth.SourcePing || !isGatewayProfile(profile) {
 		return ports
 	}
-	targets := wanHealthRuntimeTargets(flags.wanHealth, ports, explicitWANHealthTargetPorts(flags.portOverrides))
+	targets := probeTargets(flags.wanHealth, ports, explicitWANPorts(flags.portOverrides))
 	if len(targets) == 0 {
 		return ports
 	}
-	cfg := wanHealthRuntimeConfig(flags.wanHealth, targets)
+	cfg := probeConfig(flags.wanHealth, targets)
 	results := wanhealth.Measure(context.Background(), cfg)
 	for _, result := range results {
 		if result.LastError != "" {
@@ -94,10 +86,10 @@ func applyWANHealth(ports []device.Port, flags runtimeFlags, profile device.Prof
 	// Reuse the normal override path so active samples can only touch the same
 	// WAN telemetry fields as static YAML hints. Role, VLAN, assignment IDs,
 	// addresses, and source interfaces are intentionally left untouched.
-	return device.ApplyPortOverrides(ports, device.PortOverridesFromWANHealthResults(deviceWANHealthResults(results)))
+	return device.ApplyPortOverrides(ports, device.WANHealthOverrides(deviceHealthResults(results)))
 }
 
-func wanHealthRuntimeConfig(cfg appconfig.WANHealthConfig, targets []wanhealth.Target) wanhealth.Config {
+func probeConfig(cfg appconfig.WANHealthConfig, targets []wanhealth.Target) wanhealth.Config {
 	return wanhealth.Config{
 		Source:   wanhealth.NormalizeSource(cfg.Source),
 		Interval: time.Duration(cfg.IntervalSeconds) * time.Second,
@@ -106,14 +98,14 @@ func wanHealthRuntimeConfig(cfg appconfig.WANHealthConfig, targets []wanhealth.T
 	}
 }
 
-func wanHealthRuntimeTargets(cfg appconfig.WANHealthConfig, ports []device.Port, explicitWANPorts map[int]bool) []wanhealth.Target {
+func probeTargets(cfg appconfig.WANHealthConfig, ports []device.Port, explicitWANPorts map[int]bool) []wanhealth.Target {
 	out := make([]wanhealth.Target, 0, len(cfg.Targets))
 	for _, target := range cfg.Targets {
 		if target.Port < 1 || target.Port > len(ports) {
 			continue
 		}
 		port := ports[target.Port-1]
-		if !explicitWANPorts[target.Port] || !wanHealthPort(port) {
+		if !explicitWANPorts[target.Port] || !isWANPort(port) {
 			log.Printf("wan_health target skipped: port=%d role=%q is not explicitly configured as wan or wan2", target.Port, port.Role)
 			continue
 		}
@@ -125,18 +117,18 @@ func wanHealthRuntimeTargets(cfg appconfig.WANHealthConfig, ports []device.Port,
 	return out
 }
 
-func explicitWANHealthTargetPorts(overrides []device.PortOverride) map[int]bool {
+func explicitWANPorts(overrides []device.PortOverride) map[int]bool {
 	out := make(map[int]bool)
 	for _, override := range overrides {
 		if override.Port < 1 || strings.TrimSpace(override.Role) == "" {
 			continue
 		}
-		out[override.Port] = wanHealthRole(override.Role)
+		out[override.Port] = isWANRole(override.Role)
 	}
 	return out
 }
 
-func deviceWANHealthResults(results []wanhealth.Result) []device.WANHealthResult {
+func deviceHealthResults(results []wanhealth.Result) []device.WANHealthResult {
 	out := make([]device.WANHealthResult, 0, len(results))
 	for _, result := range results {
 		out = append(out, device.WANHealthResult{
@@ -150,7 +142,7 @@ func deviceWANHealthResults(results []wanhealth.Result) []device.WANHealthResult
 	return out
 }
 
-func wanHealthPreviewPorts(flags runtimeFlags, profile device.Profile) []device.Port {
+func healthPreviewPorts(flags runtimeFlags, profile device.Profile) []device.Port {
 	ports := device.BuildPorts(profile, device.PortBuildOptions{
 		Count:      flags.portCount,
 		LinkSpeed:  flags.linkSpeed,
@@ -159,15 +151,15 @@ func wanHealthPreviewPorts(flags runtimeFlags, profile device.Profile) []device.
 	return device.ApplyPortOverrides(ports, flags.portOverrides)
 }
 
-func gatewayProfile(profile device.Profile) bool {
+func isGatewayProfile(profile device.Profile) bool {
 	return strings.EqualFold(strings.TrimSpace(profile.Payload.Kind), "gateway")
 }
 
-func wanHealthPort(port device.Port) bool {
-	return wanHealthRole(port.Role)
+func isWANPort(port device.Port) bool {
+	return isWANRole(port.Role)
 }
 
-func wanHealthRole(role string) bool {
+func isWANRole(role string) bool {
 	switch strings.ToLower(strings.TrimSpace(role)) {
 	case "wan", "wan2":
 		return true

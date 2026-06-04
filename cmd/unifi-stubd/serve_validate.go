@@ -6,14 +6,14 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/device"
 )
 
-func validateRuntimeConfiguration(flags runtimeFlags, profile device.Profile) error {
+func validateRuntime(flags runtimeFlags, profile device.Profile) error {
 	if err := validateIdentityFlags(flags); err != nil {
 		return withExitCode(1, err)
 	}
 	if err := validatePortOverrides(flags); err != nil {
 		return withExitCode(1, err)
 	}
-	if err := validateWANHealthTargetRoles(flags, profile); err != nil {
+	if err := validateWANHealthTargets(flags, profile); err != nil {
 		return withExitCode(1, err)
 	}
 	if err := validateSourceMappings(flags, true); err != nil {

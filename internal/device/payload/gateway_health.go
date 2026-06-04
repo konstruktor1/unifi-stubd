@@ -6,15 +6,14 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/device"
 )
 
-// gatewayUplinkTable renders the controller-facing uplink entry.
 func gatewayUplinkTable(_ device.Profile, id device.Identity, ports []PortView, now time.Time, uptime int) []gatewayUplinkRow {
-	uplinkIndex := gatewayUplinkPortIndex(ports)
+	uplinkIndex := uplinkPortIndex(ports)
 	for _, view := range ports {
 		if view.Index != uplinkIndex {
 			continue
 		}
 		iface := view.GatewayInterface
-		health := gatewayWANHealthFor(view, uptime)
+		health := wanHealth(view, uptime)
 		row := gatewayUplinkRow{
 			Name:         iface.Name,
 			IfName:       iface.IfName,
@@ -30,7 +29,7 @@ func gatewayUplinkTable(_ device.Profile, id device.Identity, ports []PortView, 
 			Availability: health.uptimePercent,
 			Latency:      health.latencyMS,
 			Downtime:     health.downtime,
-			gatewayWANUplinkHealthFields: gatewayWANUplinkHealthFieldsFor(
+			wanUplinkHealthFields: uplinkHealthFields(
 				health,
 				now,
 				uptime,
@@ -51,40 +50,40 @@ func gatewayUplinkTable(_ device.Profile, id device.Identity, ports []PortView, 
 	return nil
 }
 
-func gatewayWANUplinkHealthFieldsFor(health gatewayWANHealth, now time.Time, uptime int) gatewayWANUplinkHealthFields {
+func uplinkHealthFields(health gatewayWANHealth, now time.Time, uptime int) wanUplinkHealthFields {
 	if !health.connected {
-		return gatewayWANUplinkHealthFields{}
+		return wanUplinkHealthFields{}
 	}
-	return gatewayWANUplinkHealthFields{
-		Uptime:           gatewayWANUplinkUptime(health, uptime),
-		SpeedtestStatus:  gatewaySpeedtestStatusText(health.connected),
-		SpeedtestLastRun: gatewaySpeedtestLastRun(health.connected, now),
+	return wanUplinkHealthFields{
+		Uptime:           uplinkHealthUptime(health, uptime),
+		SpeedtestStatus:  speedtestStatusText(health.connected),
+		SpeedtestLastRun: speedtestLastRun(health.connected, now),
 		SpeedtestPing:    health.latencyMS,
 	}
 }
 
-func gatewayWANUplinkUptime(health gatewayWANHealth, uptime int) int {
+func uplinkHealthUptime(health gatewayWANHealth, uptime int) int {
 	if !health.connected {
 		return 0
 	}
 	return uptime
 }
 
-func gatewaySpeedtestStatusText(connected bool) string {
+func speedtestStatusText(connected bool) string {
 	if connected {
 		return "Success"
 	}
 	return "Idle"
 }
 
-func gatewaySpeedtestLastRun(connected bool, now time.Time) int {
+func speedtestLastRun(connected bool, now time.Time) int {
 	if !connected {
 		return 0
 	}
 	return int(now.Unix())
 }
 
-func gatewayWANUptimeStats(ports []PortView, uptime int) map[string]gatewayWANHealthRow {
+func wanUptimeStats(ports []PortView, uptime int) map[string]gatewayWANHealthRow {
 	stats := make(map[string]gatewayWANHealthRow, 2)
 	for _, role := range []string{gatewayPortRoleWAN, gatewayPortRoleWAN2} {
 		for _, view := range gatewayRoleCandidates(ports, role) {
@@ -92,7 +91,7 @@ func gatewayWANUptimeStats(ports []PortView, uptime int) map[string]gatewayWANHe
 				continue
 			}
 			iface := view.GatewayInterface
-			health := gatewayWANHealthFor(view, uptime)
+			health := wanHealth(view, uptime)
 			stats[iface.NetworkGroup] = gatewayWANHealthRow{
 				NetworkGroup:   iface.NetworkGroup,
 				IfName:         iface.IfName,
@@ -121,7 +120,7 @@ func gatewayInternetHealth(ports []PortView, uptime int) *gatewayInternetHealthR
 			continue
 		}
 		iface := view.GatewayInterface
-		health := gatewayWANHealthFor(view, uptime)
+		health := wanHealth(view, uptime)
 		status := "offline"
 		if health.connected {
 			status = "ok"
@@ -129,7 +128,7 @@ func gatewayInternetHealth(ports []PortView, uptime int) *gatewayInternetHealthR
 		return &gatewayInternetHealthRow{
 			Status: status,
 			WANStatus: map[string]string{
-				iface.NetworkGroup: gatewayWANStatusText(health.connected),
+				iface.NetworkGroup: wanStatusText(health.connected),
 			},
 			WANIP:          iface.IP,
 			Netmask:        iface.Netmask,
@@ -156,8 +155,8 @@ func gatewayLastWANStatus(ports []PortView, uptime int) map[string]string {
 				continue
 			}
 			iface := view.GatewayInterface
-			health := gatewayWANHealthFor(view, uptime)
-			status[iface.NetworkGroup] = gatewayWANStatusText(health.connected)
+			health := wanHealth(view, uptime)
+			status[iface.NetworkGroup] = wanStatusText(health.connected)
 			break
 		}
 	}
@@ -177,14 +176,14 @@ func gatewayLastWANIP(ports []PortView) string {
 	return ""
 }
 
-func gatewayWANStatusText(connected bool) string {
+func wanStatusText(connected bool) string {
 	if connected {
 		return "online"
 	}
 	return "offline"
 }
 
-func gatewayWANHealthFor(view PortView, uptime int) gatewayWANHealth {
+func wanHealth(view PortView, uptime int) gatewayWANHealth {
 	up := view.Up && view.Enabled
 	connected := up
 	// WANConnected may come from static YAML hints or active wan_health ping
@@ -212,13 +211,13 @@ func gatewayWANHealthFor(view PortView, uptime int) gatewayWANHealth {
 	}
 }
 
-func gatewayWANInlineHealthFor(view PortView, uptime int) gatewayWANInlineHealth {
+func inlineWANHealth(view PortView, uptime int) gatewayWANInlineHealth {
 	switch gatewayPortRole(view.Port) {
 	case gatewayPortRoleWAN, gatewayPortRoleWAN2:
 	default:
 		return gatewayWANInlineHealth{}
 	}
-	health := gatewayWANHealthFor(view, uptime)
+	health := wanHealth(view, uptime)
 	return gatewayWANInlineHealth{
 		Availability:   float64Ref(health.uptimePercent),
 		Latency:        intRef(health.latencyMS),

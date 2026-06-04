@@ -4,7 +4,8 @@ package device
 
 import "fmt"
 
-// ApplyPortOverrides applies per-port overrides to ports.
+// ApplyPortOverrides merges operator-provided port metadata into generated
+// profile ports.
 func ApplyPortOverrides(ports []Port, overrides []PortOverride) []Port {
 	if len(overrides) == 0 || len(ports) == 0 {
 		return ports
@@ -36,10 +37,10 @@ func ClonePortOverrides(overrides []PortOverride) []PortOverride {
 	return out
 }
 
-// PortOverridesFromWANHealthResults converts active WAN health samples into
-// health-only port overrides. It intentionally leaves role, assignment,
-// addressing, VLAN, and link-state fields unset.
-func PortOverridesFromWANHealthResults(results []WANHealthResult) []PortOverride {
+// WANHealthOverrides converts active WAN health samples into health-only port
+// overrides. It intentionally leaves role, assignment, addressing, VLAN, and
+// link-state fields unset.
+func WANHealthOverrides(results []WANHealthResult) []PortOverride {
 	if len(results) == 0 {
 		return nil
 	}

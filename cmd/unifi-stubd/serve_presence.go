@@ -43,7 +43,7 @@ func maintainControllerPresence(cfg controllerPresence) error {
 			// interface-backed overrides on every heartbeat instead of only at
 			// startup.
 			ctx, cancel := context.WithTimeout(context.Background(), observeTimeout)
-			flags.portOverrides = enrichPortOverridesWithPlatform(ctx, plt, flags.portOverrides)
+			flags.portOverrides = enrichOverrides(ctx, plt, flags.portOverrides)
 			cancel()
 		}
 		ports := portsForRuntime(flags, cfg.profile, cfg.portBuildOptions, plt)

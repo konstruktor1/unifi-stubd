@@ -61,7 +61,7 @@ func gatewaySpeedtestStatusFor(ports []PortView, now time.Time, uptime int) spee
 		if gatewayPortRole(view.Port) != gatewayPortRoleWAN {
 			continue
 		}
-		health := gatewayWANHealthFor(view, uptime)
+		health := wanHealth(view, uptime)
 		if !health.connected {
 			return status
 		}

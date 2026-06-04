@@ -47,10 +47,10 @@ func (p hostPlatform) linuxBridge(ctx context.Context, cfg observe.BridgeConfig)
 			errs = append(errs, err)
 		} else {
 			observation.MemberMACs = observe.MACEntriesByDevice(entries)
-			if err := observe.EnrichMACEntriesWithLocalARP(observation.MemberMACs); err != nil {
+			if err := observe.EnrichMACsFromLocalARP(observation.MemberMACs); err != nil {
 				errs = append(errs, err)
 			}
-			observation.MemberRoles = observe.ClassifyBridgeMembersWithIgnores(observation.MemberMACs, observation.Bridge, observation.UplinkInterface, cfg.IgnoredMembers)
+			observation.MemberRoles = observe.ClassifyMembersWithIgnores(observation.MemberMACs, observation.Bridge, observation.UplinkInterface, cfg.IgnoredMembers)
 			observation.RemoteMACs = observe.RemoteMACsByBridgeMember(observation.MemberMACs, observation.MemberRoles, observation.UplinkInterface, observation.Bridge)
 			observation.MemberPorts, errs = p.bridgeMemberObservations(ctx, observation.MemberMACs, observation.MemberRoles, errs)
 		}
@@ -72,8 +72,8 @@ func (p hostPlatform) freebsdBridge(ctx context.Context, cfg observe.BridgeConfi
 		if err != nil {
 			errs = append(errs, err)
 		} else {
-			observation.MemberMACs = freeBSDMACEntriesByInterface(entries)
-			observation.MemberRoles = observe.ClassifyBridgeMembersWithIgnores(observation.MemberMACs, observation.Bridge, observation.UplinkInterface, cfg.IgnoredMembers)
+			observation.MemberMACs = freeBSDMACsByInterface(entries)
+			observation.MemberRoles = observe.ClassifyMembersWithIgnores(observation.MemberMACs, observation.Bridge, observation.UplinkInterface, cfg.IgnoredMembers)
 			observation.RemoteMACs = observe.RemoteMACsByBridgeMember(observation.MemberMACs, observation.MemberRoles, observation.UplinkInterface, observation.Bridge)
 			observation.MemberPorts, errs = p.bridgeMemberObservations(ctx, observation.MemberMACs, observation.MemberRoles, errs)
 		}
@@ -147,8 +147,8 @@ func cloneMemberPortMap(values map[string]int) map[string]int {
 	return out
 }
 
-// freeBSDMACEntriesByInterface keeps the platform adapter on the same FreeBSD
+// freeBSDMACsByInterface keeps the platform adapter on the same FreeBSD
 // MAC filtering rules as the observe package.
-func freeBSDMACEntriesByInterface(entries []freebsdifconfig.BridgeAddress) map[string][]device.MacTableEntry {
-	return observe.FreeBSDMACEntriesByInterface(entries)
+func freeBSDMACsByInterface(entries []freebsdifconfig.BridgeAddress) map[string][]device.MacTableEntry {
+	return observe.FreeBSDMACsByInterface(entries)
 }

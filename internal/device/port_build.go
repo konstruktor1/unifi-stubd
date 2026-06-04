@@ -89,7 +89,7 @@ func generatedPort(index, speed int, media string, uplink, profileUplink bool, n
 		Name:          portName(index, names),
 		Role:          profileRole,
 		ProfileRole:   profileRole,
-		NetworkGroup:  normalizeGatewayNetworkGroup(oneBasedString(index, networkGroups)),
+		NetworkGroup:  normalizeNetworkGroup(oneBasedString(index, networkGroups)),
 		Media:         media,
 		Uplink:        uplink,
 		ProfileUplink: profileUplink,

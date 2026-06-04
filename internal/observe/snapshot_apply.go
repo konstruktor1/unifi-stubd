@@ -72,7 +72,7 @@ func applyDeviceMACs(ports []device.Port, snapshot Snapshot, uplinkIndex int) {
 		if len(macs) == 0 {
 			continue
 		}
-		role := bridgeMemberRole(snapshot.MemberRoles, deviceName)
+		role := memberRole(snapshot.MemberRoles, deviceName)
 		if role == BridgeMemberRoleBridge || role == BridgeMemberRoleIgnored {
 			continue
 		}

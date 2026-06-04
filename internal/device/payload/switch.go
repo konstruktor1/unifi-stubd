@@ -169,7 +169,7 @@ func switchPortMACTable(port PortView) []device.MacTableEntry {
 	}
 	out := make([]device.MacTableEntry, 0, len(port.MACs))
 	for _, entry := range port.MACs {
-		if switchSuppressesUplinkNeighbor(entry.Type) {
+		if suppressesUplinkNeighbor(entry.Type) {
 			continue
 		}
 		out = append(out, entry)
@@ -177,7 +177,7 @@ func switchPortMACTable(port PortView) []device.MacTableEntry {
 	return out
 }
 
-func switchSuppressesUplinkNeighbor(value string) bool {
+func suppressesUplinkNeighbor(value string) bool {
 	switch strings.ToLower(strings.TrimSpace(value)) {
 	case "uxg", "ugw", "usg", "gateway":
 		return true
@@ -213,7 +213,7 @@ func managementInterfaceSpeed(ports []device.Port) int {
 	return 0
 }
 
-func managementInterfaceSpeedOrDefault(ports []device.Port) int {
+func managementSpeed(ports []device.Port) int {
 	if speed := managementInterfaceSpeed(ports); speed > 0 {
 		return speed
 	}

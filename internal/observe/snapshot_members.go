@@ -16,7 +16,7 @@ func linuxMemberPortObservations(sysfsRoot string, memberMACs map[string][]devic
 	}
 	out := map[string]PortObservation{}
 	for member := range memberMACs {
-		role := bridgeMemberRole(roles, member)
+		role := memberRole(roles, member)
 		if role == BridgeMemberRoleBridge || role == BridgeMemberRoleIgnored {
 			continue
 		}
@@ -44,7 +44,7 @@ func mapBridgeMemberInterfaces(memberMACs map[string][]device.MacTableEntry, rol
 	}
 	out := map[string]PortObservation{}
 	for member := range memberMACs {
-		role := bridgeMemberRole(roles, member)
+		role := memberRole(roles, member)
 		if role == BridgeMemberRoleBridge || role == BridgeMemberRoleIgnored {
 			continue
 		}

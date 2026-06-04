@@ -21,7 +21,7 @@ func validateManagementLAN(flags runtimeFlags, profile device.Profile, live bool
 	if !cfg.Enabled {
 		return nil
 	}
-	if structuredManagementLANRequested(flags) && strings.ToLower(strings.TrimSpace(profile.Payload.Kind)) != "switch" {
+	if managementRequested(flags) && strings.ToLower(strings.TrimSpace(profile.Payload.Kind)) != "switch" {
 		return fmt.Errorf("management_lan is supported for switch profiles only in this release")
 	}
 	switch cfg.Mode {
@@ -52,15 +52,14 @@ func validateManagementLAN(flags runtimeFlags, profile device.Profile, live bool
 		return fmt.Errorf("invalid management_lan.interface %q", cfg.Interface)
 	}
 	if cfg.Mode == managementLANModePreexistingInterface && live {
-		return validatePreexistingManagementLAN(flags, cfg)
+		return validatePreexistingManagement(flags, cfg)
 	}
 	return nil
 }
 
-// validatePreexistingManagementLAN checks the local interface and optional
-// controller reachability before the daemon binds discovery or inform traffic
-// to that management address.
-func validatePreexistingManagementLAN(flags runtimeFlags, cfg appconfig.ManagementLAN) error {
+// validatePreexistingManagement checks the local interface before source-bound
+// discovery or inform traffic can use it.
+func validatePreexistingManagement(flags runtimeFlags, cfg appconfig.ManagementLAN) error {
 	sourceIP, err := managementLANInterfaceIP(cfg)
 	if err != nil {
 		return err
@@ -75,7 +74,7 @@ func validatePreexistingManagementLAN(flags runtimeFlags, cfg appconfig.Manageme
 		}
 		sourceIP = configured
 	}
-	if err := validateManagementLANReachability(flags, cfg, sourceIP); err != nil {
+	if err := checkControllerReachability(flags, cfg, sourceIP); err != nil {
 		if cfg.ControllerReachable == managementLANReachRequired {
 			return err
 		}

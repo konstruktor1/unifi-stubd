@@ -24,7 +24,7 @@ func resolveServeIdentity(flags runtimeFlags, profile device.Profile, plt platfo
 	if ip == nil {
 		return serveIdentity{}, fmt.Errorf("invalid IPv4 address: %q", flags.ipText)
 	}
-	ip, err := resolveManagementLANIdentityIP(flags, ip, plt)
+	ip, err := resolveManagementIP(flags, ip, plt)
 	if err != nil {
 		return serveIdentity{}, err
 	}

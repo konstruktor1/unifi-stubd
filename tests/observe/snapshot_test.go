@@ -122,16 +122,16 @@ func TestParseARPTableFiltersAndNormalizesRows(t *testing.T) {
 	}
 }
 
-// TestEnrichMACEntriesWithARPAddsClientIP verifies ARP data fills missing
+// TestEnrichMACsFromARPAddsClientIP verifies ARP data fills missing
 // client IP metadata without replacing existing fields.
-func TestEnrichMACEntriesWithARPAddsClientIP(t *testing.T) {
+func TestEnrichMACsFromARPAddsClientIP(t *testing.T) {
 	memberMACs := map[string][]device.MacTableEntry{
 		"tap101i0": {
 			{MAC: "02:00:5e:00:53:03", Age: 4, Uptime: 1200},
 		},
 	}
 
-	observe.EnrichMACEntriesWithARP(memberMACs, []observe.ARPEntry{
+	observe.EnrichMACsFromARP(memberMACs, []observe.ARPEntry{
 		{IP: "192.0.2.52", MAC: "02:00:5e:00:53:03", Device: "vmbr0"},
 	})
 
@@ -140,15 +140,15 @@ func TestEnrichMACEntriesWithARPAddsClientIP(t *testing.T) {
 	}
 }
 
-// TestFreeBSDMACEntriesByInterfaceFiltersLocalAndMulticast verifies FreeBSD
+// TestFreeBSDMACsByInterfaceFiltersLocalAndMulticast verifies FreeBSD
 // bridge rows follow the same downstream-client filter.
-func TestFreeBSDMACEntriesByInterfaceFiltersLocalAndMulticast(t *testing.T) {
+func TestFreeBSDMACsByInterfaceFiltersLocalAndMulticast(t *testing.T) {
 	entries := []freebsdifconfig.BridgeAddress{
 		{MAC: "00:11:22:33:44:55", VLAN: 20, Interface: "tap101", Age: 99},
 		{MAC: "02:aa:bb:cc:dd:ee", VLAN: 1, Interface: "em0", Local: true},
 		{MAC: "33:33:00:00:00:01", VLAN: 1, Interface: "em0"},
 	}
-	byInterface := observe.FreeBSDMACEntriesByInterface(entries)
+	byInterface := observe.FreeBSDMACsByInterface(entries)
 	if len(byInterface["tap101"]) != 1 {
 		t.Fatalf("tap101 entries = %+v", byInterface["tap101"])
 	}
@@ -161,9 +161,9 @@ func TestFreeBSDMACEntriesByInterfaceFiltersLocalAndMulticast(t *testing.T) {
 	}
 }
 
-// TestClassifyBridgeMembersDistinguishesUplinkAccessAndBridge verifies bridge
+// TestClassifyMembersDistinguishesUplinkAccessAndBridge verifies bridge
 // member roles before port mapping.
-func TestClassifyBridgeMembersDistinguishesUplinkAccessAndBridge(t *testing.T) {
+func TestClassifyMembersDistinguishesUplinkAccessAndBridge(t *testing.T) {
 	memberMACs := map[string][]device.MacTableEntry{
 		"vmbr0":    {{MAC: "00:11:22:33:44:00", Age: 4, Uptime: 1200}},
 		"enp100s0": {{MAC: "00:11:22:33:44:01", Age: 4, Uptime: 1200}},
@@ -174,7 +174,7 @@ func TestClassifyBridgeMembersDistinguishesUplinkAccessAndBridge(t *testing.T) {
 		"fwpr104p0": {{MAC: "00:11:22:33:44:04", Age: 4, Uptime: 1200}},
 	}
 
-	roles := observe.ClassifyBridgeMembers(memberMACs, "vmbr0", "enp100s0")
+	roles := observe.ClassifyMembers(memberMACs, "vmbr0", "enp100s0")
 	if roles["vmbr0"] != observe.BridgeMemberRoleBridge {
 		t.Fatalf("vmbr0 role = %q", roles["vmbr0"])
 	}
@@ -188,16 +188,16 @@ func TestClassifyBridgeMembersDistinguishesUplinkAccessAndBridge(t *testing.T) {
 	}
 }
 
-// TestClassifyBridgeMembersPromotesSinglePhysicalCandidate verifies the
+// TestClassifyMembersPromotesSinglePhysicalCandidate verifies the
 // conservative single-physical-uplink heuristic.
-func TestClassifyBridgeMembersPromotesSinglePhysicalCandidate(t *testing.T) {
+func TestClassifyMembersPromotesSinglePhysicalCandidate(t *testing.T) {
 	memberMACs := map[string][]device.MacTableEntry{
 		"bridge0": {{MAC: "00:11:22:33:44:00", Age: 4, Uptime: 1200}},
 		"igb0":    {{MAC: "00:11:22:33:44:01", Age: 4, Uptime: 1200}},
 		"epair0a": {{MAC: "00:11:22:33:44:02", Age: 4, Uptime: 1200}},
 	}
 
-	roles := observe.ClassifyBridgeMembers(memberMACs, "bridge0", "")
+	roles := observe.ClassifyMembers(memberMACs, "bridge0", "")
 	if roles["bridge0"] != observe.BridgeMemberRoleBridge {
 		t.Fatalf("bridge0 role = %q", roles["bridge0"])
 	}
@@ -209,16 +209,16 @@ func TestClassifyBridgeMembersPromotesSinglePhysicalCandidate(t *testing.T) {
 	}
 }
 
-// TestClassifyBridgeMembersHonorsIgnoredMembers verifies ignored members cannot
+// TestClassifyMembersHonorsIgnoredMembers verifies ignored members cannot
 // consume represented UniFi ports.
-func TestClassifyBridgeMembersHonorsIgnoredMembers(t *testing.T) {
+func TestClassifyMembersHonorsIgnoredMembers(t *testing.T) {
 	memberMACs := map[string][]device.MacTableEntry{
 		"vmbr0":      {{MAC: "00:11:22:33:44:00", Age: 4, Uptime: 1200}},
 		"eno1":       {{MAC: "00:11:22:33:44:01", Age: 4, Uptime: 1200}},
 		"tap10000i0": {{MAC: "00:11:22:33:44:02", Age: 4, Uptime: 1200}},
 	}
 
-	roles := observe.ClassifyBridgeMembersWithIgnores(memberMACs, "vmbr0", "eno1", []string{"TAP10000I0"})
+	roles := observe.ClassifyMembersWithIgnores(memberMACs, "vmbr0", "eno1", []string{"TAP10000I0"})
 	if roles["tap10000i0"] != observe.BridgeMemberRoleIgnored {
 		t.Fatalf("tap10000i0 role = %q", roles["tap10000i0"])
 	}

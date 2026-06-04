@@ -1017,7 +1017,7 @@ func TestGatewayWANHealthHintsFollowPortOverrides(t *testing.T) {
 // TestWANHealthResultsBecomeHealthOnlyOverrides verifies active probe results
 // cannot rewrite assignment, addressing, VLAN, or link-state fields.
 func TestWANHealthResultsBecomeHealthOnlyOverrides(t *testing.T) {
-	overrides := device.PortOverridesFromWANHealthResults([]device.WANHealthResult{
+	overrides := device.WANHealthOverrides([]device.WANHealthResult{
 		{Port: 3, Connected: true, LatencyMS: 8, DowntimeSeconds: 0, UptimePercent: 100},
 	})
 	if len(overrides) != 1 {
@@ -1594,9 +1594,9 @@ func TestGatewayPayloadReportsExplicitTrafficRates(t *testing.T) {
 	if got := int64(doc.UplinkTable[0]["tx_errors"].(float64)); got != 4 {
 		t.Fatalf("uplink tx_errors = %d, want 4", got)
 	}
-	assertNoExperimentalRateFields(t, doc.IfTable[0])
-	assertNoExperimentalRateFields(t, wanStats)
-	assertNoExperimentalRateFields(t, doc.UplinkTable[0])
+	assertNoRateFields(t, doc.IfTable[0])
+	assertNoRateFields(t, wanStats)
+	assertNoRateFields(t, doc.UplinkTable[0])
 }
 
 // TestGatewayPayloadSynchronizesResolvedTables verifies gateway tables all
@@ -2282,12 +2282,12 @@ func TestSwitchPayloadSuppressesSyntheticRatesWhenTrafficRatesEnabledWithoutSour
 	if got := int64(port["bytes-r"].(float64)); got != 0 {
 		t.Fatalf("bytes-r = %d, want 0", got)
 	}
-	assertNoExperimentalRateFields(t, port)
+	assertNoRateFields(t, port)
 }
 
-// assertNoExperimentalRateFields verifies payload rows avoid legacy
+// assertNoRateFields verifies payload rows avoid legacy
 // experimental rate keys.
-func assertNoExperimentalRateFields(t *testing.T, row map[string]any) {
+func assertNoRateFields(t *testing.T, row map[string]any) {
 	t.Helper()
 	for _, key := range []string{"rx_packets-r", "tx_packets-r", "rx_errors-r", "tx_errors-r"} {
 		if _, ok := row[key]; ok {

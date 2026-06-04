@@ -36,7 +36,7 @@ func flattenDeviceMACsByRole(deviceMACs map[string][]device.MacTableEntry, roles
 	}
 	out := make([]device.MacTableEntry, 0, count)
 	for _, deviceName := range sortedDeviceNames(deviceMACs, iface, bridge) {
-		role := bridgeMemberRole(roles, deviceName)
+		role := memberRole(roles, deviceName)
 		if role == BridgeMemberRoleBridge || role == BridgeMemberRoleIgnored {
 			continue
 		}
@@ -54,7 +54,7 @@ func RemoteMACsByBridgeMember(memberMACs map[string][]device.MacTableEntry, role
 	}
 	out := map[string]bool{}
 	for member, macs := range memberMACs {
-		role := bridgeMemberRole(roles, member)
+		role := memberRole(roles, member)
 		if role != BridgeMemberRoleUplink && !isUplinkDevice(member, iface, bridge) {
 			continue
 		}

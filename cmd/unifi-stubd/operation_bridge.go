@@ -59,9 +59,9 @@ func validateBridgeMemberPortMap(mappings []appconfig.BridgeMemberPortMap) []err
 	return errs
 }
 
-// validateBridgeIgnoredMembers catches configuration that both pins and ignores
+// validateIgnoredMembers catches configuration that both pins and ignores
 // the same bridge member, because ignored members must never consume ports.
-func validateBridgeIgnoredMembers(cfg appconfig.BridgeObserve) []error {
+func validateIgnoredMembers(cfg appconfig.BridgeObserve) []error {
 	var errs []error
 	seen := map[string]bool{}
 	pinned := map[string]bool{}

@@ -54,7 +54,7 @@ func sendInformHeartbeat(mac net.HardwareAddr, informURL, statePath, statusPath 
 			last.ControllerState = adoptionStateText(store)
 			last.CFGVersion = store.CFGVersion
 			last.Version = store.Version
-			applyControllerResponseStatus(&last, controllerResponse)
+			applyResponseStatus(&last, controllerResponse)
 			logInformResponse(resp, controllerResponse, store, cipher)
 		}
 		recordLastInform(statusPath, last, resp.StatusCode, last.ResponseType, cipher, len(resp.RawBody), len(resp.JSONBody), nil)
@@ -64,9 +64,9 @@ func sendInformHeartbeat(mac net.HardwareAddr, informURL, statePath, statusPath 
 	log.Printf("inform response status=%d raw_bytes=%d cipher=%s", resp.StatusCode, len(resp.RawBody), cipherStatusText(cipher))
 }
 
-// applyControllerResponseStatus copies the sanitized controller response into
+// applyResponseStatus copies the sanitized controller response into
 // persisted status, excluding raw provisioning bodies.
-func applyControllerResponseStatus(last *lastInformStatus, response adoption.ControllerResponse) {
+func applyResponseStatus(last *lastInformStatus, response adoption.ControllerResponse) {
 	last.ResponseType = response.Type
 	last.IntervalSeconds = response.IntervalSeconds
 	last.IncludeBlocks = cloneStrings(response.IncludeBlocks)

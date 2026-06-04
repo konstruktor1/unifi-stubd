@@ -138,12 +138,12 @@ func gatewayPortRateFields(port device.Port) gatewayRateFields {
 		return gatewayRateFields{}
 	}
 	return gatewayRateFields{
-		RXRate: int64Ref(bytesPerSecondToBitsPerSecond(port.RXBytesRate)),
-		TXRate: int64Ref(bytesPerSecondToBitsPerSecond(port.TXBytesRate)),
+		RXRate: int64Ref(bitsPerSecond(port.RXBytesRate)),
+		TXRate: int64Ref(bitsPerSecond(port.TXBytesRate)),
 	}
 }
 
-func bytesPerSecondToBitsPerSecond(value int64) int64 {
+func bitsPerSecond(value int64) int64 {
 	return value * 8
 }
 

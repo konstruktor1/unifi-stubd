@@ -8,7 +8,6 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/device"
 )
 
-// gatewayPortRole returns profile or override data before generic fallback roles.
 func gatewayPortRole(port device.Port) string {
 	if role := normalizeGatewayRole(port.Role); role != "" {
 		return role
@@ -25,9 +24,8 @@ func gatewayPortRole(port device.Port) string {
 	}
 }
 
-// gatewayNetworkGroup maps a gateway role into the UniFi network group label.
 func gatewayNetworkGroup(port device.Port) string {
-	if networkGroup := normalizeGatewayNetworkGroup(port.NetworkGroup); networkGroup != "" {
+	if networkGroup := normalizeNetworkGroup(port.NetworkGroup); networkGroup != "" {
 		return networkGroup
 	}
 	switch gatewayPortRole(port) {
@@ -40,13 +38,11 @@ func gatewayNetworkGroup(port device.Port) string {
 	}
 }
 
-// normalizeGatewayRole normalizes configured gateway role labels.
 func normalizeGatewayRole(role string) string {
 	return strings.ToLower(strings.TrimSpace(role))
 }
 
-// normalizeGatewayNetworkGroup normalizes configured network group labels.
-func normalizeGatewayNetworkGroup(networkGroup string) string {
+func normalizeNetworkGroup(networkGroup string) string {
 	return strings.TrimSpace(networkGroup)
 }
 
@@ -77,19 +73,17 @@ func gatewayUplinkInterfaceName(profile device.Profile, ports []PortView) string
 			return view.GatewayInterface.IfName
 		}
 	}
-	return gatewayInterfaceName(profile, gatewayUplinkPortIndex(ports))
+	return gatewayInterfaceName(profile, uplinkPortIndex(ports))
 }
 
-// gatewayPortMAC returns a configured port MAC or derives one from the device MAC.
-func gatewayPortMAC(baseMAC string, port device.Port) string {
+func portMAC(baseMAC string, port device.Port) string {
 	if mac := strings.TrimSpace(port.MAC); mac != "" {
 		return strings.ToLower(mac)
 	}
-	return gatewayInterfaceMAC(baseMAC, port.Index)
+	return interfaceMAC(baseMAC, port.Index)
 }
 
-// gatewayInterfaceMAC derives a stable per-interface MAC from the base address.
-func gatewayInterfaceMAC(baseMAC string, portIndex int) string {
+func interfaceMAC(baseMAC string, portIndex int) string {
 	mac, err := net.ParseMAC(baseMAC)
 	if err != nil || len(mac) == 0 {
 		return baseMAC
@@ -99,8 +93,7 @@ func gatewayInterfaceMAC(baseMAC string, portIndex int) string {
 	return out.String()
 }
 
-// gatewayInterfaceIP chooses the management or documentation WAN address for a port.
-func gatewayInterfaceIP(id device.Identity, port device.Port) string {
+func interfaceIP(id device.Identity, port device.Port) string {
 	if ip := strings.TrimSpace(port.IP); ip != "" {
 		return ip
 	}
@@ -115,15 +108,13 @@ func gatewayInterfaceIP(id device.Identity, port device.Port) string {
 	return gatewayNoIP
 }
 
-// gatewayInterfaceNetmask returns an override or the lab default netmask.
-func gatewayInterfaceNetmask(port device.Port) string {
+func interfaceNetmask(port device.Port) string {
 	if netmask := strings.TrimSpace(port.Netmask); netmask != "" {
 		return netmask
 	}
 	return "255.255.255.0"
 }
 
-// interfaceAddressCIDR combines dotted netmask data into controller CIDR form.
 func interfaceAddressCIDR(ip, netmask string) string {
 	prefix := netmaskPrefixLength(netmask)
 	if prefix < 0 {
@@ -132,7 +123,6 @@ func interfaceAddressCIDR(ip, netmask string) string {
 	return strings.TrimSpace(ip) + "/" + strconv.Itoa(prefix)
 }
 
-// netmaskPrefixLength converts a dotted IPv4 netmask to a prefix length.
 func netmaskPrefixLength(netmask string) int {
 	parsed := net.ParseIP(strings.TrimSpace(netmask)).To4()
 	if parsed == nil {
@@ -145,7 +135,6 @@ func netmaskPrefixLength(netmask string) int {
 	return ones
 }
 
-// boolText returns the string form used by gateway network table fields.
 func boolText(value bool) string {
 	if value {
 		return "true"

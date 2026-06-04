@@ -59,7 +59,7 @@ func portsForRuntime(flags runtimeFlags, profile device.Profile, portBuildOption
 	// after the passive snapshot so a config file can correct or mask host facts
 	// without the controller mutating the host.
 	if flags.trafficRatesEnabled {
-		observedPorts = markTrafficRateUplinkInterface(observedPorts, bridgeObserve.UplinkInterface)
+		observedPorts = markRateUplink(observedPorts, bridgeObserve.UplinkInterface)
 	}
 	ports = device.ApplyPortOverrides(observedPorts, flags.portOverrides)
 	ports = applyWANHealth(ports, flags, profile)
@@ -79,9 +79,9 @@ func uplinkPortIndex(ports []device.Port) int {
 	return 1
 }
 
-// markTrafficRateUplinkInterface preserves the bridge-observe uplink interface
+// markRateUplink preserves the bridge-observe uplink interface
 // name so rate tracking has a stable key on later heartbeats.
-func markTrafficRateUplinkInterface(ports []device.Port, iface string) []device.Port {
+func markRateUplink(ports []device.Port, iface string) []device.Port {
 	iface = strings.TrimSpace(iface)
 	if iface == "" || len(ports) == 0 {
 		return ports

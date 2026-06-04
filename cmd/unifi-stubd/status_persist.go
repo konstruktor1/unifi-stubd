@@ -54,6 +54,6 @@ func newLastInformStatus(url string, store adoption.Store, payload []byte) lastI
 		ControllerState: adoptionStateText(store),
 		CFGVersion:      store.CFGVersion,
 		Version:         store.Version,
-		Traffic:         lastInformTrafficFromPayload(payload),
+		Traffic:         payloadTraffic(payload),
 	}
 }

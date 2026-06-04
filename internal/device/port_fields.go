@@ -31,7 +31,7 @@ func normalizeGatewayRole(role string) string {
 	return strings.ToLower(strings.TrimSpace(role))
 }
 
-// normalizeGatewayNetworkGroup normalizes configured network group labels.
-func normalizeGatewayNetworkGroup(networkGroup string) string {
+// normalizeNetworkGroup normalizes configured network group labels.
+func normalizeNetworkGroup(networkGroup string) string {
 	return strings.TrimSpace(networkGroup)
 }

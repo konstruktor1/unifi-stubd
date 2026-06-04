@@ -11,17 +11,17 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/device"
 )
 
-// ClassifyBridgeMembers assigns bridge-member roles for payload port mapping.
-func ClassifyBridgeMembers(memberMACs map[string][]device.MacTableEntry, bridge, uplinkInterface string) map[string]BridgeMemberRole {
+// ClassifyMembers assigns bridge-member roles for payload port mapping.
+func ClassifyMembers(memberMACs map[string][]device.MacTableEntry, bridge, uplinkInterface string) map[string]BridgeMemberRole {
 	if len(memberMACs) == 0 {
 		return nil
 	}
 	roles := make(map[string]BridgeMemberRole, len(memberMACs))
 	var physicalCandidates []string
 	for member := range memberMACs {
-		role := ClassifyBridgeMember(member, bridge, uplinkInterface)
+		role := ClassifyMember(member, bridge, uplinkInterface)
 		roles[member] = role
-		if strings.TrimSpace(uplinkInterface) == "" && role == BridgeMemberRoleUnknown && isPhysicalBridgeMember(member) {
+		if strings.TrimSpace(uplinkInterface) == "" && role == BridgeMemberRoleUnknown && isPhysicalMember(member) {
 			physicalCandidates = append(physicalCandidates, member)
 		}
 	}
@@ -33,35 +33,35 @@ func ClassifyBridgeMembers(memberMACs map[string][]device.MacTableEntry, bridge,
 	return roles
 }
 
-// ClassifyBridgeMembersWithIgnores assigns roles and then marks explicitly
+// ClassifyMembersWithIgnores assigns roles and then marks explicitly
 // ignored bridge members so they cannot consume a UniFi port.
-func ClassifyBridgeMembersWithIgnores(memberMACs map[string][]device.MacTableEntry, bridge, uplinkInterface string, ignoredMembers []string) map[string]BridgeMemberRole {
-	return ApplyIgnoredBridgeMembers(ClassifyBridgeMembers(memberMACs, bridge, uplinkInterface), ignoredMembers)
+func ClassifyMembersWithIgnores(memberMACs map[string][]device.MacTableEntry, bridge, uplinkInterface string, ignoredMembers []string) map[string]BridgeMemberRole {
+	return ApplyIgnoredMembers(ClassifyMembers(memberMACs, bridge, uplinkInterface), ignoredMembers)
 }
 
-// ApplyIgnoredBridgeMembers marks configured bridge members as ignored.
-func ApplyIgnoredBridgeMembers(roles map[string]BridgeMemberRole, ignoredMembers []string) map[string]BridgeMemberRole {
-	ignored := ignoredBridgeMemberSet(ignoredMembers)
+// ApplyIgnoredMembers marks configured bridge members as ignored.
+func ApplyIgnoredMembers(roles map[string]BridgeMemberRole, ignoredMembers []string) map[string]BridgeMemberRole {
+	ignored := ignoredMemberSet(ignoredMembers)
 	if len(ignored) == 0 {
 		return roles
 	}
 	out := make(map[string]BridgeMemberRole, len(roles)+len(ignored))
 	for member, role := range roles {
 		out[member] = role
-		if ignored[bridgeMemberNameKey(member)] {
+		if ignored[memberNameKey(member)] {
 			out[member] = BridgeMemberRoleIgnored
 		}
 	}
 	for member := range ignored {
-		if _, ok := roleByLowerMember(out, member); !ok {
+		if _, ok := roleByMember(out, member); !ok {
 			out[member] = BridgeMemberRoleIgnored
 		}
 	}
 	return out
 }
 
-// ClassifyBridgeMember classifies one Linux or FreeBSD bridge member.
-func ClassifyBridgeMember(member, bridge, uplinkInterface string) BridgeMemberRole {
+// ClassifyMember classifies one Linux or FreeBSD bridge member.
+func ClassifyMember(member, bridge, uplinkInterface string) BridgeMemberRole {
 	name := strings.ToLower(strings.TrimSpace(member))
 	if name == "" {
 		return BridgeMemberRoleUnknown
@@ -72,15 +72,13 @@ func ClassifyBridgeMember(member, bridge, uplinkInterface string) BridgeMemberRo
 	if uplinkName := strings.ToLower(strings.TrimSpace(uplinkInterface)); uplinkName != "" && name == uplinkName {
 		return BridgeMemberRoleUplink
 	}
-	if isVirtualAccessBridgeMember(name) {
+	if isVirtualAccessMember(name) {
 		return BridgeMemberRoleAccess
 	}
 	return BridgeMemberRoleUnknown
 }
 
-// bridgeMemberRole resolves member roles case-insensitively so Linux and
-// FreeBSD naming differences do not change mapping behavior.
-func bridgeMemberRole(roles map[string]BridgeMemberRole, member string) BridgeMemberRole {
+func memberRole(roles map[string]BridgeMemberRole, member string) BridgeMemberRole {
 	if len(roles) == 0 {
 		return BridgeMemberRoleUnknown
 	}
@@ -96,26 +94,23 @@ func bridgeMemberRole(roles map[string]BridgeMemberRole, member string) BridgeMe
 	return BridgeMemberRoleUnknown
 }
 
-// roleByLowerMember looks up ignored members using normalized names.
-func roleByLowerMember(roles map[string]BridgeMemberRole, member string) (BridgeMemberRole, bool) {
-	member = bridgeMemberNameKey(member)
+func roleByMember(roles map[string]BridgeMemberRole, member string) (BridgeMemberRole, bool) {
+	member = memberNameKey(member)
 	for key, role := range roles {
-		if bridgeMemberNameKey(key) == member {
+		if memberNameKey(key) == member {
 			return role, true
 		}
 	}
 	return BridgeMemberRoleUnknown, false
 }
 
-// ignoredBridgeMemberSet normalizes operator exclusions before bridge members
-// are allowed to consume represented ports.
-func ignoredBridgeMemberSet(values []string) map[string]bool {
+func ignoredMemberSet(values []string) map[string]bool {
 	if len(values) == 0 {
 		return nil
 	}
 	out := map[string]bool{}
 	for _, value := range values {
-		if key := bridgeMemberNameKey(value); key != "" {
+		if key := memberNameKey(value); key != "" {
 			out[key] = true
 		}
 	}
@@ -125,15 +120,11 @@ func ignoredBridgeMemberSet(values []string) map[string]bool {
 	return out
 }
 
-// bridgeMemberNameKey provides the common normalization key for bridge member
-// comparisons.
-func bridgeMemberNameKey(value string) string {
+func memberNameKey(value string) string {
 	return strings.ToLower(strings.TrimSpace(value))
 }
 
-// isVirtualAccessBridgeMember recognizes VM/container interfaces that should be
-// represented as access ports.
-func isVirtualAccessBridgeMember(name string) bool {
+func isVirtualAccessMember(name string) bool {
 	name = strings.ToLower(strings.TrimSpace(name))
 	return strings.HasPrefix(name, "tap") ||
 		strings.HasPrefix(name, "veth") ||
@@ -144,9 +135,7 @@ func isVirtualAccessBridgeMember(name string) bool {
 		strings.HasPrefix(name, "vnet")
 }
 
-// isPhysicalBridgeMember recognizes common physical uplink names for the
-// conservative single-uplink heuristic.
-func isPhysicalBridgeMember(name string) bool {
+func isPhysicalMember(name string) bool {
 	name = strings.ToLower(strings.TrimSpace(name))
 	prefixes := []string{
 		"eth", "eno", "ens", "enp", "enx",

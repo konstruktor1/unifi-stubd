@@ -38,7 +38,7 @@ func validateOperationFlags(flags *runtimeFlags) error {
 		return fmt.Errorf("invalid -traffic-source %q; only off is implemented", trafficSource)
 	}
 
-	if err := validateRuntimeMetadataSources(flags); err != nil {
+	if err := validateMetadataSources(flags); err != nil {
 		return err
 	}
 	if err := validateInstanceGuard(flags); err != nil {
@@ -59,7 +59,7 @@ func validateOperationFlags(flags *runtimeFlags) error {
 	return nil
 }
 
-func validateRuntimeMetadataSources(flags *runtimeFlags) error {
+func validateMetadataSources(flags *runtimeFlags) error {
 	flags.logSource = strings.ToLower(strings.TrimSpace(flags.logSource))
 	if flags.logSource == "" {
 		flags.logSource = platform.SourceOff

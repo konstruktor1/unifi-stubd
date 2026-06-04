@@ -43,10 +43,10 @@ func LinuxSnapshot(ctx context.Context, cfg Config, uplinkPortIndex int) (Snapsh
 			errs = append(errs, err)
 		} else {
 			snapshot.DeviceMACs = MACEntriesByDevice(entries)
-			if err := EnrichMACEntriesWithLocalARP(snapshot.DeviceMACs); err != nil {
+			if err := EnrichMACsFromLocalARP(snapshot.DeviceMACs); err != nil {
 				errs = append(errs, err)
 			}
-			snapshot.MemberRoles = ClassifyBridgeMembersWithIgnores(snapshot.DeviceMACs, snapshot.Bridge, snapshot.Interface, cfg.IgnoredMembers)
+			snapshot.MemberRoles = ClassifyMembersWithIgnores(snapshot.DeviceMACs, snapshot.Bridge, snapshot.Interface, cfg.IgnoredMembers)
 			snapshot.RemoteMACs = RemoteMACsByBridgeMember(snapshot.DeviceMACs, snapshot.MemberRoles, snapshot.Interface, snapshot.Bridge)
 			snapshot.MemberPorts = linuxMemberPortObservations(cfg.SysfsRoot, snapshot.DeviceMACs, snapshot.MemberRoles)
 			snapshot.MACs = flattenDeviceMACsByRole(snapshot.DeviceMACs, snapshot.MemberRoles, snapshot.Interface, snapshot.Bridge, snapshot.RemoteMACs)
@@ -82,9 +82,9 @@ func HostSnapshotFromSource(ctx context.Context, source ObservationSource, cfg C
 		snapshot.Stats.SpeedMbps = bridge.Uplink.SpeedMbps
 	}
 	if len(snapshot.MemberRoles) == 0 {
-		snapshot.MemberRoles = ClassifyBridgeMembers(snapshot.DeviceMACs, snapshot.Bridge, snapshot.Interface)
+		snapshot.MemberRoles = ClassifyMembers(snapshot.DeviceMACs, snapshot.Bridge, snapshot.Interface)
 	}
-	snapshot.MemberRoles = ApplyIgnoredBridgeMembers(snapshot.MemberRoles, cfg.IgnoredMembers)
+	snapshot.MemberRoles = ApplyIgnoredMembers(snapshot.MemberRoles, cfg.IgnoredMembers)
 	if len(snapshot.RemoteMACs) == 0 {
 		snapshot.RemoteMACs = RemoteMACsByBridgeMember(snapshot.DeviceMACs, snapshot.MemberRoles, snapshot.Interface, snapshot.Bridge)
 	}

@@ -80,19 +80,19 @@ func prepareServeRuntime(flags *runtimeFlags, changed map[string]bool) (serveRun
 		return serveRuntime{}, false, err
 	}
 	if flags.validate {
-		return serveRuntime{profile: profile, platform: plt}, true, validateRuntimeConfiguration(*flags, profile)
+		return serveRuntime{profile: profile, platform: plt}, true, validateRuntime(*flags, profile)
 	}
 	if err := validateLiveServeSources(*flags, profile); err != nil {
 		return serveRuntime{}, false, err
 	}
 
 	enrichCtx, enrichCancel := context.WithTimeout(context.Background(), observeTimeout)
-	flags.portOverrides = enrichPortOverridesWithPlatform(enrichCtx, plt, flags.portOverrides)
+	flags.portOverrides = enrichOverrides(enrichCtx, plt, flags.portOverrides)
 	enrichCancel()
 	if err := validatePortOverrides(*flags); err != nil {
 		return serveRuntime{}, false, err
 	}
-	if err := validateWANHealthTargetRoles(*flags, profile); err != nil {
+	if err := validateWANHealthTargets(*flags, profile); err != nil {
 		return serveRuntime{}, false, err
 	}
 	return serveRuntime{profile: profile, platform: plt}, false, nil

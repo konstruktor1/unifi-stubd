@@ -66,7 +66,7 @@ func Build(profile device.Profile, id device.Identity, ports []device.Port) ([]b
 	if profile.Payload.Kind == payloadKindGateway {
 		data, err = json.MarshalIndent(buildGatewayPayload(base, profile, id, portViews, now, uptime), "", "  ")
 	} else {
-		data, err = json.MarshalIndent(buildSwitchPayload(base, profile, id, portViews, numPorts, managementInterfaceSpeedOrDefault(ports)), "", "  ")
+		data, err = json.MarshalIndent(buildSwitchPayload(base, profile, id, portViews, numPorts, managementSpeed(ports)), "", "  ")
 	}
 	if err != nil {
 		return nil, fmt.Errorf("marshal switch payload: %w", err)

@@ -52,8 +52,8 @@ func FreeBSDSnapshot(ctx context.Context, cfg Config, uplinkPortIndex int) (Snap
 		if err != nil {
 			errs = append(errs, err)
 		} else {
-			snapshot.DeviceMACs = FreeBSDMACEntriesByInterface(entries)
-			snapshot.MemberRoles = ClassifyBridgeMembersWithIgnores(snapshot.DeviceMACs, snapshot.Bridge, snapshot.Interface, cfg.IgnoredMembers)
+			snapshot.DeviceMACs = FreeBSDMACsByInterface(entries)
+			snapshot.MemberRoles = ClassifyMembersWithIgnores(snapshot.DeviceMACs, snapshot.Bridge, snapshot.Interface, cfg.IgnoredMembers)
 			snapshot.RemoteMACs = RemoteMACsByBridgeMember(snapshot.DeviceMACs, snapshot.MemberRoles, snapshot.Interface, snapshot.Bridge)
 			snapshot.MemberPorts = mapBridgeMemberInterfaces(snapshot.DeviceMACs, snapshot.MemberRoles)
 			snapshot.MACs = flattenDeviceMACsByRole(snapshot.DeviceMACs, snapshot.MemberRoles, snapshot.Interface, snapshot.Bridge, snapshot.RemoteMACs)
@@ -79,9 +79,9 @@ func FreeBSDBridgeAddr(ctx context.Context, bridge string) ([]freebsdifconfig.Br
 	return freebsdifconfig.ParseBridgeAddr(strings.NewReader(string(out))), nil
 }
 
-// FreeBSDMACEntriesByInterface converts learned FreeBSD bridge rows into
+// FreeBSDMACsByInterface converts learned FreeBSD bridge rows into
 // per-member UniFi MAC entries, filtering local and multicast rows.
-func FreeBSDMACEntriesByInterface(entries []freebsdifconfig.BridgeAddress) map[string][]device.MacTableEntry {
+func FreeBSDMACsByInterface(entries []freebsdifconfig.BridgeAddress) map[string][]device.MacTableEntry {
 	out := map[string][]device.MacTableEntry{}
 	seen := map[string]bool{}
 	for _, entry := range entries {

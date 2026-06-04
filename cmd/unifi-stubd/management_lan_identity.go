@@ -48,10 +48,9 @@ func effectiveDiscoveryInterface(flags runtimeFlags) string {
 	return ""
 }
 
-// resolveManagementLANIdentityIP replaces the default fake management IP with
-// the selected preexisting interface address when management-LAN mode asks for
-// source-bound discovery and inform traffic.
-func resolveManagementLANIdentityIP(flags runtimeFlags, fallback net.IP, plt platform.Platform) (net.IP, error) {
+// resolveManagementIP replaces the fake default when management-LAN mode binds
+// discovery and inform traffic to a preexisting interface.
+func resolveManagementIP(flags runtimeFlags, fallback net.IP, plt platform.Platform) (net.IP, error) {
 	cfg := effectiveManagementLAN(flags)
 	if !cfg.Enabled || cfg.Mode != managementLANModePreexistingInterface {
 		return fallback, nil

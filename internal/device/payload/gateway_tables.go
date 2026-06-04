@@ -8,20 +8,17 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/device"
 )
 
-// gatewayPortTable renders read-only physical port inventory for controller UI
-// surfaces. Operator-provided assignment IDs and VLAN bindings are mirrored as
-// controller display hints only.
 func gatewayPortTable(ports []PortView, uptime int) []gatewayPortRow {
 	out := make([]gatewayPortRow, 0, len(ports))
 	for _, view := range ports {
 		iface := view.GatewayInterface
-		ifname := gatewayPhysicalPortIfName(view)
+		ifname := physicalIfName(view)
 		row := gatewayPortRow{
 			PortIdx:                 view.Index,
 			IfName:                  ifname,
 			Name:                    ifname,
 			MAC:                     strings.ToLower(strings.TrimSpace(iface.MAC)),
-			IP:                      gatewayPortTableIP(view),
+			IP:                      portTableIP(view),
 			NetworkGroup:            iface.NetworkGroup,
 			Role:                    view.Role,
 			Type:                    "ethernet",
@@ -40,28 +37,28 @@ func gatewayPortTable(ports []PortView, uptime int) []gatewayPortRow {
 			POECaps:                 0,
 			POEClass:                "Class 0",
 			POEPower:                "0.00",
-			MACTable:                gatewayPortMACTable(view),
+			MACTable:                portMACTable(view),
 			RXBroadcast:             0,
 			RXMulticast:             0,
 			RXDropped:               0,
 			TXBroadcast:             0,
 			TXMulticast:             0,
 			TXDropped:               0,
-			gatewayAssignmentFields: gatewayPortAssignmentFields(view),
+			gatewayAssignmentFields: assignmentFields(view),
 			gatewayPortLinkFields:   gatewayPortLinkFieldsFor(view.Speed, view.Media),
 			counterFields:           portCounterFields(view.Port),
 			optionalRateFields:      explicitPortRateFields(view.Port),
 			gatewayRateFields:       gatewayPortRateFields(view.Port),
-			gatewayWANInlineHealth:  gatewayWANInlineHealthFor(view, uptime),
+			gatewayWANInlineHealth:  inlineWANHealth(view, uptime),
 			SourceInterface:         view.SourceInterface,
-			connectionFields:        gatewayPhysicalPortConnectionFields(view),
+			connectionFields:        physicalConnectionFields(view),
 		}
 		out = append(out, row)
 	}
 	return out
 }
 
-func gatewayPortTableIP(view PortView) string {
+func portTableIP(view PortView) string {
 	ip := strings.TrimSpace(view.GatewayInterface.IP)
 	if ip == gatewayNoIP {
 		return ""
@@ -76,7 +73,7 @@ func gatewayPortStatsTable(ports []PortView) []gatewayPortStatsRow {
 	out := make([]gatewayPortStatsRow, 0, len(ports))
 	for _, view := range ports {
 		iface := view.GatewayInterface
-		ifname := gatewayPhysicalPortIfName(view)
+		ifname := physicalIfName(view)
 		out = append(out, gatewayPortStatsRow{
 			PortIdx:            view.Index,
 			Name:               ifname,
@@ -98,7 +95,7 @@ func gatewayPortStatsTable(ports []PortView) []gatewayPortStatsRow {
 			POEEnable:          false,
 			POEClass:           "Class 0",
 			POEPower:           "0.00",
-			MACTable:           gatewayPortMACTable(view),
+			MACTable:           portMACTable(view),
 			RXBroadcast:        0,
 			RXMulticast:        0,
 			RXDropped:          0,
@@ -113,13 +110,11 @@ func gatewayPortStatsTable(ports []PortView) []gatewayPortStatsRow {
 	return out
 }
 
-// gatewayEthernetTable renders the stable physical port inventory expected by
-// Network's gateway port surfaces.
 func gatewayEthernetTable(ports []PortView) []gatewayEthernetTableRow {
 	out := make([]gatewayEthernetTableRow, 0, len(ports))
 	for _, view := range ports {
 		iface := view.GatewayInterface
-		ifname := gatewayPhysicalPortIfName(view)
+		ifname := physicalIfName(view)
 		out = append(out, gatewayEthernetTableRow{
 			MAC:       strings.ToLower(strings.TrimSpace(iface.MAC)),
 			PortIdx:   view.Index,
@@ -134,12 +129,10 @@ func gatewayEthernetTable(ports []PortView) []gatewayEthernetTableRow {
 	return out
 }
 
-// gatewayConfigPortTable renders controller-visible port assignment hints,
-// including explicit controller assignment metadata when configured.
 func gatewayConfigPortTable(ports []PortView, uptime int) []gatewayConfigPortRow {
 	out := make([]gatewayConfigPortRow, 0, len(ports))
 	for _, view := range ports {
-		ifname := gatewayPhysicalPortIfName(view)
+		ifname := physicalIfName(view)
 		out = append(out, gatewayConfigPortRow{
 			Name:                    view.Name,
 			IfName:                  ifname,
@@ -149,25 +142,23 @@ func gatewayConfigPortTable(ports []PortView, uptime int) []gatewayConfigPortRow
 			Up:                      view.Up,
 			Enable:                  view.Enabled,
 			IsUplink:                view.Uplink,
-			gatewayAssignmentFields: gatewayPortAssignmentFields(view),
+			gatewayAssignmentFields: assignmentFields(view),
 			linkFields:              portLinkFields(view.Speed, view.Media),
-			gatewayWANInlineHealth:  gatewayWANInlineHealthFor(view, uptime),
+			gatewayWANInlineHealth:  inlineWANHealth(view, uptime),
 			SourceInterface:         view.SourceInterface,
-			connectionFields:        gatewayPhysicalPortConnectionFields(view),
+			connectionFields:        physicalConnectionFields(view),
 		})
 	}
 	return out
 }
 
-// gatewayEthernetOverrides renders interface binding hints that older tested
-// gateway payloads exposed, including explicit assignment metadata.
 func gatewayEthernetOverrides(ports []PortView, uptime int) []gatewayEthernetOverrideRow {
 	out := make([]gatewayEthernetOverrideRow, 0, len(ports))
-	complete := gatewayNeedsCompleteEthernetOverrides(ports)
+	complete := needsAllEthernetOverrides(ports)
 	for _, view := range ports {
 		if !gatewayIsLogicalRole(view.Role) {
 			if complete && strings.EqualFold(strings.TrimSpace(view.NetworkGroup), gatewayNetworkGroupNone) {
-				out = append(out, gatewayDisabledEthernetOverride(view))
+				out = append(out, disabledEthernetOverride(view))
 			}
 			continue
 		}
@@ -178,11 +169,11 @@ func gatewayEthernetOverrides(ports []PortView, uptime int) []gatewayEthernetOve
 				continue
 			}
 		}
-		if strings.TrimSpace(gatewayPhysicalPortIfName(view)) == "" {
+		if strings.TrimSpace(physicalIfName(view)) == "" {
 			continue
 		}
 		iface := view.GatewayInterface
-		ifname := gatewayPhysicalPortIfName(view)
+		ifname := physicalIfName(view)
 		out = append(out, gatewayEthernetOverrideRow{
 			Name:                    ifname,
 			IfName:                  ifname,
@@ -192,17 +183,17 @@ func gatewayEthernetOverrides(ports []PortView, uptime int) []gatewayEthernetOve
 			Role:                    view.Role,
 			Up:                      view.Up,
 			Enable:                  view.Enabled,
-			gatewayAssignmentFields: gatewayPortAssignmentFields(view),
+			gatewayAssignmentFields: assignmentFields(view),
 			linkFields:              portLinkFields(view.Speed, view.Media),
-			gatewayWANInlineHealth:  gatewayWANInlineHealthFor(view, uptime),
+			gatewayWANInlineHealth:  inlineWANHealth(view, uptime),
 			SourceInterface:         view.SourceInterface,
-			connectionFields:        gatewayPhysicalPortConnectionFields(view),
+			connectionFields:        physicalConnectionFields(view),
 		})
 	}
 	return out
 }
 
-func gatewayNeedsCompleteEthernetOverrides(ports []PortView) bool {
+func needsAllEthernetOverrides(ports []PortView) bool {
 	for _, view := range ports {
 		port := view.Port
 		if !gatewayIsLogicalRole(view.Role) &&
@@ -218,17 +209,17 @@ func gatewayNeedsCompleteEthernetOverrides(ports []PortView) bool {
 	return false
 }
 
-// gatewayPhysicalPortIfName returns the controller-facing profile interface for
-// one physical port. It is intentionally not the local source_interface.
-func gatewayPhysicalPortIfName(view PortView) string {
+func physicalIfName(view PortView) string {
+	// Keep this tied to the profile interface; local host names belong in
+	// source_interface only.
 	if ifname := strings.TrimSpace(view.PhysicalIfName); ifname != "" {
 		return ifname
 	}
 	return strings.TrimSpace(view.GatewayInterface.IfName)
 }
 
-func gatewayDisabledEthernetOverride(view PortView) gatewayEthernetOverrideRow {
-	ifname := gatewayPhysicalPortIfName(view)
+func disabledEthernetOverride(view PortView) gatewayEthernetOverrideRow {
+	ifname := physicalIfName(view)
 	iface := view.GatewayInterface
 	return gatewayEthernetOverrideRow{
 		Name:            ifname,
@@ -244,18 +235,18 @@ func gatewayDisabledEthernetOverride(view PortView) gatewayEthernetOverrideRow {
 	}
 }
 
-func gatewayPortAssignmentFields(view PortView) gatewayAssignmentFields {
+func assignmentFields(view PortView) gatewayAssignmentFields {
 	port := view.Port
 	return gatewayAssignmentFields{
 		PortConfID:          strings.TrimSpace(port.PortConfID),
 		NetworkConfID:       strings.TrimSpace(port.NetworkConfID),
 		NativeNetworkConfID: strings.TrimSpace(port.NativeNetworkConfID),
-		NetworkName:         gatewayNetworkName(view),
+		NetworkName:         networkName(view),
 		VLAN:                port.VLAN,
 	}
 }
 
-func gatewayNetworkName(view PortView) string {
+func networkName(view PortView) string {
 	if value := strings.TrimSpace(view.Port.NetworkName); value != "" {
 		return value
 	}
@@ -268,8 +259,7 @@ func gatewayNetworkName(view PortView) string {
 	return strings.ToLower(normalizeGatewayRole(view.Role))
 }
 
-// gatewayUplinkPortIndex returns the one-based uplink port index.
-func gatewayUplinkPortIndex(ports []PortView) int {
+func uplinkPortIndex(ports []PortView) int {
 	for _, port := range ports {
 		if port.Uplink {
 			return port.Index
@@ -278,11 +268,10 @@ func gatewayUplinkPortIndex(ports []PortView) int {
 	return 1
 }
 
-// gatewayIfTable renders physical interfaces for gateway inform payloads.
 func gatewayIfTable(_ device.Profile, id device.Identity, ports []PortView, now time.Time, uptime int) []gatewayIfRow {
-	ports = gatewayLogicalInterfacePorts(ports)
+	ports = logicalInterfacePorts(ports)
 	out := make([]gatewayIfRow, 0, len(ports))
-	uplinkIndex := gatewayUplinkPortIndex(ports)
+	uplinkIndex := uplinkPortIndex(ports)
 	for _, view := range ports {
 		iface := view.GatewayInterface
 		row := gatewayIfRow{
@@ -303,7 +292,7 @@ func gatewayIfTable(_ device.Profile, id device.Identity, ports []PortView, now 
 			counterFields:      portCounterFields(view.Port),
 			optionalRateFields: explicitPortRateFields(view.Port),
 			gatewayRateFields:  gatewayPortRateFields(view.Port),
-			gatewayWANInlineHealth: gatewayWANInlineHealthFor(
+			gatewayWANInlineHealth: inlineWANHealth(
 				view,
 				uptime,
 			),
@@ -311,17 +300,17 @@ func gatewayIfTable(_ device.Profile, id device.Identity, ports []PortView, now 
 			connectionFields: gatewayConnectionFields(view),
 		}
 		if view.Index == uplinkIndex {
-			health := gatewayWANHealthFor(view, uptime)
+			health := wanHealth(view, uptime)
 			row.VLAN = id.ManagementVLAN
 			row.ManagementVLAN = id.ManagementVLAN
-			row.gatewayWANUplinkHealthFields = gatewayWANUplinkHealthFieldsFor(health, now, uptime)
+			row.wanUplinkHealthFields = uplinkHealthFields(health, now, uptime)
 		}
 		out = append(out, row)
 	}
 	return out
 }
 
-func gatewayLogicalInterfacePorts(ports []PortView) []PortView {
+func logicalInterfacePorts(ports []PortView) []PortView {
 	out := make([]PortView, 0, len(ports))
 	seen := make(map[string]int)
 	for _, view := range ports {
@@ -382,7 +371,7 @@ func gatewayInterfaceViewScore(view PortView) int {
 
 // gatewayNetworkTable renders the routed network view for each gateway port.
 func gatewayNetworkTable(_ device.Profile, _ device.Identity, ports []PortView, uptime int) []gatewayNetworkRow {
-	ports = gatewayLogicalInterfacePorts(ports)
+	ports = logicalInterfacePorts(ports)
 	out := make([]gatewayNetworkRow, 0, len(ports))
 	for _, view := range ports {
 		iface := view.GatewayInterface
@@ -410,7 +399,7 @@ func gatewayNetworkTable(_ device.Profile, _ device.Identity, ports []PortView, 
 				optionalRateFields: explicitPortRateFields(view.Port),
 				gatewayRateFields:  gatewayPortRateFields(view.Port),
 			},
-			gatewayWANInlineHealth: gatewayWANInlineHealthFor(
+			gatewayWANInlineHealth: inlineWANHealth(
 				view,
 				uptime,
 			),
@@ -430,7 +419,7 @@ func gatewayNetworkInterfaceName(view PortView) string {
 	case gatewayPortRoleLAN, gatewayPortRoleLAN2:
 		// UniFi Network expects LAN network rows to follow the physical
 		// profile-port identity. Host source names remain source_interface.
-		if ifname := gatewayPhysicalPortIfName(view); ifname != "" {
+		if ifname := physicalIfName(view); ifname != "" {
 			return ifname
 		}
 	}
@@ -440,7 +429,7 @@ func gatewayNetworkInterfaceName(view PortView) string {
 // gatewayReportedNetworks renders a read-only network summary per gateway
 // port. It mirrors network_table values without inventing host configuration.
 func gatewayReportedNetworks(ports []PortView, uptime int) []gatewayReportedNetworkRow {
-	ports = gatewayLogicalInterfacePorts(ports)
+	ports = logicalInterfacePorts(ports)
 	out := make([]gatewayReportedNetworkRow, 0, len(ports))
 	for _, view := range ports {
 		iface := view.GatewayInterface
@@ -460,7 +449,7 @@ func gatewayReportedNetworks(ports []PortView, uptime int) []gatewayReportedNetw
 			connectionFields: connectionFields{Connected: view.Up},
 		}
 		if gatewayPortRole(view.Port) == gatewayPortRoleWAN || gatewayPortRole(view.Port) == gatewayPortRoleWAN2 {
-			health := gatewayWANHealthFor(view, uptime)
+			health := wanHealth(view, uptime)
 			row.Availability = health.uptimePercent
 			row.Latency = health.latencyMS
 			row.Downtime = health.downtime

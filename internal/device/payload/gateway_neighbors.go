@@ -6,8 +6,6 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/device"
 )
 
-// gatewayConnectionFields uses the resolved port view as the single source for
-// gateway connection and topology state.
 func gatewayConnectionFields(view PortView) connectionFields {
 	out := connectionFields{Connected: view.Up}
 	if !view.Up || !view.Uplink {
@@ -16,7 +14,7 @@ func gatewayConnectionFields(view PortView) connectionFields {
 	// Controllers use last_connection as a topology hint. The first MAC entry
 	// is therefore treated as metadata about the visible neighbor, not as host
 	// configuration to apply.
-	entry, ok := gatewayFirstTopologyMAC(view)
+	entry, ok := firstTopologyMAC(view)
 	if !ok {
 		return out
 	}
@@ -37,12 +35,12 @@ func gatewayConnectionFields(view PortView) connectionFields {
 	return out
 }
 
-func gatewayPhysicalPortConnectionFields(view PortView) connectionFields {
+func physicalConnectionFields(view PortView) connectionFields {
 	out := connectionFields{Connected: view.Up}
 	if !view.Up {
 		return out
 	}
-	entry, ok := gatewayFirstPhysicalPortTopologyMAC(view)
+	entry, ok := firstPhysicalTopologyMAC(view)
 	if !ok {
 		return out
 	}
@@ -63,28 +61,28 @@ func gatewayPhysicalPortConnectionFields(view PortView) connectionFields {
 	return out
 }
 
-func gatewayFirstPhysicalPortTopologyMAC(view PortView) (device.MacTableEntry, bool) {
+func firstPhysicalTopologyMAC(view PortView) (device.MacTableEntry, bool) {
 	for _, entry := range view.MACs {
-		if gatewayMACEntryVisibleOnPhysicalGatewayPort(view, entry) {
+		if macVisibleOnPhysicalPort(view, entry) {
 			return entry, true
 		}
 	}
 	return device.MacTableEntry{}, false
 }
 
-func gatewayFirstTopologyMAC(view PortView) (device.MacTableEntry, bool) {
+func firstTopologyMAC(view PortView) (device.MacTableEntry, bool) {
 	for _, entry := range view.MACs {
-		if gatewayMACEntryVisibleOnGatewayPort(view, entry) {
+		if macVisibleOnGatewayPort(view, entry) {
 			return entry, true
 		}
 	}
 	return device.MacTableEntry{}, false
 }
 
-func gatewayPortMACTable(view PortView) []device.MacTableEntry {
+func portMACTable(view PortView) []device.MacTableEntry {
 	out := make([]device.MacTableEntry, 0, len(view.MACs))
 	for _, entry := range view.MACs {
-		if gatewayMACEntryVisibleOnPhysicalGatewayPort(view, entry) {
+		if macVisibleOnPhysicalPort(view, entry) {
 			out = append(out, entry)
 		}
 	}
@@ -94,7 +92,7 @@ func gatewayPortMACTable(view PortView) []device.MacTableEntry {
 	return out
 }
 
-func gatewayMACEntryVisibleOnGatewayPort(view PortView, entry device.MacTableEntry) bool {
+func macVisibleOnGatewayPort(view PortView, entry device.MacTableEntry) bool {
 	if view.Uplink {
 		return true
 	}
@@ -102,18 +100,18 @@ func gatewayMACEntryVisibleOnGatewayPort(view PortView, entry device.MacTableEnt
 	return entryType == "" || entryType == deviceTypeClient
 }
 
-func gatewayMACEntryVisibleOnPhysicalGatewayPort(view PortView, entry device.MacTableEntry) bool {
+func macVisibleOnPhysicalPort(view PortView, entry device.MacTableEntry) bool {
 	if strings.TrimSpace(entry.MAC) == "" {
 		return false
 	}
-	if view.Uplink || gatewayPortActsLikeSwitchPort(view) {
+	if view.Uplink || portActsLikeSwitch(view) {
 		return true
 	}
 	entryType := strings.ToLower(strings.TrimSpace(entry.Type))
 	return entryType == "" || entryType == deviceTypeClient
 }
 
-func gatewayPortActsLikeSwitchPort(view PortView) bool {
+func portActsLikeSwitch(view PortView) bool {
 	switch gatewayPortRole(view.Port) {
 	case gatewayPortRoleLAN, gatewayPortRoleLAN2:
 		return true
@@ -122,7 +120,6 @@ func gatewayPortActsLikeSwitchPort(view PortView) bool {
 	}
 }
 
-// gatewayHostTable renders learned downstream MACs for one gateway port.
 func gatewayHostTable(view PortView) []gatewayHostRow {
 	port := view.Port
 	out := make([]gatewayHostRow, 0, len(port.MACs))

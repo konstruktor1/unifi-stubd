@@ -43,7 +43,7 @@ func gatewayConfigLAN(ports []PortView) (gatewayConfigLANRow, bool) {
 		return gatewayConfigLANRow{}, false
 	}
 	iface := view.GatewayInterface
-	lanIfName := gatewayPhysicalPortIfName(view)
+	lanIfName := physicalIfName(view)
 	if lanIfName == "" {
 		lanIfName = iface.IfName
 	}
@@ -61,7 +61,7 @@ func gatewayConfigLAN(ports []PortView) (gatewayConfigLANRow, bool) {
 		UplinkIfName:        lanIfName,
 		NetworkConfID:       strings.TrimSpace(view.Port.NetworkConfID),
 		NativeNetworkConfID: strings.TrimSpace(view.Port.NativeNetworkConfID),
-		NetworkName:         gatewayNetworkName(view),
+		NetworkName:         networkName(view),
 		DHCPEnabled:         false,
 		DHCPRangeStart:      "",
 		DHCPRangeStop:       "",
@@ -95,7 +95,7 @@ func gatewayWANStatus(ports []PortView, role string, uptime int) *gatewayWANStat
 			continue
 		}
 		iface := view.GatewayInterface
-		health := gatewayWANHealthFor(view, uptime)
+		health := wanHealth(view, uptime)
 		row := gatewayWANStatusRow{
 			Type:               payloadTypeDHCP,
 			Name:               iface.NetworkGroup,
@@ -143,8 +143,8 @@ func gatewayTrafficSummaryFor(ports []PortView, role string) gatewayTrafficSumma
 			out.BytesRate = int64Ref(rxByteRate + txByteRate)
 			out.RXBytesRate = int64Ref(rxByteRate)
 			out.TXBytesRate = int64Ref(txByteRate)
-			out.RXRate = int64Ref(bytesPerSecondToBitsPerSecond(rxByteRate))
-			out.TXRate = int64Ref(bytesPerSecondToBitsPerSecond(txByteRate))
+			out.RXRate = int64Ref(bitsPerSecond(rxByteRate))
+			out.TXRate = int64Ref(bitsPerSecond(txByteRate))
 		}
 		return out
 	}

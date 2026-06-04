@@ -34,7 +34,7 @@ func buildGatewayPayload(base basePayload, profile device.Profile, id device.Ide
 		Wans:              gatewayWans(ports),
 		Uplink:            gatewayUplinkInterfaceName(profile, ports),
 		UplinkTable:       gatewayUplinkTable(profile, id, ports, now, uptime),
-		UptimeStats:       gatewayWANUptimeStats(ports, uptime),
+		UptimeStats:       wanUptimeStats(ports, uptime),
 		InternetHealth:    gatewayInternetHealth(ports, uptime),
 		LastWANStatus:     gatewayLastWANStatus(ports, uptime),
 		LastWANIP:         gatewayLastWANIP(ports),

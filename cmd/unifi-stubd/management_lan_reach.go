@@ -10,9 +10,8 @@ import (
 	appconfig "github.com/konstruktor1/unifi-stubd/internal/config"
 )
 
-// validateManagementLANReachability optionally proves that the chosen local
-// source address can reach the controller, depending on warn/required policy.
-func validateManagementLANReachability(flags runtimeFlags, cfg appconfig.ManagementLAN, sourceIP net.IP) error {
+// checkControllerReachability applies the management-LAN warn/required policy.
+func checkControllerReachability(flags runtimeFlags, cfg appconfig.ManagementLAN, sourceIP net.IP) error {
 	if cfg.ControllerReachable == managementLANReachOff {
 		return nil
 	}

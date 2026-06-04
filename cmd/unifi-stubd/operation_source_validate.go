@@ -15,7 +15,7 @@ func validateSourceMappings(flags runtimeFlags, live bool) error {
 	mode := normalizeMode(flags.operationMode)
 	switch mode {
 	case operationModeBridgeObserve:
-		errs = append(errs, validateBridgeObserveSources(flags, live)...)
+		errs = append(errs, validateObserveSources(flags, live)...)
 	case operationModePortMap:
 		errs = append(errs, validatePortMapSources(flags, live)...)
 	}
@@ -25,17 +25,17 @@ func validateSourceMappings(flags runtimeFlags, live bool) error {
 	return nil
 }
 
-func validateBridgeObserveSources(flags runtimeFlags, live bool) []error {
+func validateObserveSources(flags runtimeFlags, live bool) []error {
 	var errs []error
 	cfg := effectiveBridgeObserve(flags)
-	if err := validateOptionalInterfaceName("bridge_observe.bridge", cfg.Bridge, live); err != nil {
+	if err := validateInterfaceName("bridge_observe.bridge", cfg.Bridge, live); err != nil {
 		errs = append(errs, err)
 	}
-	if err := validateOptionalInterfaceName("bridge_observe.uplink_interface", cfg.UplinkInterface, live); err != nil {
+	if err := validateInterfaceName("bridge_observe.uplink_interface", cfg.UplinkInterface, live); err != nil {
 		errs = append(errs, err)
 	}
 	for _, member := range cfg.IgnoredMembers {
-		if err := validateOptionalInterfaceName("bridge_observe.ignored_members", member, live); err != nil {
+		if err := validateInterfaceName("bridge_observe.ignored_members", member, live); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -49,7 +49,7 @@ func validateBridgeObserveSources(flags runtimeFlags, live bool) []error {
 		}
 	}
 	errs = append(errs, validateBridgeMemberPortMap(cfg.MemberPortMap)...)
-	errs = append(errs, validateBridgeIgnoredMembers(cfg)...)
+	errs = append(errs, validateIgnoredMembers(cfg)...)
 	return errs
 }
 
@@ -68,7 +68,7 @@ func validatePortMapSources(flags runtimeFlags, live bool) []error {
 		sources := 0
 		if strings.TrimSpace(mapping.Interface) != "" {
 			sources++
-			if err := validateOptionalInterfaceName("port_mappings.interface", mapping.Interface, live); err != nil {
+			if err := validateInterfaceName("port_mappings.interface", mapping.Interface, live); err != nil {
 				errs = append(errs, fmt.Errorf("port %d: %w", mapping.Port, err))
 			}
 		}
@@ -90,9 +90,9 @@ func validatePortMapSources(flags runtimeFlags, live bool) []error {
 	return errs
 }
 
-// validateOptionalInterfaceName rejects path-like names and optionally checks
+// validateInterfaceName rejects path-like names and optionally checks
 // local existence for modes that will read host interface data.
-func validateOptionalInterfaceName(field, value string, live bool) error {
+func validateInterfaceName(field, value string, live bool) error {
 	value = strings.TrimSpace(value)
 	if value == "" {
 		return nil

@@ -112,7 +112,7 @@ type gatewayIfRow struct {
 	optionalRateFields
 	gatewayRateFields
 	gatewayWANInlineHealth
-	gatewayWANUplinkHealthFields
+	wanUplinkHealthFields
 	SourceInterface string `json:"source_interface"`
 	connectionFields
 }
@@ -383,7 +383,7 @@ type gatewayUplinkRow struct {
 	Availability float64 `json:"availability,omitempty"`
 	Latency      int     `json:"latency,omitempty"`
 	Downtime     int     `json:"downtime,omitempty"`
-	gatewayWANUplinkHealthFields
+	wanUplinkHealthFields
 	IsWANConnected bool `json:"isWanConnected,omitempty"`
 	IsWANUp        bool `json:"isWanUp,omitempty"`
 	VLAN           int  `json:"vlan,omitempty"`
@@ -396,7 +396,7 @@ type gatewayUplinkRow struct {
 	connectionFields
 }
 
-type gatewayWANUplinkHealthFields struct {
+type wanUplinkHealthFields struct {
 	Uptime           int     `json:"uptime,omitempty"`
 	Drops            int     `json:"drops,omitempty"`
 	SpeedtestStatus  string  `json:"speedtest_status,omitempty"`

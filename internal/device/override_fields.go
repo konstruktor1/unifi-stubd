@@ -151,7 +151,7 @@ func (field portOverrideStringField) normalize(value string) string {
 	case portOverrideNormalizeRole:
 		return normalizeGatewayRole(value)
 	case portOverrideNormalizeNetworkGroup:
-		return normalizeGatewayNetworkGroup(value)
+		return normalizeNetworkGroup(value)
 	default:
 		return strings.TrimSpace(value)
 	}

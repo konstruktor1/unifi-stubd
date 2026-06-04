@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-func lastInformTrafficFromPayload(payload []byte) *lastInformTrafficStatus {
+func payloadTraffic(payload []byte) *lastInformTrafficStatus {
 	var doc map[string]any
 	decoder := json.NewDecoder(bytes.NewReader(payload))
 	decoder.UseNumber()

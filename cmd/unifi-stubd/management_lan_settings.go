@@ -31,10 +31,7 @@ func effectiveManagementLAN(flags runtimeFlags) appconfig.ManagementLAN {
 	return cfg
 }
 
-// structuredManagementLANRequested detects whether the operator used any
-// management-LAN field, even when effective normalization would otherwise hide
-// an implicit default.
-func structuredManagementLANRequested(flags runtimeFlags) bool {
+func managementRequested(flags runtimeFlags) bool {
 	cfg := flags.managementLAN
 	return cfg.Enabled ||
 		cfg.VLAN != 0 ||

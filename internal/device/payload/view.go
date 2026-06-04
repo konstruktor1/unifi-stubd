@@ -60,8 +60,8 @@ func BuildPortViews(profile device.Profile, id device.Identity, ports []device.P
 		media := effectivePortMedia(port, speed)
 		role := gatewayPortRole(port)
 		networkGroup := gatewayNetworkGroup(port)
-		ip := gatewayInterfaceIP(id, port)
-		netmask := gatewayInterfaceNetmask(port)
+		ip := interfaceIP(id, port)
+		netmask := interfaceNetmask(port)
 		physicalIfName := gatewayInterfaceName(profile, port.Index)
 		gatewayName := gatewayInterfaceNameForPort(profile, port)
 		// sourceInterface is the local observation source. It may be a Linux,
@@ -89,7 +89,7 @@ func BuildPortViews(profile device.Profile, id device.Identity, ports []device.P
 				Name:            gatewayName,
 				IfName:          gatewayName,
 				Comment:         port.Name,
-				MAC:             gatewayPortMAC(id.MAC, port),
+				MAC:             portMAC(id.MAC, port),
 				IP:              ip,
 				Netmask:         netmask,
 				Address:         interfaceAddressCIDR(ip, netmask),

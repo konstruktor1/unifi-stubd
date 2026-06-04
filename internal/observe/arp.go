@@ -62,7 +62,6 @@ func ParseARPTable(reader io.Reader) []ARPEntry {
 	return out
 }
 
-// zeroMAC filters placeholder ARP rows that cannot represent real clients.
 func zeroMAC(mac net.HardwareAddr) bool {
 	for _, part := range mac {
 		if part != 0 {
@@ -72,9 +71,9 @@ func zeroMAC(mac net.HardwareAddr) bool {
 	return true
 }
 
-// EnrichMACEntriesWithARP fills missing client IPs from local ARP rows while
+// EnrichMACsFromARP fills missing client IPs from local ARP rows while
 // preserving any IPs already supplied by configuration or another observation.
-func EnrichMACEntriesWithARP(memberMACs map[string][]device.MacTableEntry, arpEntries []ARPEntry) {
+func EnrichMACsFromARP(memberMACs map[string][]device.MacTableEntry, arpEntries []ARPEntry) {
 	if len(memberMACs) == 0 || len(arpEntries) == 0 {
 		return
 	}
@@ -101,8 +100,8 @@ func EnrichMACEntriesWithARP(memberMACs map[string][]device.MacTableEntry, arpEn
 	}
 }
 
-// EnrichMACEntriesWithLocalARP fills missing client IPs from the host ARP cache.
-func EnrichMACEntriesWithLocalARP(memberMACs map[string][]device.MacTableEntry) error {
+// EnrichMACsFromLocalARP fills missing client IPs from the host ARP cache.
+func EnrichMACsFromLocalARP(memberMACs map[string][]device.MacTableEntry) error {
 	if len(memberMACs) == 0 {
 		return nil
 	}
@@ -110,12 +109,10 @@ func EnrichMACEntriesWithLocalARP(memberMACs map[string][]device.MacTableEntry) 
 	if err != nil {
 		return err
 	}
-	EnrichMACEntriesWithARP(memberMACs, entries)
+	EnrichMACsFromARP(memberMACs, entries)
 	return nil
 }
 
-// arpEntryForMAC prefers an ARP row learned on the same bridge member, then
-// falls back to any row for that MAC.
 func arpEntryForMAC(member, mac string, byMAC map[string][]ARPEntry) (ARPEntry, bool) {
 	entries := byMAC[normalizedMACKey(mac)]
 	if len(entries) == 0 {
