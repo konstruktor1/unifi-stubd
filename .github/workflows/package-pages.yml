@@ -6,7 +6,6 @@ on:
       version:
         description: Package version without leading v
         required: false
-        default: 0.1.8-alpha
       package_release:
         description: Package release number
         required: false
@@ -31,6 +30,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-go@v6
         with:
@@ -42,17 +43,36 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y dpkg-dev createrepo-c libarchive-tools pacman-package-manager zstd
 
-      - name: Build package matrix
+      - name: Resolve package version
+        id: package-version
         env:
           RAW_VERSION: ${{ inputs.version || github.event.release.tag_name || github.ref_name }}
+        run: |
+          set -eu
+          case "$RAW_VERSION" in
+            v[0-9]*)
+              version="${RAW_VERSION#v}"
+              ;;
+            [0-9]*)
+              version="$RAW_VERSION"
+              ;;
+            *)
+              version="$(git describe --tags --abbrev=0 --match 'v[0-9]*' | sed 's/^v//')"
+              ;;
+          esac
+          test -n "$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Build package matrix
+        env:
+          PKG_VERSION: ${{ steps.package-version.outputs.version }}
           PACKAGE_RELEASE: ${{ inputs.package_release || '1' }}
         run: |
           set -eu
-          version="${RAW_VERSION#v}"
-          PKG_VERSION="$version" PKG_RELEASE="$PACKAGE_RELEASE" PKG_GOARCH=amd64 make package
-          PKG_VERSION="$version" PKG_RELEASE="$PACKAGE_RELEASE" PKG_GOARCH=arm64 make package
-          PKG_VERSION="$version" PKG_RELEASE="$PACKAGE_RELEASE" PKG_FREEBSD_GOARCH=amd64 make package-freebsd-tgz
-          PKG_VERSION="$version" PKG_RELEASE="$PACKAGE_RELEASE" PKG_FREEBSD_GOARCH=arm64 make package-freebsd-tgz
+          PKG_RELEASE="$PACKAGE_RELEASE" PKG_GOARCH=amd64 make package
+          PKG_RELEASE="$PACKAGE_RELEASE" PKG_GOARCH=arm64 make package
+          PKG_RELEASE="$PACKAGE_RELEASE" PKG_FREEBSD_GOARCH=amd64 make package-freebsd-tgz
+          PKG_RELEASE="$PACKAGE_RELEASE" PKG_FREEBSD_GOARCH=arm64 make package-freebsd-tgz
 
       - uses: actions/upload-artifact@v7
         with:
@@ -64,21 +84,42 @@ jobs:
     runs-on: [self-hosted, Linux, X64, freebsd-pkg-builder]
     steps:
       - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-go@v6
         with:
           go-version: stable
           check-latest: true
 
-      - name: Build native FreeBSD pkg repositories
+      - name: Resolve package version
+        id: package-version
         env:
           RAW_VERSION: ${{ inputs.version || github.event.release.tag_name || github.ref_name }}
+        run: |
+          set -eu
+          case "$RAW_VERSION" in
+            v[0-9]*)
+              version="${RAW_VERSION#v}"
+              ;;
+            [0-9]*)
+              version="$RAW_VERSION"
+              ;;
+            *)
+              version="$(git describe --tags --abbrev=0 --match 'v[0-9]*' | sed 's/^v//')"
+              ;;
+          esac
+          test -n "$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Build native FreeBSD pkg repositories
+        env:
+          PKG_VERSION: ${{ steps.package-version.outputs.version }}
           PACKAGE_RELEASE: ${{ inputs.package_release || '1' }}
           FREEBSD_PKG_REMOTE: unifi-stubd-freebsd-builder
         run: |
           set -eu
-          version="${RAW_VERSION#v}"
-          PKG_VERSION="$version" PKG_RELEASE="$PACKAGE_RELEASE" make package-freebsd-pkg-repos
+          PKG_RELEASE="$PACKAGE_RELEASE" make package-freebsd-pkg-repos
           tar -C dist/freebsd-pkg-repos -czf dist/freebsd-pkg-repos.tar.gz repo
 
       - uses: actions/upload-artifact@v7

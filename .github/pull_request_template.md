@@ -2,10 +2,17 @@
 
 -
 
+## Target Stage
+
+- [ ] Topic branch -> `dev`
+- [ ] `dev` -> `main`
+- [ ] Hotfix branch -> `main`, then back to `dev`
+
 ## Checks
 
 - [ ] `make check`
 - [ ] `make package` when packaging or install layout changed
+- [ ] `make integration-docker` when inform, adoption, payloads, or controller compatibility changed
 
 ## Safety
 

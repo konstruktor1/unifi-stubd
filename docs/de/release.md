@@ -37,13 +37,14 @@ kopiert.
 Semantische Versionstags verwenden:
 
 ```sh
-git tag -a v0.1.0 -m "unifi-stubd v0.1.0"
-git push origin v0.1.0
+git tag -a v0.1.9-alpha -m "unifi-stubd v0.1.9-alpha"
+git push origin v0.1.9-alpha
 ```
 
-Der normale CI-Workflow prueft den getaggten Commit. Der Package-Repositories-
-Workflow laeuft auch fuer `v*`-Tags und GitHub-Pre-Releases, deshalb muss das
-`github-pages`-Environment Deployments von `main` und `v*`-Tags erlauben.
+Nur Commits taggen, die bereits den `main`-CI-Lauf bestanden haben. Der
+Package-Repositories-Workflow laeuft fuer `v*`-Tags und GitHub-Pre-Releases,
+deshalb muss das `github-pages`-Environment Deployments von `main` und
+`v*`-Tags erlauben.
 
 Alpha-Paketsets als Pre-Release veroeffentlichen:
 
@@ -83,6 +84,9 @@ gh workflow run package-pages.yml --ref main \
   -f version=0.1.8-alpha \
   -f package_release=1
 ```
+
+Wenn `version` bei einem manuellen Lauf fehlt, ermittelt der Workflow den
+neuesten erreichbaren `v[0-9]*`-Tag und entfernt das fuehrende `v`.
 
 `make package-repos` schreibt `dist/package-site/` mit APT-, RPM-,
 Arch-Linux-, FreeBSD-/OPNsense-Tarball-Pfaden und nativen FreeBSD-`pkg`-Repos,

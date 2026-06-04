@@ -6,6 +6,7 @@
 - [Testleitfaden](../wiki/de/testing-guide.md)
 - [Entscheidungen](../wiki/de/decisions.md)
 - [Research](research.md)
+- [Entwicklungsworkflow](development.md)
 - [Projektstand](project-status.md)
 - [Lab-Projektstand](lab-project-status.md)
 - [Protocol Notes](protocol-notes.md)

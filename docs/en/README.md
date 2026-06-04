@@ -6,6 +6,7 @@
 - [Testing Guide](../wiki/en/testing-guide.md)
 - [Decisions](../wiki/en/decisions.md)
 - [Research](research.md)
+- [Development Workflow](development.md)
 - [Project Status](project-status.md)
 - [Lab Project Status](lab-project-status.md)
 - [Protocol Notes](protocol-notes.md)

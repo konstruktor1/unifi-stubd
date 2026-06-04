@@ -35,13 +35,13 @@ onto the installed system after the package is installed.
 Use semantic version tags:
 
 ```sh
-git tag -a v0.1.0 -m "unifi-stubd v0.1.0"
-git push origin v0.1.0
+git tag -a v0.1.9-alpha -m "unifi-stubd v0.1.9-alpha"
+git push origin v0.1.9-alpha
 ```
 
-The normal CI workflow validates the tagged commit. The Package Repositories
-workflow also runs for `v*` tags and GitHub pre-releases, so the `github-pages`
-environment must allow deployments from `main` and `v*` tags.
+Tag only commits that already passed the `main` CI run. The Package
+Repositories workflow runs for `v*` tags and GitHub pre-releases, so the
+`github-pages` environment must allow deployments from `main` and `v*` tags.
 
 Create a pre-release for alpha package sets:
 
@@ -80,6 +80,9 @@ gh workflow run package-pages.yml --ref main \
   -f version=0.1.8-alpha \
   -f package_release=1
 ```
+
+If `version` is omitted in a manual run, the workflow resolves the latest
+reachable `v[0-9]*` tag and strips the leading `v`.
 
 `make package-repos` writes `dist/package-site/` with APT, RPM, Arch Linux,
 FreeBSD/OPNsense tarball paths, and native FreeBSD `pkg` repository paths when

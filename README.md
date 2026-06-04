@@ -6,7 +6,9 @@ UniFi Network Controller without mutating the host.
 
 Documentation: [English](docs/en/README.md) | [Deutsch](docs/de/README.md) |
 [Wiki](docs/wiki/README.md) | [Project Status](docs/en/project-status.md) |
-[Projektstand](docs/de/project-status.md)
+[Projektstand](docs/de/project-status.md) |
+[Development Workflow](docs/en/development.md) |
+[Entwicklungsworkflow](docs/de/development.md)
 
 Coding-agent instructions live in [AGENTS.md](AGENTS.md). Tool-specific bridge
 files only point back to that file. [llms.txt](llms.txt) is a public project
@@ -545,6 +547,12 @@ make package
 The lint profile uses `golangci-lint` and a small repository policy check for
 project-specific rules such as keeping Go tests under `tests/` and keeping lab
 secrets out of commits.
+
+The staged development path is documented in
+[docs/en/development.md](docs/en/development.md) and
+[docs/de/development.md](docs/de/development.md): topic branches target `dev`,
+`main` is the tested release base, and package repositories publish only from
+tags, GitHub releases, or an explicit workflow run from `main`.
 
 ## Security
 
