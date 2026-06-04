@@ -48,6 +48,17 @@ jobs:
           go-version: stable
           check-latest: true
       - run: make package
+      - name: Install deb package smoke test
+        run: |
+          set -eu
+          deb="$(find dist/packages -maxdepth 1 -name 'unifi-stubd_*_amd64.deb' -print -quit)"
+          test -n "$deb"
+          sudo dpkg -i "$deb"
+          test -x /usr/local/bin/unifi-stubd
+          unifi-stubd -version
+          sudo unifi-stubd -validate -config /etc/unifi-stubd/config.yaml
+          test -f /usr/lib/systemd/system/unifi-stubd.service
+          test -x /etc/init.d/unifi-stubd
       - uses: actions/upload-artifact@v7
         with:
           name: packages
