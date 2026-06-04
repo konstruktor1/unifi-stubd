@@ -180,7 +180,9 @@ reported as `source_interface`. The ping source updates connectivity and
 latency telemetry, but it does not run a UniFi speed test, detect the ISP, or
 change OPNsense interfaces, routes, firewall rules, or VLANs. The ping follows
 the OPNsense host routing table; `targets[].port` selects which WAN telemetry
-row is updated, not which source interface the ICMP packet uses.
+row is updated, not which source interface the ICMP packet uses. The target port
+must be explicitly marked `role: wan` or `role: wan2` in `port_overrides`;
+profile defaults alone do not enable active probes.
 
 If the gateway also represents a LAN on another physical port, configure that
 LAN explicitly in `port_overrides`. Do not use `management_lan` as a gateway

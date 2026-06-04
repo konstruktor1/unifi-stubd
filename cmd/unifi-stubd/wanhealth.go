@@ -49,7 +49,7 @@ func normalizeWANHealthConfig(flags *runtimeFlags) {
 }
 
 // validateWANHealthTargetRoles verifies active probes only target gateway WAN
-// ports after profile defaults and operator port overrides have been applied.
+// ports explicitly selected by local operator overrides.
 func validateWANHealthTargetRoles(flags runtimeFlags, profile device.Profile) error {
 	if wanhealth.NormalizeSource(flags.wanHealth.Source) != wanhealth.SourcePing {
 		return nil
@@ -57,14 +57,18 @@ func validateWANHealthTargetRoles(flags runtimeFlags, profile device.Profile) er
 	if !gatewayProfile(profile) {
 		return fmt.Errorf("wan_health.source ping requires a gateway profile")
 	}
+	explicitWANPorts := explicitWANHealthTargetPorts(flags.portOverrides)
 	ports := wanHealthPreviewPorts(flags, profile)
 	for _, target := range flags.wanHealth.Targets {
+		if !explicitWANPorts[target.Port] {
+			return fmt.Errorf("wan_health target port %d must have an explicit port_overrides role wan or wan2", target.Port)
+		}
 		if target.Port < 1 || target.Port > len(ports) {
 			continue
 		}
 		port := ports[target.Port-1]
 		if !wanHealthPort(port) {
-			return fmt.Errorf("wan_health target port %d has role %q; use a port with role wan or wan2", target.Port, valueOrDash(port.Role))
+			return fmt.Errorf("wan_health target port %d has resolved role %q; use an explicit port_overrides role wan or wan2", target.Port, valueOrDash(port.Role))
 		}
 	}
 	return nil
@@ -76,7 +80,7 @@ func applyWANHealth(ports []device.Port, flags runtimeFlags, profile device.Prof
 	if wanhealth.NormalizeSource(flags.wanHealth.Source) != wanhealth.SourcePing || !gatewayProfile(profile) {
 		return ports
 	}
-	targets := wanHealthRuntimeTargets(flags.wanHealth, ports)
+	targets := wanHealthRuntimeTargets(flags.wanHealth, ports, explicitWANHealthTargetPorts(flags.portOverrides))
 	if len(targets) == 0 {
 		return ports
 	}
@@ -102,21 +106,32 @@ func wanHealthRuntimeConfig(cfg appconfig.WANHealthConfig, targets []wanhealth.T
 	}
 }
 
-func wanHealthRuntimeTargets(cfg appconfig.WANHealthConfig, ports []device.Port) []wanhealth.Target {
+func wanHealthRuntimeTargets(cfg appconfig.WANHealthConfig, ports []device.Port, explicitWANPorts map[int]bool) []wanhealth.Target {
 	out := make([]wanhealth.Target, 0, len(cfg.Targets))
 	for _, target := range cfg.Targets {
 		if target.Port < 1 || target.Port > len(ports) {
 			continue
 		}
 		port := ports[target.Port-1]
-		if !wanHealthPort(port) {
-			log.Printf("wan_health target skipped: port=%d role=%q is not wan or wan2", target.Port, port.Role)
+		if !explicitWANPorts[target.Port] || !wanHealthPort(port) {
+			log.Printf("wan_health target skipped: port=%d role=%q is not explicitly configured as wan or wan2", target.Port, port.Role)
 			continue
 		}
 		out = append(out, wanhealth.Target{
 			Port: target.Port,
 			Host: strings.TrimSpace(target.Host),
 		})
+	}
+	return out
+}
+
+func explicitWANHealthTargetPorts(overrides []device.PortOverride) map[int]bool {
+	out := make(map[int]bool)
+	for _, override := range overrides {
+		if override.Port < 1 || strings.TrimSpace(override.Role) == "" {
+			continue
+		}
+		out[override.Port] = wanHealthRole(override.Role)
 	}
 	return out
 }
@@ -149,7 +164,11 @@ func gatewayProfile(profile device.Profile) bool {
 }
 
 func wanHealthPort(port device.Port) bool {
-	switch strings.ToLower(strings.TrimSpace(port.Role)) {
+	return wanHealthRole(port.Role)
+}
+
+func wanHealthRole(role string) bool {
+	switch strings.ToLower(strings.TrimSpace(role)) {
 	case "wan", "wan2":
 		return true
 	default:

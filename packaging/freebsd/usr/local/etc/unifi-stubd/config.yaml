@@ -61,7 +61,8 @@ port_overrides: []
 # source:
 #   off    - no active measurement
 #   static - rely on configured port_overrides wan_* values only
-#   ping   - probe targets with local ping; target ports must be wan/wan2
+#   ping   - probe targets with local ping; target ports must have an explicit
+#            port_overrides role wan/wan2
 # Ping updates latency/connectivity/status fields only. It does not run UniFi
 # speed tests, detect ISP/provider names, change routes, or touch VLANs.
 # wan_health:

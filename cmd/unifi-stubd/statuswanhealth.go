@@ -28,7 +28,7 @@ func buildStatusWANHealth(flags runtimeFlags, profile device.Profile) statusWANH
 		return out
 	}
 	ports := wanHealthPreviewPorts(flags, profile)
-	targets := wanHealthRuntimeTargets(cfg, ports)
+	targets := wanHealthRuntimeTargets(cfg, ports, explicitWANHealthTargetPorts(flags.portOverrides))
 	if len(targets) == 0 {
 		return out
 	}

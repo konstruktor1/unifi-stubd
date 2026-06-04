@@ -395,7 +395,9 @@ port 3; `ixl0` is reported only as `source_interface`.
 WAN health is also explicit YAML. `source: off` reports no active probe,
 `source: static` uses the `wan_*` hints from `port_overrides`, and
 `source: ping` runs the local OS `ping` command against configured targets.
-Ping results update only controller telemetry fields such as connected state,
+Ping targets must point at ports explicitly marked `role: wan` or `role: wan2`
+in `port_overrides`; profile defaults alone do not enable active probes. Ping
+results update only controller telemetry fields such as connected state,
 latency, downtime, uptime percentage, `internet_health`, and the
 `speedtest-status` latency/status block. They do not perform a UniFi speed test
 and do not discover ISP/provider names. The probe follows the host's normal

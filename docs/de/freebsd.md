@@ -184,7 +184,9 @@ Connectivity- und Latenz-Telemetrie, fuehrt aber keinen UniFi-Speedtest aus,
 erkennt keinen Provider und aendert keine OPNsense-Interfaces, Routen,
 Firewall-Regeln oder VLANs. Der Ping folgt der Routing-Tabelle des
 OPNsense-Hosts; `targets[].port` waehlt nur die WAN-Telemetriezeile, nicht das
-ICMP-Quellinterface.
+ICMP-Quellinterface. Der Zielport muss in `port_overrides` explizit
+`role: wan` oder `role: wan2` tragen; Profildefaults allein aktivieren keine
+aktiven Probes.
 
 Wenn das Gateway zusaetzlich ein LAN auf einem anderen physischen Port
 darstellt, dieses LAN explizit in `port_overrides` konfigurieren.

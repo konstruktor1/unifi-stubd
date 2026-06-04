@@ -236,7 +236,7 @@ port_mappings:
 }
 
 // TestValidateWANHealthRejectsNonWANTarget verifies active probes are limited to
-// gateway WAN roles after profile and port overrides are resolved.
+// locally explicit WAN roles after operator port overrides are resolved.
 func TestValidateWANHealthRejectsNonWANTarget(t *testing.T) {
 	configPath := filepath.Join(t.TempDir(), "config.yaml")
 	if err := os.WriteFile(configPath, []byte(`operation_mode: stub
@@ -264,8 +264,70 @@ wan_health:
 		t.Fatalf("exit = %v, want code 1; output:\n%s", err, out)
 	}
 	if !strings.Contains(string(out), "wan_health target port 2") ||
-		!strings.Contains(string(out), "role") {
+		!strings.Contains(string(out), "port_overrides role wan or wan2") {
 		t.Fatalf("output did not contain WAN health validation:\n%s", out)
+	}
+}
+
+// TestValidateWANHealthRequiresExplicitWANOverride verifies profile-provided
+// gateway WAN roles are not enough to enable active Internet probes.
+func TestValidateWANHealthRequiresExplicitWANOverride(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(configPath, []byte(`operation_mode: stub
+profile: uxgpro
+mac: auto
+ip: 192.0.2.50
+hostname: auto
+wan_health:
+  source: ping
+  interval_seconds: 10
+  timeout_ms: 1000
+  targets:
+    - port: 1
+      host: 1.1.1.1
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cmd := stubdCommand("-validate", "-config", configPath)
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("command succeeded; output:\n%s", out)
+	}
+	var exitErr *exec.ExitError
+	if !errors.As(err, &exitErr) || exitErr.ExitCode() != 1 {
+		t.Fatalf("exit = %v, want code 1; output:\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "wan_health target port 1") ||
+		!strings.Contains(string(out), "port_overrides role wan or wan2") {
+		t.Fatalf("output did not contain explicit WAN override validation:\n%s", out)
+	}
+}
+
+func TestValidateWANHealthAcceptsExplicitWANOverride(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(configPath, []byte(`operation_mode: stub
+profile: uxgpro
+mac: auto
+ip: 192.0.2.50
+hostname: auto
+uplink_port: 3
+port_overrides:
+  - port: 3
+    role: wan
+    network_group: WAN
+wan_health:
+  source: ping
+  interval_seconds: 10
+  timeout_ms: 1000
+  targets:
+    - port: 3
+      host: 1.1.1.1
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	output := runStubdStdout(t, "-validate", "-config", configPath)
+	if !strings.Contains(output, "configuration valid: profile=uxgpro") {
+		t.Fatalf("validate output = %q", output)
 	}
 }
 
@@ -1130,6 +1192,78 @@ instance_guard_path: `+filepath.Join(dir, "instance.lock")+`
 		!doc.Runtime.LastInform.Ignored ||
 		doc.Runtime.LastInform.IgnoredReason == "" {
 		t.Fatalf("last inform safe provisioning metadata = %+v", doc.Runtime.LastInform)
+	}
+}
+
+func TestStatusJSONReportsWANHealthTargetsAndResults(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte(`operation_mode: stub
+profile: uxgpro
+mac: auto
+ip: 192.0.2.50
+hostname: auto
+state_path: `+filepath.ToSlash(filepath.Join(dir, "adoption.env"))+`
+status_path: `+filepath.ToSlash(filepath.Join(dir, "status.json"))+`
+port_overrides:
+  - port: 3
+    role: wan
+    network_group: WAN
+wan_health:
+  source: ping
+  interval_seconds: 10
+  timeout_ms: 250
+  targets:
+    - port: 3
+      host: 127.0.0.1
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	output := runStubdStdout(t, "-config", configPath, "-status-json")
+	var doc struct {
+		Config struct {
+			WANHealth struct {
+				Source  string `json:"source"`
+				Targets []struct {
+					Port int    `json:"port"`
+					Host string `json:"host"`
+				} `json:"targets"`
+				Results []struct {
+					Port            int     `json:"port"`
+					Host            string  `json:"host"`
+					Connected       bool    `json:"connected"`
+					LatencyMS       int     `json:"latency_ms"`
+					DowntimeSeconds int     `json:"downtime_seconds"`
+					UptimePercent   float64 `json:"uptime_percent"`
+					LastError       string  `json:"last_error"`
+				} `json:"results"`
+			} `json:"wan_health"`
+		} `json:"config"`
+	}
+	if err := json.Unmarshal([]byte(output), &doc); err != nil {
+		t.Fatalf("status JSON invalid: %v\n%s", err, output)
+	}
+	if doc.Config.WANHealth.Source != "ping" {
+		t.Fatalf("WANHealth source = %q, want ping", doc.Config.WANHealth.Source)
+	}
+	if len(doc.Config.WANHealth.Targets) != 1 ||
+		doc.Config.WANHealth.Targets[0].Port != 3 ||
+		doc.Config.WANHealth.Targets[0].Host != "127.0.0.1" {
+		t.Fatalf("WANHealth targets = %+v", doc.Config.WANHealth.Targets)
+	}
+	if len(doc.Config.WANHealth.Results) != 1 {
+		t.Fatalf("WANHealth results = %+v", doc.Config.WANHealth.Results)
+	}
+	result := doc.Config.WANHealth.Results[0]
+	if result.Port != 3 || result.Host != "127.0.0.1" {
+		t.Fatalf("WANHealth result identity = %+v", result)
+	}
+	if result.Connected && result.LatencyMS < 1 {
+		t.Fatalf("connected WANHealth result has latency < 1: %+v", result)
+	}
+	if !result.Connected && result.LastError == "" {
+		t.Fatalf("failed WANHealth result has no sanitized error: %+v", result)
 	}
 }
 
