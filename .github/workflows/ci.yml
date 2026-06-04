@@ -57,8 +57,7 @@ jobs:
           test -x /usr/local/bin/unifi-stubd
           unifi-stubd -version
           sudo unifi-stubd -validate -config /etc/unifi-stubd/config.yaml
-          test -f /usr/lib/systemd/system/unifi-stubd.service
-          test -x /etc/init.d/unifi-stubd
+          dpkg -L unifi-stubd | grep -qx /lib/systemd/system/unifi-stubd.service
       - uses: actions/upload-artifact@v7
         with:
           name: packages
