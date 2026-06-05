@@ -22,6 +22,7 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
+          check-latest: true
       - run: make check
       - run: make vulncheck
       - run: mkdir -p dist
