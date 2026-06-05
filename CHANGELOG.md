@@ -7,6 +7,48 @@ semantic version tags once releases are published.
 
 ## [Unreleased]
 
+## [0.1.10-alpha] - 2026-06-05
+
+### Added
+
+- Added `-config-migrate` and `-config-migrate-dry-run` for conservative YAML
+  config normalization. The migrator handles known legacy aliases, validates the
+  rewritten config before writing, and keeps timestamped `.bak.*` backups.
+- Added native FreeBSD `pkg` install and upgrade hooks that run the safe config
+  migrator without aborting package upgrades on manual conflicts.
+
+### Changed
+
+- Replaced the Docker lab's Python/mitmproxy assertion layer with Go tools and a
+  small Go inform proxy.
+- Simplified Docker integration coverage to deterministic payload checks and
+  captured inform request events, avoiding fragile controller-version and
+  container-state assumptions.
+
+### Fixed
+
+- Marked the native FreeBSD/OPNsense package config as package-managed config so
+  `pkg` preserves local edits and writes `.pkgnew` on unmergeable default
+  changes.
+
+## [0.1.9-alpha] - 2026-06-05
+
+### Added
+
+- Added explicit gateway WAN ping health for locally configured `wan`/`wan2`
+  ports.
+
+### Changed
+
+- Refactored project-wide Go naming and low-value comments without changing
+  public CLI, YAML, JSON, payload, or protocol names.
+- Documented the staged development workflow from topic branches through `dev`,
+  `main`, and release/package publishing.
+- Tightened CI package validation so `main` builds packages from the latest
+  `v*` tag version and installs the generated Debian package in GitHub Actions.
+- Updated `dev` CI to use the latest Go patch release for the module minor
+  version.
+
 ## [0.1.8-alpha] - 2026-06-01
 
 ### Fixed
