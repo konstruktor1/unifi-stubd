@@ -64,6 +64,73 @@ UNIFI_STUB_LAB_ADMIN_PASSWORD=... \
 make integration-docker
 ```
 
+## Dev To Main Docker Gate
+
+Use the Docker lab as the standard controller-compatibility gate before
+promoting `dev` to `main` whenever the accumulated `dev` changes touch any of
+these areas:
+
+- inform framing, encryption, compression, or adoption responses;
+- controller-visible payload shape, profile data, port rendering, gateway
+  tables, or WAN health;
+- observation modes that affect rendered controller state;
+- Docker lab fixtures, controller image pinning, or adoption test helpers.
+
+The gate is tied to a commit, not to a branch name. The commit promoted from
+`dev` to `main` must be the same commit that passed the Docker gate, or a
+descendant that only contains unrelated documentation or release metadata.
+
+Standard manual run:
+
+```sh
+git switch dev
+git pull --ff-only origin dev
+make check
+make integration-docker
+git rev-parse HEAD
+```
+
+Pass criteria:
+
+- `make check` exits `0`.
+- `make integration-docker` exits `0` and prints `docker integration: ok`.
+- The log shows the pinned UniFi Network Application version check.
+- The log shows the generated bridge, port-map, and gateway throwaway
+  identities.
+- Switch and gateway adoption smoke tests both reach connected local state and
+  at least one post-adoption inform heartbeat.
+
+Promotion evidence should record:
+
+- commit SHA;
+- command used;
+- controller image and expected controller version;
+- start and end time;
+- final exit code;
+- link to a GitHub Actions run or preserved local terminal log.
+
+Do not promote `dev` to `main` while the Docker gate is failing, skipped for a
+controller-facing change, or run against a different commit. If the failure
+needs inspection, rerun once with `UNIFI_STUB_DOCKER_KEEP_RESOURCES=1`, inspect
+the temporary device and state volume, then remove the resources before the next
+standard run.
+
+Automation target:
+
+1. Keep the manual gate as the baseline until the Docker lab runner is stable.
+2. Add a separate `Docker Integration` GitHub Actions workflow with
+   `workflow_dispatch` and `pull_request` for `dev` to `main`.
+3. Run only `make integration-docker` in that workflow after the normal `CI /
+   check` is green.
+4. Use a single concurrency group for the Docker controller lab so two adoption
+   tests cannot share controller state at the same time.
+5. Once stable, require the `Docker Integration` status check on `dev` to
+   `main` pull requests that include controller-facing changes.
+
+The standard `CI` workflow remains the fast gate. The Docker gate is the
+controller-compatibility gate, and the `main` package job remains the package
+install smoke gate.
+
 ## Cleanup Semantics
 
 The script derives throwaway MAC/IP identities for every run, stops and removes

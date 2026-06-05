@@ -27,6 +27,14 @@ Das Docker-Lab ist der Referenz-Controller-Pfad. Es validiert den gepinnten
 UniFi-Network-Application-Container, Pending Adoption, controller-getriggerte
 Adoption, persistierten lokalen State und ausgewaehlte Dry-Run-Payloads.
 
+Fuer die Promotion von `dev` nach `main` ist dieser Gate in
+[`docs/de/docker-lab.md`](../../de/docker-lab.md) standardisiert. Der promotete
+`dev`-Commit muss der Commit sein, der `make integration-docker` bestanden hat,
+oder ein Nachfolger, der nur nicht fachliche Dokumentation oder Release-
+Metadaten enthaelt. Vor dem Merge nach `main` werden Commit-SHA,
+Controller-Image/-Version, Befehl, finaler Exit-Code und Log- oder
+Actions-Run-URL festgehalten.
+
 ## Package-Gate
 
 Ausfuehren, wenn paketierte Configs, Service-Dateien, Filesystem-Pfade oder

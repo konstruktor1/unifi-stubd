@@ -65,6 +65,78 @@ UNIFI_STUB_LAB_ADMIN_PASSWORD=... \
 make integration-docker
 ```
 
+## Docker-Gate Von Dev Nach Main
+
+Das Docker-Lab ist der standardisierte Controller-Kompatibilitaets-Gate vor der
+Promotion von `dev` nach `main`, sobald die gesammelten `dev`-Aenderungen einen
+dieser Bereiche beruehren:
+
+- Inform-Framing, Verschluesselung, Kompression oder Adoption-Responses;
+- controller-sichtbare Payload-Form, Profildaten, Port-Rendering,
+  Gateway-Tabellen oder WAN-Health;
+- Observation-Modi, die gerenderten Controller-State beeinflussen;
+- Docker-Lab-Fixtures, Controller-Image-Pinning oder Adoption-Testhelfer.
+
+Der Gate haengt am Commit, nicht am Branch-Namen. Der von `dev` nach `main`
+promotete Commit muss derselbe Commit sein, der den Docker-Gate bestanden hat,
+oder ein Nachfolger, der nur nicht fachliche Dokumentation oder Release-
+Metadaten enthaelt.
+
+Standardlauf:
+
+```sh
+git switch dev
+git pull --ff-only origin dev
+make check
+make integration-docker
+git rev-parse HEAD
+```
+
+Pass-Kriterien:
+
+- `make check` beendet mit `0`.
+- `make integration-docker` beendet mit `0` und gibt `docker integration: ok`
+  aus.
+- Der Log zeigt die Versionspruefung der gepinnten UniFi Network Application.
+- Der Log zeigt die erzeugten Bridge-, Port-Map- und Gateway-Wegwerf-
+  Identitaeten.
+- Switch- und Gateway-Adoption-Smoke-Tests erreichen beide verbundenen lokalen
+  State und mindestens einen Post-Adoption-Inform-Heartbeat.
+
+Als Promotion-Evidenz wird festgehalten:
+
+- Commit-SHA;
+- ausgefuehrter Befehl;
+- Controller-Image und erwartete Controller-Version;
+- Start- und Endzeit;
+- finaler Exit-Code;
+- Link auf einen GitHub-Actions-Lauf oder einen aufbewahrten lokalen
+  Terminal-Log.
+
+`dev` wird nicht nach `main` promotet, solange der Docker-Gate fehlschlaegt,
+bei controller-sichtbaren Aenderungen uebersprungen wurde oder gegen einen
+anderen Commit lief. Fuer Fehleranalyse darf einmal mit
+`UNIFI_STUB_DOCKER_KEEP_RESOURCES=1` neu gestartet werden; danach muessen
+temporaeres Geraet und State-Volume vor dem naechsten Standardlauf entfernt
+werden.
+
+Automatisierungsziel:
+
+1. Manueller Gate bleibt die Basis, bis der Docker-Lab-Runner stabil ist.
+2. Ein separater `Docker Integration`-GitHub-Actions-Workflow bekommt
+   `workflow_dispatch` und `pull_request` fuer `dev` nach `main`.
+3. Dieser Workflow fuehrt nach gruenem normalem `CI / check` nur
+   `make integration-docker` aus.
+4. Eine einzelne Concurrency-Gruppe fuer das Docker-Controller-Lab verhindert,
+   dass zwei Adoption-Tests gleichzeitig Controller-State teilen.
+5. Sobald stabil, wird `Docker Integration` als Required Status Check fuer
+   `dev`-nach-`main`-Pull-Requests mit controller-sichtbaren Aenderungen
+   verwendet.
+
+Der normale `CI`-Workflow bleibt der schnelle Gate. Der Docker-Gate ist der
+Controller-Kompatibilitaets-Gate, und der `main`-Package-Job bleibt der
+Package-Install-Smoke-Gate.
+
 ## Cleanup-Semantik
 
 Das Skript erzeugt pro Lauf Wegwerf-MACs/IPs, stoppt und entfernt temporaere

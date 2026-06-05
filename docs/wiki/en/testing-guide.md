@@ -27,6 +27,13 @@ The Docker lab is the reference controller path. It validates the pinned UniFi
 Network Application container, pending adoption, controller-triggered adoption,
 persisted local state, and selected dry-run payloads.
 
+For `dev` to `main` promotion, this gate is standardized in
+[`docs/en/docker-lab.md`](../../en/docker-lab.md). The promoted `dev` commit
+must be the commit that passed `make integration-docker`, or a descendant that
+only contains unrelated documentation or release metadata. Record the commit
+SHA, controller image/version, command, final exit code, and log or Actions run
+URL before merging to `main`.
+
 ## Package Gate
 
 Run when packaged configs, service files, filesystem paths, or release metadata

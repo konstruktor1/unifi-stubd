@@ -53,11 +53,14 @@ own.
 
 1. Open a pull request from `dev` to `main`.
 2. The pull request must pass `CI / check`.
-3. Review the diff as a release-candidate change set, not as a single feature.
-4. Merge to `main`.
-5. The `main` push runs `CI / check`, then the package job builds all package
+3. For controller-facing changes, run the standardized Docker gate from
+   [Docker Controller Lab](docker-lab.md) on the exact `dev` commit being
+   promoted and record the evidence.
+4. Review the diff as a release-candidate change set, not as a single feature.
+5. Merge to `main`.
+6. The `main` push runs `CI / check`, then the package job builds all package
    formats and installs the generated Debian package once in GitHub Actions.
-6. Do not deploy package repositories from `dev`.
+7. Do not deploy package repositories from `dev`.
 
 Direct pushes to `main` should be limited to explicit emergency or automation
 cases. The normal route is pull request review into `main`.
@@ -101,7 +104,7 @@ reachable `v[0-9]*` tag and strips the leading `v`.
 | Change type | Required local gate | Extra gate |
 | --- | --- | --- |
 | Go code, config schema, profile data | `make check`, `git diff --check` | Targeted `go test ./tests/...` when useful |
-| Inform, adoption, controller payload, profile rendering | `make check` | `make integration-docker` |
+| Inform, adoption, controller payload, profile rendering | `make check` | Standardized Docker gate with `make integration-docker` before `dev` to `main` |
 | Packaged config, service files, package metadata | `make check`, `make package` | GitHub `main` package install smoke |
 | FreeBSD or OPNsense runtime behavior | `make check` | FreeBSD/OPNsense smoke with temporary state only |
 | Release notes, package publication | `make check` | `Package Repositories` workflow from tag, release, or `main` dispatch |

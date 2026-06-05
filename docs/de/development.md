@@ -56,13 +56,16 @@ eigenstaendig durch die Gates kommen.
 
 1. Pull Request von `dev` nach `main` oeffnen.
 2. Der Pull Request muss `CI / check` bestehen.
-3. Den Diff als Release-Candidate-Aenderungsset reviewen, nicht als einzelne
+3. Fuer controller-sichtbare Aenderungen den standardisierten Docker-Gate aus
+   [Docker-Controller-Lab](docker-lab.md) auf dem exakt promoteten `dev`-Commit
+   ausfuehren und die Evidenz festhalten.
+4. Den Diff als Release-Candidate-Aenderungsset reviewen, nicht als einzelne
    Feature-Aenderung.
-4. Nach `main` mergen.
-5. Der `main`-Push startet `CI / check`; danach baut der Package-Job alle
+5. Nach `main` mergen.
+6. Der `main`-Push startet `CI / check`; danach baut der Package-Job alle
    Paketformate und installiert das erzeugte Debian-Paket einmal in GitHub
    Actions.
-6. Paketquellen nicht von `dev` deployen.
+7. Paketquellen nicht von `dev` deployen.
 
 Direkte Pushes auf `main` bleiben expliziten Notfaellen oder Automation
 vorbehalten. Der normale Weg ist Pull-Request-Review nach `main`.
@@ -106,7 +109,7 @@ neuesten erreichbaren `v[0-9]*`-Tag und entfernt das fuehrende `v`.
 | Aenderungstyp | Erforderlicher lokaler Gate | Zusaetzlicher Gate |
 | --- | --- | --- |
 | Go-Code, Config-Schema, Profildaten | `make check`, `git diff --check` | Gezieltes `go test ./tests/...`, wenn sinnvoll |
-| Inform, Adoption, Controller-Payload, Profil-Rendering | `make check` | `make integration-docker` |
+| Inform, Adoption, Controller-Payload, Profil-Rendering | `make check` | Standardisierter Docker-Gate mit `make integration-docker` vor `dev` nach `main` |
 | Paketierte Config, Service-Dateien, Paket-Metadaten | `make check`, `make package` | GitHub-`main`-Package-Install-Smoke |
 | FreeBSD- oder OPNsense-Runtime-Verhalten | `make check` | FreeBSD-/OPNsense-Smoke nur mit temporaerem State |
 | Release Notes, Paketveroeffentlichung | `make check` | `Package Repositories` per Tag, Release oder `main`-Dispatch |
