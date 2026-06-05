@@ -7,6 +7,14 @@ semantic version tags once releases are published.
 
 ## [Unreleased]
 
+## [0.1.11-alpha] - 2026-06-05
+
+### Fixed
+
+- Removed the unsupported native FreeBSD `pkg` `post-upgrade` script key. The
+  config migrator remains in `post-install`, which `pkg` also runs after
+  upgrades.
+
 ## [0.1.10-alpha] - 2026-06-05
 
 ### Added

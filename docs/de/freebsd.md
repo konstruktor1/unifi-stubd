@@ -130,13 +130,13 @@ Diese Repositories sind unsignierte Alpha-Artefakte. Nur in isolierten Lab-
 oder Management-Netzen verwenden. Das native `pkg`-Paket markiert
 `/usr/local/etc/unifi-stubd/config.yaml` als Paket-Config, damit Upgrades lokale
 Aenderungen erhalten und bei nicht automatisch mergebaren neuen Defaults eine
-`config.yaml.pkgnew` schreiben. Install- und Upgrade-Hooks fuehren ausserdem
-eine konservative Config-Migration fuer bekannte Legacy-Aliasse wie
-`controller`, `operation_mode: observe` und Top-Level-`observe_bridge`/
-`observe_interface` aus. Der Migrator validiert das umgeschriebene YAML vor dem
-Ersetzen und schreibt daneben ein zeitgestempeltes `.bak.*`-Backup.
-Widerspruechliche Werte werden gemeldet, brechen das Paket-Upgrade aber nicht
-ab.
+`config.yaml.pkgnew` schreiben. Der Paket-`post-install`-Hook laeuft auch nach
+Upgrades und startet eine konservative Config-Migration fuer bekannte
+Legacy-Aliasse wie `controller`, `operation_mode: observe` und
+Top-Level-`observe_bridge`/`observe_interface`. Der Migrator validiert das
+umgeschriebene YAML vor dem Ersetzen und schreibt daneben ein zeitgestempeltes
+`.bak.*`-Backup. Widerspruechliche Werte werden gemeldet, brechen das
+Paket-Upgrade aber nicht ab.
 
 Migration ohne Schreibzugriff pruefen:
 

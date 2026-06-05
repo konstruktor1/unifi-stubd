@@ -186,11 +186,6 @@ if [ -x /usr/local/bin/unifi-stubd ] && [ -f /usr/local/etc/unifi-stubd/config.y
   /usr/local/bin/unifi-stubd -config-migrate -config /usr/local/etc/unifi-stubd/config.yaml || true
 fi
 EOS
-  post-upgrade = <<EOS
-if [ -x /usr/local/bin/unifi-stubd ] && [ -f /usr/local/etc/unifi-stubd/config.yaml ]; then
-  /usr/local/bin/unifi-stubd -config-migrate -config /usr/local/etc/unifi-stubd/config.yaml || true
-fi
-EOS
 }
 directories = {
   "/usr/local/etc/unifi-stubd" = "y"

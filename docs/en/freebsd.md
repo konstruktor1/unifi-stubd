@@ -127,12 +127,12 @@ These repositories are unsigned alpha artifacts. Keep them scoped to isolated
 lab or management networks. The native `pkg` package marks
 `/usr/local/etc/unifi-stubd/config.yaml` as a package config file, so upgrades
 preserve local edits and write `config.yaml.pkgnew` when a new packaged default
-cannot be merged automatically. Package install and upgrade hooks also run a
-conservative config migration for known legacy aliases such as `controller`,
-`operation_mode: observe`, and top-level `observe_bridge`/`observe_interface`.
-The migrator validates the rewritten YAML before replacing the file and writes a
-timestamped `.bak.*` backup next to the config. Ambiguous conflicts are reported
-but do not abort the package upgrade.
+cannot be merged automatically. The package `post-install` hook also runs after
+upgrades and starts a conservative config migration for known legacy aliases
+such as `controller`, `operation_mode: observe`, and top-level
+`observe_bridge`/`observe_interface`. The migrator validates the rewritten YAML
+before replacing the file and writes a timestamped `.bak.*` backup next to the
+config. Ambiguous conflicts are reported but do not abort the package upgrade.
 
 To inspect the migration before writing anything:
 

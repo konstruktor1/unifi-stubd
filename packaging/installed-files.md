@@ -38,7 +38,7 @@ paths `/freebsd/amd64/` and `/freebsd/arm64/`.
 
 | FreeBSD path | Repository source | Notes |
 | --- | --- | --- |
-| `/usr/local/etc/unifi-stubd/config.yaml` | `packaging/freebsd/usr/local/etc/unifi-stubd/config.yaml` | Main service config; native `pkg` marks it as config so upgrades preserve local edits and write `.pkgnew` on conflicts; install/upgrade hooks run `unifi-stubd -config-migrate` and keep `.bak.*` backups for safe legacy alias normalization |
+| `/usr/local/etc/unifi-stubd/config.yaml` | `packaging/freebsd/usr/local/etc/unifi-stubd/config.yaml` | Main service config; native `pkg` marks it as config so upgrades preserve local edits and write `.pkgnew` on conflicts; the `post-install` hook runs after install and upgrade, calls `unifi-stubd -config-migrate`, and keeps `.bak.*` backups for safe legacy alias normalization |
 | `/usr/local/etc/unifi-stubd/ssh_host_rsa_key` | generated at first SSH adoption start | Host key for the optional adoption SSH shim |
 | `/var/db/unifi-stubd/adoption.env` | generated at runtime | Persisted adoption state from controller responses |
 | `/var/db/unifi-stubd/status.json` | generated at runtime | Non-sensitive status snapshot for health checks |

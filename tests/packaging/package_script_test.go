@@ -55,6 +55,9 @@ func TestFreeBSDPkgManifestUsesSimpleChecksumConfigEntries(t *testing.T) {
 		!strings.Contains(script, "repair_manifest \"$abi_dir\" \"$pkg_file\"") {
 		t.Fatal("FreeBSD pkg builder does not repack generated packages with the simple manifest")
 	}
+	if strings.Contains(script, "post-upgrade") {
+		t.Fatal("FreeBSD pkg scripts must not use unsupported post-upgrade hooks")
+	}
 	for _, required := range []string{
 		`flatsize = $flatsize`,
 		`"/usr/local/bin/unifi-stubd" = "1\$`,
@@ -64,7 +67,6 @@ func TestFreeBSDPkgManifestUsesSimpleChecksumConfigEntries(t *testing.T) {
 		`  "/usr/local/etc/unifi-stubd/config.yaml"`,
 		`scripts = {`,
 		`post-install = <<EOS`,
-		`post-upgrade = <<EOS`,
 		`/usr/local/bin/unifi-stubd -config-migrate -config /usr/local/etc/unifi-stubd/config.yaml || true`,
 		`"/usr/local/share/doc/unifi-stubd/LICENSE" = "1\$`,
 		`"/var/db/unifi-stubd" = "y"`,
