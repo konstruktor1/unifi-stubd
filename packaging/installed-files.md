@@ -30,14 +30,15 @@ UniFi-compatible low port without running the daemon as root.
 
 ## FreeBSD/OPNsense Packaged Files
 
-The FreeBSD package path is currently stub-only and is built as a `.tar.gz`
-artifact with `make package-freebsd-tgz`. Release builds publish both
-`freebsd_amd64` and `freebsd_arm64` tarballs as GitHub Release assets and under
-the GitHub Pages paths `/freebsd/amd64/` and `/freebsd/arm64/`.
+The FreeBSD package path is currently stub-only. `make package-freebsd-tgz`
+builds manual tarballs; `make package-freebsd-pkg-repos` builds native FreeBSD
+`pkg` repositories. Release builds publish both `freebsd_amd64` and
+`freebsd_arm64` tarballs as GitHub Release assets and under the GitHub Pages
+paths `/freebsd/amd64/` and `/freebsd/arm64/`.
 
 | FreeBSD path | Repository source | Notes |
 | --- | --- | --- |
-| `/usr/local/etc/unifi-stubd/config.yaml` | `packaging/freebsd/usr/local/etc/unifi-stubd/config.yaml` | Main service config |
+| `/usr/local/etc/unifi-stubd/config.yaml` | `packaging/freebsd/usr/local/etc/unifi-stubd/config.yaml` | Main service config; native `pkg` marks it as config so upgrades preserve local edits and write `.pkgnew` on conflicts; install/upgrade hooks run `unifi-stubd -config-migrate` and keep `.bak.*` backups for safe legacy alias normalization |
 | `/usr/local/etc/unifi-stubd/ssh_host_rsa_key` | generated at first SSH adoption start | Host key for the optional adoption SSH shim |
 | `/var/db/unifi-stubd/adoption.env` | generated at runtime | Persisted adoption state from controller responses |
 | `/var/db/unifi-stubd/status.json` | generated at runtime | Non-sensitive status snapshot for health checks |

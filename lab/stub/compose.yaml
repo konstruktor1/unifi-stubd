@@ -1,4 +1,4 @@
-# Local unifi-stubd stub lab with controller and inform MITM services.
+# Local unifi-stubd stub lab with controller and Go inform proxy services.
 
 name: unifi-stubd-stub-lab
 
@@ -78,8 +78,13 @@ services:
     restart: unless-stopped
 
   inform-mitm:
-    image: ${MITMPROXY_IMAGE:-mitmproxy/mitmproxy:latest}
-    container_name: ${MITMPROXY_CONTAINER:-stub-lab-inform-mitm}
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      args:
+        VERSION: ${UNIFI_STUBD_VERSION:-lab}
+    image: ${UNIFI_STUB_IMAGE:-unifi-stubd:lab}
+    container_name: ${UNIFI_STUB_INFORM_PROXY_CONTAINER:-stub-lab-inform-mitm}
     depends_on:
       unifi:
         condition: service_started
@@ -90,26 +95,17 @@ services:
         ipv4_address: ${UNIFI_STUB_LAB_MITM_IP:-172.31.242.12}
     volumes:
       - type: bind
-        source: ../mitm-inform-dump.py
-        target: /scripts/mitm-inform-dump.py
-        read_only: true
-      - type: bind
         source: ./captures
         target: /captures
+    entrypoint:
+      - /usr/local/bin/unifi-stubd-inform-proxy
     command:
-      - mitmdump
-      - --mode
-      - reverse:http://unifi-controller:8080@8080
-      - --listen-host
-      - 0.0.0.0
-      - --set
-      - keep_host_header=true
-      - --set
-      - flow_detail=2
-      - -s
-      - /scripts/mitm-inform-dump.py
-      - -w
-      - /captures/inform.flows
+      - -listen
+      - 0.0.0.0:8080
+      - -target
+      - ${UNIFI_STUB_INFORM_PROXY_TARGET:-http://unifi-controller:8080}
+      - -capture-dir
+      - /captures
     restart: unless-stopped
 
   stub:

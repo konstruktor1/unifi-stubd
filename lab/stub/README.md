@@ -1,7 +1,7 @@
 # Generic Stub Compose Lab
 
 This is the main Docker lab for the Go `unifi-stubd` daemon. It starts a UniFi
-Network Application, MongoDB, an inform MITM, and one `stub` container built
+Network Application, MongoDB, a Go inform proxy, and one `stub` container built
 from the repository root. Use it when validating discovery, inform, adoption
 state, or profile payload behavior in the Go service.
 
@@ -33,9 +33,10 @@ tokens, private URLs, or device-specific data from this lab.
 
 ## Docker Integration Tests
 
-The same controller, MongoDB, and MITM services are reused for observation-mode
-and gateway payload tests. The test overlay in `compose.tests.yaml` adds three
-temporary services:
+The Docker integration smoke keeps external controller behavior out of the
+default gate. It uses the Go inform proxy only as a local capture point and
+does not require the UniFi Network Application API to be ready. The test
+overlay in `compose.tests.yaml` adds three temporary services:
 
 - `stub-bridge-observe` creates a container-local Linux bridge, two virtual
   member links, and dynamic FDB entries. The daemon reads the bridge and renders
@@ -55,41 +56,19 @@ make integration-docker
 The script validates the Compose overlay, builds the lab image, asserts dry-run
 payload JSON for all modes, including `management_lan.mode:
 preexisting-interface` on the bridge-observe container, then sends one inform
-request per mode through the existing MITM service. It also logs into the
-existing lab controller API, verifies `/status` reports the expected pinned
-server version, waits until the bridge-observe and gateway-smoke devices are
-visible, triggers
-controller adoption, and verifies that each adopted stub persisted connected
-adoption state without printing the authkey. After adoption, it also waits for
-at least one additional inform heartbeat from each adopted switch/gateway test
-device through the MITM. Controller volumes are not reset.
+request per mode through the Go inform proxy. The proxy target defaults to
+`http://127.0.0.1:9` in this smoke test so the request is captured without
+depending on a live controller response, controller version, adoption API, or
+UniFi-internal timing. Override `UNIFI_STUB_INFORM_PROXY_TARGET` only when
+intentionally debugging forwarding to a controller.
+
 Temporary stub containers and stub volumes are removed again after the smoke
-test, and any adopted state for the throwaway test MACs is deleted through the
-controller API. UniFi Network may keep non-adopted Pending rows in process
-memory until its discovery TTL expires; the script uses fresh throwaway MACs by
-default so those rows do not collide with later runs.
-
-The controller API login defaults to the local lab account `admin` / `admin`.
-Override it for a different lab controller with:
-
-```sh
-UNIFI_STUB_LAB_ADMIN_USER=admin \
-UNIFI_STUB_LAB_ADMIN_PASSWORD=... \
-make integration-docker
-```
-
-When overriding the controller image, also set the expected controller
-application version if the smoke test should enforce it:
-
-```sh
-UNIFI_NETWORK_IMAGE=lscr.io/linuxserver/unifi-network-application:10.3.58-ls129 \
-UNIFI_STUB_LAB_EXPECTED_NETWORK_VERSION=10.3.58 \
-make integration-docker
-```
+test. Controller volumes and controller state are not touched by the default
+integration smoke.
 
 By default, the script derives throwaway test MACs and IPs inside the Compose
-lab subnet for each run. Pin them only when debugging a specific controller
-state:
+lab subnet for each run. Pin them only when debugging a specific Docker smoke
+run:
 
 ```sh
 UNIFI_STUB_BRIDGE_MAC=02:15:6d:00:08:21 \
@@ -98,9 +77,9 @@ make integration-docker
 ```
 
 Set `UNIFI_STUB_DOCKER_KEEP_RESOURCES=1` when you intentionally want to inspect
-the adopted test device or the stub state volume after a failing or exploratory
+the temporary stub container or its state volume after a failing or exploratory
 run. Without that override, the script stops and removes its temporary stub
-resources before exiting and asks the controller to delete adopted test state.
+resources before exiting.
 
 Useful direct commands:
 
@@ -111,7 +90,7 @@ docker compose -f lab/stub/compose.yaml -f lab/stub/compose.tests.yaml run --rm 
 docker compose -f lab/stub/compose.yaml -f lab/stub/compose.tests.yaml run --rm --no-deps stub-gateway-smoke -dry-run
 ```
 
-The Docker tests prove the Linux bridge/FDB, sysfs, port-map, payload, and MITM
-paths inside containers, including a gateway-shaped `uxg-lite` smoke path. They
-do not prove Proxmox host bridge behavior or FreeBSD runtime behavior; those
-remain separate host/VM tests.
+The Docker tests prove the Linux bridge/FDB, sysfs, port-map, payload, and Go
+inform proxy paths inside containers, including a gateway-shaped `uxg-lite`
+smoke path. They do not prove Proxmox host bridge behavior or FreeBSD runtime
+behavior; those remain separate host/VM tests.

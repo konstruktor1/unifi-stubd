@@ -13,7 +13,7 @@ by packages automatically.
 - `gateway-profiles/`: real firmware simulation container wrappers for gateway
   firmware profiles.
 - `mongo-init-unifi.sh`: MongoDB user bootstrap used by the Docker controller lab.
-- `mitm-inform-dump.py`: mitmproxy addon that records inform request/response metadata and raw local lab bodies.
+- `stub/tools/inform-proxy`: Go reverse proxy that records inform request/response metadata and raw local lab bodies.
 - `observe-bridge.sh`: Create or remove a lab-only Linux bridge with veth members for observe-mode tests.
 - `openrc/unifi-stubd-observe-bridge`: Optional OpenRC service for the observe bridge fixture.
 - `local.d/unifi-stubd-observe-bridge.start`: Optional Alpine local.d boot hook for the observe bridge fixture.
@@ -24,11 +24,11 @@ by packages automatically.
 ## Directory Map
 
 - `stub/`: generic Docker Compose lab for the Go `unifi-stubd` service. It
-  owns the `compose.yaml` that starts the stub, controller, MongoDB, and MITM
-  containers. Project-owned runtime configs for the generic and temporary test
-  hosts live under `stub/configs/hosts/`. Its ignored `captures/` directory is
-  local output only. Real-network host snapshots use ignored `real/` or `temp/`
-  subdirectories below each host.
+  owns the `compose.yaml` that starts the stub, controller, MongoDB, and Go
+  inform proxy containers. Project-owned runtime configs for the generic and
+  temporary test hosts live under `stub/configs/hosts/`. Its ignored
+  `captures/` directory is local output only. Real-network host snapshots use
+  ignored `real/` or `temp/` subdirectories below each host.
 - `gateway-profiles/`: real firmware simulation wrappers. These are separate
   from the Go stub profiles and may use Docker, QEMU, or UTM depending on the
   device family.
@@ -42,7 +42,7 @@ by packages automatically.
 
 - a UniFi Network Application container,
 - a MongoDB container,
-- an inform MITM container, and
+- a Go inform proxy container, and
 - the generic `stub` switch stub container.
 
 The path, service, default container name, hostname, and persistent volume are
@@ -57,7 +57,7 @@ hostname: stub
 volume: stub_state
 ```
 
-Start the generic stub service and its controller/MITM dependencies:
+Start the generic stub service and its controller/proxy dependencies:
 
 ```sh
 mkdir -p lab/stub/captures
@@ -67,8 +67,8 @@ docker compose -f lab/stub/compose.yaml up -d --build stub
 Open the UniFi UI at `https://localhost:8443`. During setup, keep device
 communication on TCP `8080` and set the Inform Host override to `unifi`.
 The stub sends informs to `http://unifi:8080/inform`; inside the container,
-`unifi` is mapped to the MITM container, which forwards to the real controller
-service. Captures are written to ignored `lab/stub/captures/`.
+`unifi` is mapped to the inform proxy container, which forwards to the real
+controller service. Captures are written to ignored `lab/stub/captures/`.
 
 The `stub` service builds the generic root `Dockerfile` and passes
 `${UNIFI_STUB_PROFILE:-us8}` at runtime. The default emulated UniFi profile is

@@ -35,7 +35,7 @@ help:
 		'  make test         Run all Go tests' \
 		'  make validate-config  Validate packaged configs and example profiles' \
 		'  make vulncheck    Run Go vulnerability scanning' \
-		'  make integration-docker  Run Docker bridge-observe and port-map lab tests' \
+		'  make integration-docker  Run Docker payload and inform-capture smoke tests' \
 		'  make switch-payload  Print discovery and inform payloads' \
 		'  make switch-emulation  Start the lab switch emulator' \
 		'  make package      Build deb, rpm, archlinux, and tgz packages' \
@@ -76,7 +76,7 @@ validate-config:
 	$(GO) run ./cmd/unifi-stubd -dry-run-plan -config lab/stub/configs/hosts/stub-gateway-smoke/config.yaml >/dev/null
 	$(GO) run ./cmd/unifi-stubd -dry-run-plan -config lab/stub/configs/hosts/server-lan1-sfp-lab/config.example.yaml >/dev/null
 	$(GO) run ./cmd/unifi-stubd -dry-run-plan -config lab/stub/configs/hosts/opnsense-uxg-sfp-lab/config.example.yaml >/dev/null
-	tmp="$$(mktemp)"; trap 'rm -f "$$tmp"' EXIT; $(GO) run ./cmd/unifi-stubd -dry-run -config lab/stub/configs/hosts/opnsense-uxg-sfp-lab/config.example.yaml > "$$tmp"; python3 lab/stub/scripts/assert-payload.py opnsense-uxg "$$tmp"
+	tmp="$$(mktemp)"; trap 'rm -f "$$tmp"' EXIT; $(GO) run ./cmd/unifi-stubd -dry-run -config lab/stub/configs/hosts/opnsense-uxg-sfp-lab/config.example.yaml > "$$tmp"; $(GO) run ./lab/stub/tools/assert-payload opnsense-uxg "$$tmp"
 	$(GO) run ./cmd/unifi-stubd -profile-validate tests/fixtures/profiles
 
 integration-docker:

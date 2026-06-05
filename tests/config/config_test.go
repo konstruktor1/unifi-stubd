@@ -10,7 +10,10 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/config"
 )
 
-const sourceOff = "off"
+const (
+	sourceOff     = "off"
+	testInterface = "eno1"
+)
 
 // TestDefaultSeparatesConfigAndStatePaths verifies packaged defaults keep
 // config and writable state paths separate.
@@ -165,7 +168,7 @@ status_path: /tmp/unifi-stubd/status.json
 	if cfg.ObserveBridge != "vmbr0" {
 		t.Fatalf("ObserveBridge = %q", cfg.ObserveBridge)
 	}
-	if cfg.BridgeObserve.Bridge != "vmbr1" || cfg.BridgeObserve.UplinkInterface != "eno1" {
+	if cfg.BridgeObserve.Bridge != "vmbr1" || cfg.BridgeObserve.UplinkInterface != testInterface {
 		t.Fatalf("BridgeObserve = %+v", cfg.BridgeObserve)
 	}
 	if len(cfg.BridgeObserve.IgnoredMembers) != 1 || cfg.BridgeObserve.IgnoredMembers[0] != "tap10000i0" {
@@ -177,7 +180,7 @@ status_path: /tmp/unifi-stubd/status.json
 		t.Fatalf("BridgeObserve.MemberPortMap = %+v", cfg.BridgeObserve.MemberPortMap)
 	}
 	if len(cfg.PortMappings) != 3 ||
-		cfg.PortMappings[0].Interface != "eno1" ||
+		cfg.PortMappings[0].Interface != testInterface ||
 		!cfg.PortMappings[1].Disabled ||
 		!cfg.PortMappings[2].Unmapped {
 		t.Fatalf("PortMappings = %+v", cfg.PortMappings)

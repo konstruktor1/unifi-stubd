@@ -362,8 +362,9 @@ Gateway YAML has three separate concepts that should not be mixed:
 
 The gateway may still know the management or transport path used to reach the
 controller through top-level identity and runtime fields such as `ip`,
-`controller_url`, `inform_url`, `discovery_interface`, and
-`discovery_targets`. That path is not a WAN or LAN assignment. Do not use
+`controller_url`, `discovery_interface`, and `discovery_targets`. Controller
+adoption state may persist an `inform_url` internally, but that path is not a
+WAN or LAN assignment. Do not use
 `management_lan` to describe gateway data-plane ports; use `port_overrides` for
 WAN, LAN, WAN2, and LAN2. A controller-management address must not be copied
 into gateway WAN/LAN rows unless the operator explicitly assigns that address

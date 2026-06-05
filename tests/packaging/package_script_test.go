@@ -30,13 +30,14 @@ func TestPackageScriptKeepsOtherTargetArtifacts(t *testing.T) {
 	}
 }
 
-// TestFreeBSDPkgManifestUsesSimpleChecksumEntries verifies native FreeBSD pkg
-// packages avoid plist-derived owner/mode/mtime file objects. pkg-create
-// normalizes direct manifest input back into those object entries, and pkg
-// 2.3.1 on OPNsense 26.1 crashed when migrating a host that already had
-// tarball-installed, unregistered files in place. The package builder must
-// repack the generated archive with checksum-only +MANIFEST file entries.
-func TestFreeBSDPkgManifestUsesSimpleChecksumEntries(t *testing.T) {
+// TestFreeBSDPkgManifestUsesSimpleChecksumConfigEntries verifies native
+// FreeBSD pkg packages avoid plist-derived owner/mode/mtime file objects while
+// still marking runtime config as package-managed config. pkg-create normalizes
+// direct manifest input back into file object entries, and pkg 2.3.1 on
+// OPNsense 26.1 crashed when migrating a host that already had tarball-
+// installed, unregistered files in place. The package builder must repack the
+// generated archive with checksum-only +MANIFEST file entries.
+func TestFreeBSDPkgManifestUsesSimpleChecksumConfigEntries(t *testing.T) {
 	data, err := os.ReadFile("../../scripts/package-freebsd-pkg-repos.sh")
 	if err != nil {
 		t.Fatal(err)
@@ -59,6 +60,12 @@ func TestFreeBSDPkgManifestUsesSimpleChecksumEntries(t *testing.T) {
 		`"/usr/local/bin/unifi-stubd" = "1\$`,
 		`"/usr/local/etc/rc.d/unifi-stubd" = "1\$`,
 		`"/usr/local/etc/unifi-stubd/config.yaml" = "1\$`,
+		`config = [`,
+		`  "/usr/local/etc/unifi-stubd/config.yaml"`,
+		`scripts = {`,
+		`post-install = <<EOS`,
+		`post-upgrade = <<EOS`,
+		`/usr/local/bin/unifi-stubd -config-migrate -config /usr/local/etc/unifi-stubd/config.yaml || true`,
 		`"/usr/local/share/doc/unifi-stubd/LICENSE" = "1\$`,
 		`"/var/db/unifi-stubd" = "y"`,
 	} {

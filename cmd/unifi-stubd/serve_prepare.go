@@ -26,6 +26,8 @@ func handleServeEarlyExit(flags runtimeFlags) (bool, error) {
 	case flags.binaryVersion:
 		fmt.Println(version)
 		return true, nil
+	case flags.configMigrate || flags.configMigrateDryRun:
+		return true, runConfigMigration(flags)
 	case strings.TrimSpace(flags.profileTemplate) != "":
 		return true, printProfileTemplate(flags.profileTemplate)
 	case strings.TrimSpace(flags.profileValidate) != "":

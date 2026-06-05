@@ -149,7 +149,9 @@ write_stage() {
   # pkg-create still normalizes file entries into owner/mode/mtime objects when
   # building the archive. The remote build step repacks the generated package
   # with this manifest so OPNsense pkg 2.3.1 sees migration-safe checksum-only
-  # file entries when overwriting files from an earlier tarball install.
+  # file entries when overwriting files from an earlier tarball install. The
+  # config list is still required so upgrades preserve local runtime configs
+  # and write a .pkgnew on unmergeable changes instead of replacing config.yaml.
   cat >"$stage/manifest.ucl" <<EOF
 name = "unifi-stubd"
 origin = "net/unifi-stubd"
@@ -174,6 +176,21 @@ files = {
   "/usr/local/share/doc/unifi-stubd/LICENSE" = "1\$$license_sum"
   "/usr/local/share/doc/unifi-stubd/NOTICE.md" = "1\$$notice_sum"
   "/usr/local/share/doc/unifi-stubd/CREDITS.md" = "1\$$credits_sum"
+}
+config = [
+  "/usr/local/etc/unifi-stubd/config.yaml"
+]
+scripts = {
+  post-install = <<EOS
+if [ -x /usr/local/bin/unifi-stubd ] && [ -f /usr/local/etc/unifi-stubd/config.yaml ]; then
+  /usr/local/bin/unifi-stubd -config-migrate -config /usr/local/etc/unifi-stubd/config.yaml || true
+fi
+EOS
+  post-upgrade = <<EOS
+if [ -x /usr/local/bin/unifi-stubd ] && [ -f /usr/local/etc/unifi-stubd/config.yaml ]; then
+  /usr/local/bin/unifi-stubd -config-migrate -config /usr/local/etc/unifi-stubd/config.yaml || true
+fi
+EOS
 }
 directories = {
   "/usr/local/etc/unifi-stubd" = "y"

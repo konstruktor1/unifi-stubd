@@ -22,6 +22,8 @@ type runtimeFlags struct {
 	profileDir          string
 	listProfiles        bool
 	validate            bool
+	configMigrate       bool
+	configMigrateDryRun bool
 	profileValidate     string
 	profileExport       string
 	profileTemplate     string
@@ -89,6 +91,8 @@ func parseRuntimeFlags(defaults appconfig.Config) (runtimeFlags, map[string]bool
 	flag.StringVar(&flags.configPath, "config", appconfig.DefaultPath, "YAML config file path; default path is optional when absent")
 	flag.BoolVar(&flags.listProfiles, "list-profiles", false, "list known device profiles and exit")
 	flag.BoolVar(&flags.validate, "validate", false, "validate config, profiles, and runtime constraints without starting the stub")
+	flag.BoolVar(&flags.configMigrate, "config-migrate", false, "migrate known legacy YAML config fields in place and exit")
+	flag.BoolVar(&flags.configMigrateDryRun, "config-migrate-dry-run", false, "print migrated YAML config without writing it and exit")
 	flag.StringVar(&flags.profileValidate, "profile-validate", "", "validate one external profile YAML file or directory and exit")
 	flag.StringVar(&flags.profileExport, "profile-export", "", "export a built-in or loaded profile as canonical YAML and exit")
 	flag.StringVar(&flags.profileTemplate, "profile-template", "", "print a starter profile YAML template: switch or gateway")

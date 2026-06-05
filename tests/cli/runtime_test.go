@@ -598,6 +598,82 @@ func TestValidateAcceptsPackagedConfigs(t *testing.T) {
 	}
 }
 
+func TestConfigMigrateDryRunDoesNotWrite(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.yaml")
+	original := `controller: http://192.0.2.10:8080/inform
+operation_mode: observe
+observe_bridge: vmbr0
+observe_interface: eno1
+`
+	if err := os.WriteFile(configPath, []byte(original), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	output := runStubdStdout(t, "-config", configPath, "-config-migrate-dry-run")
+	for _, want := range []string{
+		"config migration: controller -> controller_url",
+		"config migration: operation_mode observe -> bridge-observe",
+		"config migration: observe_bridge -> bridge_observe.bridge",
+		"config migration: observe_interface -> bridge_observe.uplink_interface",
+		"config migration: dry run, no changes written",
+		"migrated_config_yaml:",
+		"controller_url: http://192.0.2.10:8080/inform",
+		"bridge_observe:",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("dry-run output did not contain %q:\n%s", want, output)
+		}
+	}
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if string(data) != original {
+		t.Fatalf("dry-run modified config:\n%s", data)
+	}
+	backups, err := filepath.Glob(configPath + ".bak.*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(backups) != 0 {
+		t.Fatalf("dry-run wrote backups: %#v", backups)
+	}
+}
+
+func TestConfigMigrateWritesBackupAndValidConfig(t *testing.T) {
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config.yaml")
+	if err := os.WriteFile(configPath, []byte(`controller: http://192.0.2.10:8080/inform
+profile: us8
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	output := runStubdStdout(t, "-config", configPath, "-config-migrate")
+	if !strings.Contains(output, "config migration backup: ") ||
+		!strings.Contains(output, "config migration: wrote "+configPath) {
+		t.Fatalf("migration output = %q", output)
+	}
+	backups, err := filepath.Glob(configPath + ".bak.*")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(backups) != 1 {
+		t.Fatalf("backup count = %d, backups=%#v", len(backups), backups)
+	}
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "controller_url: http://192.0.2.10:8080/inform") ||
+		strings.Contains(string(data), "\ncontroller:") {
+		t.Fatalf("migrated config =\n%s", data)
+	}
+	validateOutput := runStubdStdout(t, "-config", configPath, "-validate")
+	if !strings.Contains(validateOutput, "configuration valid: profile=us8") {
+		t.Fatalf("validate output = %q", validateOutput)
+	}
+}
+
 // TestProfileValidateTemplateAndExport verifies profile CLI actions share the
 // same decode, validation, and export path.
 func TestProfileValidateTemplateAndExport(t *testing.T) {
