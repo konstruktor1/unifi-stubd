@@ -7,6 +7,20 @@ semantic version tags once releases are published.
 
 ## [Unreleased]
 
+## [0.2.0-alpha] - 2026-06-16
+
+### Changed
+
+- Promoted the current alpha release line to `0.2.0-alpha` and refreshed
+  release, development, README, and FreeBSD/OPNsense package examples so
+  operator-facing instructions point at the current alpha artifact names.
+
+### Fixed
+
+- Rebuild discovery announcements from the current adoption state on every
+  heartbeat, so an adopted stub no longer keeps advertising factory/default
+  state after the controller has issued and persisted an inform key.
+
 ## [0.1.12-alpha] - 2026-06-16
 
 ### Fixed

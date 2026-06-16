@@ -80,8 +80,8 @@ Der normale Alpha-Release-Pfad ist:
 ```sh
 git switch main
 git pull --ff-only origin main
-git tag -a v0.1.9-alpha -m "unifi-stubd v0.1.9-alpha"
-git push origin v0.1.9-alpha
+git tag -a v0.2.0-alpha -m "unifi-stubd v0.2.0-alpha"
+git push origin v0.2.0-alpha
 ```
 
 Ein `v*`-Tag oder GitHub-Pre-Release startet `Package Repositories`. Manuelle
@@ -89,7 +89,7 @@ Retries laufen von `main`:
 
 ```sh
 gh workflow run package-pages.yml --ref main \
-  -f version=0.1.9-alpha \
+  -f version=0.2.0-alpha \
   -f package_release=1
 ```
 

@@ -35,8 +35,8 @@ onto the installed system after the package is installed.
 Use semantic version tags:
 
 ```sh
-git tag -a v0.1.9-alpha -m "unifi-stubd v0.1.9-alpha"
-git push origin v0.1.9-alpha
+git tag -a v0.2.0-alpha -m "unifi-stubd v0.2.0-alpha"
+git push origin v0.2.0-alpha
 ```
 
 Tag only commits that already passed the `main` CI run. The Package
@@ -46,10 +46,10 @@ Repositories workflow runs for `v*` tags and GitHub pre-releases, so the
 Create a pre-release for alpha package sets:
 
 ```sh
-gh release create v0.1.8-alpha --prerelease \
-  --title "unifi-stubd v0.1.8-alpha" \
-  --notes-file dist/releases/v0.1.8-alpha/release-notes.md \
-  dist/releases/v0.1.8-alpha/*
+gh release create v0.2.0-alpha --prerelease \
+  --title "unifi-stubd v0.2.0-alpha" \
+  --notes-file dist/releases/v0.2.0-alpha/release-notes.md \
+  dist/releases/v0.2.0-alpha/*
 ```
 
 ## GitHub Pages Package Repositories
@@ -63,11 +63,11 @@ https://konstruktor1.github.io/unifi-stubd/
 Build all package artifacts first, then generate the static repository site:
 
 ```sh
-PKG_VERSION=0.1.8-alpha PKG_RELEASE=1 PKG_GOARCH=amd64 make package
-PKG_VERSION=0.1.8-alpha PKG_RELEASE=1 PKG_GOARCH=arm64 make package
-PKG_VERSION=0.1.8-alpha PKG_RELEASE=1 PKG_FREEBSD_GOARCH=amd64 make package-freebsd-tgz
-PKG_VERSION=0.1.8-alpha PKG_RELEASE=1 PKG_FREEBSD_GOARCH=arm64 make package-freebsd-tgz
-PKG_VERSION=0.1.8-alpha PKG_RELEASE=1 make package-freebsd-pkg-repos
+PKG_VERSION=0.2.0-alpha PKG_RELEASE=1 PKG_GOARCH=amd64 make package
+PKG_VERSION=0.2.0-alpha PKG_RELEASE=1 PKG_GOARCH=arm64 make package
+PKG_VERSION=0.2.0-alpha PKG_RELEASE=1 PKG_FREEBSD_GOARCH=amd64 make package-freebsd-tgz
+PKG_VERSION=0.2.0-alpha PKG_RELEASE=1 PKG_FREEBSD_GOARCH=arm64 make package-freebsd-tgz
+PKG_VERSION=0.2.0-alpha PKG_RELEASE=1 make package-freebsd-pkg-repos
 make package-repos
 ```
 
@@ -77,7 +77,7 @@ the package repository manually, run the workflow from `main`:
 
 ```sh
 gh workflow run package-pages.yml --ref main \
-  -f version=0.1.8-alpha \
+  -f version=0.2.0-alpha \
   -f package_release=1
 ```
 
