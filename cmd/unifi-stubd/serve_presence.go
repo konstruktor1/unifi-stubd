@@ -21,7 +21,7 @@ func maintainControllerPresence(cfg controllerPresence) error {
 	ticker := time.NewTicker(cfg.flags.interval)
 	defer ticker.Stop()
 
-	packet := cfg.discoveryPacket
+	var packet []byte
 	ann := cfg.announcement
 	startedAt := cfg.startedAt
 	if startedAt.IsZero() {
@@ -32,10 +32,17 @@ func maintainControllerPresence(cfg controllerPresence) error {
 		rateTracker = observe.NewTrafficRateTracker()
 	}
 
+	var err error
 	for {
 		uptimeSeconds := runtimeUptime(startedAt)
 		store := loadAdoptionState(cfg.flags.sshState)
 		informURL := effectiveInformURL(cfg.flags.controller, store)
+		ann.Default = store.AuthKey == ""
+		ann.Uptime = uint32(uptimeSeconds)
+		packet, err = ann.MarshalBinary()
+		if err != nil {
+			return fmt.Errorf("marshal discovery announcement: %w", err)
+		}
 		flags := cfg.flags
 		plt := runtimePlatform(flags)
 		if flags.trafficRatesEnabled {
@@ -64,12 +71,7 @@ func maintainControllerPresence(cfg controllerPresence) error {
 
 		select {
 		case <-ticker.C:
-			ann.Uptime += uint32(cfg.flags.interval.Seconds())
 			ann.Sequence++
-			packet, err = ann.MarshalBinary()
-			if err != nil {
-				return fmt.Errorf("marshal discovery announcement: %w", err)
-			}
 		case <-stop:
 			log.Println("stopping")
 			return nil

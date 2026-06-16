@@ -7,6 +7,14 @@ semantic version tags once releases are published.
 
 ## [Unreleased]
 
+## [0.1.12-alpha] - 2026-06-16
+
+### Fixed
+
+- Rebuild discovery announcements from the current adoption state on every
+  heartbeat, so an adopted stub no longer keeps advertising factory/default
+  state after the controller has issued and persisted an inform key.
+
 ## [0.1.11-alpha] - 2026-06-05
 
 ### Fixed
