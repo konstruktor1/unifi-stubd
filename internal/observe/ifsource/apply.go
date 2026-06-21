@@ -25,6 +25,9 @@ func ApplyObservation(override *device.PortOverride, observation observe.PortObs
 	if strings.TrimSpace(override.Netmask) == "" {
 		override.Netmask = observation.Netmask
 	}
+	if len(override.IPv6) == 0 && len(observation.IPv6) > 0 {
+		override.IPv6 = append([]string(nil), observation.IPv6...)
+	}
 	if override.Speed <= 0 && observation.SpeedMbps > 0 {
 		override.Speed = observation.SpeedMbps
 	}

@@ -10,6 +10,9 @@ type portOverrideSetter func(*Port, PortOverride)
 // not apply host networking or mutate the controller.
 func setPortOverrideAssignment(port *Port, override PortOverride) {
 	port.VLAN = override.VLAN
+	if len(override.IPv6) > 0 {
+		port.IPv6 = cloneStrings(override.IPv6)
+	}
 }
 
 // setPortOverrideStrings applies identity and role text before speed/media
@@ -101,5 +104,6 @@ func setPortOverrideDisabled(port *Port, override PortOverride) {
 	port.Disabled = true
 	port.Up = false
 	port.Speed = 0
+	port.IPv6 = nil
 	port.MACs = nil
 }

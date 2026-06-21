@@ -353,8 +353,8 @@ Gateway YAML has three separate concepts that should not be mixed:
   `eth1`, or `eth2`.
 - `port_overrides` describes local lab assignment and telemetry for one
   physical profile port: `role`, `network_group`, optional assignment IDs,
-  optional VLAN display metadata, optional host `interface`, and optional WAN
-  health hints.
+  optional VLAN display metadata, optional host `interface`, optional IPv4/IPv6
+  addresses, and optional WAN health hints.
 - `source_interface` is diagnostic metadata copied from the host interface
   named by `port_overrides[].interface`. Host names such as `ixl0`, `vtnet0`,
   or `eth0` from the local OS must stay in `source_interface`; gateway `ifname`
@@ -393,7 +393,9 @@ port 4 -> eth3, profile role lan2, 10G SFP+
 If an OPNsense lab uses port 3 as the active WAN, set `uplink_port: 3` and give
 port 3 `role: wan`, `network_group: WAN`, and `interface: ixl0`. The controller
 still sees `ifname: eth2` because that is the profile interface for physical
-port 3; `ixl0` is reported only as `source_interface`.
+port 3; `ixl0` is reported only as `source_interface`. Non-link-local IPv6
+CIDR addresses observed on `ixl0`, or configured with `port_overrides[].ipv6`,
+are mirrored into the gateway WAN/network payload fields for that port.
 
 WAN health is also explicit YAML. `source: off` reports no active probe,
 `source: static` uses the `wan_*` hints from `port_overrides`, and

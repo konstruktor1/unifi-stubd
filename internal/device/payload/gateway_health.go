@@ -131,6 +131,7 @@ func gatewayInternetHealth(ports []PortView, uptime int) *gatewayInternetHealthR
 				iface.NetworkGroup: wanStatusText(health.connected),
 			},
 			WANIP:          iface.IP,
+			IPv6:           cloneIPv6(iface.IPv6),
 			Netmask:        iface.Netmask,
 			IfName:         iface.IfName,
 			UplinkIfName:   iface.IfName,

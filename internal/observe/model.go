@@ -80,6 +80,7 @@ type PortObservation struct {
 	MAC       string
 	IP        string
 	Netmask   string
+	IPv6      []string
 	Up        *bool
 	SpeedMbps int
 	Media     string

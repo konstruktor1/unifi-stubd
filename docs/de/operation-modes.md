@@ -196,6 +196,8 @@ port_overrides:
     interface: eth1
     ip: 192.0.2.51
     netmask: 255.255.255.0
+    ipv6:
+      - 2001:db8:51::1/64
     speed: 1000
   - port: 3
     name: backup_wan
@@ -237,8 +239,8 @@ Nachbarn werden nicht als Gateway-Hosts gerendert.
 Gateway-Interface-Namen sind Profildaten, keine Host-Interface-Namen. Das
 gewaehlte Profil erzeugt aus `gateway_interface_prefix` und physischem
 Profil-Portindex die controllerseitigen Namen (`eth0`, `eth1`, ...).
-`port_overrides[].interface` ist nur die lokale Quelle fuer MAC, IP, Link,
-Speed und Counter; dieser Hostname erscheint als `source_interface`. Ein
+`port_overrides[].interface` ist nur die lokale Quelle fuer MAC, IPv4/IPv6,
+Link, Speed und Counter; dieser Hostname erscheint als `source_interface`. Ein
 UXG-Pro-Lab, in dem OPNsense `ixl0` an physischem Port 3 haengt, sollte zum
 Beispiel so beschrieben werden:
 
@@ -329,10 +331,11 @@ Felder wie `network_group`, `networkconf_id`, `native_networkconf_id`,
 `network_name` und `vlan` sind nur Controller-/Payload-Metadaten.
 
 `port_overrides[].interface` ist read-only. Der Dienst kopiert damit MAC,
-IPv4-Adresse, Link-State und verfuegbare Counter-/Speed-Daten eines bestehenden
-Host-Interfaces in den Inform-Payload dieses Ports. Das ist fuer
-FreeBSD-/OPNsense-Stub-only-Gateway-Tests nuetzlich, wenn WAN/LAN aus echten
-Interfaces visualisiert werden sollen, ohne Host-Netzwerk zu veraendern.
+IPv4-Adresse, nicht-link-lokale IPv6-CIDR-Adressen, Link-State und verfuegbare
+Counter-/Speed-Daten eines bestehenden Host-Interfaces in den Inform-Payload
+dieses Ports. Das ist fuer FreeBSD-/OPNsense-Stub-only-Gateway-Tests nuetzlich,
+wenn WAN/LAN aus echten Interfaces visualisiert werden sollen, ohne
+Host-Netzwerk zu veraendern.
 
 `uplink_neighbor` ist fuer reine Stubs und virtuelle Lab-Ports gedacht, bei
 denen es keinen physischen Linkpartner gibt. Der Eintrag fuegt eine konfigurierte

@@ -92,21 +92,22 @@ type gatewayEthernetTableRow struct {
 }
 
 type gatewayIfRow struct {
-	Name           string `json:"name"`
-	IfName         string `json:"ifname"`
-	Comment        string `json:"comment"`
-	PortIdx        int    `json:"port_idx"`
-	MAC            string `json:"mac"`
-	IP             string `json:"ip"`
-	Netmask        string `json:"netmask"`
-	NumPort        int    `json:"num_port"`
-	Up             bool   `json:"up"`
-	Enable         bool   `json:"enable"`
-	NetworkGroup   string `json:"networkgroup"`
-	FullDuplex     bool   `json:"full_duplex"`
-	PhysicalPorts  []int  `json:"physical_ports"`
-	VLAN           int    `json:"vlan,omitempty"`
-	ManagementVLAN int    `json:"management_vlan,omitempty"`
+	Name           string   `json:"name"`
+	IfName         string   `json:"ifname"`
+	Comment        string   `json:"comment"`
+	PortIdx        int      `json:"port_idx"`
+	MAC            string   `json:"mac"`
+	IP             string   `json:"ip"`
+	Netmask        string   `json:"netmask"`
+	IPv6           []string `json:"ipv6,omitempty"`
+	NumPort        int      `json:"num_port"`
+	Up             bool     `json:"up"`
+	Enable         bool     `json:"enable"`
+	NetworkGroup   string   `json:"networkgroup"`
+	FullDuplex     bool     `json:"full_duplex"`
+	PhysicalPorts  []int    `json:"physical_ports"`
+	VLAN           int      `json:"vlan,omitempty"`
+	ManagementVLAN int      `json:"management_vlan,omitempty"`
 	linkFields
 	counterFields
 	optionalRateFields
@@ -176,21 +177,22 @@ type gatewayConfigLANRow struct {
 }
 
 type gatewayWANStatusRow struct {
-	Type         string `json:"type"`
-	Name         string `json:"name"`
-	IfName       string `json:"ifname"`
-	PortIdx      int    `json:"port_idx"`
-	NetworkGroup string `json:"networkgroup"`
-	Role         string `json:"role"`
-	MAC          string `json:"mac"`
-	IP           string `json:"ip"`
-	Netmask      string `json:"netmask"`
-	Address      string `json:"address"`
-	Up           bool   `json:"up"`
-	Enable       bool   `json:"enable"`
-	Uptime       int    `json:"uptime"`
-	Latency      int    `json:"latency"`
-	UplinkIfName string `json:"uplink_ifname"`
+	Type         string   `json:"type"`
+	Name         string   `json:"name"`
+	IfName       string   `json:"ifname"`
+	PortIdx      int      `json:"port_idx"`
+	NetworkGroup string   `json:"networkgroup"`
+	Role         string   `json:"role"`
+	MAC          string   `json:"mac"`
+	IP           string   `json:"ip"`
+	Netmask      string   `json:"netmask"`
+	IPv6         []string `json:"ipv6"`
+	Address      string   `json:"address"`
+	Up           bool     `json:"up"`
+	Enable       bool     `json:"enable"`
+	Uptime       int      `json:"uptime"`
+	Latency      int      `json:"latency"`
+	UplinkIfName string   `json:"uplink_ifname"`
 	linkFields
 	counterFields
 	optionalRateFields
@@ -199,19 +201,21 @@ type gatewayWANStatusRow struct {
 }
 
 type gatewayWANInventoryRow struct {
-	Enabled   bool   `json:"enabled"`
-	Interface string `json:"interface"`
-	IPv4      string `json:"ipv4,omitempty"`
-	MAC       string `json:"mac"`
-	Plugged   bool   `json:"plugged"`
-	Port      int    `json:"port"`
-	Type      string `json:"type"`
+	Enabled   bool     `json:"enabled"`
+	Interface string   `json:"interface"`
+	IPv4      string   `json:"ipv4,omitempty"`
+	IPv6      []string `json:"ipv6,omitempty"`
+	MAC       string   `json:"mac"`
+	Plugged   bool     `json:"plugged"`
+	Port      int      `json:"port"`
+	Type      string   `json:"type"`
 }
 
 type gatewayInternetHealthRow struct {
 	Status         string            `json:"status"`
 	WANStatus      map[string]string `json:"wan_status"`
 	WANIP          string            `json:"wan_ip,omitempty"`
+	IPv6           []string          `json:"ipv6,omitempty"`
 	Netmask        string            `json:"netmask,omitempty"`
 	IfName         string            `json:"ifname,omitempty"`
 	UplinkIfName   string            `json:"uplink_ifname,omitempty"`

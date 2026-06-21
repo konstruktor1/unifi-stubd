@@ -14,6 +14,8 @@ type PortOverride struct {
 	IP string `yaml:"ip" json:"ip,omitempty"`
 	// Netmask overrides the controller-facing interface IPv4 netmask when set.
 	Netmask string `yaml:"netmask" json:"netmask,omitempty"`
+	// IPv6 overrides the controller-facing interface IPv6 CIDR addresses when set.
+	IPv6 []string `yaml:"ipv6" json:"ipv6,omitempty"`
 	// Role overrides the gateway-facing role when set.
 	Role string `yaml:"role" json:"role,omitempty"`
 	// NetworkGroup overrides the UniFi network group when set.

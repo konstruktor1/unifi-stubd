@@ -123,6 +123,28 @@ func interfaceAddressCIDR(ip, netmask string) string {
 	return strings.TrimSpace(ip) + "/" + strconv.Itoa(prefix)
 }
 
+func interfaceAddresses(iface InterfaceView) []string {
+	addresses := make([]string, 0, 1+len(iface.IPv6))
+	if address := strings.TrimSpace(iface.Address); address != "" {
+		addresses = append(addresses, address)
+	}
+	addresses = append(addresses, cloneIPv6(iface.IPv6)...)
+	return addresses
+}
+
+func cloneIPv6(addresses []string) []string {
+	if len(addresses) == 0 {
+		return []string{}
+	}
+	out := make([]string, 0, len(addresses))
+	for _, address := range addresses {
+		if address = strings.TrimSpace(address); address != "" {
+			out = append(out, address)
+		}
+	}
+	return out
+}
+
 func netmaskPrefixLength(netmask string) int {
 	parsed := net.ParseIP(strings.TrimSpace(netmask)).To4()
 	if parsed == nil {

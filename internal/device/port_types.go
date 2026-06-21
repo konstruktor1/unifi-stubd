@@ -36,6 +36,8 @@ type Port struct {
 	IP string
 	// Netmask is the optional IPv4 netmask reported for this port.
 	Netmask string
+	// IPv6 contains optional non-link-local IPv6 CIDR addresses reported for this port.
+	IPv6 []string
 	// Role is the effective gateway function, such as wan, lan, wan2, or lan2.
 	// It can differ from ProfileRole when a lab uses a different physical port.
 	Role string

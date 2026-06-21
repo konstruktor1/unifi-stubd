@@ -188,6 +188,8 @@ port_overrides:
     interface: eth1
     ip: 192.0.2.51
     netmask: 255.255.255.0
+    ipv6:
+      - 2001:db8:51::1/64
     speed: 1000
   - port: 3
     name: backup_wan
@@ -227,8 +229,8 @@ as gateway hosts.
 Gateway interface names are profile data, not host interface names. The selected
 profile's `gateway_interface_prefix` and one-based physical port index produce
 the controller-facing names (`eth0`, `eth1`, ...). `port_overrides[].interface`
-is only the local source used to read MAC, IP, link, speed, and counters; that
-host name is rendered as `source_interface`. For example, a UXG-Pro lab where
+is only the local source used to read MAC, IPv4/IPv6, link, speed, and counters;
+that host name is rendered as `source_interface`. For example, a UXG-Pro lab where
 OPNsense `ixl0` is cabled to physical port 3 should report:
 
 ```yaml
@@ -317,10 +319,10 @@ or apply UniFi Network gateway settings to the host. Fields such as
 `vlan` are controller/payload metadata only.
 
 `port_overrides[].interface` is read-only. It lets the daemon copy an existing
-host interface MAC, IPv4 address, link state, and available counter/speed data
-into that port's inform payload. This is useful for FreeBSD/OPNsense stub-only
-gateway tests where WAN/LAN should be visualized from existing interfaces
-without changing host networking.
+host interface MAC, IPv4 address, non-link-local IPv6 CIDR addresses, link
+state, and available counter/speed data into that port's inform payload. This is
+useful for FreeBSD/OPNsense stub-only gateway tests where WAN/LAN should be
+visualized from existing interfaces without changing host networking.
 
 `uplink_neighbor` is useful for pure stubs and virtual lab ports where there is
 no physical link partner. It adds a configured MAC-table entry to the current

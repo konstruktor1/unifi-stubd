@@ -63,7 +63,7 @@ func ObserveInterface(ifaceName string) (observe.PortObservation, []error) {
 	}
 	up := iface.Flags&net.FlagUp != 0
 	out.Up = &up
-	out.IP, out.Netmask = firstInterfaceIPv4(iface)
+	out.IP, out.Netmask, out.IPv6 = interfaceAddresses(iface)
 
 	var errs []error
 	if runtime.GOOS == "linux" {

@@ -1614,6 +1614,7 @@ func TestGatewayPayloadSynchronizesResolvedTables(t *testing.T) {
 			MAC:          "02:00:5e:00:53:11",
 			IP:           "192.0.2.1",
 			Netmask:      "255.255.255.0",
+			IPv6:         []string{"2001:db8:10::1/64"},
 			Role:         "lan",
 			NetworkGroup: "LAN",
 			Speed:        2500,
@@ -1625,6 +1626,7 @@ func TestGatewayPayloadSynchronizesResolvedTables(t *testing.T) {
 			MAC:          "02:00:5e:00:53:12",
 			IP:           "198.51.100.9",
 			Netmask:      "255.255.255.0",
+			IPv6:         []string{"2001:db8:100::9/64", "2001:db8:100::2cf/128"},
 			Role:         "wan",
 			NetworkGroup: "WAN",
 			Speed:        10000,
@@ -1651,7 +1653,11 @@ func TestGatewayPayloadSynchronizesResolvedTables(t *testing.T) {
 		NetworkTable     []map[string]any `json:"network_table"`
 		ConfigPortTable  []map[string]any `json:"config_port_table"`
 		EthernetOverride []map[string]any `json:"ethernet_overrides"`
+		InternetHealth   map[string]any   `json:"internet_health"`
 		PortTable        []map[string]any `json:"port_table"`
+		ReportedNetworks []map[string]any `json:"reported_networks"`
+		WAN1             map[string]any   `json:"wan1"`
+		Wans             []map[string]any `json:"wans"`
 	}
 	if err := json.Unmarshal(payload, &doc); err != nil {
 		t.Fatal(err)
@@ -1704,6 +1710,41 @@ func TestGatewayPayloadSynchronizesResolvedTables(t *testing.T) {
 
 	assertGatewayPortSync(1, "eth0", "02:00:5e:00:53:11", "LAN", "vtnet0", 2500)
 	assertGatewayPortSync(2, "eth1", "02:00:5e:00:53:12", "WAN", "ixl0", 10000)
+	assertStringSlice(t, doc.NetworkTable[0], "addresses", []string{"192.0.2.1/24", "2001:db8:10::1/64"})
+	assertStringSlice(t, doc.NetworkTable[1], "addresses", []string{
+		"198.51.100.9/24",
+		"2001:db8:100::9/64",
+		"2001:db8:100::2cf/128",
+	})
+	assertStringSlice(t, doc.IfTable[1], "ipv6", []string{"2001:db8:100::9/64", "2001:db8:100::2cf/128"})
+	assertStringSlice(t, doc.ReportedNetworks[1], "addresses", []string{
+		"198.51.100.9/24",
+		"2001:db8:100::9/64",
+		"2001:db8:100::2cf/128",
+	})
+	assertStringSlice(t, doc.WAN1, "ipv6", []string{"2001:db8:100::9/64", "2001:db8:100::2cf/128"})
+	assertStringSlice(t, doc.Wans[0], "ipv6", []string{"2001:db8:100::9/64", "2001:db8:100::2cf/128"})
+	assertStringSlice(t, doc.InternetHealth, "ipv6", []string{"2001:db8:100::9/64", "2001:db8:100::2cf/128"})
+}
+
+func assertStringSlice(t *testing.T, row map[string]any, key string, want []string) {
+	t.Helper()
+	values, ok := row[key].([]any)
+	if !ok {
+		t.Fatalf("%s = %#v, want string slice", key, row[key])
+	}
+	if len(values) != len(want) {
+		t.Fatalf("%s length = %d, want %d (%#v)", key, len(values), len(want), values)
+	}
+	for index, value := range values {
+		got, ok := value.(string)
+		if !ok {
+			t.Fatalf("%s[%d] = %#v, want string", key, index, value)
+		}
+		if got != want[index] {
+			t.Fatalf("%s[%d] = %q, want %q", key, index, got, want[index])
+		}
+	}
 }
 
 // TestGatewayRoleRemapKeepsProfilePortInterface verifies role overrides keep

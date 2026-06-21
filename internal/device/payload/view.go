@@ -17,6 +17,7 @@ type InterfaceView struct {
 	MAC             string
 	IP              string
 	Netmask         string
+	IPv6            []string
 	Address         string
 	NetworkGroup    string
 	SourceInterface string
@@ -62,6 +63,7 @@ func BuildPortViews(profile device.Profile, id device.Identity, ports []device.P
 		networkGroup := gatewayNetworkGroup(port)
 		ip := interfaceIP(id, port)
 		netmask := interfaceNetmask(port)
+		ipv6 := cloneIPv6(port.IPv6)
 		physicalIfName := gatewayInterfaceName(profile, port.Index)
 		gatewayName := gatewayInterfaceNameForPort(profile, port)
 		// sourceInterface is the local observation source. It may be a Linux,
@@ -92,6 +94,7 @@ func BuildPortViews(profile device.Profile, id device.Identity, ports []device.P
 				MAC:             portMAC(id.MAC, port),
 				IP:              ip,
 				Netmask:         netmask,
+				IPv6:            ipv6,
 				Address:         interfaceAddressCIDR(ip, netmask),
 				NetworkGroup:    networkGroup,
 				SourceInterface: sourceInterface,

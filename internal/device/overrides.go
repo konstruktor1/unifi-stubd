@@ -30,6 +30,7 @@ func ClonePortOverrides(overrides []PortOverride) []PortOverride {
 	out := make([]PortOverride, len(overrides))
 	for index, override := range overrides {
 		out[index] = override
+		out[index].IPv6 = cloneStrings(override.IPv6)
 		out[index].Up = cloneBoolRef(override.Up)
 		out[index].WANUptimePercent = cloneFloat64Ref(override.WANUptimePercent)
 		out[index].WANConnected = cloneBoolRef(override.WANConnected)
@@ -99,6 +100,7 @@ func PortOverrideEmpty(override PortOverride) bool {
 		return false
 	}
 	return override.Speed == 0 &&
+		len(override.IPv6) == 0 &&
 		override.Up == nil &&
 		!override.Disabled &&
 		override.RXBytes == 0 &&
@@ -121,6 +123,7 @@ func NormalizePortOverride(override PortOverride) PortOverride {
 		field.setOverride(&override, field.normalize(field.get(override)))
 	}
 	override.Up = cloneBoolRef(override.Up)
+	override.IPv6 = cloneStrings(override.IPv6)
 	override.WANUptimePercent = cloneFloat64Ref(override.WANUptimePercent)
 	override.WANConnected = cloneBoolRef(override.WANConnected)
 	return override

@@ -382,6 +382,13 @@
           "type": "string",
           "description": "Optional IPv4 netmask paired with ip for the represented gateway interface."
         },
+        "ipv6": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Optional non-link-local IPv6 CIDR addresses shown for the represented gateway interface."
+        },
         "role": {
           "type": "string",
           "enum": ["", "wan", "lan", "wan2", "lan2", "unassigned"],

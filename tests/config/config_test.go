@@ -109,6 +109,8 @@ port_overrides:
     mac: 02:00:5e:00:53:02
     ip: 192.0.2.2
     netmask: 255.255.255.0
+    ipv6:
+      - 2001:db8:2::2/64
     role: lan
     network_group: LAN
     portconf_id: portconf-real-wan
@@ -229,6 +231,8 @@ status_path: /tmp/unifi-stubd/status.json
 		cfg.PortOverrides[0].MAC != "02:00:5e:00:53:02" ||
 		cfg.PortOverrides[0].IP != "192.0.2.2" ||
 		cfg.PortOverrides[0].Netmask != "255.255.255.0" ||
+		len(cfg.PortOverrides[0].IPv6) != 1 ||
+		cfg.PortOverrides[0].IPv6[0] != "2001:db8:2::2/64" ||
 		cfg.PortOverrides[0].Role != "lan" ||
 		cfg.PortOverrides[0].NetworkGroup != "LAN" ||
 		cfg.PortOverrides[0].PortConfID != "portconf-real-wan" ||
