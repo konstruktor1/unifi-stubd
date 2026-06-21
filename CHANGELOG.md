@@ -7,6 +7,14 @@ semantic version tags once releases are published.
 
 ## [Unreleased]
 
+## [0.2.1-alpha] - 2026-06-21
+
+### Added
+
+- Forward non-link-local IPv6 CIDR addresses from explicit gateway port
+  overrides and read-only host interface observation into gateway WAN and
+  network payload fields.
+
 ## [0.2.0-alpha] - 2026-06-16
 
 ### Changed

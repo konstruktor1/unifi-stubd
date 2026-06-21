@@ -87,11 +87,11 @@ OPNsense/x86_64 installations and `arm64` for ARM FreeBSD hosts:
 
 ```sh
 ARCH=amd64 # or arm64
-fetch https://konstruktor1.github.io/unifi-stubd/freebsd/${ARCH}/unifi-stubd_0.2.0-alpha-1_freebsd_${ARCH}.tar.gz
+fetch https://konstruktor1.github.io/unifi-stubd/freebsd/${ARCH}/unifi-stubd_0.2.1-alpha-1_freebsd_${ARCH}.tar.gz
 fetch https://konstruktor1.github.io/unifi-stubd/checksums.txt
-grep "freebsd/${ARCH}/unifi-stubd_0.2.0-alpha-1_freebsd_${ARCH}.tar.gz" checksums.txt
-sha256 unifi-stubd_0.2.0-alpha-1_freebsd_${ARCH}.tar.gz
-tar -tzf unifi-stubd_0.2.0-alpha-1_freebsd_${ARCH}.tar.gz
+grep "freebsd/${ARCH}/unifi-stubd_0.2.1-alpha-1_freebsd_${ARCH}.tar.gz" checksums.txt
+sha256 unifi-stubd_0.2.1-alpha-1_freebsd_${ARCH}.tar.gz
+tar -tzf unifi-stubd_0.2.1-alpha-1_freebsd_${ARCH}.tar.gz
 ```
 
 The `sha256` output should match the checksum entry. The tarball contains
@@ -152,7 +152,7 @@ Install or extract the tarball on the FreeBSD/OPNsense host, then enable the
 service with rc.conf or OPNsense tunables:
 
 ```sh
-sudo tar -xzf unifi-stubd_0.2.0-alpha-1_freebsd_${ARCH}.tar.gz -C /
+sudo tar -xzf unifi-stubd_0.2.1-alpha-1_freebsd_${ARCH}.tar.gz -C /
 sudo vi /usr/local/etc/unifi-stubd/config.yaml
 sysrc unifi_stubd_enable=YES
 service unifi-stubd start
