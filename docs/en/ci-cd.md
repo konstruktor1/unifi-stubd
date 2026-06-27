@@ -35,7 +35,7 @@ The CI path is split into:
 | `make package-arch` | Go plus nFPM | `scripts/package.sh archlinux` | Arch Linux package | Linux current `PKG_GOARCH` | Local or GitHub Ubuntu | Defined |
 | `make package-tgz` | Go plus tar | `scripts/package.sh tgz` | OS-specific tarball | `PKG_GOOS`/`PKG_GOARCH` | Local | Defined |
 | `make package-freebsd-tgz` | Go cross-compile plus tar | `scripts/package.sh tgz` | FreeBSD tarball | FreeBSD `amd64` or `arm64` | Local diagnostic path | Defined, not used by release workflow |
-| `make package-freebsd-pkg-repos` | Go on FreeBSD builder, FreeBSD `pkg`, tar | `scripts/package-freebsd-pkg-repos.sh` | Native FreeBSD `pkg` repos and published FreeBSD tarballs | `FreeBSD:14/15` for `amd64`, `aarch64`, `armv7`; tarballs for `amd64`, `arm64` by default | Self-hosted builder and mapped jails | Release BSD path |
+| `make package-freebsd-pkg-repos` | Go on FreeBSD builder, FreeBSD `pkg`, tar | `scripts/package-freebsd-pkg-repos.sh` | Native FreeBSD `pkg` repos and published FreeBSD tarballs | `FreeBSD:14/15` for `amd64`, `aarch64`, `armv7`; tarballs for `amd64`, `arm64` by default | Self-hosted FreeBSD builder; optional mapped `jexec` jails | Release BSD path |
 | `make package-repos` | dpkg, createrepo-c, repo-add, tar | `scripts/build-package-repos.sh` | Static package repository site | Repository metadata for packaged targets | GitHub Ubuntu | GitHub Pages input |
 | `make integration-docker` | Docker Compose and Go helpers | `lab/stub/scripts/run-docker-integration.sh` | Pass/fail smoke test | Linux container lab | Local/manual | Defined, not automatic in CI |
 | Root `Dockerfile` | Docker BuildKit, Go, Alpine | `Dockerfile` | Runtime/lab image with daemon and inform proxy | Linux multi-arch capable | Local/manual | No publish target defined |
@@ -68,8 +68,10 @@ uploads it for seven days, and uses Go stable on `main` while non-main refs use
 the module version from `go.mod`.
 
 `freebsd-build` runs only outside pull requests. It calls
-`make package-freebsd-pkg-repos` with `FREEBSD_PKG_REQUIRE_JAILS=1`, so CI/CD
-requires a complete `FREEBSD_PKG_BUILD_JAILS` repository variable.
+`make package-freebsd-pkg-repos` on the self-hosted BSD package builder. The
+canonical builder uses FreeBSD host-side Go cross-compilation plus FreeBSD
+`pkg`; `FREEBSD_PKG_BUILD_JAILS` is optional and only for custom builders with
+running `jexec` jails.
 
 `package` runs only on pushes to `main` after `check` and `freebsd-build`.
 It resolves the latest `v[0-9]*` tag, builds Linux packages, installs the
@@ -93,8 +95,8 @@ generated Debian package once, validates the installed config, and uploads
 
 Linux packages are built on Ubuntu for `amd64` and `arm64`. FreeBSD tarballs
 and native FreeBSD `pkg` repositories are built through the self-hosted builder
-path and require jail mappings in CI/CD. The deploy job only combines already
-built artifacts into `dist/package-site` and deploys that static site.
+path. The deploy job only combines already built artifacts into
+`dist/package-site` and deploys that static site.
 
 ## OS and Architecture Matrix
 
@@ -102,7 +104,7 @@ built artifacts into `dist/package-site` and deploys that static site.
 | --- | --- | --- | --- | --- |
 | Linux amd64 | `PKG_GOARCH=amd64 make package` | `make check`; Debian install smoke on `main` | Debian, RPM, Arch, tarball | GitHub Actions artifact and Pages package site |
 | Linux arm64 | `PKG_GOARCH=arm64 make package` | `make check` only; no install smoke | Debian, RPM, Arch, tarball | Pages package site |
-| FreeBSD 14 amd64 | `make package-freebsd-pkg-repos` via mapped jail | Build/package verification only; target-host smoke manual | Native `pkg` repo | Pages package site |
+| FreeBSD 14 amd64 | `make package-freebsd-pkg-repos` via FreeBSD builder | Build/package verification only; target-host smoke manual | Native `pkg` repo | Pages package site |
 | FreeBSD 14 aarch64 | Same | Build/package verification only | Native `pkg` repo | Pages package site |
 | FreeBSD 14 armv7 | Same | Build/package verification only | Native `pkg` repo | Pages package site |
 | FreeBSD 15 amd64 | Same | Build/package verification only | Native `pkg` repo | Pages package site |
@@ -131,10 +133,10 @@ The BSD builder is expected to provide:
   overridden.
 - A work directory from `FREEBSD_PKG_REMOTE_DIR`, defaulting to
   `/tmp/unifi-stubd-freebsd-pkg`.
-- `go`, `pkg`, `tar`, and `jexec` where jail mappings are used.
-- `FREEBSD_PKG_BUILD_JAILS` mapping every configured `FREEBSD_PKG_ABIS` value
-  to a jail name for CI/CD.
-- A work directory path visible inside those jails.
+- FreeBSD `pkg`, `tar`, and a Go command named `go`, `go125`, or `go126`.
+- Optional `jexec` and `FREEBSD_PKG_BUILD_JAILS` only for custom builders with
+  running jails. Poudriere target jails are not assumed to be running `jexec`
+  build environments.
 
 Containers are defined for runtime and lab use only:
 
@@ -179,19 +181,19 @@ Containers are defined for runtime and lab use only:
   permissions now exist only on the deploy job.
 - BSD tarballs were previously built on Ubuntu in the release workflow. BSD
   release artifacts now come from `make package-freebsd-pkg-repos`.
-- The BSD workflow path could silently run without jail mappings. CI/CD now
-  sets `FREEBSD_PKG_REQUIRE_JAILS=1`, and the script fails if any configured
-  ABI is unmapped.
 - The FreeBSD packaging script previously built binaries locally and used the
   BSD host only for `pkg create`/`pkg repo`. It now sends the tracked source
-  tree to the builder and builds every configured FreeBSD ABI there, optionally
-  inside mapped jails.
+  tree to the builder and builds every configured FreeBSD ABI there. The
+  canonical Poudriere host uses host-side Go cross-compilation because its ARM
+  Poudriere targets cannot build the Go toolchain under qemu-user-static.
 - Release and development documentation described the old cross-build release
-  path. The documentation now describes the builder/jail path.
+  path. The documentation now describes the builder path and the optional
+  `jexec` jail mode.
 
 ## Open Items
 
-- Define the actual `FREEBSD_PKG_BUILD_JAILS` repository variable in GitHub.
+- Decide whether to publish the private Poudriere host repositories in
+  addition to the GitHub Pages package site.
 - Decide whether to SHA-pin third-party actions. The current workflows use
   stable major-version tags; GitHub's secure-use guidance notes full-length SHA
   pinning as the immutable option.
@@ -212,8 +214,7 @@ Local gates:
 make check
 make vulncheck
 make package
-FREEBSD_PKG_BUILD_JAILS='FreeBSD:14:amd64=jail14amd64 ...' \
-  FREEBSD_PKG_REQUIRE_JAILS=1 make package-freebsd-pkg-repos
+make package-freebsd-pkg-repos
 make package-repos
 ```
 

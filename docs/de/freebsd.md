@@ -67,12 +67,10 @@ Der Tarball landet unter `dist/packages/` und enthaelt dieses Layout:
 `make package-freebsd-pkg-repos` uebertraegt den Source-Tree auf den
 konfigurierten FreeBSD-Builder, baut dort jede konfigurierte FreeBSD-ABI und
 schreibt die nativen `pkg`-Repositories plus die veroeffentlichten `amd64`- und
-`arm64`-Tarballs. `FREEBSD_PKG_BUILD_JAILS` kann auf ein
-space-separiertes Mapping wie
-`FreeBSD:14:amd64=jail14amd64 FreeBSD:14:aarch64=jail14aarch64` gesetzt werden,
-um ABI-Builds und `pkg`-Kommandos in Jails auszufuehren. Wenn dieses Mapping
-gesetzt ist, muss jede ABI aus `FREEBSD_PKG_ABIS` gemappt sein, und
-`FREEBSD_PKG_REMOTE_DIR` muss in diesen Jails sichtbar sein.
+`arm64`-Tarballs. `FREEBSD_PKG_BUILD_JAILS` nur fuer eigene Builder mit
+laufenden `jexec`-Jails setzen. Der kanonische Poudriere-Buildhost baut die
+FreeBSD-Binaries auf dem FreeBSD-Host mit `go`, `go125` oder `go126` und
+erstellt danach ABI-spezifische `pkg`-Repositories mit dem FreeBSD-`pkg`-Tool.
 
 ```text
 /usr/local/bin/unifi-stubd

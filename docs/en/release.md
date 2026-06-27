@@ -87,10 +87,10 @@ reachable `v[0-9]*` tag and strips the leading `v`.
 FreeBSD/OPNsense tarball paths, and native FreeBSD `pkg` repository paths when
 `dist/freebsd-pkg-repos/repo/` exists. The Package Repositories workflow builds
 FreeBSD tarballs and native FreeBSD repositories on the self-hosted runner
-labelled `freebsd-pkg-builder`; CI/CD requires the
-`FREEBSD_PKG_BUILD_JAILS` repository variable so every configured FreeBSD ABI
-runs in its mapped jail. The combined static site is deployed from Ubuntu. Keep
-alpha repository instructions visibly unsigned
+labelled `freebsd-pkg-builder`. The canonical builder uses FreeBSD host-side
+Go cross-compilation plus FreeBSD `pkg`; `FREEBSD_PKG_BUILD_JAILS` is optional
+for custom builders with running `jexec` jails. The combined static site is
+deployed from Ubuntu. Keep alpha repository instructions visibly unsigned
 (`trusted=yes`, `gpgcheck=0`, `SigLevel = Never`) until a project release key
 exists.
 

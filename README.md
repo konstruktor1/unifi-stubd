@@ -524,12 +524,10 @@ repositories for `FreeBSD:14` and `FreeBSD:15` on `amd64`, `aarch64`, and
 `armv7`.
 `make package-freebsd-pkg-repos` sends the source tree to that builder, builds
 each configured FreeBSD ABI there, and writes the native `pkg` repos plus the
-published `amd64` and `arm64` tarballs. Set `FREEBSD_PKG_BUILD_JAILS` to a
-space-separated mapping such as
-`FreeBSD:14:amd64=jail14amd64 FreeBSD:14:aarch64=jail14aarch64` to run ABI
-builds and `pkg` commands inside jails. When this mapping is set, every ABI in
-`FREEBSD_PKG_ABIS` must be mapped, and `FREEBSD_PKG_REMOTE_DIR` must be visible
-inside those jails.
+published `amd64` and `arm64` tarballs. The builder must provide FreeBSD
+`pkg`, `tar`, and a Go command named `go`, `go125`, or `go126`. Set
+`FREEBSD_PKG_BUILD_JAILS` only for custom builders with running `jexec` jails;
+Poudriere target jails are not long-running `jexec` build environments.
 
 Common overrides:
 

@@ -60,7 +60,7 @@ jobs:
       - name: Build FreeBSD artifacts
         env:
           FREEBSD_PKG_BUILD_JAILS: ${{ vars.FREEBSD_PKG_BUILD_JAILS }}
-          FREEBSD_PKG_REQUIRE_JAILS: "1"
+          FREEBSD_PKG_REQUIRE_JAILS: "0"
         run: |
           set -eu
           make package-freebsd-pkg-repos

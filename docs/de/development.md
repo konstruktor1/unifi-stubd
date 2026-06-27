@@ -13,8 +13,8 @@ Das Modell passt zur vorhandenen Repository-Infrastruktur:
 - Bei Pushes auf `main` baut `CI` zusaetzlich Pakete und installiert das
   erzeugte Debian-Paket einmal im Ubuntu-Runner als neutralen Smoke-Test.
 - `Package Repositories` baut Linux-Pakete auf Ubuntu, baut FreeBSD-Tarballs
-  und native FreeBSD-pkg-Repositories in den konfigurierten BSD-Builder-Jails
-  und deployed danach GitHub Pages.
+  und native FreeBSD-pkg-Repositories auf dem konfigurierten BSD-Builder und
+  deployed danach GitHub Pages.
 - Das `github-pages`-Environment erlaubt Deployments bereits nur von `main` und
   `v*`-Tags.
 

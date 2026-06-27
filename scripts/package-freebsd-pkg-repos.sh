@@ -309,18 +309,34 @@ out="$2"
 goarch="$3"
 goarm="$4"
 ldflags="$5"
+go_bin="$6"
 cd "$src"
 mkdir -p "$(dirname "$out")"
 if [ -n "$goarm" ]; then
   CGO_ENABLED=0 GOOS=freebsd GOARCH="$goarch" GOARM="$goarm" \
-    go build -trimpath -ldflags="$ldflags" -o "$out" ./cmd/unifi-stubd
+    "$go_bin" build -trimpath -ldflags="$ldflags" -o "$out" ./cmd/unifi-stubd
 else
   CGO_ENABLED=0 GOOS=freebsd GOARCH="$goarch" \
-    go build -trimpath -ldflags="$ldflags" -o "$out" ./cmd/unifi-stubd
+    "$go_bin" build -trimpath -ldflags="$ldflags" -o "$out" ./cmd/unifi-stubd
 fi
 EOS
 
 chmod 0755 build-one.sh
+
+go_bin="${GO_CMD:-}"
+if [ -n "$go_bin" ] && ! command -v "$go_bin" >/dev/null 2>&1; then
+  fail "configured Go command not found on FreeBSD builder: $go_bin"
+fi
+if [ -z "$go_bin" ]; then
+  for candidate in go go125 go126; do
+    if command -v "$candidate" >/dev/null 2>&1; then
+      go_bin="$candidate"
+      break
+    fi
+  done
+fi
+[ -n "$go_bin" ] || fail "missing Go command on FreeBSD builder: install go, go125, or go126"
+printf '== using Go command: %s ==\n' "$go_bin"
 
 for abi in $FREEBSD_PKG_ABIS; do
   target="$(go_target_for_abi "$abi")"
@@ -332,10 +348,10 @@ for abi in $FREEBSD_PKG_ABIS; do
 
   if [ -n "$jail" ]; then
     printf '== build %s in jail %s ==\n' "$abi" "$jail"
-    jexec "$jail" sh "$(pwd)/build-one.sh" "$(pwd)/src" "$out" "$goarch" "$goarm" "$BUILD_LDFLAGS"
+    jexec "$jail" sh "$(pwd)/build-one.sh" "$(pwd)/src" "$out" "$goarch" "$goarm" "$BUILD_LDFLAGS" "$go_bin"
   else
     printf '== build %s on FreeBSD build host ==\n' "$abi"
-    sh "$(pwd)/build-one.sh" "$(pwd)/src" "$out" "$goarch" "$goarm" "$BUILD_LDFLAGS"
+    sh "$(pwd)/build-one.sh" "$(pwd)/src" "$out" "$goarch" "$goarm" "$BUILD_LDFLAGS" "$go_bin"
   fi
 done
 

@@ -64,11 +64,10 @@ this layout:
 `make package-freebsd-pkg-repos` sends the source tree to the configured
 FreeBSD builder, builds each configured FreeBSD ABI there, and writes the
 native `pkg` repositories plus the published `amd64` and `arm64` tarballs. Set
-`FREEBSD_PKG_BUILD_JAILS` to a space-separated mapping such as
-`FreeBSD:14:amd64=jail14amd64 FreeBSD:14:aarch64=jail14aarch64` to run ABI
-builds and `pkg` commands inside jails. When this mapping is set, every ABI in
-`FREEBSD_PKG_ABIS` must be mapped, and `FREEBSD_PKG_REMOTE_DIR` must be visible
-inside those jails.
+`FREEBSD_PKG_BUILD_JAILS` only for custom builders with running `jexec` jails.
+The canonical Poudriere buildhost builds FreeBSD binaries on the FreeBSD host
+with `go`, `go125`, or `go126`, then creates ABI-specific `pkg` repositories
+with the FreeBSD `pkg` tool.
 
 ```text
 /usr/local/bin/unifi-stubd

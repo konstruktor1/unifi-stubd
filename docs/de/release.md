@@ -91,10 +91,11 @@ neuesten erreichbaren `v[0-9]*`-Tag und entfernt das fuehrende `v`.
 Arch-Linux-, FreeBSD-/OPNsense-Tarball-Pfaden und nativen FreeBSD-`pkg`-Repos,
 wenn `dist/freebsd-pkg-repos/repo/` existiert. Der
 Package-Repositories-Workflow baut FreeBSD-Tarballs und native FreeBSD-Repos
-auf dem self-hosted Runner mit Label `freebsd-pkg-builder`; CI/CD verlangt die
-Repository-Variable `FREEBSD_PKG_BUILD_JAILS`, damit jede konfigurierte
-FreeBSD-ABI in ihrem gemappten Jail laeuft. Danach wird die kombinierte
-statische Seite von Ubuntu deployed. Alpha-Anleitungen bleiben sichtbar
+auf dem self-hosted Runner mit Label `freebsd-pkg-builder`. Der kanonische
+Builder nutzt Go-Cross-Compile auf dem FreeBSD-Host plus FreeBSD `pkg`;
+`FREEBSD_PKG_BUILD_JAILS` ist optional fuer eigene Builder mit laufenden
+`jexec`-Jails. Danach wird die kombinierte statische Seite von Ubuntu deployed.
+Alpha-Anleitungen bleiben sichtbar
 unsigniert (`trusted=yes`, `gpgcheck=0`, `SigLevel = Never`), bis ein
 Projekt-Release-Key existiert.
 
