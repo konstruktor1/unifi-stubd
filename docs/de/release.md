@@ -14,7 +14,8 @@ kopiert.
 1. `make check` ausfuehren.
 2. `make package` ausfuehren.
 3. Cross-Architektur-Ziele fuer Releases bauen, z.B. `PKG_GOARCH=arm64 make
-   package` und `PKG_FREEBSD_GOARCH=amd64 make package-freebsd-tgz`.
+   package`. FreeBSD-Release-Artefakte ueber den konfigurierten
+   FreeBSD-Builder mit `make package-freebsd-pkg-repos` bauen.
 4. `dist/packages/` auf Debian-, RPM-, Arch-Linux- und `.tar.gz`-Ausgaben pruefen.
 5. Nach Dependency- oder Tool-Updates `go.mod`, `go.work` und `go.sum` pruefen.
 6. Private Lab-Daten suchen:
@@ -69,8 +70,6 @@ erzeugen:
 ```sh
 PKG_VERSION=0.2.0-alpha PKG_RELEASE=1 PKG_GOARCH=amd64 make package
 PKG_VERSION=0.2.0-alpha PKG_RELEASE=1 PKG_GOARCH=arm64 make package
-PKG_VERSION=0.2.0-alpha PKG_RELEASE=1 PKG_FREEBSD_GOARCH=amd64 make package-freebsd-tgz
-PKG_VERSION=0.2.0-alpha PKG_RELEASE=1 PKG_FREEBSD_GOARCH=arm64 make package-freebsd-tgz
 PKG_VERSION=0.2.0-alpha PKG_RELEASE=1 make package-freebsd-pkg-repos
 make package-repos
 ```
@@ -91,9 +90,11 @@ neuesten erreichbaren `v[0-9]*`-Tag und entfernt das fuehrende `v`.
 `make package-repos` schreibt `dist/package-site/` mit APT-, RPM-,
 Arch-Linux-, FreeBSD-/OPNsense-Tarball-Pfaden und nativen FreeBSD-`pkg`-Repos,
 wenn `dist/freebsd-pkg-repos/repo/` existiert. Der
-Package-Repositories-Workflow baut diese nativen FreeBSD-Repos auf dem
-self-hosted Runner mit Label `freebsd-pkg-builder` und deployed danach die
-kombinierte statische Seite von Ubuntu. Alpha-Anleitungen bleiben sichtbar
+Package-Repositories-Workflow baut FreeBSD-Tarballs und native FreeBSD-Repos
+auf dem self-hosted Runner mit Label `freebsd-pkg-builder`; CI/CD verlangt die
+Repository-Variable `FREEBSD_PKG_BUILD_JAILS`, damit jede konfigurierte
+FreeBSD-ABI in ihrem gemappten Jail laeuft. Danach wird die kombinierte
+statische Seite von Ubuntu deployed. Alpha-Anleitungen bleiben sichtbar
 unsigniert (`trusted=yes`, `gpgcheck=0`, `SigLevel = Never`), bis ein
 Projekt-Release-Key existiert.
 

@@ -47,7 +47,7 @@ func TestFreeBSDPkgManifestUsesSimpleChecksumConfigEntries(t *testing.T) {
 		strings.Contains(script, " -p \"$abi_dir/plist\"") {
 		t.Fatal("FreeBSD pkg builder should use a direct manifest, not a plist")
 	}
-	if !strings.Contains(script, "pkg create -f txz -r \"$abi_dir/pkgroot\" -M \"$abi_dir/manifest.ucl\"") {
+	if !strings.Contains(script, "pkg create -f txz -r \"$abi_abs/pkgroot\" -M \"$abi_abs/manifest.ucl\"") {
 		t.Fatal("FreeBSD pkg builder does not create packages from manifest.ucl")
 	}
 	if !strings.Contains(script, "cp \"$abi_dir/manifest.ucl\" \"$repair_dir/+MANIFEST\"") ||

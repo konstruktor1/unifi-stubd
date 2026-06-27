@@ -41,7 +41,7 @@ help:
 		'  make package      Build deb, rpm, archlinux, and tgz packages' \
 		'  make package-repos  Build unsigned alpha package repositories in dist/package-site' \
 		'  make package-freebsd-tgz  Build FreeBSD/OPNsense stub-only tgz' \
-		'  make package-freebsd-pkg-repos  Build native FreeBSD pkg repositories through the configured FreeBSD builder' \
+		'  make package-freebsd-pkg-repos  Build FreeBSD tarballs and pkg repositories through the configured FreeBSD builder' \
 		'  make clean-dist   Remove package build output'
 
 build:

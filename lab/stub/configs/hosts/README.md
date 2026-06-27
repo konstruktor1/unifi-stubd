@@ -34,3 +34,8 @@ SFP+ examples capture two reusable patterns:
   side is already represented by the physical SFP+ uplink.
 - `opnsense-uxg-sfp-lab`: UXG Pro-shaped gateway with WAN on SFP+ port 3 and
   LAN to `server-lan1` on SFP+ port 4.
+- `opnsense-api-source.example.yaml`: separate read-only source file for the
+  `unifi-stubd-opnsense` companion generator. It contains API endpoint and port
+  mapping examples, but no real API credentials. See
+  `docs/en/opnsense-generator.md` and
+  `docs/en/opnsense-generator-reference.md` for the standalone generator docs.

@@ -13,7 +13,8 @@ onto the installed system after the package is installed.
 1. Run `make check`.
 2. Run `make package`.
 3. Build any cross-architecture release targets, such as `PKG_GOARCH=arm64
-   make package` and `PKG_FREEBSD_GOARCH=amd64 make package-freebsd-tgz`.
+   make package`. Build FreeBSD release artifacts through the configured
+   FreeBSD builder with `make package-freebsd-pkg-repos`.
 4. Inspect `dist/packages/` for Debian, RPM, Arch Linux, and `.tar.gz` output.
 5. Confirm `go.mod`, `go.work`, and `go.sum` are tidy after dependency or tool updates.
 6. Search for private lab data:
@@ -65,8 +66,6 @@ Build all package artifacts first, then generate the static repository site:
 ```sh
 PKG_VERSION=0.2.0-alpha PKG_RELEASE=1 PKG_GOARCH=amd64 make package
 PKG_VERSION=0.2.0-alpha PKG_RELEASE=1 PKG_GOARCH=arm64 make package
-PKG_VERSION=0.2.0-alpha PKG_RELEASE=1 PKG_FREEBSD_GOARCH=amd64 make package-freebsd-tgz
-PKG_VERSION=0.2.0-alpha PKG_RELEASE=1 PKG_FREEBSD_GOARCH=arm64 make package-freebsd-tgz
 PKG_VERSION=0.2.0-alpha PKG_RELEASE=1 make package-freebsd-pkg-repos
 make package-repos
 ```
@@ -87,8 +86,10 @@ reachable `v[0-9]*` tag and strips the leading `v`.
 `make package-repos` writes `dist/package-site/` with APT, RPM, Arch Linux,
 FreeBSD/OPNsense tarball paths, and native FreeBSD `pkg` repository paths when
 `dist/freebsd-pkg-repos/repo/` exists. The Package Repositories workflow builds
-those native FreeBSD repositories on the self-hosted runner labelled
-`freebsd-pkg-builder`, then deploys the combined static site from Ubuntu. Keep
+FreeBSD tarballs and native FreeBSD repositories on the self-hosted runner
+labelled `freebsd-pkg-builder`; CI/CD requires the
+`FREEBSD_PKG_BUILD_JAILS` repository variable so every configured FreeBSD ABI
+runs in its mapped jail. The combined static site is deployed from Ubuntu. Keep
 alpha repository instructions visibly unsigned
 (`trusted=yes`, `gpgcheck=0`, `SigLevel = Never`) until a project release key
 exists.

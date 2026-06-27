@@ -31,10 +31,12 @@ UniFi-compatible low port without running the daemon as root.
 ## FreeBSD/OPNsense Packaged Files
 
 The FreeBSD package path is currently stub-only. `make package-freebsd-tgz`
-builds manual tarballs; `make package-freebsd-pkg-repos` builds native FreeBSD
-`pkg` repositories. Release builds publish both `freebsd_amd64` and
-`freebsd_arm64` tarballs as GitHub Release assets and under the GitHub Pages
-paths `/freebsd/amd64/` and `/freebsd/arm64/`.
+builds a local diagnostic tarball for one `PKG_FREEBSD_GOARCH`. Release builds
+use `make package-freebsd-pkg-repos`, which builds FreeBSD binaries through the
+configured FreeBSD builder path, writes native FreeBSD `pkg` repositories, and
+publishes both `freebsd_amd64` and `freebsd_arm64` tarballs under the GitHub
+Pages paths `/freebsd/amd64/` and `/freebsd/arm64/`. GitHub Release assets are
+still a manual release-checklist step.
 
 | FreeBSD path | Repository source | Notes |
 | --- | --- | --- |

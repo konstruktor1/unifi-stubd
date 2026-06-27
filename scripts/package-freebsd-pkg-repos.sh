@@ -10,9 +10,13 @@ PKG_MAINTAINER="${PKG_MAINTAINER:-unifi-stubd maintainers <info@spinas.org>}"
 BUILD_LDFLAGS="${BUILD_LDFLAGS:--s -w -X main.version=$PKG_VERSION}"
 FREEBSD_PKG_REMOTE="${FREEBSD_PKG_REMOTE:-unifi-stubd-freebsd-builder}"
 FREEBSD_PKG_REMOTE_DIR="${FREEBSD_PKG_REMOTE_DIR:-/tmp/unifi-stubd-freebsd-pkg}"
+FREEBSD_PKG_BUILD_JAILS="${FREEBSD_PKG_BUILD_JAILS:-}"
+FREEBSD_PKG_REQUIRE_JAILS="${FREEBSD_PKG_REQUIRE_JAILS:-0}"
+FREEBSD_TGZ_ARCHES="${FREEBSD_TGZ_ARCHES:-amd64 arm64}"
 DIST_DIR="${DIST_DIR:-dist}"
 WORK_DIR="${WORK_DIR:-$DIST_DIR/freebsd-pkg-work}"
 OUT_DIR="${OUT_DIR:-$DIST_DIR/freebsd-pkg-repos}"
+PACKAGE_DIR="${DIST_DIR}/packages"
 ABIS="${FREEBSD_PKG_ABIS:-FreeBSD:14:amd64 FreeBSD:14:aarch64 FreeBSD:14:armv7 FreeBSD:15:amd64 FreeBSD:15:aarch64 FreeBSD:15:armv7}"
 
 fail() {
@@ -46,6 +50,10 @@ file_size() {
   fi
 }
 
+shell_quote() {
+  printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"
+}
+
 freebsd_pkg_version() {
   version="$(printf '%s' "$PKG_VERSION" | sed 's/^[vV]//; s/[-~]/./g')"
   printf '%s_%s' "$version" "$PKG_RELEASE"
@@ -71,13 +79,17 @@ pkg_arch() {
   esac
 }
 
-binary_label_for_abi() {
+binary_name_for_abi() {
+  printf 'unifi-stubd_%s' "$(printf '%s' "$1" | tr ':[:upper:]' '_[:lower:]')"
+}
+
+tarball_arch_for_abi() {
   case "$1" in
     FreeBSD:*:amd64)
       printf 'amd64'
       ;;
     FreeBSD:*:aarch64)
-      printf 'aarch64'
+      printf 'arm64'
       ;;
     FreeBSD:*:armv7)
       printf 'armv7'
@@ -88,26 +100,42 @@ binary_label_for_abi() {
   esac
 }
 
-build_binary() {
-  label="$1"
-  goarch="$2"
-  goarm="$3"
-  out="$WORK_DIR/bin/unifi-stubd_freebsd_$label"
+tarball_enabled() {
+  arch="$1"
+  for enabled in $FREEBSD_TGZ_ARCHES; do
+    if [ "$enabled" = "$arch" ]; then
+      return 0
+    fi
+  done
+  return 1
+}
 
-  printf '== build freebsd/%s ==\n' "$label"
-  if [ -n "$goarm" ]; then
-    CGO_ENABLED=0 GOOS=freebsd GOARCH="$goarch" GOARM="$goarm" \
-      go build -trimpath -ldflags="$BUILD_LDFLAGS" -o "$out" ./cmd/unifi-stubd
-  else
-    CGO_ENABLED=0 GOOS=freebsd GOARCH="$goarch" \
-      go build -trimpath -ldflags="$BUILD_LDFLAGS" -o "$out" ./cmd/unifi-stubd
+write_source_archive() {
+  if command -v git >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+    git ls-files -z >"$WORK_DIR/upload/source-files"
+    COPYFILE_DISABLE=1 tar --null -T "$WORK_DIR/upload/source-files" -czf "$WORK_DIR/upload/source.tar.gz"
+    return 0
   fi
+
+  COPYFILE_DISABLE=1 tar \
+    --exclude './.git' \
+    --exclude './dist' \
+    -czf "$WORK_DIR/upload/source.tar.gz" .
+}
+
+write_build_env() {
+  {
+    printf 'BUILD_LDFLAGS=%s\n' "$(shell_quote "$BUILD_LDFLAGS")"
+    printf 'FREEBSD_PKG_ABIS=%s\n' "$(shell_quote "$ABIS")"
+    printf 'FREEBSD_PKG_BUILD_JAILS=%s\n' "$(shell_quote "$FREEBSD_PKG_BUILD_JAILS")"
+    printf 'FREEBSD_PKG_REQUIRE_JAILS=%s\n' "$(shell_quote "$FREEBSD_PKG_REQUIRE_JAILS")"
+  } >"$WORK_DIR/upload/build.env"
 }
 
 write_stage() {
   abi="$1"
   arch="$2"
-  label="$(binary_label_for_abi "$abi")"
+  binary_name="$(binary_name_for_abi "$abi")"
   pkg_version="$(freebsd_pkg_version)"
   stage="$WORK_DIR/stage/$abi"
 
@@ -118,7 +146,7 @@ write_stage() {
     "$stage/pkgroot/usr/local/share/doc/unifi-stubd" \
     "$stage/pkgroot/var/db/unifi-stubd"
 
-  install -m 0755 "$WORK_DIR/bin/unifi-stubd_freebsd_$label" "$stage/pkgroot/usr/local/bin/unifi-stubd"
+  install -m 0755 "$WORK_DIR/bin/$binary_name" "$stage/pkgroot/usr/local/bin/unifi-stubd"
   install -m 0600 packaging/freebsd/usr/local/etc/unifi-stubd/config.yaml "$stage/pkgroot/usr/local/etc/unifi-stubd/config.yaml"
   install -m 0755 packaging/freebsd/usr/local/etc/rc.d/unifi-stubd "$stage/pkgroot/usr/local/etc/rc.d/unifi-stubd"
   install -m 0644 LICENSE "$stage/pkgroot/usr/local/share/doc/unifi-stubd/LICENSE"
@@ -195,14 +223,140 @@ directories = {
 EOF
 }
 
+write_tgz() {
+  abi="$1"
+  stage="$WORK_DIR/stage/$abi"
+  arch="$(tarball_arch_for_abi "$abi")"
+  target="$PACKAGE_DIR/unifi-stubd_${PKG_VERSION}-${PKG_RELEASE}_freebsd_${arch}.tar.gz"
+
+  tarball_enabled "$arch" || return 0
+  if [ -f "$target" ]; then
+    return 0
+  fi
+
+  printf '== package freebsd/%s tgz ==\n' "$arch"
+  if tar --version 2>/dev/null | grep -qi 'gnu tar'; then
+    tar_owner_flags="--owner=0 --group=0 --numeric-owner"
+  else
+    tar_owner_flags="--no-xattrs --uid 0 --gid 0 --uname root --gname wheel"
+  fi
+  # shellcheck disable=SC2086 # tar_owner_flags is a small, controlled option list.
+  COPYFILE_DISABLE=1 tar $tar_owner_flags -C "$stage/pkgroot" -czf "$target" .
+  printf 'created: %s\n' "$target"
+}
+
+remote_binary_build_script() {
+  cat <<'EOF'
+set -eu
+cd "$1"
+. ./build.env
+rm -rf src bin bin.tar.gz
+mkdir -p src bin
+tar -xzf source.tar.gz -C src
+find src -name '._*' -delete
+
+fail() {
+  printf '%s\n' "$1" >&2
+  exit 1
+}
+
+binary_name_for_abi() {
+  printf 'unifi-stubd_%s' "$(printf '%s' "$1" | tr ':[:upper:]' '_[:lower:]')"
+}
+
+go_target_for_abi() {
+  case "$1" in
+    FreeBSD:*:amd64)
+      printf 'amd64:'
+      ;;
+    FreeBSD:*:aarch64)
+      printf 'arm64:'
+      ;;
+    FreeBSD:*:armv7)
+      printf 'arm:7'
+      ;;
+    *)
+      fail "unsupported FreeBSD ABI: $1"
+      ;;
+  esac
+}
+
+jail_for_abi() {
+  needle="$1"
+  for entry in $FREEBSD_PKG_BUILD_JAILS; do
+    key="${entry%%=*}"
+    value="${entry#*=}"
+    if [ "$key" = "$needle" ]; then
+      printf '%s' "$value"
+      return 0
+    fi
+  done
+}
+
+require_jail_for_abi() {
+  abi="$1"
+  jail="$(jail_for_abi "$abi")"
+  if [ -z "$jail" ] && { [ -n "$FREEBSD_PKG_BUILD_JAILS" ] || [ "$FREEBSD_PKG_REQUIRE_JAILS" = "1" ]; }; then
+    fail "missing FreeBSD jail mapping for $abi"
+  fi
+  printf '%s' "$jail"
+}
+
+cat >build-one.sh <<'EOS'
+set -eu
+src="$1"
+out="$2"
+goarch="$3"
+goarm="$4"
+ldflags="$5"
+cd "$src"
+mkdir -p "$(dirname "$out")"
+if [ -n "$goarm" ]; then
+  CGO_ENABLED=0 GOOS=freebsd GOARCH="$goarch" GOARM="$goarm" \
+    go build -trimpath -ldflags="$ldflags" -o "$out" ./cmd/unifi-stubd
+else
+  CGO_ENABLED=0 GOOS=freebsd GOARCH="$goarch" \
+    go build -trimpath -ldflags="$ldflags" -o "$out" ./cmd/unifi-stubd
+fi
+EOS
+
+chmod 0755 build-one.sh
+
+for abi in $FREEBSD_PKG_ABIS; do
+  target="$(go_target_for_abi "$abi")"
+  goarch="${target%%:*}"
+  goarm="${target#*:}"
+  binary_name="$(binary_name_for_abi "$abi")"
+  out="$(pwd)/bin/$binary_name"
+  jail="$(require_jail_for_abi "$abi")"
+
+  if [ -n "$jail" ]; then
+    printf '== build %s in jail %s ==\n' "$abi" "$jail"
+    jexec "$jail" sh "$(pwd)/build-one.sh" "$(pwd)/src" "$out" "$goarch" "$goarm" "$BUILD_LDFLAGS"
+  else
+    printf '== build %s on FreeBSD build host ==\n' "$abi"
+    sh "$(pwd)/build-one.sh" "$(pwd)/src" "$out" "$goarch" "$goarm" "$BUILD_LDFLAGS"
+  fi
+done
+
+tar -czf bin.tar.gz bin
+EOF
+}
+
 remote_build_script() {
   cat <<'EOF'
 set -eu
 cd "$1"
+. ./build.env
 rm -rf stage repo repo.tar.gz
 mkdir -p stage repo
 tar -xzf stage.tar.gz -C stage
 find stage -name '._*' -delete
+
+fail() {
+  printf '%s\n' "$1" >&2
+  exit 1
+}
 
 repair_manifest() {
   abi_dir="$1"
@@ -238,41 +392,78 @@ repair_manifest() {
   rm -rf "$repair_dir"
 }
 
+jail_for_abi() {
+  needle="$1"
+  for entry in $FREEBSD_PKG_BUILD_JAILS; do
+    key="${entry%%=*}"
+    value="${entry#*=}"
+    if [ "$key" = "$needle" ]; then
+      printf '%s' "$value"
+      return 0
+    fi
+  done
+}
+
+require_jail_for_abi() {
+  abi="$1"
+  jail="$(jail_for_abi "$abi")"
+  if [ -z "$jail" ] && { [ -n "$FREEBSD_PKG_BUILD_JAILS" ] || [ "$FREEBSD_PKG_REQUIRE_JAILS" = "1" ]; }; then
+    fail "missing FreeBSD jail mapping for $abi"
+  fi
+  printf '%s' "$jail"
+}
+
+run_pkg_create() {
+  abi="$1"
+  abi_dir="$2"
+  abi_abs="$(cd "$abi_dir" && pwd)"
+  repo_dir="$(pwd)/repo/$abi"
+  jail="$(require_jail_for_abi "$abi")"
+  if [ -n "$jail" ]; then
+    jexec "$jail" pkg create -f txz -r "$abi_abs/pkgroot" -M "$abi_abs/manifest.ucl" -o "$repo_dir"
+  else
+    pkg create -f txz -r "$abi_abs/pkgroot" -M "$abi_abs/manifest.ucl" -o "$repo_dir"
+  fi
+}
+
+run_pkg_repo() {
+  abi="$1"
+  repo_dir="$(pwd)/repo/$abi"
+  jail="$(require_jail_for_abi "$abi")"
+  if [ -n "$jail" ]; then
+    jexec "$jail" pkg repo "$repo_dir"
+  else
+    pkg repo "$repo_dir"
+  fi
+}
+
 for abi_dir in stage/*; do
   [ -d "$abi_dir" ] || continue
   abi="$(basename "$abi_dir")"
   printf '== pkg create %s ==\n' "$abi"
   mkdir -p "repo/$abi"
-  pkg create -f txz -r "$abi_dir/pkgroot" -M "$abi_dir/manifest.ucl" -o "repo/$abi"
+  run_pkg_create "$abi" "$abi_dir"
   pkg_file="$(ls "repo/$abi"/unifi-stubd-*.pkg | sed -n '1p')"
   [ -n "$pkg_file" ] || {
     printf 'missing generated package for %s\n' "$abi" >&2
     exit 1
   }
   repair_manifest "$abi_dir" "$pkg_file"
-  pkg repo "repo/$abi"
+  run_pkg_repo "$abi"
 done
 tar -czf repo.tar.gz repo
 EOF
 }
 
-need_cmd go
 need_cmd ssh
 need_cmd scp
 need_cmd tar
 
 rm -rf "$WORK_DIR" "$OUT_DIR"
-mkdir -p "$WORK_DIR/bin" "$WORK_DIR/upload" "$OUT_DIR"
+mkdir -p "$WORK_DIR/bin" "$WORK_DIR/upload" "$OUT_DIR" "$PACKAGE_DIR"
 
-build_binary amd64 amd64 ""
-build_binary aarch64 arm64 ""
-build_binary armv7 arm 7
-
-for abi in $ABIS; do
-  write_stage "$abi" "$(pkg_arch "$abi")"
-done
-
-COPYFILE_DISABLE=1 tar -C "$WORK_DIR/stage" -czf "$WORK_DIR/upload/stage.tar.gz" .
+write_source_archive
+write_build_env
 
 remote_dir="$FREEBSD_PKG_REMOTE_DIR/$PKG_VERSION-$PKG_RELEASE-$$"
 cleanup_remote() {
@@ -281,6 +472,22 @@ cleanup_remote() {
 trap cleanup_remote EXIT INT TERM
 
 ssh "$FREEBSD_PKG_REMOTE" "rm -rf '$remote_dir' && mkdir -p '$remote_dir'"
+scp "$WORK_DIR/upload/source.tar.gz" "$FREEBSD_PKG_REMOTE:$remote_dir/source.tar.gz"
+scp "$WORK_DIR/upload/build.env" "$FREEBSD_PKG_REMOTE:$remote_dir/build.env"
+remote_binary_script="$WORK_DIR/upload/remote-build-binaries.sh"
+remote_binary_build_script >"$remote_binary_script"
+scp "$remote_binary_script" "$FREEBSD_PKG_REMOTE:$remote_dir/remote-build-binaries.sh"
+ssh "$FREEBSD_PKG_REMOTE" "sh '$remote_dir/remote-build-binaries.sh' '$remote_dir'"
+scp "$FREEBSD_PKG_REMOTE:$remote_dir/bin.tar.gz" "$WORK_DIR/bin.tar.gz"
+tar -xzf "$WORK_DIR/bin.tar.gz" -C "$WORK_DIR"
+
+for abi in $ABIS; do
+  write_stage "$abi" "$(pkg_arch "$abi")"
+  write_tgz "$abi"
+done
+
+COPYFILE_DISABLE=1 tar -C "$WORK_DIR/stage" -czf "$WORK_DIR/upload/stage.tar.gz" .
+
 scp "$WORK_DIR/upload/stage.tar.gz" "$FREEBSD_PKG_REMOTE:$remote_dir/stage.tar.gz"
 remote_script="$WORK_DIR/upload/remote-build.sh"
 remote_build_script >"$remote_script"

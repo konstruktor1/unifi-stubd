@@ -397,6 +397,29 @@ port 3; `ixl0` is reported only as `source_interface`. Non-link-local IPv6
 CIDR addresses observed on `ixl0`, or configured with `port_overrides[].ipv6`,
 are mirrored into the gateway WAN/network payload fields for that port.
 
+OPNsense API data can also be used through the separate companion generator
+without changing the running daemon. `unifi-stubd-opnsense` reads an existing
+`unifi-stubd` config plus a separate OPNsense source file, performs read-only
+GET requests against OPNsense, and prints a generated YAML document for review:
+
+```sh
+go run ./cmd/unifi-stubd-opnsense \
+  -config /usr/local/etc/unifi-stubd/config.yaml \
+  -source lab/stub/configs/hosts/opnsense-api-source.example.yaml \
+  > generated.yaml
+```
+
+Use `-out generated.yaml` only when the generated file should be written by the
+tool. API keys are loaded from configured files or environment variables, are
+not part of the generated config, and are not logged. The generator maps
+OPNsense interfaces such as `ixl0` to existing `port_overrides`; the daemon
+then consumes the resulting normal YAML exactly as before.
+For an on-box OPNsense setup with commands for API keys, source YAML,
+generation, validation, and service restart, see the
+[OPNsense API Generator How-to](docs/en/opnsense-generator.md). Field behavior,
+merge rules, endpoints, and troubleshooting are documented in the
+[OPNsense API Generator Reference](docs/en/opnsense-generator-reference.md).
+
 WAN health is also explicit YAML. `source: off` reports no active probe,
 `source: static` uses the `wan_*` hints from `port_overrides`, and
 `source: ping` runs the local OS `ping` command against configured targets.
@@ -494,10 +517,19 @@ make package-freebsd-tgz
 make package-freebsd-pkg-repos
 ```
 
-FreeBSD/OPNsense tarball builds default to `amd64`; set
-`PKG_FREEBSD_GOARCH=arm64` for ARM FreeBSD hosts. Native FreeBSD `pkg`
-repositories are built through the configured FreeBSD builder and include
-`FreeBSD:14` and `FreeBSD:15` repos for `amd64`, `aarch64`, and `armv7`.
+The standalone `make package-freebsd-tgz` target defaults to `amd64`; set
+`PKG_FREEBSD_GOARCH=arm64` for ARM FreeBSD hosts. Release FreeBSD artifacts are
+built through the configured FreeBSD builder and include native `pkg`
+repositories for `FreeBSD:14` and `FreeBSD:15` on `amd64`, `aarch64`, and
+`armv7`.
+`make package-freebsd-pkg-repos` sends the source tree to that builder, builds
+each configured FreeBSD ABI there, and writes the native `pkg` repos plus the
+published `amd64` and `arm64` tarballs. Set `FREEBSD_PKG_BUILD_JAILS` to a
+space-separated mapping such as
+`FreeBSD:14:amd64=jail14amd64 FreeBSD:14:aarch64=jail14aarch64` to run ABI
+builds and `pkg` commands inside jails. When this mapping is set, every ABI in
+`FREEBSD_PKG_ABIS` must be mapped, and `FREEBSD_PKG_REMOTE_DIR` must be visible
+inside those jails.
 
 Common overrides:
 

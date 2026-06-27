@@ -7,11 +7,12 @@ published only from tags, GitHub releases, or an explicit package workflow run.
 The model fits the existing repository infrastructure:
 
 - GitHub Actions `CI` runs `make check`, `make vulncheck`, SBOM generation, and
-  FreeBSD cross-build checks.
+  a separate FreeBSD artifact build on the self-hosted FreeBSD builder path.
 - On `main` pushes, `CI` also builds packages and installs the generated Debian
   package once in the Ubuntu runner as a neutral smoke test.
-- `Package Repositories` builds Linux packages, FreeBSD tarballs, repository
-  metadata, and native FreeBSD pkg repositories, then deploys GitHub Pages.
+- `Package Repositories` builds Linux packages on Ubuntu, builds FreeBSD
+  tarballs and native FreeBSD pkg repositories on the configured BSD builder
+  jails, then deploys GitHub Pages.
 - The `github-pages` environment already allows deployments only from `main`
   and `v*` tags.
 
@@ -20,9 +21,9 @@ The model fits the existing repository infrastructure:
 | Stage | Branch | Purpose | Automatic checks | Output |
 | --- | --- | --- | --- | --- |
 | Change | short-lived `codex/*`, `feat/*`, or `fix/*` branch | One focused change | `CI / check` on pull request | No package publication |
-| Integration | `dev` | Batch reviewed work before release promotion | `CI / check` on pull request and push | No package publication |
+| Integration | `dev` | Batch reviewed work before release promotion | `CI / check` on pull request and push; FreeBSD artifact job on trusted pushes | No package publication |
 | Release base | `main` | Stable, tested source for tags and public packages | `CI / check` plus package build and Debian install smoke on push | Package artifacts uploaded to the run |
-| Package repository | `v*` tag, GitHub pre-release, or manual workflow from `main` | Published package repository set | Package matrix plus FreeBSD pkg repo build | GitHub Pages package repositories |
+| Package repository | `v*` tag, GitHub pre-release, or manual workflow from `main` | Published package repository set | Linux package matrix plus FreeBSD builder artifact/pkg repo build | GitHub Pages package repositories |
 
 Short-lived branches should normally live only a few days. If a change grows
 large, split it into smaller pull requests that can each pass the gates on its
@@ -58,8 +59,9 @@ own.
    promoted and record the evidence.
 4. Review the diff as a release-candidate change set, not as a single feature.
 5. Merge to `main`.
-6. The `main` push runs `CI / check`, then the package job builds all package
-   formats and installs the generated Debian package once in GitHub Actions.
+6. The `main` push runs `CI / check` and the trusted FreeBSD artifact job, then
+   the package job builds Linux package formats and installs the generated
+   Debian package once in GitHub Actions.
 7. Do not deploy package repositories from `dev`.
 
 Direct pushes to `main` should be limited to explicit emergency or automation
@@ -106,7 +108,7 @@ reachable `v[0-9]*` tag and strips the leading `v`.
 | Go code, config schema, profile data | `make check`, `git diff --check` | Targeted `go test ./tests/...` when useful |
 | Inform, adoption, controller payload, profile rendering | `make check` | Standardized Docker gate with `make integration-docker` before `dev` to `main` |
 | Packaged config, service files, package metadata | `make check`, `make package` | GitHub `main` package install smoke |
-| FreeBSD or OPNsense runtime behavior | `make check` | FreeBSD/OPNsense smoke with temporary state only |
+| FreeBSD or OPNsense runtime behavior | `make check` | `make package-freebsd-pkg-repos` on the configured BSD builder path, plus FreeBSD/OPNsense smoke with temporary state when behavior changed |
 | Release notes, package publication | `make check` | `Package Repositories` workflow from tag, release, or `main` dispatch |
 
 Target-host package installation is not a default development gate. Use it only

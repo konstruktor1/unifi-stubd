@@ -1,0 +1,16 @@
+{
+  "rows": [
+    {
+      "interface": "ixl0",
+      "name": "WAN_DHCP",
+      "status": "online",
+      "latency": "7.4 ms"
+    },
+    {
+      "interface": "ixl1",
+      "name": "WAN2_DHCP",
+      "status": "offline",
+      "latency": 0
+    }
+  ]
+}

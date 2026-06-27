@@ -18,8 +18,6 @@ on:
 
 permissions:
   contents: read
-  pages: write
-  id-token: write
 
 concurrency:
   group: github-pages
@@ -63,7 +61,7 @@ jobs:
           test -n "$version"
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
-      - name: Build package matrix
+      - name: Build Linux package artifacts
         env:
           PKG_VERSION: ${{ steps.package-version.outputs.version }}
           PACKAGE_RELEASE: ${{ inputs.package_release || '1' }}
@@ -71,16 +69,14 @@ jobs:
           set -eu
           PKG_RELEASE="$PACKAGE_RELEASE" PKG_GOARCH=amd64 make package
           PKG_RELEASE="$PACKAGE_RELEASE" PKG_GOARCH=arm64 make package
-          PKG_RELEASE="$PACKAGE_RELEASE" PKG_FREEBSD_GOARCH=amd64 make package-freebsd-tgz
-          PKG_RELEASE="$PACKAGE_RELEASE" PKG_FREEBSD_GOARCH=arm64 make package-freebsd-tgz
 
       - uses: actions/upload-artifact@v7
         with:
-          name: package-artifacts
+          name: linux-package-artifacts
           path: dist/packages/
           retention-days: 7
 
-  build-freebsd-pkg-repos:
+  build-freebsd-artifacts:
     runs-on: [self-hosted, Linux, X64, freebsd-pkg-builder]
     steps:
       - uses: actions/checkout@v6
@@ -112,15 +108,23 @@ jobs:
           test -n "$version"
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
-      - name: Build native FreeBSD pkg repositories
+      - name: Build FreeBSD package artifacts and pkg repositories
         env:
           PKG_VERSION: ${{ steps.package-version.outputs.version }}
           PACKAGE_RELEASE: ${{ inputs.package_release || '1' }}
           FREEBSD_PKG_REMOTE: unifi-stubd-freebsd-builder
+          FREEBSD_PKG_BUILD_JAILS: ${{ vars.FREEBSD_PKG_BUILD_JAILS }}
+          FREEBSD_PKG_REQUIRE_JAILS: "1"
         run: |
           set -eu
           PKG_RELEASE="$PACKAGE_RELEASE" make package-freebsd-pkg-repos
           tar -C dist/freebsd-pkg-repos -czf dist/freebsd-pkg-repos.tar.gz repo
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: freebsd-package-artifacts
+          path: dist/packages/
+          retention-days: 7
 
       - uses: actions/upload-artifact@v7
         with:
@@ -131,8 +135,12 @@ jobs:
   build-and-deploy:
     needs:
       - build-packages
-      - build-freebsd-pkg-repos
+      - build-freebsd-artifacts
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
@@ -146,7 +154,12 @@ jobs:
 
       - uses: actions/download-artifact@v7
         with:
-          name: package-artifacts
+          name: linux-package-artifacts
+          path: dist/packages
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: freebsd-package-artifacts
           path: dist/packages
 
       - uses: actions/download-artifact@v7

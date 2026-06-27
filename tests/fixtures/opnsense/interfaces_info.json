@@ -1,0 +1,22 @@
+{
+  "interfaces": {
+    "ixl0": {
+      "interface": "ixl0",
+      "name": "WAN",
+      "macaddr": "02:00:5e:00:53:ca",
+      "ipv4": "198.51.100.9/24",
+      "ipv6": ["2001:db8:100::9/64", "fe80::1/64"],
+      "status": "up",
+      "media": "Ethernet autoselect (10Gbase-SR <full-duplex>)"
+    },
+    "vtnet0": {
+      "interface": "vtnet0",
+      "name": "LAN",
+      "macaddr": "02:00:5e:00:53:04",
+      "ipaddr": "192.0.2.1",
+      "subnet": "24",
+      "status": "active",
+      "speed": 10000
+    }
+  }
+}

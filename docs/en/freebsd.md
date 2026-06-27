@@ -61,6 +61,15 @@ repositories include `FreeBSD:14` and `FreeBSD:15` builds for `amd64`,
 `aarch64`, and `armv7`. The tarball is written to `dist/packages/` and stages
 this layout:
 
+`make package-freebsd-pkg-repos` sends the source tree to the configured
+FreeBSD builder, builds each configured FreeBSD ABI there, and writes the
+native `pkg` repositories plus the published `amd64` and `arm64` tarballs. Set
+`FREEBSD_PKG_BUILD_JAILS` to a space-separated mapping such as
+`FreeBSD:14:amd64=jail14amd64 FreeBSD:14:aarch64=jail14aarch64` to run ABI
+builds and `pkg` commands inside jails. When this mapping is set, every ABI in
+`FREEBSD_PKG_ABIS` must be mapped, and `FREEBSD_PKG_REMOTE_DIR` must be visible
+inside those jails.
+
 ```text
 /usr/local/bin/unifi-stubd
 /usr/local/etc/unifi-stubd/config.yaml
@@ -238,6 +247,35 @@ with `ifname: eth2`, `source_interface: ixl0`, `uplink: eth2`, and WAN health
 latency/connectivity when ping succeeds. Host names such as `ixl0`, `igb0`, or
 `vtnet0` must not appear in controller `ifname` fields. Provider and ISP fields
 remain unset because automatic provider detection is not implemented.
+
+## OPNsense API Source Generator
+
+`unifi-stubd-opnsense` is a separate companion command, not a daemon runtime
+hook. It reads an existing `unifi-stubd` config, reads a separate OPNsense
+source file, calls only OPNsense GET endpoints, and emits a generated
+`unifi-stubd` YAML document for operator review:
+
+```sh
+go run ./cmd/unifi-stubd-opnsense \
+  -config /usr/local/etc/unifi-stubd/config.yaml \
+  -source lab/stub/configs/hosts/opnsense-api-source.example.yaml \
+  > generated.yaml
+```
+
+The source file maps OPNsense/FreeBSD interfaces such as `ixl0`, `igb0`, or
+`vtnet0` to represented UniFi profile ports. Those names remain
+`source_interface` data in generated `port_overrides`; UniFi `ifname` remains
+profile-derived, for example `eth2` on UXG-Pro port 3.
+
+Credentials are loaded from configured files or environment variables and are
+not written into the generated YAML. Use `-validate` to check source syntax and
+credential loading without contacting the API. Use `-out generated.yaml` only
+when the companion should write the file directly; stdout remains the default
+dry-run path.
+For a complete on-box OPNsense workflow with shell commands, see
+[OPNsense API Generator How-to](opnsense-generator.md). Field behavior and
+merge rules are documented in the
+[OPNsense API Generator Reference](opnsense-generator-reference.md).
 
 For OPNsense log metadata, keep `log_source: off` unless the service user can
 read the selected file. A read-only runtime test on OPNsense 26.1/FreeBSD 14.3

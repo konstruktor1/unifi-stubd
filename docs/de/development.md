@@ -8,12 +8,13 @@ expliziten Package-Workflow-Lauf veroeffentlicht.
 Das Modell passt zur vorhandenen Repository-Infrastruktur:
 
 - GitHub Actions `CI` fuehrt `make check`, `make vulncheck`,
-  SBOM-Erzeugung und FreeBSD-Cross-Build-Checks aus.
+  SBOM-Erzeugung und einen separaten FreeBSD-Artefakt-Build auf dem
+  self-hosted FreeBSD-Builder-Pfad aus.
 - Bei Pushes auf `main` baut `CI` zusaetzlich Pakete und installiert das
   erzeugte Debian-Paket einmal im Ubuntu-Runner als neutralen Smoke-Test.
-- `Package Repositories` baut Linux-Pakete, FreeBSD-Tarballs,
-  Repository-Metadaten und native FreeBSD-pkg-Repositories und deployed
-  GitHub Pages.
+- `Package Repositories` baut Linux-Pakete auf Ubuntu, baut FreeBSD-Tarballs
+  und native FreeBSD-pkg-Repositories in den konfigurierten BSD-Builder-Jails
+  und deployed danach GitHub Pages.
 - Das `github-pages`-Environment erlaubt Deployments bereits nur von `main` und
   `v*`-Tags.
 
@@ -22,9 +23,9 @@ Das Modell passt zur vorhandenen Repository-Infrastruktur:
 | Stufe | Branch | Zweck | Automatische Checks | Ergebnis |
 | --- | --- | --- | --- | --- |
 | Aenderung | kurzlebiger `codex/*`-, `feat/*`- oder `fix/*`-Branch | Eine fokussierte Aenderung | `CI / check` im Pull Request | Keine Paketveroeffentlichung |
-| Integration | `dev` | Reviewte Arbeit vor Release-Promotion sammeln | `CI / check` im Pull Request und bei Push | Keine Paketveroeffentlichung |
+| Integration | `dev` | Reviewte Arbeit vor Release-Promotion sammeln | `CI / check` im Pull Request und bei Push; FreeBSD-Artefakt-Job bei vertrauenswuerdigen Pushes | Keine Paketveroeffentlichung |
 | Release-Basis | `main` | Stabile, getestete Quelle fuer Tags und oeffentliche Pakete | `CI / check` plus Package-Build und Debian-Install-Smoke bei Push | Paketartefakte im Workflow-Lauf |
-| Paketquelle | `v*`-Tag, GitHub-Pre-Release oder manueller Workflow von `main` | Veroeffentlichtes Paketquellen-Set | Package-Matrix plus FreeBSD-pkg-Repo-Build | GitHub-Pages-Paketquellen |
+| Paketquelle | `v*`-Tag, GitHub-Pre-Release oder manueller Workflow von `main` | Veroeffentlichtes Paketquellen-Set | Linux-Package-Matrix plus FreeBSD-Builder-Artefakt-/pkg-Repo-Build | GitHub-Pages-Paketquellen |
 
 Kurzlebige Branches sollten normalerweise nur wenige Tage leben. Wenn eine
 Aenderung zu gross wird, wird sie in kleinere Pull Requests geteilt, die jeweils
@@ -62,9 +63,9 @@ eigenstaendig durch die Gates kommen.
 4. Den Diff als Release-Candidate-Aenderungsset reviewen, nicht als einzelne
    Feature-Aenderung.
 5. Nach `main` mergen.
-6. Der `main`-Push startet `CI / check`; danach baut der Package-Job alle
-   Paketformate und installiert das erzeugte Debian-Paket einmal in GitHub
-   Actions.
+6. Der `main`-Push startet `CI / check` und den vertrauenswuerdigen
+   FreeBSD-Artefakt-Job; danach baut der Package-Job Linux-Paketformate und
+   installiert das erzeugte Debian-Paket einmal in GitHub Actions.
 7. Paketquellen nicht von `dev` deployen.
 
 Direkte Pushes auf `main` bleiben expliziten Notfaellen oder Automation
@@ -111,7 +112,7 @@ neuesten erreichbaren `v[0-9]*`-Tag und entfernt das fuehrende `v`.
 | Go-Code, Config-Schema, Profildaten | `make check`, `git diff --check` | Gezieltes `go test ./tests/...`, wenn sinnvoll |
 | Inform, Adoption, Controller-Payload, Profil-Rendering | `make check` | Standardisierter Docker-Gate mit `make integration-docker` vor `dev` nach `main` |
 | Paketierte Config, Service-Dateien, Paket-Metadaten | `make check`, `make package` | GitHub-`main`-Package-Install-Smoke |
-| FreeBSD- oder OPNsense-Runtime-Verhalten | `make check` | FreeBSD-/OPNsense-Smoke nur mit temporaerem State |
+| FreeBSD- oder OPNsense-Runtime-Verhalten | `make check` | `make package-freebsd-pkg-repos` auf dem konfigurierten BSD-Builder-Pfad plus FreeBSD-/OPNsense-Smoke mit temporaerem State, wenn Verhalten geaendert wurde |
 | Release Notes, Paketveroeffentlichung | `make check` | `Package Repositories` per Tag, Release oder `main`-Dispatch |
 
 Zielhost-Paketinstallation ist kein Standard-Gate der Entwicklung. Sie wird nur
