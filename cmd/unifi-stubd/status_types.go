@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/konstruktor1/unifi-stubd/internal/adoption"
 	appconfig "github.com/konstruktor1/unifi-stubd/internal/config"
 	"github.com/konstruktor1/unifi-stubd/internal/device"
 	"github.com/konstruktor1/unifi-stubd/internal/observe"
@@ -35,33 +36,37 @@ type statusIdentity struct {
 
 // statusConfig contains non-secret runtime configuration selected for status output.
 type statusConfig struct {
-	OperationMode       string                   `json:"operation_mode"`
-	ControllerURL       string                   `json:"controller_url,omitempty"`
-	InformURL           string                   `json:"inform_url,omitempty"`
-	Interval            string                   `json:"interval"`
-	NoDiscovery         bool                     `json:"no_discovery"`
-	DiscoveryInterface  string                   `json:"discovery_interface,omitempty"`
-	DiscoveryTargets    []string                 `json:"discovery_targets,omitempty"`
-	ManagementLAN       *appconfig.ManagementLAN `json:"management_lan,omitempty"`
-	SSHListen           string                   `json:"ssh_listen,omitempty"`
-	StatePath           string                   `json:"state_path"`
-	StatusPath          string                   `json:"status_path"`
-	UplinkNeighbor      *statusUplinkNeighbor    `json:"uplink_neighbor,omitempty"`
-	PortNeighbors       []statusPortNeighbor     `json:"port_neighbors,omitempty"`
-	PortOverrides       []device.PortOverride    `json:"port_overrides,omitempty"`
-	BridgeObserve       appconfig.BridgeObserve  `json:"bridge_observe,omitempty"`
-	PortMappings        []appconfig.PortMapping  `json:"port_mappings,omitempty"`
-	LLDPSource          string                   `json:"lldp_source"`
-	TrafficSource       string                   `json:"traffic_source"`
-	TrafficRatesEnabled bool                     `json:"traffic_rates_enabled"`
-	WANHealth           statusWANHealthConfig    `json:"wan_health"`
-	LogSource           string                   `json:"log_source"`
-	ProcSource          string                   `json:"proc_source"`
-	DBusEnabled         bool                     `json:"dbus_enabled"`
-	DBusBus             string                   `json:"dbus_bus"`
-	SyslogPath          string                   `json:"syslog_path,omitempty"`
-	InstanceGuard       string                   `json:"instance_guard"`
-	InstanceGuardPath   string                   `json:"instance_guard_path,omitempty"`
+	OperationMode              string                   `json:"operation_mode"`
+	ControllerURL              string                   `json:"controller_url,omitempty"`
+	InformURL                  string                   `json:"inform_url,omitempty"`
+	Interval                   string                   `json:"interval"`
+	ControllerIntervalMin      string                   `json:"controller_interval_min"`
+	ControllerIntervalMax      string                   `json:"controller_interval_max"`
+	InformBackoffMax           string                   `json:"inform_backoff_max"`
+	InformBackoffJitterPercent int                      `json:"inform_backoff_jitter_percent"`
+	NoDiscovery                bool                     `json:"no_discovery"`
+	DiscoveryInterface         string                   `json:"discovery_interface,omitempty"`
+	DiscoveryTargets           []string                 `json:"discovery_targets,omitempty"`
+	ManagementLAN              *appconfig.ManagementLAN `json:"management_lan,omitempty"`
+	SSHListen                  string                   `json:"ssh_listen,omitempty"`
+	StatePath                  string                   `json:"state_path"`
+	StatusPath                 string                   `json:"status_path"`
+	UplinkNeighbor             *statusUplinkNeighbor    `json:"uplink_neighbor,omitempty"`
+	PortNeighbors              []statusPortNeighbor     `json:"port_neighbors,omitempty"`
+	PortOverrides              []device.PortOverride    `json:"port_overrides,omitempty"`
+	BridgeObserve              appconfig.BridgeObserve  `json:"bridge_observe,omitempty"`
+	PortMappings               []appconfig.PortMapping  `json:"port_mappings,omitempty"`
+	LLDPSource                 string                   `json:"lldp_source"`
+	TrafficSource              string                   `json:"traffic_source"`
+	TrafficRatesEnabled        bool                     `json:"traffic_rates_enabled"`
+	WANHealth                  statusWANHealthConfig    `json:"wan_health"`
+	LogSource                  string                   `json:"log_source"`
+	ProcSource                 string                   `json:"proc_source"`
+	DBusEnabled                bool                     `json:"dbus_enabled"`
+	DBusBus                    string                   `json:"dbus_bus"`
+	SyslogPath                 string                   `json:"syslog_path,omitempty"`
+	InstanceGuard              string                   `json:"instance_guard"`
+	InstanceGuardPath          string                   `json:"instance_guard_path,omitempty"`
 }
 
 // statusUplinkNeighbor summarizes the configured uplink MAC-table neighbor.
@@ -147,31 +152,47 @@ type persistedRunStatus struct {
 
 // lastInformStatus summarizes the latest controller inform exchange.
 type lastInformStatus struct {
-	Time            string                   `json:"time,omitempty"`
-	URL             string                   `json:"url,omitempty"`
-	StatusCode      int                      `json:"status_code,omitempty"`
-	ResponseType    string                   `json:"response_type,omitempty"`
-	ControllerState string                   `json:"controller_state,omitempty"`
-	CFGVersion      string                   `json:"cfgversion,omitempty"`
-	Version         string                   `json:"version,omitempty"`
-	AttemptedAESGCM bool                     `json:"attempted_aes_gcm,omitempty"`
-	UsedAESGCM      bool                     `json:"used_aes_gcm,omitempty"`
-	FallbackToCBC   bool                     `json:"fallback_to_cbc,omitempty"`
-	RawBytes        int                      `json:"raw_bytes,omitempty"`
-	JSONBytes       int                      `json:"json_bytes,omitempty"`
-	Traffic         *lastInformTrafficStatus `json:"traffic,omitempty"`
-	IntervalSeconds int                      `json:"interval_seconds,omitempty"`
-	IncludeBlocks   []string                 `json:"include_blocks,omitempty"`
-	ResetRequested  bool                     `json:"reset_requested,omitempty"`
-	ResetApplied    bool                     `json:"reset_applied,omitempty"`
-	ResetReason     string                   `json:"reset_reason,omitempty"`
-	HasMgmtCFG      bool                     `json:"has_mgmt_cfg,omitempty"`
-	HasSystemCFG    bool                     `json:"has_system_cfg,omitempty"`
-	SystemCFGBytes  int                      `json:"system_cfg_bytes,omitempty"`
-	SystemCFGKeys   []string                 `json:"system_cfg_keys,omitempty"`
-	Ignored         bool                     `json:"ignored,omitempty"`
-	IgnoredReason   string                   `json:"ignored_reason,omitempty"`
-	Error           string                   `json:"error,omitempty"`
+	Time                string                           `json:"time,omitempty"`
+	URL                 string                           `json:"url,omitempty"`
+	StatusCode          int                              `json:"status_code,omitempty"`
+	ResponseType        string                           `json:"response_type,omitempty"`
+	ControllerState     string                           `json:"controller_state,omitempty"`
+	CFGVersion          string                           `json:"cfgversion,omitempty"`
+	Version             string                           `json:"version,omitempty"`
+	AttemptedAESGCM     bool                             `json:"attempted_aes_gcm,omitempty"`
+	UsedAESGCM          bool                             `json:"used_aes_gcm,omitempty"`
+	FallbackToCBC       bool                             `json:"fallback_to_cbc,omitempty"`
+	RawBytes            int                              `json:"raw_bytes,omitempty"`
+	JSONBytes           int                              `json:"json_bytes,omitempty"`
+	Traffic             *lastInformTrafficStatus         `json:"traffic,omitempty"`
+	IntervalSeconds     int                              `json:"interval_seconds,omitempty"`
+	Schedule            lastInformScheduleStatus         `json:"schedule"`
+	IncludeBlocks       []string                         `json:"include_blocks,omitempty"`
+	ResetRequested      bool                             `json:"reset_requested,omitempty"`
+	ResetApplied        bool                             `json:"reset_applied,omitempty"`
+	ResetReason         string                           `json:"reset_reason,omitempty"`
+	CommandName         string                           `json:"command_name,omitempty"`
+	CommandRequestIDSet bool                             `json:"command_request_id_set,omitempty"`
+	CommandHandled      bool                             `json:"command_handled,omitempty"`
+	CommandResultQueued bool                             `json:"command_result_queued,omitempty"`
+	CommandDuplicate    bool                             `json:"command_duplicate,omitempty"`
+	ControllerCommands  adoption.CommandLifecycleSummary `json:"controller_commands,omitempty"`
+	HasMgmtCFG          bool                             `json:"has_mgmt_cfg,omitempty"`
+	HasSystemCFG        bool                             `json:"has_system_cfg,omitempty"`
+	SystemCFGBytes      int                              `json:"system_cfg_bytes,omitempty"`
+	SystemCFGKeys       []string                         `json:"system_cfg_keys,omitempty"`
+	Ignored             bool                             `json:"ignored,omitempty"`
+	IgnoredReason       string                           `json:"ignored_reason,omitempty"`
+	Error               string                           `json:"error,omitempty"`
+}
+
+// lastInformScheduleStatus exposes only effective timing and retry counters.
+type lastInformScheduleStatus struct {
+	EffectiveInterval     string `json:"effective_interval"`
+	NextDelay             string `json:"next_delay"`
+	ConsecutiveFailures   int    `json:"consecutive_failures"`
+	Backoff               bool   `json:"backoff"`
+	ControllerHintApplied bool   `json:"controller_hint_applied"`
 }
 
 // lastInformTrafficStatus reports the payload traffic fields from the most

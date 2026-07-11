@@ -6,7 +6,7 @@ published only from tags, GitHub releases, or an explicit package workflow run.
 
 The model fits the existing repository infrastructure:
 
-- GitHub Actions `CI` runs `make check`, `make vulncheck`, SBOM generation, and
+- GitHub Actions `CI` runs `make check`, `make coverage`, `make vulncheck`, SBOM generation, and
   a separate FreeBSD artifact build on the self-hosted FreeBSD builder path.
 - On `main` pushes, `CI` also builds packages and installs the generated Debian
   package once in the Ubuntu runner as a neutral smoke test.
@@ -15,6 +15,15 @@ The model fits the existing repository infrastructure:
   then deploys GitHub Pages.
 - The `github-pages` environment already allows deployments only from `main`
   and `v*` tags.
+
+## Go Toolchain
+
+Both `go.mod` and `go.work` declare the supported Go `1.25` minor line. Patch
+versions and a separate `toolchain` directive are intentionally not pinned.
+
+All GitHub Actions jobs read `go.mod` through `actions/setup-go` with
+`check-latest: true`, so GitHub resolves the newest available Go `1.25` patch.
+The Docker build follows the same minor line through `golang:1.25-bookworm`.
 
 ## Branch Stages
 
@@ -105,7 +114,7 @@ reachable `v[0-9]*` tag and strips the leading `v`.
 
 | Change type | Required local gate | Extra gate |
 | --- | --- | --- |
-| Go code, config schema, profile data | `make check`, `git diff --check` | Targeted `go test ./tests/...` when useful |
+| Go code, config schema, profile data | `make check`, `make coverage`, `git diff --check` | Targeted `go test ./tests/...` when useful |
 | Inform, adoption, controller payload, profile rendering | `make check` | Standardized Docker gate with `make integration-docker` before `dev` to `main` |
 | Packaged config, service files, package metadata | `make check`, `make package` | GitHub `main` package install smoke |
 | FreeBSD or OPNsense runtime behavior | `make check` | `make package-freebsd-pkg-repos` on the configured BSD builder path, plus FreeBSD/OPNsense smoke with temporary state when behavior changed |

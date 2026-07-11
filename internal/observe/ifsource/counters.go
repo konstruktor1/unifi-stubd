@@ -22,11 +22,14 @@ func readHostInterfaceCounters(ifaceName string) (observe.InterfaceStats, bool) 
 // mergeInterfaceStats uses fallback counters only for fields the primary source
 // did not provide, keeping more specific interface reads authoritative.
 func mergeInterfaceStats(primary, fallback observe.InterfaceStats) observe.InterfaceStats {
-	for _, field := range interfaceCounterFields {
-		if field.get(primary) == 0 {
-			field.setCounter(&primary, field.get(fallback))
+	if !primary.CountersSet {
+		for _, field := range interfaceCounterFields {
+			if field.get(primary) == 0 {
+				field.setCounter(&primary, field.get(fallback))
+			}
 		}
 	}
+	primary.CountersSet = primary.CountersSet || fallback.CountersSet
 	if primary.SpeedMbps == 0 {
 		primary.SpeedMbps = fallback.SpeedMbps
 	}
@@ -98,6 +101,7 @@ func parseNetstatCounters(output, ifaceName string) (observe.InterfaceStats, boo
 			}
 			field.setCounter(&counters, value)
 		}
+		counters.CountersSet = true
 		return counters, true
 	}
 	return observe.InterfaceStats{}, false

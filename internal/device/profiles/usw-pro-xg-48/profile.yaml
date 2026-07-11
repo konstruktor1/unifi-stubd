@@ -20,4 +20,5 @@ port_speed: 10000
 uplink_speed: 25000
 port_media: GE
 uplink_media: SFP28
+stability: experimental
 description: Pro XG 48 with 10G RJ45 and 25G SFP28 uplinks

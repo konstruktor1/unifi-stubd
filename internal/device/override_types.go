@@ -59,6 +59,9 @@ type PortOverride struct {
 	RXErrors int64 `yaml:"-" json:"-"`
 	// TXErrors overrides the transmit error counter when non-zero.
 	TXErrors int64 `yaml:"-" json:"-"`
+	// CountersSet reports that the counter fields are a complete observed sample,
+	// including valid zero values after an interface reset.
+	CountersSet bool `yaml:"-" json:"-"`
 	// RXBytesRate overrides the receive byte rate when TrafficRatesSet is true.
 	RXBytesRate int64 `yaml:"-" json:"-"`
 	// TXBytesRate overrides the transmit byte rate when TrafficRatesSet is true.

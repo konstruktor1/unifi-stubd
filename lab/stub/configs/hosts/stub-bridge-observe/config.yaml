@@ -7,7 +7,9 @@ ip: 172.31.242.25
 hostname: stub-bridge-observe
 uplink_speed: profile
 interval_seconds: 2
-no_discovery: true
+no_discovery: false
+discovery_targets:
+  - unifi:10001
 
 bridge_observe:
   bridge: stubbr0

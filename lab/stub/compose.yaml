@@ -19,7 +19,7 @@ x-stub-common: &stub-common
 
 services:
   unifi:
-    image: ${UNIFI_NETWORK_IMAGE:-lscr.io/linuxserver/unifi-network-application:10.3.58-ls129}
+    image: ${UNIFI_NETWORK_IMAGE:-lscr.io/linuxserver/unifi-network-application:10.4.57-ls135}
     container_name: ${UNIFI_CONTAINER:-stub-lab-unifi-network}
     depends_on:
       unifi-db:
@@ -106,6 +106,10 @@ services:
       - ${UNIFI_STUB_INFORM_PROXY_TARGET:-http://unifi-controller:8080}
       - -capture-dir
       - /captures
+      - -discovery-listen
+      - 0.0.0.0:10001
+      - -discovery-target
+      - ${UNIFI_STUB_DISCOVERY_PROXY_TARGET:-unifi-controller:10001}
     restart: unless-stopped
 
   stub:

@@ -25,11 +25,12 @@ Die Pipeline ist getrennt in:
 
 | Ziel | Toolchain | Einstieg | Output | OS/Arch | Umgebung | Status |
 | --- | --- | --- | --- | --- | --- | --- |
-| `make build` | Go 1.25 Floor | `go build ./...` | Lokale Binaries im Go-Buildcache | Host OS/Arch | Lokal oder GitHub Ubuntu | Definiert, kein Upload |
-| `make check` | Go, golangci-lint, Shell-Policy | `lint`, `validate-config`, `test` | Pass/fail Gate | Host OS/Arch | GitHub Ubuntu und lokal | Primaerer Pre-Merge-Gate |
-| `make vulncheck` | Go `govulncheck` | `govulncheck ./...` | Pass/fail Gate | Host OS/Arch | GitHub Ubuntu | CI-Security-Gate |
-| `make build-freebsd` | Go Cross-Compile | `cmd/unifi-stubd` | `dist/unifi-stubd_freebsd_<arch>` | FreeBSD `PKG_FREEBSD_GOARCH` | Lokal | Lokales Diagnoseziel, kein Release-CI |
-| `make package` | Go plus nFPM | `scripts/package.sh` | `.deb`, `.rpm`, Arch-Paket, Linux-`.tar.gz` | Linux `amd64` oder `arm64` | GitHub Ubuntu | Release-Paketpfad |
+| `make build` | Aktueller von GitHub unterstuetzter Go-1.25-Patch | `go build ./...` | Lokale Binaries im Go-Buildcache | Host OS/Arch | Lokal oder GitHub Ubuntu | Definiert, kein Upload |
+| `make check` | Go 1.25, golangci-lint, Shell-Policy | `lint`, `validate-config`, `test` | Pass/fail Gate | Host OS/Arch | GitHub Ubuntu und lokal | Primaerer Pre-Merge-Gate |
+| `make coverage` | Go-1.25-Coverage-Instrumentierung | Externe Tests unter `tests/...` mit allen produktiven `internal/...`-Paketen | `dist/cover.out`, `dist/coverage.html` und ein Mindest-Gate von 60 Prozent | Host OS/Arch | GitHub Ubuntu und lokal | CI-Qualitaets-Gate |
+| `make vulncheck` | Go 1.25 `govulncheck` | `govulncheck ./...` | Pass/fail Gate | Host OS/Arch | GitHub Ubuntu | CI-Security-Gate |
+| `make build-freebsd` | Go 1.25 Cross-Compile | `cmd/unifi-stubd` | `dist/unifi-stubd_freebsd_<arch>` | FreeBSD `PKG_FREEBSD_GOARCH` | Lokal | Lokales Diagnoseziel, kein Release-CI |
+| `make package` | Go 1.25 plus nFPM | `scripts/package.sh` | `.deb`, `.rpm`, Arch-Paket, Linux-`.tar.gz` | Linux `amd64` oder `arm64` | GitHub Ubuntu | Release-Paketpfad |
 | `make package-deb` | Go plus nFPM | `scripts/package.sh deb` | Debian-Paket | Linux `PKG_GOARCH` | Lokal oder GitHub Ubuntu | Definiert |
 | `make package-rpm` | Go plus nFPM | `scripts/package.sh rpm` | RPM-Paket | Linux `PKG_GOARCH` | Lokal oder GitHub Ubuntu | Definiert |
 | `make package-arch` | Go plus nFPM | `scripts/package.sh archlinux` | Arch-Linux-Paket | Linux `PKG_GOARCH` | Lokal oder GitHub Ubuntu | Definiert |
@@ -37,8 +38,8 @@ Die Pipeline ist getrennt in:
 | `make package-freebsd-tgz` | Go Cross-Compile plus tar | `scripts/package.sh tgz` | FreeBSD-Tarball | FreeBSD `amd64` oder `arm64` | Lokal | Definiert, nicht Release-Workflow |
 | `make package-freebsd-pkg-repos` | Go auf FreeBSD-Builder, FreeBSD `pkg`, tar | `scripts/package-freebsd-pkg-repos.sh` | Native FreeBSD-`pkg`-Repos und FreeBSD-Tarballs | `FreeBSD:14/15` fuer `amd64`, `aarch64`, `armv7`; Tarballs default `amd64`, `arm64` | Self-hosted FreeBSD-Builder; optional gemappte `jexec`-Jails | Release-BSD-Pfad |
 | `make package-repos` | dpkg, createrepo-c, repo-add, tar | `scripts/build-package-repos.sh` | Statische Paketquellen-Seite | Paketmetadaten fuer definierte Ziele | GitHub Ubuntu | GitHub-Pages-Input |
-| `make integration-docker` | Docker Compose und Go-Helfer | `lab/stub/scripts/run-docker-integration.sh` | Pass/fail Smoke | Linux-Container-Lab | Lokal/manuell | Definiert, nicht automatisch in CI |
-| Root `Dockerfile` | Docker BuildKit, Go, Alpine | `Dockerfile` | Runtime-/Lab-Image mit Daemon und Inform-Proxy | Linux multi-arch-faehig | Lokal/manuell | Kein Publish-Ziel definiert |
+| `make integration-docker` | Docker Compose, gepinntes UniFi Network und Go-Helfer | `lab/stub/scripts/run-docker-integration.sh` | Controller-Adoption-Gate | Linux-Container-Lab | Lokal/manuell | Definiert, nicht automatisch in CI |
+| Root `Dockerfile` | Docker BuildKit, Go, Alpine | `Dockerfile` | Runtime-/Lab-Image mit Daemon und Inform-/Discovery-Proxy | Linux multi-arch-faehig | Lokal/manuell | Kein Publish-Ziel definiert |
 
 Offene Build-Zieldefinitionen:
 
@@ -64,7 +65,7 @@ Offene Build-Zieldefinitionen:
 | Artefakte | `sbom`, `packages` bei `main`-Push |
 | Sicherheitsgrenze | Self-hosted FreeBSD-Job wird fuer Pull Requests uebersprungen. |
 
-`check` fuehrt `make check`, `make vulncheck`, SBOM-Erzeugung und Upload aus.
+`check` fuehrt `make check`, `make coverage`, `make vulncheck`, SBOM-Erzeugung und Upload aus.
 Auf `main` wird Go `stable` genutzt; andere Refs nutzen die Version aus
 `go.mod`.
 
@@ -142,7 +143,7 @@ Der BSD-Builder muss bereitstellen:
 
 Container sind nur fuer Runtime und Lab definiert:
 
-- Root-`Dockerfile`: Daemon und Inform-Proxy in Alpine-Runtime-Image.
+- Root-`Dockerfile`: Daemon und Inform-/Discovery-Proxy im Alpine-Runtime-Image.
 - Lab-Gateway-Profil-Dockerfiles: Firmware- und Controller-Lab-Research-Pfade.
 - Kein CI-Buildcontainer, kein GHCR-Image, kein Container-Release definiert.
 

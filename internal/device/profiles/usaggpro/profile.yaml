@@ -17,4 +17,5 @@ port_speed: 10000
 uplink_speed: 25000
 port_media: SFP+
 uplink_media: SFP28
+stability: experimental
 description: 32-port Pro Aggregation switch with 10G SFP+ and 25G SFP28

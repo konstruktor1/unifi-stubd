@@ -14,6 +14,10 @@ import (
 // portsForRuntime merges profile defaults, passive observations, LLDP hints,
 // operator overrides, and configured neighbors into one ordered port list.
 func portsForRuntime(flags runtimeFlags, profile device.Profile, portBuildOptions device.PortBuildOptions, plt platform.Platform) []device.Port {
+	ctx, cancel := context.WithTimeout(context.Background(), observeTimeout)
+	flags.portOverrides = enrichOverrides(ctx, plt, flags.portOverrides)
+	cancel()
+
 	ports := device.BuildPorts(profile, portBuildOptions)
 	mode := normalizeMode(flags.operationMode)
 	if mode == operationModePortMap {
@@ -41,7 +45,7 @@ func portsForRuntime(flags runtimeFlags, profile device.Profile, portBuildOption
 		ports = device.ApplyPortNeighbors(ports, flags.portNeighbors)
 		return device.ApplyUplinkNeighbor(ports, flags.uplinkNeighbor)
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), observeTimeout)
+	ctx, cancel = context.WithTimeout(context.Background(), observeTimeout)
 	defer cancel()
 
 	bridgeObserve := effectiveBridgeObserve(flags)

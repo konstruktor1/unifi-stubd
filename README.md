@@ -7,6 +7,8 @@ UniFi Network Controller without mutating the host.
 Documentation: [English](docs/en/README.md) | [Deutsch](docs/de/README.md) |
 [Wiki](docs/wiki/README.md) | [Project Status](docs/en/project-status.md) |
 [Projektstand](docs/de/project-status.md) |
+[Prioritized Backlog](docs/en/backlog.md) |
+[Priorisierter Backlog](docs/de/backlog.md) |
 [Development Workflow](docs/en/development.md) |
 [Entwicklungsworkflow](docs/de/development.md)
 
@@ -72,7 +74,7 @@ Implemented:
 - OpenRC and systemd service definitions.
 - Package builders for Debian, RPM, Arch Linux, and `.tar.gz`.
 - Stub-only FreeBSD/OPNsense tarball with rc.d service artifact.
-- Docker lab integration smoke test against a real UniFi Network Application
+- Docker controller integration gate against a pinned UniFi Network Application
   container, including controller-triggered adoption.
 
 Lab/research status:
@@ -318,6 +320,13 @@ Only the local operator-edited YAML file is trusted for runtime choices:
 controller `setparam` data can update local adoption state, but it is not
 applied to host networking.
 
+`interval_seconds` is the local base heartbeat. Positive controller interval
+hints are accepted only between `controller_interval_min_seconds` and
+`controller_interval_max_seconds`. Inform transport failures use exponential
+backoff up to `inform_backoff_max_seconds` with the locally configured
+`inform_backoff_jitter_percent`; a completed HTTP exchange resets that failure
+sequence. These settings alter only discovery/inform timing.
+
 Live daemon starts use `instance_guard: fail` by default. A second live process
 on the same host is rejected before SSH, discovery, or inform traffic starts.
 Intentional multi-stub labs can opt in with `instance_guard: warn` or
@@ -461,10 +470,14 @@ Optional passive sources are configured with `lldp_source`, `log_source`,
 `proc_source`, and `dbus_enabled`. They feed payload/status metadata only and
 do not apply controller provisioning or host-network changes.
 
-The Docker controller smoke test reuses the lab controller and MITM services,
-checks `bridge-observe` and `port-map` payloads, triggers adoption through the
-controller API, verifies persisted adoption state, and cleans temporary test
-devices again:
+The Docker controller gate bootstraps or reuses the pinned lab controller,
+checks `bridge-observe`, `port-map`, and gateway payloads, captures and forwards
+discovery plus inform traffic, triggers switch and gateway adoption through the
+controller API, and verifies `setparam`, persisted auth state, AES-GCM, and a
+stable connected state. For the gateway fixture it also proves one safe,
+memory-only `wg-genkeypair` response and no duplicate task after a stability
+window, plus the controller's bounded heartbeat hint with no active backoff,
+before cleaning the temporary devices:
 
 ```sh
 make integration-docker
@@ -567,6 +580,9 @@ The repository keeps the Go requirement as a minor-version floor:
 
 - `go.mod`: minimum supported module version, currently Go `1.25`.
 - `go.work`: repository workspace using the same Go minor version.
+
+GitHub Actions reads `go.mod` with `check-latest: true`, so CI uses the newest
+available Go `1.25` patch without committing a patch or `toolchain` pin.
 
 Build tools are tracked as Go module tools and run through `go tool`, so no
 separate global `golangci-lint` or `nfpm` install is required.

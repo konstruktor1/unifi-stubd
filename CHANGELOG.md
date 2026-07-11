@@ -7,6 +7,45 @@ semantic version tags once releases are published.
 
 ## [Unreleased]
 
+### Changed
+
+- Standardized GitHub Actions builds on the current Go `1.25` release selected
+  from `go.mod` with `check-latest`, without a patch or `toolchain` pin.
+- Rebuilt interface-backed port overrides from a fresh snapshot on every
+  heartbeat while preserving explicit operator values and zero counter resets.
+- Made adoption and runtime-status replacement durable with synced temporary
+  files and atomic rename, and handled both `SIGINT` and `SIGTERM` as clean
+  daemon shutdown requests.
+- Restored the pinned Docker controller gate with fresh-volume bootstrap,
+  discovery forwarding, Pending Adoption, sanitized `setparam` evidence,
+  persisted auth state, AES-GCM wire checks, and stable connected-state checks
+  for switch and gateway fixtures.
+- Completed the controller `wg-genkeypair` lifecycle with an in-memory X25519
+  result, correlated inform delivery, retry-safe duplicate handling, and a real
+  controller assertion that the task does not repeat.
+- Replaced the fixed heartbeat ticker with a dynamic inform schedule that
+  clamps controller interval hints to local bounds, applies bounded
+  exponential transport-failure backoff with jitter, and resets on a completed
+  HTTP exchange.
+- Repaired `make coverage` to instrument production packages from the
+  external test suites, report aggregate coverage, and enforce a 60 percent
+  minimum locally and in CI.
+- Updated the pinned Docker controller to UniFi Network `10.4.57-ls135`, made
+  its no-command gateway lifecycle explicit, and retained an opt-in gate for
+  controllers that issue `wg-genkeypair`.
+- Made profile maturity evidence-based: unvalidated profiles and all gateway
+  identities remain experimental, while tested profiles require concrete
+  controller versions.
+
+### Security
+
+- Removed controller-supplied adoption SSH arguments from logs and kept
+  authkeys and SSH passwords out of command audits, status, and authentication
+  errors while preserving the protected adoption state.
+- Restricted controller command handling to an argument-free `wg-genkeypair`.
+  The generated keys and request ID remain memory-only, logs and status expose
+  sanitized counters, and all other controller commands remain ignored.
+
 ## [0.2.1-alpha] - 2026-06-21
 
 ### Added

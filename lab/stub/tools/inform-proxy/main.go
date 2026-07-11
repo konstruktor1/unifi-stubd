@@ -21,16 +21,31 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/konstruktor1/unifi-stubd/internal/adoption"
 	"github.com/konstruktor1/unifi-stubd/internal/inform"
+)
+
+const (
+	eventField                 = "event"
+	timestampField             = "timestamp"
+	bodyPathField              = "body_path"
+	bodyBytesField             = "body_bytes"
+	bodySHA256Field            = "body_sha256"
+	presentField               = "present"
+	decodedWithDefaultKeyField = "decoded_with_default_key"
 )
 
 func main() {
 	var listen string
 	var target string
 	var captureDir string
+	var discoveryListen string
+	var discoveryTarget string
 	flag.StringVar(&listen, "listen", "0.0.0.0:8080", "listen address")
 	flag.StringVar(&target, "target", "http://unifi-controller:8080", "upstream controller base URL")
 	flag.StringVar(&captureDir, "capture-dir", envDefault("MITM_CAPTURE_DIR", "/captures"), "capture output directory")
+	flag.StringVar(&discoveryListen, "discovery-listen", "0.0.0.0:10001", "UDP discovery listen address")
+	flag.StringVar(&discoveryTarget, "discovery-target", "unifi-controller:10001", "UDP discovery forwarding target; empty disables forwarding")
 	flag.Parse()
 
 	proxy, err := newProxy(target, captureDir)
@@ -39,7 +54,21 @@ func main() {
 	}
 	log.Printf("writing inform captures to %s", captureDir)
 	log.Printf("forwarding inform traffic to %s", target)
+	discoveryConn, err := net.ListenPacket("udp4", discoveryListen)
+	if err != nil {
+		log.Fatal(err)
+	}
+	log.Printf("capturing discovery traffic on %s", discoveryListen)
+	if discoveryTarget != "" {
+		log.Printf("forwarding discovery traffic to %s", discoveryTarget)
+	}
+	go func() {
+		if err := proxy.serveDiscovery(discoveryConn, discoveryTarget); err != nil {
+			log.Fatalf("discovery proxy failed: %v", err)
+		}
+	}()
 	if err := http.ListenAndServe(listen, proxy); err != nil {
+		_ = discoveryConn.Close()
 		log.Fatal(err)
 	}
 }
@@ -138,18 +167,18 @@ func (p *proxy) captureRequest(eventID string, r *http.Request, body []byte) err
 		return fmt.Errorf("write request body: %w", err)
 	}
 	event := map[string]any{
-		"event":        "request",
-		"id":           eventID,
-		"timestamp":    timestamp(),
-		"client":       r.RemoteAddr,
-		"method":       r.Method,
-		"url":          requestURL(r),
-		"http_version": r.Proto,
-		"headers":      headerMap(r.Header),
-		"body_path":    bodyPath,
-		"body_bytes":   len(body),
-		"body_sha256":  sha256Hex(body),
-		"tnbu":         tnbuSummary(body),
+		eventField:      "request",
+		"id":            eventID,
+		timestampField:  timestamp(),
+		"client":        r.RemoteAddr,
+		"method":        r.Method,
+		"url":           requestURL(r),
+		"http_version":  r.Proto,
+		"headers":       headerMap(r.Header),
+		bodyPathField:   bodyPath,
+		bodyBytesField:  len(body),
+		bodySHA256Field: sha256Hex(body),
+		"tnbu":          tnbuSummary(body),
 	}
 	return p.writeEvent(event)
 }
@@ -160,16 +189,63 @@ func (p *proxy) captureResponse(eventID string, resp *http.Response, body []byte
 		return fmt.Errorf("write response body: %w", err)
 	}
 	event := map[string]any{
-		"event":       "response",
-		"id":          eventID,
-		"timestamp":   timestamp(),
-		"status_code": resp.StatusCode,
-		"reason":      http.StatusText(resp.StatusCode),
-		"headers":     headerMap(resp.Header),
-		"body_path":   bodyPath,
-		"body_bytes":  len(body),
-		"body_sha256": sha256Hex(body),
-		"tnbu":        tnbuSummary(body),
+		eventField:            "response",
+		"id":                  eventID,
+		timestampField:        timestamp(),
+		"status_code":         resp.StatusCode,
+		"reason":              http.StatusText(resp.StatusCode),
+		"headers":             headerMap(resp.Header),
+		bodyPathField:         bodyPath,
+		bodyBytesField:        len(body),
+		bodySHA256Field:       sha256Hex(body),
+		"tnbu":                tnbuSummary(body),
+		"controller_response": controllerResponseSummary(body),
+	}
+	return p.writeEvent(event)
+}
+
+func (p *proxy) serveDiscovery(conn net.PacketConn, target string) error {
+	var targetAddr *net.UDPAddr
+	if target != "" {
+		resolved, err := net.ResolveUDPAddr("udp4", target)
+		if err != nil {
+			return fmt.Errorf("resolve discovery target %s: %w", target, err)
+		}
+		targetAddr = resolved
+	}
+	buffer := make([]byte, 64*1024)
+	for {
+		count, source, err := conn.ReadFrom(buffer)
+		if err != nil {
+			return fmt.Errorf("read discovery packet: %w", err)
+		}
+		packet := append([]byte(nil), buffer[:count]...)
+		eventID := p.eventID()
+		if err := p.captureDiscovery(eventID, source, packet); err != nil {
+			return err
+		}
+		if targetAddr != nil {
+			if _, err := conn.WriteTo(packet, targetAddr); err != nil {
+				log.Printf("forward discovery packet to %s failed: %v", targetAddr, err)
+			}
+		}
+	}
+}
+
+func (p *proxy) captureDiscovery(eventID string, source net.Addr, body []byte) error {
+	bodyPath := filepath.Join(p.captures, eventID+"-discovery.bin")
+	if err := os.WriteFile(bodyPath, body, 0o644); err != nil {
+		return fmt.Errorf("write discovery body: %w", err)
+	}
+	event := map[string]any{
+		eventField:      "discovery",
+		"id":            eventID,
+		timestampField:  timestamp(),
+		"client":        source.String(),
+		bodyPathField:   bodyPath,
+		bodyBytesField:  len(body),
+		bodySHA256Field: sha256Hex(body),
+		"discovery":     discoverySummary(body),
 	}
 	return p.writeEvent(event)
 }
@@ -189,7 +265,7 @@ func (p *proxy) writeEvent(event map[string]any) error {
 	if _, err := file.Write(append(encoded, '\n')); err != nil {
 		return fmt.Errorf("write event: %w", err)
 	}
-	log.Printf("inform %s id=%s bytes=%v tnbu=%v", event["event"], event["id"], event["body_bytes"], event["tnbu"])
+	log.Printf("capture event=%v id=%s bytes=%v", event[eventField], event["id"], event[bodyBytesField])
 	return nil
 }
 
@@ -200,10 +276,10 @@ func (p *proxy) eventID() string {
 
 func tnbuSummary(data []byte) map[string]any {
 	if len(data) < 40 || string(data[:4]) != inform.Magic {
-		return map[string]any{"present": false}
+		return map[string]any{presentField: false}
 	}
 	return map[string]any{
-		"present":         true,
+		presentField:      true,
 		"packet_version":  binary.BigEndian.Uint32(data[4:8]),
 		"mac":             net.HardwareAddr(data[8:14]).String(),
 		"flags":           binary.BigEndian.Uint16(data[14:16]),
@@ -211,6 +287,72 @@ func tnbuSummary(data []byte) map[string]any {
 		"payload_version": binary.BigEndian.Uint32(data[32:36]),
 		"payload_bytes":   binary.BigEndian.Uint32(data[36:40]),
 	}
+}
+
+func controllerResponseSummary(data []byte) map[string]any {
+	_, decoded, err := inform.Decode(data, inform.DefaultAuthKey())
+	if err != nil {
+		return map[string]any{decodedWithDefaultKeyField: false}
+	}
+	response, err := adoption.ParseControllerResponseInfo(decoded)
+	if err != nil {
+		return map[string]any{decodedWithDefaultKeyField: true, "recognized": false}
+	}
+	return map[string]any{
+		decodedWithDefaultKeyField: true,
+		"recognized":               true,
+		"type":                     response.Type,
+		"has_mgmt_cfg":             response.HasMgmtCFG,
+		"authkey_set":              response.Store.AuthKey != "",
+		"cfgversion_set":           response.Store.CFGVersion != "",
+		"use_aes_gcm":              response.Store.UseAESGCM,
+	}
+}
+
+func discoverySummary(data []byte) map[string]any {
+	if len(data) < 4 || data[0] != 0x02 || data[1] != 0x06 {
+		return map[string]any{presentField: false}
+	}
+	payloadLength := int(binary.BigEndian.Uint16(data[2:4]))
+	if payloadLength > len(data)-4 {
+		return map[string]any{presentField: false}
+	}
+	summary := map[string]any{
+		presentField:     true,
+		"packet_version": data[0],
+		"packet_type":    data[1],
+	}
+	limit := 4 + payloadLength
+	for offset := 4; offset+3 <= limit; {
+		tlvType := data[offset]
+		tlvLength := int(binary.BigEndian.Uint16(data[offset+1 : offset+3]))
+		offset += 3
+		if tlvLength > limit-offset {
+			return map[string]any{presentField: false}
+		}
+		value := data[offset : offset+tlvLength]
+		offset += tlvLength
+		switch tlvType {
+		case 0x01:
+			if len(value) == 6 {
+				summary["mac"] = net.HardwareAddr(value).String()
+			}
+		case 0x02:
+			if len(value) == 10 {
+				summary["mac"] = net.HardwareAddr(value[:6]).String()
+				summary["ip"] = net.IP(value[6:]).String()
+			}
+		case 0x0b:
+			summary["hostname"] = string(value)
+		case 0x15:
+			summary["model"] = string(value)
+		case 0x17:
+			if len(value) == 1 {
+				summary["default"] = value[0] != 0
+			}
+		}
+	}
+	return summary
 }
 
 func requestURL(r *http.Request) string {

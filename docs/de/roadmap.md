@@ -36,7 +36,8 @@
 - [x] Sichere Metadaten fuer ignorierte Provisioning-Antworten aufzeichnen.
 - [ ] Fixture-Abdeckung fuer `include_blocks`-Antworten wie `gw_caps`,
   `dns_shield_servers`, aktive Leases und WAN-Status-Bloecke ergaenzen.
-- [ ] Retry-/Backoff- und Timeout-Policy fuer Controller-Inform-Fehler testen.
+- [x] Begrenzte Intervallhinweis- und Retry-/Backoff-Policy fuer Controller-
+  Inform-Fehler testen.
 - [ ] Begrenzte Status-Historie fuer letzte Inform-Antworttypen ergaenzen, ohne
   Authkeys oder Controller-Secrets zu leaken.
 

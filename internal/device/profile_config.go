@@ -10,6 +10,9 @@ const (
 	schemaVersion          = 1
 	payloadKindSwitch      = "switch"
 	payloadKindGateway     = "gateway"
+	stabilityExperimental  = "experimental"
+	stabilityTested        = "tested"
+	stabilityExternal      = "external"
 	defaultRequiredVersion = "5.0.0"
 	defaultMgmtInterface   = "eth0"
 	defaultGatewayPrefix   = "eth"

@@ -18,6 +18,8 @@ type intConfigField func(*appconfig.Config) *int
 
 type intRuntimeField func(*runtimeFlags) *int
 
+type durationRuntimeField func(*runtimeFlags) *time.Duration
+
 // runtimeSetting ties one CLI flag to its matching YAML config field.
 type runtimeSetting struct {
 	flagName string
@@ -110,5 +112,19 @@ func intervalSetting() runtimeSetting {
 			flag.DurationVar(&flags.interval, "interval", time.Duration(defaults.IntervalSeconds)*time.Second, "announcement interval")
 		},
 		apply: applyConfigInterval,
+	}
+}
+
+// secondsDurationSetting exposes a CLI duration while storing the matching
+// packaged YAML value as whole seconds.
+func secondsDurationSetting(name string, usage string, target durationRuntimeField, source intConfigField) runtimeSetting {
+	return runtimeSetting{
+		flagName: name,
+		register: func(flags *runtimeFlags, defaults appconfig.Config) {
+			flag.DurationVar(target(flags), name, time.Duration(*source(&defaults))*time.Second, usage)
+		},
+		apply: func(cfg appconfig.Config, flags *runtimeFlags) {
+			*target(flags) = time.Duration(*source(&cfg)) * time.Second
+		},
 	}
 }

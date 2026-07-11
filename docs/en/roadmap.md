@@ -36,7 +36,8 @@
 - [x] Record safe metadata for ignored provisioning responses.
 - [ ] Add fixture coverage for `include_blocks` responses such as `gw_caps`,
   `dns_shield_servers`, active leases, and WAN status blocks.
-- [ ] Add retry/backoff and timeout policy tests for controller inform failures.
+- [x] Add bounded interval-hint and retry/backoff policy tests for controller
+  inform failures.
 - [ ] Add bounded status history for recent inform response types without
   leaking authkeys or controller secrets.
 

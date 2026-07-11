@@ -31,7 +31,7 @@ work_go=$(sed -n 's/^go //p' go.work | head -n 1)
 major=${mod_go%%.*}
 minor=${mod_go#*.}
 if [ "$major" = "$mod_go" ] || [ -z "$major" ] || [ -z "$minor" ]; then
-  fail "go.mod/go.work must use an unpatched Go minor version, for example: go 1.25"
+  fail "go.mod/go.work must use a major.minor version without a patch component"
 fi
 case "$major" in
   '' | *[!0-9]*)
@@ -43,9 +43,6 @@ case "$minor" in
     fail "go.mod/go.work must not pin a Go patch version"
     ;;
 esac
-if [ "$major" -lt 1 ] || { [ "$major" -eq 1 ] && [ "$minor" -lt 25 ]; }; then
-  fail "go.mod/go.work must use Go 1.25 or newer"
-fi
 if grep -Eq '^toolchain ' go.mod go.work; then
   fail "toolchain must not be pinned in committed module or workspace files"
 fi

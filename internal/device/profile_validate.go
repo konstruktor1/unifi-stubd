@@ -56,7 +56,50 @@ func validateProfile(profile Profile) error {
 	if err := validatePayload(profile); err != nil {
 		return err
 	}
+	if err := validateMaturity(profile); err != nil {
+		return err
+	}
 	return nil
+}
+
+// validateMaturity ensures profile claims are backed by concrete controller
+// version evidence instead of inheriting an optimistic default.
+func validateMaturity(profile Profile) error {
+	switch profile.Stability {
+	case stabilityExperimental, stabilityExternal:
+	case stabilityTested:
+		if len(profile.ValidatedControllerVersions) == 0 {
+			return fmt.Errorf("validated_controller_versions is required when stability is tested for %q", profile.Name)
+		}
+	default:
+		return fmt.Errorf("stability %q is invalid for %q; use experimental, tested, or external", profile.Stability, profile.Name)
+	}
+	for index, version := range profile.ValidatedControllerVersions {
+		if !isConcreteControllerVersion(version) {
+			return fmt.Errorf("validated_controller_versions[%d] %q is not a concrete controller version for %q", index, version, profile.Name)
+		}
+	}
+	return nil
+}
+
+// isConcreteControllerVersion accepts the numeric dotted version identifiers
+// reported by UniFi Network while rejecting labels such as latest or wildcards.
+func isConcreteControllerVersion(version string) bool {
+	parts := strings.Split(version, ".")
+	if len(parts) < 3 {
+		return false
+	}
+	for _, part := range parts {
+		if part == "" {
+			return false
+		}
+		for _, character := range part {
+			if character < '0' || character > '9' {
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // validatePortGroups ensures grouped hardware layouts exactly cover the profile

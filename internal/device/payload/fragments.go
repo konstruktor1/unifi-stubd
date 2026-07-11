@@ -92,15 +92,23 @@ func gatewaySpeedCapsCode(speed int, media string) int {
 // and gateway payload rows.
 func portCounterFields(port device.Port) counterFields {
 	// Packet counters stay non-zero for synthetic connected ports because some
-	// controller views treat all-zero rows as stale.
+	// controller views treat all-zero rows as stale. Complete observed samples
+	// preserve zero values after an interface reset.
 	return counterFields{
 		RXBytes:   port.RXBytes,
 		TXBytes:   port.TXBytes,
-		RXPackets: firstNonZeroInt64(port.RXPackets, 1),
-		TXPackets: firstNonZeroInt64(port.TXPackets, 1),
+		RXPackets: packetCounter(port.RXPackets, port.CountersSet),
+		TXPackets: packetCounter(port.TXPackets, port.CountersSet),
 		RXErrors:  port.RXErrors,
 		TXErrors:  port.TXErrors,
 	}
+}
+
+func packetCounter(value int64, countersSet bool) int64 {
+	if countersSet {
+		return value
+	}
+	return firstNonZeroInt64(value, 1)
 }
 
 // portRateFields returns explicit observed rates when available, otherwise a

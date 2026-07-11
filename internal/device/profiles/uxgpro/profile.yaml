@@ -32,4 +32,5 @@ port_speed: 1000
 uplink_speed: 1000
 port_media: GE
 uplink_media: GE
+stability: experimental
 description: experimental UXG-Pro gateway with 1G WAN/LAN and 10G SFP+ WAN2/LAN2

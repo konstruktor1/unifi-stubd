@@ -49,13 +49,16 @@ func setPortOverrideWANHealth(port *Port, override PortOverride) {
 	port.WANConnected = cloneBoolRef(override.WANConnected)
 }
 
-// setPortOverrideCounters overlays non-zero operator or observation counters
-// onto the generated port.
+// setPortOverrideCounters overlays observed counters onto the generated port.
+// Complete samples also replace synthetic values with valid zero counters.
 func setPortOverrideCounters(port *Port, override PortOverride) {
 	for _, binding := range portCounterOverrides {
-		if value := binding.get(override); value != 0 {
+		if value := binding.get(override); override.CountersSet || value != 0 {
 			binding.set(port, value)
 		}
+	}
+	if override.CountersSet {
+		port.CountersSet = true
 	}
 }
 

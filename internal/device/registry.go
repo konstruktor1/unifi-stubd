@@ -24,7 +24,6 @@ const (
 	ErrorKindValidation = "validation"
 	sourceTypeBuiltIn   = "built-in"
 	sourceTypeExternal  = "external"
-	stabilityExternal   = "external"
 )
 
 // ProfilePathError wraps a profile path error with a broad error class for CLI exit codes.

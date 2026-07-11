@@ -94,6 +94,9 @@ func NormalizeProfile(profile *Profile) {
 		&profile.Payload.GatewayInterfacePrefix,
 		&profile.Description,
 	)
+	for index := range profile.ValidatedControllerVersions {
+		profile.ValidatedControllerVersions[index] = strings.TrimSpace(profile.ValidatedControllerVersions[index])
+	}
 }
 
 // AutoMAC derives a stable locally administered MAC address from seed.

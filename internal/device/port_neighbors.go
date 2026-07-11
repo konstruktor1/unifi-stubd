@@ -18,10 +18,35 @@ func ApplyUplinkNeighbor(ports []Port, neighbor *MacTableEntry) []Port {
 				return ports
 			}
 		}
+		ports[index].MACs = withoutSyntheticUplinkNeighbor(ports[index].MACs)
 		ports[index].MACs = append([]MacTableEntry{entry}, ports[index].MACs...)
 		return ports
 	}
 	return ports
+}
+
+func withoutSyntheticUplinkNeighbor(entries []MacTableEntry) []MacTableEntry {
+	if len(entries) == 0 {
+		return entries
+	}
+	out := make([]MacTableEntry, 0, len(entries))
+	for _, entry := range entries {
+		if isSyntheticUplinkNeighbor(entry) {
+			continue
+		}
+		out = append(out, entry)
+	}
+	return out
+}
+
+func isSyntheticUplinkNeighbor(entry MacTableEntry) bool {
+	return strings.EqualFold(strings.TrimSpace(entry.MAC), syntheticUplinkNeighborMAC) &&
+		strings.TrimSpace(entry.Hostname) == "" &&
+		strings.TrimSpace(entry.IP) == "" &&
+		entry.VLAN == 1 &&
+		entry.Age == 4 &&
+		entry.Uptime == 1200 &&
+		strings.EqualFold(strings.TrimSpace(entry.Type), deviceTypeUSW)
 }
 
 // ApplyPortNeighbors adds configured MAC-table entries to their target ports.

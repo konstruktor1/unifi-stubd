@@ -2,7 +2,6 @@ package adoptionssh
 
 import (
 	"fmt"
-	"strings"
 )
 
 // handleSyswrapper emulates the syswrapper subcommands used by advanced
@@ -21,7 +20,7 @@ func (h *Handler) handleSyswrapper(args []string) (string, int) {
 		if len(args) > 3 {
 			authKey = args[3]
 		}
-		h.saveState(url, authKey, strings.Join(args, " "))
+		h.saveState(url, authKey)
 		if url == "" {
 			return "Adoption command accepted\n", 0
 		}
@@ -30,11 +29,11 @@ func (h *Handler) handleSyswrapper(args []string) (string, int) {
 		return h.handleSetInform(args)
 	case commandInfo, "status", "get-info":
 		return h.info(), 0
-	case "restore-default", "reset2defaults":
-		h.resetState(strings.Join(args, " "))
+	case commandRestore, commandReset:
+		h.resetState()
 		return "Factory reset accepted\n", 0
 	default:
-		h.saveState("", "", strings.Join(args, " "))
+		h.saveState("", "")
 		return okOutput, 0
 	}
 }
@@ -54,7 +53,7 @@ func (h *Handler) handleMCA(args []string) (string, int) {
 	case commandInfo, "status":
 		return h.info(), 0
 	default:
-		h.saveState("", "", strings.Join(args, " "))
+		h.saveState("", "")
 		return okOutput, 0
 	}
 }
@@ -63,7 +62,7 @@ func (h *Handler) handleMCA(args []string) (string, int) {
 // state, not as a command to run on the host.
 func (h *Handler) handleSetInform(args []string) (string, int) {
 	url := findInformURL(args)
-	h.saveState(url, "", strings.Join(args, " "))
+	h.saveState(url, "")
 	if url == "" {
 		return "Inform command accepted\n", 0
 	}

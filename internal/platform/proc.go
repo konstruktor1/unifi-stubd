@@ -34,12 +34,13 @@ func (p hostPlatform) Proc(_ context.Context, cfg ProcConfig) (ProcSnapshot, []e
 	out := ProcSnapshot{Interfaces: map[string]observe.InterfaceStats{}}
 	for name, line := range netdev {
 		out.Interfaces[name] = observe.InterfaceStats{
-			RXBytes:   int64(line.RxBytes),
-			TXBytes:   int64(line.TxBytes),
-			RXPackets: int64(line.RxPackets),
-			TXPackets: int64(line.TxPackets),
-			RXErrors:  int64(line.RxErrors),
-			TXErrors:  int64(line.TxErrors),
+			CountersSet: true,
+			RXBytes:     int64(line.RxBytes),
+			TXBytes:     int64(line.TxBytes),
+			RXPackets:   int64(line.RxPackets),
+			TXPackets:   int64(line.TxPackets),
+			RXErrors:    int64(line.RxErrors),
+			TXErrors:    int64(line.TxErrors),
 		}
 	}
 	return out, nil

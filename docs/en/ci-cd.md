@@ -25,11 +25,12 @@ The CI path is split into:
 
 | Target | Toolchain | Entry point | Output | OS/arch | Build environment | Status |
 | --- | --- | --- | --- | --- | --- | --- |
-| `make build` | Go 1.25 floor | `go build ./...` | Local binaries in Go build cache | Host OS/arch | Local or GitHub Ubuntu | Defined, not uploaded |
-| `make check` | Go, golangci-lint, shell policy | `lint`, `validate-config`, `test` | Pass/fail gate | Host OS/arch | GitHub Ubuntu and local | Primary pre-merge gate |
-| `make vulncheck` | Go `govulncheck` tool | `govulncheck ./...` | Pass/fail gate | Host OS/arch | GitHub Ubuntu | CI security gate |
-| `make build-freebsd` | Go cross-compile | `cmd/unifi-stubd` | `dist/unifi-stubd_freebsd_<arch>` | FreeBSD `PKG_FREEBSD_GOARCH` | Local only | Kept as local diagnostic target; not release CI |
-| `make package` | Go plus nFPM | `scripts/package.sh` | `.deb`, `.rpm`, Arch package, Linux `.tar.gz` | Linux `amd64` or `arm64` | GitHub Ubuntu | Release package path |
+| `make build` | Current GitHub-supported Go 1.25 patch | `go build ./...` | Local binaries in Go build cache | Host OS/arch | Local or GitHub Ubuntu | Defined, not uploaded |
+| `make check` | Go 1.25, golangci-lint, shell policy | `lint`, `validate-config`, `test` | Pass/fail gate | Host OS/arch | GitHub Ubuntu and local | Primary pre-merge gate |
+| `make coverage` | Go 1.25 coverage instrumentation | External tests under `tests/...` with all production `internal/...` packages instrumented | `dist/cover.out`, `dist/coverage.html`, and a 60 percent minimum gate | Host OS/arch | GitHub Ubuntu and local | CI quality gate |
+| `make vulncheck` | Go 1.25 `govulncheck` tool | `govulncheck ./...` | Pass/fail gate | Host OS/arch | GitHub Ubuntu | CI security gate |
+| `make build-freebsd` | Go 1.25 cross-compile | `cmd/unifi-stubd` | `dist/unifi-stubd_freebsd_<arch>` | FreeBSD `PKG_FREEBSD_GOARCH` | Local only | Kept as local diagnostic target; not release CI |
+| `make package` | Go 1.25 plus nFPM | `scripts/package.sh` | `.deb`, `.rpm`, Arch package, Linux `.tar.gz` | Linux `amd64` or `arm64` | GitHub Ubuntu | Release package path |
 | `make package-deb` | Go plus nFPM | `scripts/package.sh deb` | Debian package | Linux current `PKG_GOARCH` | Local or GitHub Ubuntu | Defined |
 | `make package-rpm` | Go plus nFPM | `scripts/package.sh rpm` | RPM package | Linux current `PKG_GOARCH` | Local or GitHub Ubuntu | Defined |
 | `make package-arch` | Go plus nFPM | `scripts/package.sh archlinux` | Arch Linux package | Linux current `PKG_GOARCH` | Local or GitHub Ubuntu | Defined |
@@ -37,8 +38,8 @@ The CI path is split into:
 | `make package-freebsd-tgz` | Go cross-compile plus tar | `scripts/package.sh tgz` | FreeBSD tarball | FreeBSD `amd64` or `arm64` | Local diagnostic path | Defined, not used by release workflow |
 | `make package-freebsd-pkg-repos` | Go on FreeBSD builder, FreeBSD `pkg`, tar | `scripts/package-freebsd-pkg-repos.sh` | Native FreeBSD `pkg` repos and published FreeBSD tarballs | `FreeBSD:14/15` for `amd64`, `aarch64`, `armv7`; tarballs for `amd64`, `arm64` by default | Self-hosted FreeBSD builder; optional mapped `jexec` jails | Release BSD path |
 | `make package-repos` | dpkg, createrepo-c, repo-add, tar | `scripts/build-package-repos.sh` | Static package repository site | Repository metadata for packaged targets | GitHub Ubuntu | GitHub Pages input |
-| `make integration-docker` | Docker Compose and Go helpers | `lab/stub/scripts/run-docker-integration.sh` | Pass/fail smoke test | Linux container lab | Local/manual | Defined, not automatic in CI |
-| Root `Dockerfile` | Docker BuildKit, Go, Alpine | `Dockerfile` | Runtime/lab image with daemon and inform proxy | Linux multi-arch capable | Local/manual | No publish target defined |
+| `make integration-docker` | Docker Compose, pinned UniFi Network, and Go helpers | `lab/stub/scripts/run-docker-integration.sh` | Controller adoption gate | Linux container lab | Local/manual | Defined, not automatic in CI |
+| Root `Dockerfile` | Docker BuildKit, Go, Alpine | `Dockerfile` | Runtime/lab image with daemon and inform/discovery proxy | Linux multi-arch capable | Local/manual | No publish target defined |
 
 Open build target definitions:
 
@@ -63,7 +64,7 @@ Open build target definitions:
 | Artifacts | `sbom`, `packages` on `main` push |
 | Security boundary | Self-hosted FreeBSD job is skipped for pull requests. |
 
-`check` runs `make check`, `make vulncheck`, generates `dist/sbom.spdx.json`,
+`check` runs `make check`, `make coverage`, `make vulncheck`, generates `dist/sbom.spdx.json`,
 uploads it for seven days, and uses Go stable on `main` while non-main refs use
 the module version from `go.mod`.
 
@@ -140,7 +141,7 @@ The BSD builder is expected to provide:
 
 Containers are defined for runtime and lab use only:
 
-- Root `Dockerfile`: builds the daemon and inform proxy into an Alpine runtime
+- Root `Dockerfile`: builds the daemon and inform/discovery proxy into an Alpine runtime
   image.
 - Lab gateway profile Dockerfiles: firmware and controller-lab research paths.
 - No CI build container, no GHCR image, and no container package release are

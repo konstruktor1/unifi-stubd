@@ -17,4 +17,5 @@ port_speed: 10000
 uplink_speed: 10000
 port_media: SFP+
 uplink_media: SFP+
+stability: experimental
 description: 16-port 10G aggregation switch

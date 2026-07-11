@@ -7,6 +7,7 @@ import (
 
 // Controller response types handled specially by the adoption sanitizer.
 const (
+	responseTypeCommand  = "cmd"
 	responseTypeNoop     = "noop"
 	responseTypeSetParam = "setparam"
 	responseTypeUpgrade  = "upgrade"
@@ -66,6 +67,15 @@ func ParseControllerResponseInfo(data []byte) (ControllerResponse, error) {
 		response.HasStateUpdate = true
 		response.IntervalSeconds = jsonInt(raw["interval"])
 		response.IncludeBlocks = jsonStringSlice(raw["include_blocks"])
+	case responseTypeCommand:
+		if responseHasResetCommand(raw) {
+			response.Store = Store{State: StateFactory}
+			response.HasStateUpdate = true
+			response.ResetRequested = true
+			response.ResetReason = resetReason(response.Type)
+			return response, nil
+		}
+		parseControllerCommand(&response, raw)
 	default:
 		if isResetControllerCommand(response.Type) || responseHasResetCommand(raw) {
 			response.Store = Store{State: StateFactory}
@@ -75,8 +85,6 @@ func ParseControllerResponseInfo(data []byte) (ControllerResponse, error) {
 			return response, nil
 		}
 		if isUnsafeControllerCommand(response.Type) {
-			response.Store = Store{State: StateProvisioning}
-			response.HasStateUpdate = true
 			response.Ignored = true
 			response.IgnoredReason = "controller command ignored by safety policy"
 		}

@@ -9,4 +9,5 @@ port_speed: 1000
 uplink_speed: 1000
 port_media: GE
 uplink_media: GE
+stability: experimental
 description: 8-port UniFi Switch with PoE

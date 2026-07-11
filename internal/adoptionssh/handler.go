@@ -32,7 +32,7 @@ func (h *Handler) Shell(rw io.ReadWriter) {
 		if line == "" {
 			continue
 		}
-		if line == "exit" || line == "quit" {
+		if line == commandExit || line == commandQuit {
 			return
 		}
 		output, _ := h.Execute(line)
@@ -60,7 +60,7 @@ func (h *Handler) executeOne(command string) (string, int) {
 	}
 
 	name := path.Base(args[0])
-	log.Printf("adoption ssh command: %s", strings.Join(args, " "))
+	log.Printf("adoption ssh command: %s", auditCommandName(name))
 
 	switch name {
 	case "syswrapper.sh":
@@ -77,12 +77,12 @@ func (h *Handler) executeOne(command string) (string, int) {
 	case "mca-cli":
 		return h.handleMCA(args)
 	case "ubntbox":
-		h.saveState("", "", strings.Join(args, " "))
+		h.saveState("", "")
 		return okOutput, 0
-	case "reset2defaults", "restore-default":
+	case commandReset, commandRestore:
 		// Factory-reset commands clear only the stub adoption file. They must not
 		// reset the host, services, users, interfaces, or firewall.
-		h.resetState(strings.Join(args, " "))
+		h.resetState()
 		return "Factory reset accepted\n", 0
 	case "hostname":
 		return h.config.Identity.Hostname + "\n", 0
@@ -92,16 +92,29 @@ func (h *Handler) executeOne(command string) (string, int) {
 		return h.handleCat(args)
 	case "echo":
 		return strings.Join(args[1:], " ") + "\n", 0
-	case "true", "exit", "quit":
+	case "true", commandExit, commandQuit:
 		return "", 0
 	default:
 		if url := findInformURL(args); url != "" {
-			h.saveState(url, "", strings.Join(args, " "))
+			h.saveState(url, "")
 			return fmt.Sprintf("Adoption request accepted: %s\n", url), 0
 		}
 		// Unsupported commands are acknowledged for compatibility but are not
-		// executed. Persisting the command gives operators an audit trail.
-		h.saveState("", "", strings.Join(args, " "))
+		// executed or persisted.
+		h.saveState("", "")
 		return okOutput, 0
+	}
+}
+
+// auditCommandName maps controller input to a fixed audit vocabulary. Unknown
+// command names may themselves contain credentials, so they are never logged.
+func auditCommandName(name string) string {
+	switch name {
+	case "syswrapper.sh", "mca-cli-op", commandInfo, commandSetInform,
+		"mca-cli", "ubntbox", commandReset, commandRestore,
+		"hostname", "uname", "cat", "echo", "true", commandExit, commandQuit:
+		return name
+	default:
+		return "unsupported"
 	}
 }

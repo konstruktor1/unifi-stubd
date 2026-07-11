@@ -37,6 +37,16 @@ func ApplyObservation(override *device.PortOverride, observation observe.PortObs
 	for _, field := range interfaceCounterFields {
 		field.setOverride(override, field.get(observation.Stats))
 	}
+	override.CountersSet = observation.Stats.CountersSet || observationHasCounters(observation.Stats)
+}
+
+func observationHasCounters(stats observe.InterfaceStats) bool {
+	for _, field := range interfaceCounterFields {
+		if field.get(stats) != 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // cloneBoolPointer preserves the difference between unknown and explicit link

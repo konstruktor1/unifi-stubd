@@ -70,6 +70,14 @@ type Config struct {
 	Version string `yaml:"version"`
 	// IntervalSeconds is the loop interval for discovery and inform traffic.
 	IntervalSeconds int `yaml:"interval_seconds"`
+	// ControllerIntervalMinSeconds bounds controller heartbeat hints from below.
+	ControllerIntervalMinSeconds int `yaml:"controller_interval_min_seconds"`
+	// ControllerIntervalMaxSeconds bounds controller heartbeat hints from above.
+	ControllerIntervalMaxSeconds int `yaml:"controller_interval_max_seconds"`
+	// InformBackoffMaxSeconds caps transport-failure retry delays.
+	InformBackoffMaxSeconds int `yaml:"inform_backoff_max_seconds"`
+	// InformBackoffJitterPercent randomizes retry delays to avoid synchronized retries.
+	InformBackoffJitterPercent int `yaml:"inform_backoff_jitter_percent"`
 	// NoDiscovery disables UDP discovery announcements.
 	NoDiscovery bool `yaml:"no_discovery"`
 	// DiscoveryInterface selects the local interface used for UDP discovery sends.

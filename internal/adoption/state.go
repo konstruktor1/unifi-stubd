@@ -65,8 +65,19 @@ type ControllerResponse struct {
 	ResetApplied bool `json:"reset_applied,omitempty"`
 	// ResetReason explains the controller reset command that was handled.
 	ResetReason string `json:"reset_reason,omitempty"`
+	// CommandName is the fixed safe label of a recognized controller command.
+	CommandName string `json:"command_name,omitempty"`
+	// CommandRequestIDSet reports that the command supplied its correlation ID.
+	CommandRequestIDSet bool `json:"command_request_id_set,omitempty"`
+	// CommandHandled reports that a supported command result was prepared.
+	CommandHandled bool `json:"command_handled,omitempty"`
+	// CommandResultQueued reports that the result will be sent with the next inform.
+	CommandResultQueued bool `json:"command_result_queued,omitempty"`
+	// CommandDuplicate reports that the controller repeated the same request ID.
+	CommandDuplicate bool `json:"command_duplicate,omitempty"`
 	// Ignored reports that a controller command was intentionally not applied.
 	Ignored bool `json:"ignored,omitempty"`
 	// IgnoredReason explains why a command was not applied to the host.
 	IgnoredReason string `json:"ignored_reason,omitempty"`
+	command       *controllerCommand
 }

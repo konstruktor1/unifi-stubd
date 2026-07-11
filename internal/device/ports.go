@@ -11,6 +11,8 @@ const (
 	gatewayPortRoleWAN  = "wan"
 	gatewayPortRoleWAN2 = "wan2"
 	mediaSFPPlus        = "SFP+"
+
+	syntheticUplinkNeighborMAC = "02:aa:bb:cc:dd:01"
 )
 
 // BuildPorts returns generated switch ports from profile plus runtime options.

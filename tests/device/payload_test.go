@@ -1890,6 +1890,26 @@ func TestApplyUplinkNeighborAddsConfiguredNeighbor(t *testing.T) {
 	}
 }
 
+// TestApplyUplinkNeighborReplacesSyntheticFallback verifies an explicit
+// neighbor does not leave the generated placeholder in the uplink MAC table.
+func TestApplyUplinkNeighborReplacesSyntheticFallback(t *testing.T) {
+	profile, ok := device.LookupProfile("uxgpro")
+	if !ok {
+		t.Fatal("profile not found")
+	}
+	ports := device.ApplyUplinkNeighbor(device.BuildPorts(profile, device.PortBuildOptions{UplinkPort: 3}), &device.MacTableEntry{
+		MAC: "00:00:f7:f7:02:56",
+		IP:  "192.0.2.1",
+	})
+
+	if len(ports[2].MACs) != 1 {
+		t.Fatalf("uplink MAC table length = %d, want 1: %+v", len(ports[2].MACs), ports[2].MACs)
+	}
+	if got := ports[2].MACs[0].MAC; got != "00:00:f7:f7:02:56" {
+		t.Fatalf("uplink neighbor MAC = %q", got)
+	}
+}
+
 // TestSwitchPayloadSkipsGatewayUplinkNeighborMacTable avoids making the
 // upstream gateway look like a downstream station on the switch uplink.
 func TestSwitchPayloadSkipsGatewayUplinkNeighborMacTable(t *testing.T) {

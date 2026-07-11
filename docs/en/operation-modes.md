@@ -324,6 +324,12 @@ state, and available counter/speed data into that port's inform payload. This is
 useful for FreeBSD/OPNsense stub-only gateway tests where WAN/LAN should be
 visualized from existing interfaces without changing host networking.
 
+The daemon rebuilds interface-backed overrides from the unchanged operator
+configuration on every heartbeat. MAC, IPv4, IPv6, link state, speed, media,
+and counters therefore follow the current interface snapshot even when traffic
+rate reporting is disabled. Explicitly configured values remain authoritative;
+a complete observed counter sample also preserves a valid reset to zero.
+
 `uplink_neighbor` is useful for pure stubs and virtual lab ports where there is
 no physical link partner. It adds a configured MAC-table entry to the current
 uplink port.

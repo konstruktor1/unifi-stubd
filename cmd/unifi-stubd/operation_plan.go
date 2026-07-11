@@ -17,6 +17,11 @@ func printRuntimePlan(flags runtimeFlags, profile device.Profile, macText, ipTex
 	fmt.Printf("mac: %s\n", macText)
 	fmt.Printf("ip: %s\n", ipText)
 	fmt.Printf("hostname: %s\n", hostname)
+	fmt.Printf("interval: %s\n", flags.interval)
+	fmt.Printf("controller_interval_min: %s\n", flags.controllerIntervalMin)
+	fmt.Printf("controller_interval_max: %s\n", flags.controllerIntervalMax)
+	fmt.Printf("inform_backoff_max: %s\n", flags.informBackoffMax)
+	fmt.Printf("inform_backoff_jitter_percent: %d\n", flags.informBackoffJitterPercent)
 	fmt.Printf("uplink_port: %d\n", effectiveUplinkPort(profile, flags))
 	if flags.uplinkNeighbor != nil {
 		fmt.Printf("uplink_neighbor: mac=%s hostname=%q ip=%q vlan=%d type=%q\n",

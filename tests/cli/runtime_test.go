@@ -16,6 +16,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"syscall"
 	"testing"
@@ -1126,6 +1127,10 @@ ip: 192.0.2.50
 hostname: status-host
 uplink_speed: profile
 traffic_rates_enabled: true
+controller_interval_min_seconds: 3
+controller_interval_max_seconds: 40
+inform_backoff_max_seconds: 120
+inform_backoff_jitter_percent: 11
 management_lan:
   enabled: true
   vlan: 77
@@ -1155,10 +1160,14 @@ instance_guard_path: `+filepath.Join(dir, "instance.lock")+`
 	}
 	var doc struct {
 		Config struct {
-			OperationMode       string `json:"operation_mode"`
-			InformURL           string `json:"inform_url"`
-			TrafficRatesEnabled bool   `json:"traffic_rates_enabled"`
-			WANHealth           struct {
+			OperationMode              string `json:"operation_mode"`
+			InformURL                  string `json:"inform_url"`
+			TrafficRatesEnabled        bool   `json:"traffic_rates_enabled"`
+			ControllerIntervalMin      string `json:"controller_interval_min"`
+			ControllerIntervalMax      string `json:"controller_interval_max"`
+			InformBackoffMax           string `json:"inform_backoff_max"`
+			InformBackoffJitterPercent int    `json:"inform_backoff_jitter_percent"`
+			WANHealth                  struct {
 				Source          string `json:"source"`
 				IntervalSeconds int    `json:"interval_seconds"`
 				TimeoutMS       int    `json:"timeout_ms"`
@@ -1216,6 +1225,17 @@ instance_guard_path: `+filepath.Join(dir, "instance.lock")+`
 	}
 	if !doc.Config.TrafficRatesEnabled {
 		t.Fatal("TrafficRatesEnabled = false, want true")
+	}
+	if doc.Config.ControllerIntervalMin != "3s" ||
+		doc.Config.ControllerIntervalMax != "40s" ||
+		doc.Config.InformBackoffMax != "2m0s" ||
+		doc.Config.InformBackoffJitterPercent != 11 {
+		t.Fatalf("inform schedule config = min=%q max=%q backoff=%q jitter=%d",
+			doc.Config.ControllerIntervalMin,
+			doc.Config.ControllerIntervalMax,
+			doc.Config.InformBackoffMax,
+			doc.Config.InformBackoffJitterPercent,
+		)
 	}
 	if doc.Config.WANHealth.Source != "off" ||
 		doc.Config.WANHealth.IntervalSeconds != 10 ||
@@ -1564,6 +1584,270 @@ VERSION=5.0.17.1
 	}
 	if !strings.Contains(doc.LastInform.ResetReason, "restore-default") {
 		t.Fatalf("reset reason = %q", doc.LastInform.ResetReason)
+	}
+}
+
+// TestWireGuardCommandResultIsSentWithoutStatusLeak verifies the daemon sends
+// the narrow firmware-compatible result on the next inform while status and
+// logs retain only secret-free lifecycle counters.
+func TestWireGuardCommandResultIsSentWithoutStatusLeak(t *testing.T) {
+	const (
+		authKey   = "0123456789abcdef"
+		requestID = "controller-request-id-must-not-leak"
+	)
+	dir := t.TempDir()
+	statePath := filepath.Join(dir, "adoption.env")
+	statusPath := filepath.Join(dir, "status.json")
+	if err := os.WriteFile(statePath, []byte("STATE=connected\nAUTHKEY="+authKey+"\nUSE_AES_GCM=true\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	type commandResult struct {
+		EventString string `json:"event_string"`
+		RequestID   string `json:"request_id"`
+		Params      struct {
+			PrivateKey string `json:"private_key"`
+			PublicKey  string `json:"public_key"`
+		} `json:"params"`
+	}
+	type commandNotification struct {
+		InformAsNotification bool          `json:"inform_as_notif"`
+		NotificationReason   string        `json:"notif_reason"`
+		NotificationPayload  commandResult `json:"notif_payload"`
+		EventString          string        `json:"event_string"`
+	}
+	result := make(chan commandResult, 1)
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		body, err := io.ReadAll(request.Body)
+		if err != nil {
+			t.Errorf("read inform request: %v", err)
+			writer.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		packet, decoded, err := inform.Decode(body, []byte(authKey))
+		if err != nil {
+			t.Errorf("decode inform request: %v", err)
+			writer.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		count := requests.Add(1)
+		responseBody := []byte(`{"_type":"noop","interval":1}`)
+		if count == 1 {
+			responseBody = []byte(`{"_type":"cmd","cmd":"wg-genkeypair","request_id":"` + requestID + `"}`)
+		}
+		if count == 2 {
+			var notification commandNotification
+			if err := json.Unmarshal(decoded, &notification); err != nil {
+				t.Errorf("decode command result payload: %v", err)
+			} else if !notification.InformAsNotification || notification.NotificationReason != "cmd" || notification.EventString != "" {
+				t.Errorf("command notification metadata = %+v", notification)
+			} else {
+				result <- notification.NotificationPayload
+			}
+		}
+		response, err := inform.EncodeJSON(packet.MAC, []byte(authKey), responseBody, inform.Options{
+			Zlib: true,
+			GCM:  packet.Flags&inform.FlagEncryptedGCM != 0,
+		})
+		if err != nil {
+			t.Errorf("encode inform response: %v", err)
+			writer.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		writer.WriteHeader(http.StatusOK)
+		if _, err := writer.Write(response); err != nil {
+			t.Errorf("write inform response: %v", err)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	cmd, done, output := startStubdDaemon(t,
+		"-no-discovery",
+		"-controller", server.URL+"/inform",
+		"-ssh-state", statePath,
+		"-status-path", statusPath,
+		"-instance-guard-path", filepath.Join(dir, "instance.lock"),
+		"-profile", "uxg-lite",
+		"-ip", "192.0.2.50",
+		"-hostname", "command-lifecycle-gateway",
+		"-uplink-speed", "profile",
+		"-interval", "100ms",
+	)
+	waitForRequestCount(t, &requests, 3, output)
+	stopStubdDaemon(t, cmd, done, output)
+
+	select {
+	case got := <-result:
+		if got.EventString != "wg-genkeypair" || got.RequestID != requestID {
+			t.Fatalf("command result correlation = %+v", got)
+		}
+		if got.Params.PrivateKey == "" || got.Params.PublicKey == "" {
+			t.Fatalf("command result omitted key material: %+v", got)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("second inform did not include command result")
+	}
+
+	status, err := os.ReadFile(statusPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	combinedSafeOutput := output.String() + string(status)
+	for _, forbidden := range []string{requestID, `"private_key"`, `"public_key"`} {
+		if strings.Contains(combinedSafeOutput, forbidden) {
+			t.Fatalf("command data %q leaked into logs or status:\n%s", forbidden, combinedSafeOutput)
+		}
+	}
+	var statusDoc struct {
+		LastInform struct {
+			ControllerCommands struct {
+				LastCommand     string `json:"last_command"`
+				HandledCount    int    `json:"handled_count"`
+				ResultSentCount int    `json:"result_sent_count"`
+				DuplicateCount  int    `json:"duplicate_count"`
+				Pending         bool   `json:"pending"`
+			} `json:"controller_commands"`
+		} `json:"last_inform"`
+	}
+	if err := json.Unmarshal(status, &statusDoc); err != nil {
+		t.Fatalf("decode command lifecycle status: %v\n%s", err, status)
+	}
+	summary := statusDoc.LastInform.ControllerCommands
+	if summary.LastCommand != "wg-genkeypair" || summary.HandledCount != 1 || summary.ResultSentCount != 1 || summary.DuplicateCount != 0 || summary.Pending {
+		t.Fatalf("command lifecycle status = %+v", summary)
+	}
+}
+
+// TestInformScheduleBacksOffAndAppliesControllerBounds verifies the live daemon
+// uses exponential transport retry delays and resets them after a response.
+func TestInformScheduleBacksOffAndAppliesControllerBounds(t *testing.T) {
+	dir := t.TempDir()
+	statusPath := filepath.Join(dir, "status.json")
+	var requests atomic.Int32
+	var timestampsMu sync.Mutex
+	var timestamps []time.Time
+	server := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+		timestampsMu.Lock()
+		timestamps = append(timestamps, time.Now())
+		timestampsMu.Unlock()
+		count := requests.Add(1)
+		if count <= 2 {
+			connection, _, err := writer.(http.Hijacker).Hijack()
+			if err != nil {
+				t.Errorf("hijack failed inform response: %v", err)
+				return
+			}
+			_ = connection.Close()
+			return
+		}
+
+		body, err := io.ReadAll(request.Body)
+		if err != nil {
+			t.Errorf("read inform request: %v", err)
+			writer.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		packet, _, err := inform.Decode(body, inform.DefaultAuthKey())
+		if err != nil {
+			t.Errorf("decode inform request: %v", err)
+			writer.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		response, err := inform.EncodeJSON(packet.MAC, inform.DefaultAuthKey(), []byte(`{"_type":"noop","interval":999}`), inform.Options{Zlib: true})
+		if err != nil {
+			t.Errorf("encode inform response: %v", err)
+			writer.WriteHeader(http.StatusInternalServerError)
+			return
+		}
+		writer.WriteHeader(http.StatusOK)
+		if _, err := writer.Write(response); err != nil {
+			t.Errorf("write inform response: %v", err)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	cmd, done, output := startStubdDaemon(t,
+		"-no-discovery",
+		"-controller", server.URL+"/inform",
+		"-status-path", statusPath,
+		"-ssh-state", filepath.Join(dir, "adoption.env"),
+		"-instance-guard-path", filepath.Join(dir, "instance.lock"),
+		"-profile", "us8",
+		"-ip", "192.0.2.50",
+		"-hostname", "inform-schedule-test",
+		"-uplink-speed", "profile",
+		"-interval", "50ms",
+		"-controller-interval-min", "80ms",
+		"-controller-interval-max", "150ms",
+		"-inform-backoff-max", "250ms",
+		"-inform-backoff-jitter-percent", "0",
+	)
+	waitForRequestCount(t, &requests, 4, output)
+	stopStubdDaemon(t, cmd, done, output)
+
+	timestampsMu.Lock()
+	gotTimestamps := append([]time.Time(nil), timestamps...)
+	timestampsMu.Unlock()
+	if len(gotTimestamps) < 4 {
+		t.Fatalf("request timestamps = %d, want at least 4", len(gotTimestamps))
+	}
+	assertMinimumDelay(t, gotTimestamps[0], gotTimestamps[1], 80*time.Millisecond, "first failure")
+	assertMinimumDelay(t, gotTimestamps[1], gotTimestamps[2], 175*time.Millisecond, "second failure")
+	assertMinimumDelay(t, gotTimestamps[2], gotTimestamps[3], 125*time.Millisecond, "controller max interval")
+
+	status, err := os.ReadFile(statusPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var statusDoc struct {
+		LastInform struct {
+			IntervalSeconds int `json:"interval_seconds"`
+			Schedule        struct {
+				EffectiveInterval     string `json:"effective_interval"`
+				NextDelay             string `json:"next_delay"`
+				ConsecutiveFailures   int    `json:"consecutive_failures"`
+				Backoff               bool   `json:"backoff"`
+				ControllerHintApplied bool   `json:"controller_hint_applied"`
+			} `json:"schedule"`
+		} `json:"last_inform"`
+	}
+	if err := json.Unmarshal(status, &statusDoc); err != nil {
+		t.Fatalf("decode schedule status: %v\n%s", err, status)
+	}
+	schedule := statusDoc.LastInform.Schedule
+	if statusDoc.LastInform.IntervalSeconds != 999 ||
+		schedule.EffectiveInterval != "150ms" ||
+		schedule.NextDelay != "150ms" ||
+		schedule.ConsecutiveFailures != 0 ||
+		schedule.Backoff ||
+		!schedule.ControllerHintApplied {
+		t.Fatalf("final inform schedule status = %+v, interval=%d", schedule, statusDoc.LastInform.IntervalSeconds)
+	}
+	if !strings.Contains(output.String(), "consecutive_failures=1") || !strings.Contains(output.String(), "consecutive_failures=2") {
+		t.Fatalf("failure logs omitted retry counters:\n%s", output.String())
+	}
+}
+
+func TestInformScheduleValidationRejectsReversedControllerBounds(t *testing.T) {
+	cmd := stubdCommand(
+		"-dry-run-plan",
+		"-controller-interval-min", "30s",
+		"-controller-interval-max", "10s",
+	)
+	output, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("command succeeded; output:\n%s", output)
+	}
+	if !strings.Contains(string(output), "invalid inform schedule") || !strings.Contains(string(output), "below minimum") {
+		t.Fatalf("validation output = %s", output)
+	}
+}
+
+func assertMinimumDelay(t *testing.T, start, end time.Time, minimum time.Duration, label string) {
+	t.Helper()
+	if delay := end.Sub(start); delay < minimum {
+		t.Fatalf("%s delay = %s, want at least %s", label, delay, minimum)
 	}
 }
 

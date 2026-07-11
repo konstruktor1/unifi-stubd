@@ -44,4 +44,5 @@ port_speed: 2500
 uplink_speed: 10000
 port_media: GE
 uplink_media: SFP+
+stability: experimental
 description: experimental Cloud Gateway Fiber with 2.5G LAN, 10G RJ45 WAN2, and 10G SFP+ WAN/LAN

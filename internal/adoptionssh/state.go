@@ -4,14 +4,13 @@ import (
 	"errors"
 	"log"
 	"os"
-	"time"
 
 	"github.com/konstruktor1/unifi-stubd/internal/adoption"
 )
 
-// saveState persists adoption commands as local stub state and audit metadata,
-// never as shell instructions to execute.
-func (h *Handler) saveState(informURL, authKey, command string) {
+// saveState persists adoption values as local stub state, never as shell
+// instructions or audit payloads.
+func (h *Handler) saveState(informURL, authKey string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -28,18 +27,19 @@ func (h *Handler) saveState(informURL, authKey, command string) {
 		InformURL: informURL,
 		AuthKey:   authKey,
 	}
-	store, _ = adoption.Merge(store, update)
+	store, changed := adoption.Merge(store, update)
 	if err := adoption.SaveEnv(statePath, store); err != nil {
 		log.Printf("adoption state write failed: %v", err)
+		return
 	}
-	if command != "" {
-		log.Printf("adoption state command accepted at %s: %s", time.Now().UTC().Format(time.RFC3339), command)
+	if changed {
+		log.Printf("adoption state updated")
 	}
 }
 
 // resetState clears only the adoption store, making the next inform look
 // factory-default without resetting the host.
-func (h *Handler) resetState(command string) {
+func (h *Handler) resetState() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -51,7 +51,5 @@ func (h *Handler) resetState(command string) {
 		log.Printf("adoption state reset failed: %v", err)
 		return
 	}
-	if command != "" {
-		log.Printf("adoption state reset accepted at %s: %s", time.Now().UTC().Format(time.RFC3339), command)
-	}
+	log.Printf("adoption state reset accepted")
 }
