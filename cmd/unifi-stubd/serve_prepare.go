@@ -87,7 +87,7 @@ func prepareServeRuntime(flags *runtimeFlags, changed map[string]bool) (serveRun
 		return serveRuntime{}, false, err
 	}
 
-	if err := validatePortOverrides(*flags); err != nil {
+	if err := validatePortOverrides(*flags, profile); err != nil {
 		return serveRuntime{}, false, err
 	}
 	if err := validateWANHealthTargets(*flags, profile); err != nil {

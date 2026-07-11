@@ -282,6 +282,12 @@
         "uptime": {
           "type": "integer",
           "minimum": 0
+        },
+        "remote_port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "description": "Optional one-based port number on the neighboring device."
         }
       }
     },
@@ -325,6 +331,12 @@
         "uptime": {
           "type": "integer",
           "minimum": 0
+        },
+        "remote_port": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 65535,
+          "description": "Optional one-based port number on the neighboring device."
         }
       },
       "required": ["port"]

@@ -449,8 +449,9 @@ unifi-stubd -status-json
 ```
 
 The status command reads local config and state only. It reports identity,
-operation mode, adoption state, observe counters/FDB counts, and the last
-inform response without printing the adoption authkey.
+operation mode, adoption state, observe counters/FDB counts, direct
+infrastructure edges from the last inform, and the controller response without
+printing the adoption authkey or complete client MAC tables.
 
 Runtime modes are documented in
 [English](docs/en/operation-modes.md) and
@@ -460,11 +461,11 @@ mutating host networking; `observe` is kept as a migration alias.
 `port-map` maps each represented UniFi port to an explicit local interface,
 `disabled`, or `unmapped` source.
 
-For Proxmox-style bridge representation, prefer a synthetic locally
-administered stub MAC unless you intentionally want to test how the controller
-handles a physical host MAC already visible on an upstream UniFi switch. Use
-`uplink_neighbor` to provide the upstream switch hint and `uplink_port` when the
-represented link is an SFP/SFP+ port instead of the default GE fallback.
+For Proxmox-style bridge representation, real device and interface MACs remain
+valid identities. Use `uplink_neighbor` to provide the direct upstream device,
+`remote_port` when its port is known, and `uplink_port` when the represented
+link is an SFP/SFP+ port instead of the default GE fallback. FDB visibility is
+kept separate from topology direction.
 
 Optional passive sources are configured with `lldp_source`, `log_source`,
 `proc_source`, and `dbus_enabled`. They feed payload/status metadata only and

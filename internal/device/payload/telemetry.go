@@ -67,7 +67,7 @@ func newGatewayTelemetry(id device.Identity, now time.Time, uptime int, cfgVersi
 		KernelVersion:        "6.12.0-stubd",
 		LastErrorConns:       emptyList,
 		LEDState:             ledStatePayload{Pattern: "0", Tempo: 120},
-		LLDPTable:            emptyList,
+		LLDPTable:            []lldpRow{},
 		Locating:             false,
 		ManufacturerID:       61,
 		Netmask:              "255.255.255.0",

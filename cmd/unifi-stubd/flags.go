@@ -38,7 +38,7 @@ type runtimeFlags struct {
 	linkSpeed                  int
 	uplinkSpeed                string
 	uplinkPort                 int
-	uplinkNeighbor             *device.MacTableEntry
+	uplinkNeighbor             *device.TopologyNeighbor
 	portNeighbors              []device.PortNeighbor
 	portOverrides              []device.PortOverride
 	wanHealth                  appconfig.WANHealthConfig

@@ -58,14 +58,11 @@ as `disabled` or `unmapped`. Mapped ports inherit read-only physical state such
 as MAC address, link state, speed/media where available, addresses, counters,
 and LLDP neighbors.
 
-For Proxmox-style bridge representation, topology is controller-derived. A
-configured `uplink_neighbor` can make UniFi Network report the upstream device
-and last connection on the stub's uplink port. If the stub reports the physical
-host or bridge MAC, a real UniFi upstream switch may already observe that MAC on
-its own port; UniFi Network can then prefer that real observation and render the
-link direction incorrectly. Pure representation tests should therefore prefer a
-synthetic locally administered stub MAC unless the physical-MAC heuristic is the
-explicit test target.
+For Proxmox-style bridge representation, direct infrastructure is resolved
+separately from FDB clients. The active represented uplink determines upstream
+direction, configured neighbors override LLDP, and real host/bridge MACs remain
+valid identities. Switch payloads expose upstream state through `uplink` and
+`last_uplink` instead of presenting the gateway as an attached client.
 
 ## Configuration Surface
 

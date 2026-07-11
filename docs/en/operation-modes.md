@@ -139,14 +139,10 @@ For example, a 48-port switch profile with SFP+ cages can report the bridge
 uplink on `uplink_port: 49`, leaving port 48 disconnected and preserving the
 SFP+ media label on the active uplink.
 
-Topology direction depends on the controller's real view of the reported device
-MAC. If the stub uses the physical bridge or NIC MAC, an upstream UniFi switch
-may already report that MAC on one of its own ports. The controller can then
-prefer the real switch's observation and render the link in the wrong direction,
-even when `uplink_neighbor` is configured. A synthetic locally administered
-stub MAC avoids that collision and is usually better for pure representation
-tests. Use the physical MAC only when the goal is to intentionally test that
-controller heuristic.
+Topology direction is resolved independently from FDB visibility. The active
+`uplink_port` is upstream; direct infrastructure on other ports is downstream.
+Configured neighbors override LLDP, and real bridge or NIC MACs remain valid
+device and port identities rather than being replaced for topology purposes.
 
 On Proxmox, the bridge interface itself can also have the host management IP.
 That is normal for Proxmox but not identical to a hardware UniFi switch: the
@@ -171,6 +167,7 @@ uplink_neighbor:
   mac: 02:aa:bb:cc:dd:01
   vlan: 1
   type: usw
+  remote_port: 50
 
 port_neighbors:
   - port: 2
@@ -179,6 +176,7 @@ port_neighbors:
     ip: 192.0.2.52
     vlan: 1
     type: usw
+    remote_port: 7
 
 port_overrides:
   - port: 2
@@ -205,11 +203,13 @@ port_overrides:
     up: false
 ```
 
-`port_neighbors` populates `port_table[].mac_table` on specific ports. It is
-useful when the controller needs to see a downstream switch or host MAC on a
-non-uplink port. `hostname` and `ip` are optional client metadata fields; `name`
-is accepted as a YAML alias for `hostname`. When `type` is omitted, port
-neighbors default to `client`; `uplink_neighbor` defaults to `usw`.
+`port_neighbors` with the default `client` type populate
+`port_table[].mac_table`. Explicit non-client types describe direct
+infrastructure neighbors. The active `uplink_port` makes such a neighbor
+upstream; infrastructure neighbors on other ports are downstream. Optional
+`remote_port` identifies the port on the neighboring device. `hostname` and
+`ip` are optional metadata fields, and `name` remains a YAML alias for
+`hostname`. `uplink_neighbor` is always infrastructure and defaults to `usw`.
 
 In Linux `bridge-observe` mode, learned bridge FDB MACs are also matched against
 the local `/proc/net/arp` cache when available. This can add client IPv4
@@ -399,10 +399,9 @@ and does not stop the daemon.
 
 LLDP is not required for adoption or for a manually configured topology hint.
 When it is available, it reduces manual `uplink_neighbor` mistakes by learning
-the upstream chassis and port from the host interface. When it is missing, keep
-`uplink_neighbor` explicit and treat topology direction as controller-derived:
-the controller may still prefer what real UniFi switches report about the same
-MAC.
+the upstream chassis and port from the host interface. When it is missing,
+explicit configuration decides the direct neighbor. FDB visibility is never
+used to infer direction.
 
 `log_source: journalctl` reads recent Linux unit logs through
 `journalctl --output=json`. `log_source: syslog` reads a configured syslog file,

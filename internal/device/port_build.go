@@ -100,14 +100,6 @@ func generatedPort(index, speed int, media string, uplink, profileUplink bool, n
 		RXPackets:     1,
 		TXPackets:     1,
 	}
-	if uplink {
-		// Give the active uplink one plausible locally administered neighbor so
-		// factory-default payloads are useful before any bridge or LLDP source is
-		// configured.
-		port.MACs = []MacTableEntry{
-			{MAC: syntheticUplinkNeighborMAC, Age: 4, Uptime: 1200, VLAN: 1, Type: deviceTypeUSW},
-		}
-	}
 	return port
 }
 
@@ -121,21 +113,9 @@ func applyUplinkPort(ports []Port, uplinkPort int) []Port {
 		return ports
 	}
 	targetIndex := uplinkPort - 1
-	var uplinkMACs []MacTableEntry
 	for index := range ports {
-		if ports[index].Uplink && len(ports[index].MACs) > 0 {
-			uplinkMACs = append([]MacTableEntry{}, ports[index].MACs...)
-		}
 		ports[index].Uplink = false
-		if index != targetIndex {
-			// Moving the active uplink also moves the synthetic topology hint so
-			// the controller does not see two upstream neighbors.
-			ports[index].MACs = nil
-		}
 	}
 	ports[targetIndex].Uplink = true
-	if len(ports[targetIndex].MACs) == 0 {
-		ports[targetIndex].MACs = uplinkMACs
-	}
 	return ports
 }

@@ -256,14 +256,13 @@ controller tokens, SSH passwords, private captures, or raw lab secrets.
 UniFi Network calculates topology links from several controller-side signals.
 The stub can provide hints, but it cannot fully control the controller's graph.
 
-`uplink_neighbor` currently feeds the uplink port MAC-table hint. A controller
-can turn that into `port_table[].last_connection`, `uplink.uplink_mac`,
-`uplink.uplink_device_name`, and sometimes `uplink.uplink_remote_port`.
-However, if the stub reports a physical host MAC that a real upstream UniFi
-switch already sees on its own port, the controller can prefer that real
-observation and reverse the displayed edge. Use a synthetic locally administered
-stub MAC for representation tests unless the physical-MAC heuristic itself is
-the test target.
+Topology resolution separates direct infrastructure neighbors from client/FDB
+MAC rows. The active represented uplink determines upstream direction; direct
+infrastructure on other ports is downstream. Configured neighbors override
+LLDP, while FDB visibility never determines direction. Switch renderers emit
+the selected upstream through `uplink` and `last_uplink` and keep downstream
+infrastructure on its physical port. Real device and port MACs remain valid
+identities and are not replaced for topology rendering.
 
 LLDP is helpful but optional. Without LLDP, `uplink_neighbor` is manual. With
 LLDP, neighbor discovery should reduce manual mistakes, but the controller still

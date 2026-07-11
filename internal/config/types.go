@@ -30,9 +30,9 @@ type Config struct {
 	UplinkSpeed string `yaml:"uplink_speed"`
 	// UplinkPort overrides the profile-selected uplink port when positive.
 	UplinkPort int `yaml:"uplink_port"`
-	// UplinkNeighbor adds a configured fake neighbor to the selected uplink.
+	// UplinkNeighbor adds a configured direct neighbor to the selected uplink.
 	UplinkNeighbor *UplinkNeighbor `yaml:"uplink_neighbor"`
-	// PortNeighbors adds configured fake neighbors to specific ports.
+	// PortNeighbors adds configured client or infrastructure neighbors to ports.
 	PortNeighbors []PortNeighbor `yaml:"port_neighbors"`
 	// PortOverrides applies per-port runtime overrides after profile generation.
 	PortOverrides []PortOverride `yaml:"port_overrides"`

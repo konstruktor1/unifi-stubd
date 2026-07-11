@@ -7,21 +7,22 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/device"
 )
 
-// configUplinkNeighbor converts YAML neighbor metadata into the payload-facing
-// MAC-table entry used on the represented uplink port.
-func configUplinkNeighbor(neighbor *appconfig.UplinkNeighbor) *device.MacTableEntry {
+// configUplinkNeighbor converts YAML neighbor metadata into a direct topology neighbor.
+func configUplinkNeighbor(neighbor *appconfig.UplinkNeighbor) *device.TopologyNeighbor {
 	if neighbor == nil || strings.TrimSpace(neighbor.MAC) == "" {
 		return nil
 	}
-	return &device.MacTableEntry{
-		MAC:      strings.TrimSpace(neighbor.MAC),
-		Hostname: defaultNeighborHostname(neighbor.Hostname, neighbor.Name),
-		IP:       strings.TrimSpace(neighbor.IP),
-		Age:      defaultNeighborAge(neighbor.Age),
-		Uptime:   defaultNeighborUptime(neighbor.Uptime),
-		VLAN:     neighbor.VLAN,
-		Static:   neighbor.Static,
-		Type:     defaultNeighborType(neighbor.Type),
+	return &device.TopologyNeighbor{
+		MAC:        strings.TrimSpace(neighbor.MAC),
+		Hostname:   defaultNeighborHostname(neighbor.Hostname, neighbor.Name),
+		IP:         strings.TrimSpace(neighbor.IP),
+		DeviceType: defaultNeighborType(neighbor.Type),
+		VLAN:       neighbor.VLAN,
+		Age:        defaultNeighborAge(neighbor.Age),
+		Uptime:     defaultNeighborUptime(neighbor.Uptime),
+		RemotePort: neighbor.RemotePort,
+		Source:     device.NeighborSourceConfigUplink,
+		Static:     neighbor.Static,
 	}
 }
 
@@ -34,7 +35,8 @@ func configPortNeighbors(neighbors []appconfig.PortNeighbor) []device.PortNeighb
 			continue
 		}
 		out = append(out, device.PortNeighbor{
-			Port: neighbor.Port,
+			Port:       neighbor.Port,
+			RemotePort: neighbor.RemotePort,
 			Entry: device.MacTableEntry{
 				MAC:      strings.TrimSpace(neighbor.MAC),
 				Hostname: defaultNeighborHostname(neighbor.Hostname, neighbor.Name),

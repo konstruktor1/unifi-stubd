@@ -10,7 +10,7 @@ func validateRuntime(flags runtimeFlags, profile device.Profile) error {
 	if err := validateIdentityFlags(flags); err != nil {
 		return withExitCode(1, err)
 	}
-	if err := validatePortOverrides(flags); err != nil {
+	if err := validatePortOverrides(flags, profile); err != nil {
 		return withExitCode(1, err)
 	}
 	if err := validateWANHealthTargets(flags, profile); err != nil {

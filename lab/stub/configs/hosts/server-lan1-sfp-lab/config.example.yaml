@@ -17,6 +17,7 @@ uplink_neighbor:
   ip: 192.0.2.1
   vlan: 0
   type: uxg
+  remote_port: 4
 
 port_neighbors:
   - port: 1

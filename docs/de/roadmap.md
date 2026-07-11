@@ -82,14 +82,14 @@
   IP-Metadaten unterstuetzen.
 - [x] Ungenutzte Ports disconnected halten, statt controller-sichtbaren
   Fake-Traffic auf leeren Ports zu erzeugen.
-- [ ] Explizite `uplink_neighbor.remote_port`-Metadaten ergaenzen und bei
+- [x] Explizite `uplink_neighbor.remote_port`-Metadaten ergaenzen und bei
   bekanntem Wert in den Switch-Payload uebernehmen.
-- [ ] Uplink-Nachbar automatisch aus passivem LLDP ableiten, mit manuellem
-  `uplink_neighbor` als deterministischem Override.
+- [x] Gerichtete Nachbarn automatisch aus passivem LLDP ableiten, mit manueller
+  Konfiguration als deterministischem Override.
 - [ ] LLDP-/CDP-/FDP-Nachbarn fuer lokales Interface, Chassis, Remote-Port,
   VLAN und Systemnamen normalisieren.
-- [ ] Topologie-Regressionstests fuer Physical-MAC-Kollision gegen synthetische
-  locally administered Stub-MACs.
+- [x] Topologie-Regressionstests, die reale Identitaets-/Port-MACs von direkter
+  Nachbarrichtung und FDB-Erreichbarkeit trennen.
 - [ ] Profilabdeckung fuer weitere typische UniFi-Switch-Modelle aus Homelabs.
 
 ## Phase 5: Betrieb

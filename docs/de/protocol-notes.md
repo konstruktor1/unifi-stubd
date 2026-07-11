@@ -165,10 +165,10 @@ Wichtige Felder:
 | `port_table[].speed` | Port-Speed in Mbps, z.B. `1000` oder `10000` |
 | `port_table[].media` | Medienkennung, z.B. `GE` oder `SFP+` |
 | `port_table[].mac_table` | gesehene Clients/VMs, optional mit `hostname`- und `ip`-Metadaten |
-| `port_table[].last_connection` | controller-abgeleiteter zuletzt gesehener Nachbar/Client pro Port |
-| `uplink.uplink_mac` | controller-abgeleitete Upstream-MAC, wenn ein Nachbarhinweis akzeptiert wird |
-| `uplink.uplink_device_name` | controller-abgeleitetes Upstream-Device-Label |
-| `uplink.uplink_remote_port` | controller-abgeleitete Upstream-Portnummer, wenn bekannt |
+| `port_table[].last_connection` | direkte Downstream-Infrastruktur oder zuletzt verbundener Client pro Port |
+| `uplink.uplink_mac` | explizite direkte Upstream-MAC fuer Switch-Payloads |
+| `uplink.uplink_device_name` | optionales Label des direkten Upstream-Geraets |
+| `uplink.uplink_remote_port` | optionale konfigurierte oder per LLDP gelernte Upstream-Portnummer |
 | `sys_stats` | CPU/RAM/Load |
 
 Mixed-Speed-Switch-Profile sollten das komplette physische Portlayout in
@@ -198,15 +198,13 @@ abhaengt. Synthetische Ports ohne OS-Quelle sollten einen kleinen
 Heartbeat-Counter-Delta und nicht-null `rx_bytes-r` / `tx_bytes-r` melden;
 Ports mit real beobachtetem Interface behalten dagegen die echten OS-Counter.
 
-`uplink_neighbor` speist aktuell den MAC-Table-Hinweis auf dem Uplink-Port. In
-einem echten Controller kann daraus `port_table[].last_connection`,
-`uplink.uplink_mac`, `uplink.uplink_device_name` und teilweise
-`uplink.uplink_remote_port` entstehen. Der Remote-Port ist controller-abgeleitet,
-solange kein spaeteres Payload-Feld fuer explizite Remote-Port-Metadaten
-existiert. Wenn ein echter Upstream-UniFi-Switch die physische Host-MAC des
-Stubs bereits meldet, kann der Controller diese Beobachtung bevorzugen und die
-Topologiekante in Gegenrichtung bauen. Synthetische lokal administrierte
-Stub-MACs vermeiden diesen Konflikt bei reinen Darstellungs-Tests.
+Direkte Infrastruktur und Client-MAC-Zeilen werden getrennt aufgeloest. Der
+aktive `uplink_port` waehlt die Upstream-Kante, die Switch-Payloads ueber
+`uplink` und `last_uplink` melden; Infrastruktur an anderen Ports bleibt
+downstream. Konfigurierte Nachbarn gewinnen vor LLDP, waehrend FDB-
+Beobachtungen niemals die Richtung bestimmen. `remote_port` liefert optional
+`uplink_remote_port`. Reale Geraete- und Interface-MACs bleiben bei dieser
+Projektion unveraenderte Identitaeten.
 
 Ein Profilwechsel sollte als neue Geraeteidentitaet behandelt werden. Praktisch heisst das: neue Fake-MAC oder `-mac auto`, weil UniFi Modellinformationen pro MAC cached und ein spaeterer Modellwechsel am selben MAC haengen bleiben kann.
 

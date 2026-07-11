@@ -22,7 +22,7 @@ type ManagementLAN struct {
 	AdoptionStrategy string `yaml:"adoption_strategy"`
 }
 
-// UplinkNeighbor describes a configured fake upstream neighbor.
+// UplinkNeighbor describes a configured direct upstream neighbor.
 type UplinkNeighbor struct {
 	// MAC is the neighbor MAC address to expose on the uplink port.
 	MAC string `yaml:"mac"`
@@ -42,9 +42,11 @@ type UplinkNeighbor struct {
 	Age int `yaml:"age"`
 	// Uptime is the number of seconds the neighbor has been visible.
 	Uptime int `yaml:"uptime"`
+	// RemotePort is the optional one-based port on the neighboring device.
+	RemotePort int `yaml:"remote_port,omitempty"`
 }
 
-// PortNeighbor describes a configured fake neighbor on a specific port.
+// PortNeighbor describes a configured client or infrastructure neighbor on a port.
 type PortNeighbor struct {
 	// Port is the one-based switch port index.
 	Port int `yaml:"port"`
@@ -66,6 +68,8 @@ type PortNeighbor struct {
 	Age int `yaml:"age"`
 	// Uptime is the number of seconds the neighbor has been visible.
 	Uptime int `yaml:"uptime"`
+	// RemotePort is the optional one-based port on the neighboring device.
+	RemotePort int `yaml:"remote_port,omitempty"`
 }
 
 // PortOverride describes one per-port YAML override.

@@ -75,6 +75,11 @@ func refreshPortFreshness(ports []device.Port, uptimeSeconds int) []device.Port 
 				port.MACs[macIndex].Uptime = uptimeSeconds
 			}
 		}
+		for neighborIndex := range port.Neighbors {
+			if port.Neighbors[neighborIndex].Uptime < uptimeSeconds {
+				port.Neighbors[neighborIndex].Uptime = uptimeSeconds
+			}
+		}
 	}
 	return out
 }

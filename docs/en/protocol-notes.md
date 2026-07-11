@@ -163,10 +163,10 @@ Important fields:
 | `port_table[].speed` | port speed in Mbps, e.g. `1000` or `10000` |
 | `port_table[].media` | media marker, e.g. `GE` or `SFP+` |
 | `port_table[].mac_table` | observed clients/VMs, with optional `hostname` and `ip` metadata |
-| `port_table[].last_connection` | controller-derived last seen neighbor/client for a port |
-| `uplink.uplink_mac` | controller-derived upstream MAC when a neighbor hint is accepted |
-| `uplink.uplink_device_name` | controller-derived upstream device label |
-| `uplink.uplink_remote_port` | controller-derived upstream port number when known |
+| `port_table[].last_connection` | direct downstream infrastructure or last attached client for a port |
+| `uplink.uplink_mac` | explicit direct upstream MAC for switch payloads |
+| `uplink.uplink_device_name` | optional direct upstream device label |
+| `uplink.uplink_remote_port` | optional configured or LLDP-derived upstream port number |
 | `sys_stats` | CPU/RAM/load |
 
 Mixed-speed switch profiles should report the complete physical port layout in
@@ -194,15 +194,12 @@ first-boot payload. Synthetic ports without an OS source should report a small
 heartbeat counter delta and non-zero `rx_bytes-r` / `tx_bytes-r`; ports backed
 by a real observed interface should keep the real OS counters.
 
-`uplink_neighbor` currently feeds the uplink port MAC-table hint. In a real
-controller this can produce `port_table[].last_connection`,
-`uplink.uplink_mac`, `uplink.uplink_device_name`, and sometimes
-`uplink.uplink_remote_port`. The remote port is controller-derived unless a
-future payload field is added for explicit remote-port metadata. If a real
-upstream UniFi switch already reports the stub's physical host MAC, the
-controller can prefer that observation and build the topology edge in the
-opposite direction. Synthetic locally administered stub MACs avoid that
-conflict in representation-only tests.
+Direct infrastructure and client MAC rows are resolved separately. The active
+`uplink_port` selects the upstream edge and switch payloads report it through
+`uplink` and `last_uplink`; infrastructure on other ports remains downstream.
+Configured neighbors override LLDP, while FDB observations never select a
+direction. Optional `remote_port` supplies `uplink_remote_port`. Real device
+and interface MACs remain valid identities throughout this projection.
 
 A profile change should be treated as a new device identity. In practice: use a new fake MAC or `-mac auto`, because UniFi caches model information per MAC and later model changes can stick.
 

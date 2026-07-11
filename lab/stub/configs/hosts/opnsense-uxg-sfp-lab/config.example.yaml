@@ -27,6 +27,7 @@ uplink_neighbor:
   ip: 198.51.100.1
   vlan: 0
   type: gateway
+  remote_port: 1
 
 port_neighbors:
   - port: 4
@@ -35,6 +36,7 @@ port_neighbors:
     ip: 192.0.2.190
     type: usw
     static: true
+    remote_port: 49
 
 port_overrides:
   - port: 1

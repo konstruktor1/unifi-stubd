@@ -187,9 +187,8 @@ framing, controller adoption, local adoption state persistence, and AES-GCM.
 It does not prove Proxmox host bridge behavior, FreeBSD runtime behavior, LLDP
 import, or event subscriptions.
 
-It also does not prove physical-topology direction. Container tests use
-throwaway synthetic identities, so they do not cover the case where a real
-upstream UniFi switch already reports the same physical host MAC. Real Proxmox
-or bridge deployments should validate `uplink_neighbor`, `uplink_port`, and
-synthetic-versus-physical MAC selection against the target controller before the
-result is treated as representative.
+It also does not prove every physical topology. Container tests use throwaway
+identities, while real Proxmox or bridge deployments should validate directed
+`uplink_neighbor`, optional `remote_port`, `uplink_port`, and real interface
+MAC reporting against the target controller before the result is treated as
+representative.

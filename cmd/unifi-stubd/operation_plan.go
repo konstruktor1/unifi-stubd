@@ -24,24 +24,27 @@ func printRuntimePlan(flags runtimeFlags, profile device.Profile, macText, ipTex
 	fmt.Printf("inform_backoff_jitter_percent: %d\n", flags.informBackoffJitterPercent)
 	fmt.Printf("uplink_port: %d\n", effectiveUplinkPort(profile, flags))
 	if flags.uplinkNeighbor != nil {
-		fmt.Printf("uplink_neighbor: mac=%s hostname=%q ip=%q vlan=%d type=%q\n",
+		fmt.Printf("uplink_neighbor: mac=%s hostname=%q ip=%q vlan=%d type=%q remote_port=%d\n",
 			flags.uplinkNeighbor.MAC,
 			strings.TrimSpace(flags.uplinkNeighbor.Hostname),
 			strings.TrimSpace(flags.uplinkNeighbor.IP),
 			flags.uplinkNeighbor.VLAN,
-			strings.TrimSpace(flags.uplinkNeighbor.Type),
+			strings.TrimSpace(flags.uplinkNeighbor.DeviceType),
+			flags.uplinkNeighbor.RemotePort,
 		)
 	}
 	for _, neighbor := range flags.portNeighbors {
-		fmt.Printf("port_neighbor: port=%d mac=%s hostname=%q ip=%q vlan=%d type=%q\n",
+		fmt.Printf("port_neighbor: port=%d mac=%s hostname=%q ip=%q vlan=%d type=%q remote_port=%d\n",
 			neighbor.Port,
 			neighbor.Entry.MAC,
 			strings.TrimSpace(neighbor.Entry.Hostname),
 			strings.TrimSpace(neighbor.Entry.IP),
 			neighbor.Entry.VLAN,
 			strings.TrimSpace(neighbor.Entry.Type),
+			neighbor.RemotePort,
 		)
 	}
+	printTopologyPlan(flags, profile)
 	for _, override := range flags.portOverrides {
 		override = device.NormalizePortOverride(override)
 		fmt.Printf("port_override: port=%d interface=%q mac=%q ip=%q netmask=%q role=%q network_group=%q speed=%d media=%q up=%s name=%q\n",
@@ -122,6 +125,33 @@ func printRuntimePlan(flags runtimeFlags, profile device.Profile, macText, ipTex
 		fmt.Printf("planned_command: ip link add link %s name unifi-stubd0 type macvlan mode bridge\n", parent)
 		fmt.Printf("planned_command: ip link set unifi-stubd0 address %s up\n", macText)
 		fmt.Printf("planned_note: assign %s to unifi-stubd0 after subnet/prefix config exists\n", ipText)
+	}
+}
+
+func printTopologyPlan(flags runtimeFlags, profile device.Profile) {
+	ports := device.BuildPorts(profile, device.PortBuildOptions{
+		Count:      flags.portCount,
+		LinkSpeed:  flags.linkSpeed,
+		UplinkPort: effectiveUplinkPort(profile, flags),
+	})
+	ports = device.ApplyPortNeighbors(ports, flags.portNeighbors)
+	ports = device.ApplyUplinkNeighbor(ports, flags.uplinkNeighbor)
+	resolution, err := device.ResolveTopology(ports)
+	if err != nil {
+		fmt.Printf("topology_error: %v\n", err)
+		return
+	}
+	for _, warning := range resolution.Warnings {
+		fmt.Printf("topology_warning: %s\n", warning)
+	}
+	for _, edge := range resolution.Edges {
+		fmt.Printf("topology_edge: local_port=%d direction=%s source=%s neighbor_type=%s remote_port=%d\n",
+			edge.LocalPort,
+			edge.Direction,
+			edge.Neighbor.Source,
+			edge.Neighbor.DeviceType,
+			edge.Neighbor.RemotePort,
+		)
 	}
 }
 

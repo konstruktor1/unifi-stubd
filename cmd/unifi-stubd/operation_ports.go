@@ -35,15 +35,17 @@ func portsForRuntime(flags runtimeFlags, profile device.Profile, portBuildOption
 		ports = applyWANHealth(ports, flags, profile)
 		ports = applyLLDPNeighbors(ports, flags, plt)
 		ports = device.ApplyPortNeighbors(ports, flags.portNeighbors)
-		return device.ApplyUplinkNeighbor(ports, flags.uplinkNeighbor)
+		return finalizeRuntimeTopology(device.ApplyUplinkNeighbor(ports, flags.uplinkNeighbor), profile)
 	}
 	if mode != operationModeBridgeObserve && mode != operationModeHostDirect {
 		// Stub mode stays synthetic unless the operator explicitly supplies
-		// payload metadata. No host bridge or interface data is guessed here.
+		// payload metadata or enables passive LLDP. No host bridge or interface
+		// data is guessed here.
 		ports = device.ApplyPortOverrides(ports, flags.portOverrides)
 		ports = applyWANHealth(ports, flags, profile)
+		ports = applyLLDPNeighbors(ports, flags, plt)
 		ports = device.ApplyPortNeighbors(ports, flags.portNeighbors)
-		return device.ApplyUplinkNeighbor(ports, flags.uplinkNeighbor)
+		return finalizeRuntimeTopology(device.ApplyUplinkNeighbor(ports, flags.uplinkNeighbor), profile)
 	}
 	ctx, cancel = context.WithTimeout(context.Background(), observeTimeout)
 	defer cancel()
@@ -69,7 +71,36 @@ func portsForRuntime(flags runtimeFlags, profile device.Profile, portBuildOption
 	ports = applyWANHealth(ports, flags, profile)
 	ports = applyLLDPNeighbors(ports, flags, plt)
 	ports = device.ApplyPortNeighbors(ports, flags.portNeighbors)
-	return device.ApplyUplinkNeighbor(ports, flags.uplinkNeighbor)
+	return finalizeRuntimeTopology(device.ApplyUplinkNeighbor(ports, flags.uplinkNeighbor), profile)
+}
+
+func finalizeRuntimeTopology(ports []device.Port, profile device.Profile) []device.Port {
+	resolution, err := device.ResolveTopology(ports)
+	if err != nil {
+		log.Printf("topology resolution error: %v", err)
+		return ports
+	}
+	for _, warning := range resolution.Warnings {
+		log.Printf("topology warning: %s", warning)
+	}
+	for _, port := range ports {
+		if port.Up && strings.TrimSpace(port.Interface) != "" && strings.TrimSpace(port.MAC) == "" {
+			log.Printf("topology warning: active mapped port %d (%s) has no observed or configured port MAC; payload uses the profile fallback only as the local interface MAC", port.Index, port.Interface)
+		}
+	}
+	if strings.EqualFold(strings.TrimSpace(profile.Payload.Kind), "gateway") {
+		for _, port := range ports {
+			if !port.Uplink {
+				continue
+			}
+			role := strings.ToLower(strings.TrimSpace(port.Role))
+			if role != "wan" && role != "wan2" {
+				log.Printf("topology warning: gateway uplink port %d has role %q; direction still follows uplink_port", port.Index, role)
+			}
+			break
+		}
+	}
+	return ports
 }
 
 // uplinkPortIndex finds the represented uplink and falls back to port 1 for

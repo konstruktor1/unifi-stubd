@@ -58,4 +58,5 @@ const (
 	payloadKindSwitch       = "switch"
 	payloadModeSwitch       = "switch"
 	payloadTypeDHCP         = "dhcp"
+	payloadTypeWire         = "wire"
 )

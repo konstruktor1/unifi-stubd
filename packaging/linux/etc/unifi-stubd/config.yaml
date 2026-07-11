@@ -18,14 +18,15 @@ uplink_speed: auto
 # 0 uses the selected profile uplink. Set a port number to move the uplink
 # marker while preserving that port's profile speed/media.
 uplink_port: 0
-# Optional fake upstream neighbor added to the selected uplink port. Leave
+# Optional direct upstream neighbor added to the selected uplink port. Leave
 # mac empty or set uplink_neighbor: null to disable it.
 uplink_neighbor:
   mac: ""
   vlan: 1
   type: usw
-# Optional fake neighbors on specific ports. These entries populate
-# port_table[].mac_table and can model downstream switches or lab hosts.
+  # remote_port: 50
+# Optional neighbors on specific ports. Client entries populate MAC tables;
+# explicit infrastructure types model direct downstream devices.
 # Example:
 # port_neighbors:
 #   - port: 2
@@ -34,6 +35,7 @@ uplink_neighbor:
 #     ip: 192.0.2.52
 #     vlan: 1
 #     type: usw
+#     remote_port: 7
 port_neighbors: []
 # Optional per-port overrides applied after profile and observation data.
 # Profiles describe hardware. Use these overrides for lab assignments such as

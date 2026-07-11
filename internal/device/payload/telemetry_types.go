@@ -95,7 +95,7 @@ type gatewayTelemetry struct {
 	KernelVersion          string                 `json:"kernel_version"`
 	LastErrorConns         []emptyObject          `json:"last_error_conns"`
 	LEDState               ledStatePayload        `json:"led_state"`
-	LLDPTable              []emptyObject          `json:"lldp_table"`
+	LLDPTable              []lldpRow              `json:"lldp_table"`
 	Locating               bool                   `json:"locating"`
 	ManufacturerID         int                    `json:"manufacturer_id"`
 	Netmask                string                 `json:"netmask"`

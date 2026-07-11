@@ -267,15 +267,13 @@ UniFi Network berechnet Topologie-Links aus mehreren controller-seitigen
 Signalen. Der Stub kann Hinweise liefern, aber den Controller-Graph nicht
 vollstaendig kontrollieren.
 
-`uplink_neighbor` speist aktuell den MAC-Table-Hinweis auf dem Uplink-Port. Ein
-Controller kann daraus `port_table[].last_connection`, `uplink.uplink_mac`,
-`uplink.uplink_device_name` und teilweise `uplink.uplink_remote_port` ableiten.
-Wenn der Stub aber eine physische Host-MAC meldet, die ein echter
-Upstream-UniFi-Switch bereits auf seinem eigenen Port sieht, kann der Controller
-diese reale Beobachtung bevorzugen und die dargestellte Kante umdrehen. Fuer
-Darstellungs-Tests sollte deshalb eine synthetische lokal administrierte
-Stub-MAC genutzt werden, ausser genau diese Physical-MAC-Heuristik ist das
-Testziel.
+Die Topologieaufloesung trennt direkte Infrastruktur-Nachbarn von Client-/FDB-
+MAC-Zeilen. Der aktive dargestellte Uplink bestimmt die Upstream-Richtung;
+direkte Infrastruktur an anderen Ports ist downstream. Konfigurierte Nachbarn
+gewinnen vor LLDP, waehrend FDB-Sichtbarkeit niemals die Richtung bestimmt.
+Switch-Renderer melden den ausgewaehlten Upstream ueber `uplink` und
+`last_uplink` und lassen Downstream-Infrastruktur am physischen Port. Reale
+Geraete- und Port-MACs bleiben dabei unveraenderte Identitaeten.
 
 LLDP ist hilfreich, aber optional. Ohne LLDP bleibt `uplink_neighbor` manuell.
 Mit LLDP sollte Nachbarerkennung manuelle Fehler reduzieren, aber der Controller

@@ -45,13 +45,20 @@ type PortView struct {
 	Speed               int
 	Media               string
 	MACs                []device.MacTableEntry
+	Neighbors           []device.TopologyNeighbor
+	TopologyNeighbor    *device.TopologyNeighbor
+	TopologyDirection   device.TopologyDirection
 	GatewayInterface    InterfaceView
 }
 
 // BuildPortViews resolves profile ports once so switch and gateway renderers
 // cannot drift when roles, speed, source interfaces, or management metadata
 // change.
-func BuildPortViews(profile device.Profile, id device.Identity, ports []device.Port) []PortView {
+func BuildPortViews(profile device.Profile, id device.Identity, ports []device.Port, topology device.TopologyResolution) []PortView {
+	edges := make(map[int]device.TopologyEdge, len(topology.Edges))
+	for _, edge := range topology.Edges {
+		edges[edge.LocalPort] = edge
+	}
 	views := make([]PortView, 0, len(ports))
 	for _, port := range ports {
 		// Resolve all profile, override, and observation data once. Switch and
@@ -71,6 +78,7 @@ func BuildPortViews(profile device.Profile, id device.Identity, ports []device.P
 		sourceInterface := strings.TrimSpace(port.Interface)
 		enabled := !port.Disabled
 		macs := append([]device.MacTableEntry(nil), port.MACs...)
+		neighbors := append([]device.TopologyNeighbor(nil), port.Neighbors...)
 		view := PortView{
 			Port:                port,
 			Index:               port.Index,
@@ -87,6 +95,7 @@ func BuildPortViews(profile device.Profile, id device.Identity, ports []device.P
 			Speed:               speed,
 			Media:               media,
 			MACs:                macs,
+			Neighbors:           neighbors,
 			GatewayInterface: InterfaceView{
 				Name:            gatewayName,
 				IfName:          gatewayName,
@@ -103,6 +112,11 @@ func BuildPortViews(profile device.Profile, id device.Identity, ports []device.P
 				Speed:           speed,
 				Media:           media,
 			},
+		}
+		if edge, ok := edges[port.Index]; ok {
+			neighbor := edge.Neighbor
+			view.TopologyNeighbor = &neighbor
+			view.TopologyDirection = edge.Direction
 		}
 		views = append(views, view)
 	}

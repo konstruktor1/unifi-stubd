@@ -7,6 +7,18 @@ semantic version tags once releases are published.
 
 ## [Unreleased]
 
+### Added
+
+- Added directed infrastructure-neighbor resolution with optional
+  `remote_port`, Config-over-LLDP precedence, conflict diagnostics, and local
+  topology summaries.
+
+### Changed
+
+- Separated real device and port identities, direct topology neighbors, and
+  client/FDB rows. Switch upstreams now use UniFi-style `uplink` and
+  `last_uplink` payloads without duplicating the upstream device as a client.
+
 ## [0.2.4-alpha] - 2026-07-11
 
 ### Changed

@@ -1184,8 +1184,8 @@ func TestSwitchPortsCanOverrideAggregationUplinkToTenGigPort(t *testing.T) {
 	if ports[0].Media != "SFP+" {
 		t.Fatalf("port 1 media = %q, want SFP+", ports[0].Media)
 	}
-	if len(ports[0].MACs) == 0 {
-		t.Fatal("port 1 did not receive uplink MAC table")
+	if len(ports[0].MACs) != 0 || len(ports[0].Neighbors) != 0 {
+		t.Fatal("port 1 received an invented uplink neighbor")
 	}
 	if ports[28].Uplink {
 		t.Fatal("port 29 is still uplink")
@@ -1866,23 +1866,25 @@ func TestCustomGatewayPayloadUsesProfileRolesWithoutModelSpecialCase(t *testing.
 }
 
 // TestApplyUplinkNeighborAddsConfiguredNeighbor verifies configured uplink
-// topology hints are inserted into the uplink MAC table.
+// topology hints are inserted as direct infrastructure neighbors.
 func TestApplyUplinkNeighborAddsConfiguredNeighbor(t *testing.T) {
 	profile, ok := device.LookupProfile("usaggpro")
 	if !ok {
 		t.Fatal("profile not found")
 	}
-	ports := device.ApplyUplinkNeighbor(device.BuildPorts(profile, device.PortBuildOptions{UplinkPort: 1}), &device.MacTableEntry{
-		MAC:  "02:aa:bb:cc:dd:01",
-		VLAN: 1,
-		Type: "usw",
+	ports := device.ApplyUplinkNeighbor(device.BuildPorts(profile, device.PortBuildOptions{UplinkPort: 1}), &device.TopologyNeighbor{
+		MAC:        "02:aa:bb:cc:dd:01",
+		VLAN:       1,
+		Age:        4,
+		Uptime:     1200,
+		DeviceType: "usw",
 	})
 
-	if len(ports[0].MACs) == 0 {
+	if len(ports[0].Neighbors) == 0 {
 		t.Fatal("uplink neighbor was not added")
 	}
-	entry := ports[0].MACs[0]
-	if entry.MAC != "02:aa:bb:cc:dd:01" || entry.VLAN != 1 || entry.Type != "usw" {
+	entry := ports[0].Neighbors[0]
+	if entry.MAC != "02:aa:bb:cc:dd:01" || entry.VLAN != 1 || entry.DeviceType != "usw" {
 		t.Fatalf("uplink neighbor = %+v", entry)
 	}
 	if entry.Age == 0 || entry.Uptime == 0 {
@@ -1890,22 +1892,25 @@ func TestApplyUplinkNeighborAddsConfiguredNeighbor(t *testing.T) {
 	}
 }
 
-// TestApplyUplinkNeighborReplacesSyntheticFallback verifies an explicit
-// neighbor does not leave the generated placeholder in the uplink MAC table.
-func TestApplyUplinkNeighborReplacesSyntheticFallback(t *testing.T) {
+// TestApplyUplinkNeighborDoesNotCreateSyntheticFallback verifies an explicit
+// neighbor stays separate from client MAC rows and no placeholder is generated.
+func TestApplyUplinkNeighborDoesNotCreateSyntheticFallback(t *testing.T) {
 	profile, ok := device.LookupProfile("uxgpro")
 	if !ok {
 		t.Fatal("profile not found")
 	}
-	ports := device.ApplyUplinkNeighbor(device.BuildPorts(profile, device.PortBuildOptions{UplinkPort: 3}), &device.MacTableEntry{
+	ports := device.ApplyUplinkNeighbor(device.BuildPorts(profile, device.PortBuildOptions{UplinkPort: 3}), &device.TopologyNeighbor{
 		MAC: "00:00:f7:f7:02:56",
 		IP:  "192.0.2.1",
 	})
 
-	if len(ports[2].MACs) != 1 {
-		t.Fatalf("uplink MAC table length = %d, want 1: %+v", len(ports[2].MACs), ports[2].MACs)
+	if len(ports[2].MACs) != 0 {
+		t.Fatalf("uplink client MAC table = %+v, want empty", ports[2].MACs)
 	}
-	if got := ports[2].MACs[0].MAC; got != "00:00:f7:f7:02:56" {
+	if len(ports[2].Neighbors) != 1 {
+		t.Fatalf("uplink neighbors = %+v, want one", ports[2].Neighbors)
+	}
+	if got := ports[2].Neighbors[0].MAC; got != "00:00:f7:f7:02:56" {
 		t.Fatalf("uplink neighbor MAC = %q", got)
 	}
 }
@@ -1919,14 +1924,15 @@ func TestSwitchPayloadSkipsGatewayUplinkNeighborMacTable(t *testing.T) {
 	}
 	ports := device.BuildPorts(profile, device.PortBuildOptions{UplinkPort: 49})
 	ports[48].MACs = nil
-	ports = device.ApplyUplinkNeighbor(ports, &device.MacTableEntry{
-		MAC:  "02:aa:bb:cc:dd:01",
-		IP:   "192.0.2.1",
-		Type: "uxg",
+	ports = device.ApplyUplinkNeighbor(ports, &device.TopologyNeighbor{
+		MAC:        "02:aa:bb:cc:dd:01",
+		IP:         "192.0.2.1",
+		DeviceType: "uxg",
+		RemotePort: 4,
 	})
 
-	if len(ports[48].MACs) != 1 {
-		t.Fatalf("gateway neighbor was not retained in port data: %+v", ports[48].MACs)
+	if len(ports[48].Neighbors) != 1 {
+		t.Fatalf("gateway neighbor was not retained in port data: %+v", ports[48].Neighbors)
 	}
 	payload, err := switchPayload(device.Identity{
 		MAC:          "02:11:22:33:44:60",
@@ -1942,7 +1948,9 @@ func TestSwitchPayloadSkipsGatewayUplinkNeighborMacTable(t *testing.T) {
 		t.Fatal(err)
 	}
 	var doc struct {
-		PortTable []map[string]any `json:"port_table"`
+		PortTable  []map[string]any `json:"port_table"`
+		Uplink     map[string]any   `json:"uplink"`
+		LastUplink map[string]any   `json:"last_uplink"`
 	}
 	if err := json.Unmarshal(payload, &doc); err != nil {
 		t.Fatal(err)
@@ -1953,6 +1961,12 @@ func TestSwitchPayloadSkipsGatewayUplinkNeighborMacTable(t *testing.T) {
 	}
 	if port["last_connection"] != nil {
 		t.Fatalf("gateway uplink last_connection = %#v, want null", port["last_connection"])
+	}
+	if doc.Uplink["uplink_mac"] != "02:aa:bb:cc:dd:01" || doc.Uplink["port_idx"] != float64(49) {
+		t.Fatalf("uplink = %#v", doc.Uplink)
+	}
+	if doc.LastUplink["uplink_remote_port"] != float64(4) {
+		t.Fatalf("last_uplink = %#v", doc.LastUplink)
 	}
 }
 
@@ -1977,11 +1991,11 @@ func TestApplyPortNeighborsAddsConfiguredMacTableEntry(t *testing.T) {
 		},
 	})
 
-	if len(ports[1].MACs) != 1 {
-		t.Fatalf("port 2 MAC table length = %d, want 1", len(ports[1].MACs))
+	if len(ports[1].Neighbors) != 1 {
+		t.Fatalf("port 2 neighbor length = %d, want 1", len(ports[1].Neighbors))
 	}
-	entry := ports[1].MACs[0]
-	if entry.MAC != "02:00:5e:00:53:03" || entry.VLAN != 1 || entry.Type != "usw" {
+	entry := ports[1].Neighbors[0]
+	if entry.MAC != "02:00:5e:00:53:03" || entry.VLAN != 1 || entry.DeviceType != "usw" {
 		t.Fatalf("port 2 neighbor = %+v", entry)
 	}
 	if entry.Hostname != "lab-host-2" || entry.IP != "192.0.2.52" || !entry.Static {
@@ -1990,8 +2004,8 @@ func TestApplyPortNeighborsAddsConfiguredMacTableEntry(t *testing.T) {
 	if entry.Age == 0 || entry.Uptime == 0 {
 		t.Fatalf("port 2 neighbor missing defaults: %+v", entry)
 	}
-	if len(ports[0].MACs) == 0 {
-		t.Fatal("port 1 lost its generated uplink MAC table")
+	if len(ports[0].MACs) != 0 || len(ports[0].Neighbors) != 0 {
+		t.Fatalf("port 1 contains an invented uplink neighbor: %+v %+v", ports[0].MACs, ports[0].Neighbors)
 	}
 }
 

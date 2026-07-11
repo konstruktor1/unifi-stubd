@@ -49,11 +49,13 @@ uplink_neighbor:
   mac: 02:aa:bb:cc:dd:01
   vlan: 1
   type: usw
+  remote_port: 50
 port_neighbors:
   - port: 2
     mac: 02:00:5e:00:53:03
     vlan: 1
     type: usw
+    remote_port: 7
 port_overrides:
   - port: 2
     role: lan
@@ -78,6 +80,12 @@ port_overrides:
 	}
 	if !strings.Contains(output, "profile: usaggpro (USAGGPRO)") {
 		t.Fatalf("output did not contain profile override:\n%s", output)
+	}
+	if !strings.Contains(output, "topology_edge: local_port=1 direction=upstream source=config-uplink neighbor_type=usw remote_port=50") {
+		t.Fatalf("output did not contain configured upstream edge:\n%s", output)
+	}
+	if !strings.Contains(output, "topology_edge: local_port=2 direction=downstream source=config-port neighbor_type=usw remote_port=7") {
+		t.Fatalf("output did not contain configured downstream edge:\n%s", output)
 	}
 	if !strings.Contains(output, "hostname: cli-host") {
 		t.Fatalf("output did not contain hostname override:\n%s", output)
@@ -599,6 +607,34 @@ func TestValidateAcceptsPackagedConfigs(t *testing.T) {
 	}
 }
 
+// TestValidateRejectsConflictingInfrastructureNeighbors verifies equal-priority
+// config cannot describe two different direct devices on one physical port.
+func TestValidateRejectsConflictingInfrastructureNeighbors(t *testing.T) {
+	configPath := filepath.Join(t.TempDir(), "config.yaml")
+	if err := os.WriteFile(configPath, []byte(`operation_mode: stub
+profile: us8
+mac: 02:00:5e:00:53:60
+ip: 192.0.2.60
+port_neighbors:
+  - port: 2
+    mac: 02:00:5e:00:53:61
+    type: usw
+  - port: 2
+    mac: 02:00:5e:00:53:62
+    type: usw
+`), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cmd := stubdCommand("-validate", "-config", configPath)
+	out, err := cmd.CombinedOutput()
+	if err == nil {
+		t.Fatalf("validation unexpectedly succeeded:\n%s", out)
+	}
+	if !strings.Contains(string(out), "conflicting configured infrastructure neighbors") {
+		t.Fatalf("validation output = %q", out)
+	}
+}
+
 func TestConfigMigrateDryRunDoesNotWrite(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "config.yaml")
@@ -1107,6 +1143,16 @@ USE_AES_GCM=true
     "fallback_to_cbc": false,
     "interval_seconds": 10,
     "include_blocks": ["system-stats"],
+    "topology": {
+      "edges": [{
+        "local_port": 49,
+        "direction": "upstream",
+        "source": "config",
+        "neighbor_mac": "02:00:5e:00:53:49",
+        "neighbor_type": "uxg",
+        "remote_port": 4
+      }]
+    },
     "has_system_cfg": true,
     "system_cfg_bytes": 42,
     "system_cfg_keys": ["ubntconf", "udapi"],
@@ -1211,6 +1257,16 @@ instance_guard_path: `+filepath.Join(dir, "instance.lock")+`
 				SystemCFGKeys   []string `json:"system_cfg_keys"`
 				Ignored         bool     `json:"ignored"`
 				IgnoredReason   string   `json:"ignored_reason"`
+				Topology        struct {
+					Edges []struct {
+						LocalPort    int    `json:"local_port"`
+						Direction    string `json:"direction"`
+						Source       string `json:"source"`
+						NeighborMAC  string `json:"neighbor_mac"`
+						NeighborType string `json:"neighbor_type"`
+						RemotePort   int    `json:"remote_port"`
+					} `json:"edges"`
+				} `json:"topology"`
 			} `json:"last_inform"`
 		} `json:"runtime"`
 	}
@@ -1288,6 +1344,14 @@ instance_guard_path: `+filepath.Join(dir, "instance.lock")+`
 		!doc.Runtime.LastInform.Ignored ||
 		doc.Runtime.LastInform.IgnoredReason == "" {
 		t.Fatalf("last inform safe provisioning metadata = %+v", doc.Runtime.LastInform)
+	}
+	if len(doc.Runtime.LastInform.Topology.Edges) != 1 ||
+		doc.Runtime.LastInform.Topology.Edges[0].LocalPort != 49 ||
+		doc.Runtime.LastInform.Topology.Edges[0].Direction != "upstream" ||
+		doc.Runtime.LastInform.Topology.Edges[0].Source != "config" ||
+		doc.Runtime.LastInform.Topology.Edges[0].NeighborType != "uxg" ||
+		doc.Runtime.LastInform.Topology.Edges[0].RemotePort != 4 {
+		t.Fatalf("last inform topology = %+v", doc.Runtime.LastInform.Topology)
 	}
 }
 

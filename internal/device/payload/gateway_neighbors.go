@@ -8,16 +8,10 @@ import (
 
 func gatewayConnectionFields(view PortView) connectionFields {
 	out := connectionFields{Connected: view.Up}
-	if !view.Up || !view.Uplink {
+	if !view.Up || !view.Uplink || view.TopologyNeighbor == nil || view.TopologyDirection != device.DirectionUpstream {
 		return out
 	}
-	// Controllers use last_connection as a topology hint. The first MAC entry
-	// is therefore treated as metadata about the visible neighbor, not as host
-	// configuration to apply.
-	entry, ok := firstTopologyMAC(view)
-	if !ok {
-		return out
-	}
+	entry := *view.TopologyNeighbor
 	connection := gatewayLastConnection{
 		MAC:    strings.ToLower(strings.TrimSpace(entry.MAC)),
 		Source: jsonKeyMACTable,
@@ -28,7 +22,7 @@ func gatewayConnectionFields(view PortView) connectionFields {
 	if hostname := strings.TrimSpace(entry.Hostname); hostname != "" {
 		connection.Hostname = hostname
 	}
-	if entryType := strings.TrimSpace(entry.Type); entryType != "" {
+	if entryType := strings.TrimSpace(entry.DeviceType); entryType != "" {
 		connection.Type = entryType
 	}
 	out.LastConnection = &connection
@@ -40,7 +34,25 @@ func physicalConnectionFields(view PortView) connectionFields {
 	if !view.Up {
 		return out
 	}
-	entry, ok := firstPhysicalTopologyMAC(view)
+	if view.TopologyNeighbor != nil && view.TopologyDirection == device.DirectionDownstream {
+		entry := *view.TopologyNeighbor
+		connection := gatewayLastConnection{
+			MAC:    strings.ToLower(strings.TrimSpace(entry.MAC)),
+			Source: jsonKeyMACTable,
+		}
+		if ip := strings.TrimSpace(entry.IP); ip != "" {
+			connection.IP = ip
+		}
+		if hostname := strings.TrimSpace(entry.Hostname); hostname != "" {
+			connection.Hostname = hostname
+		}
+		if entryType := strings.TrimSpace(entry.DeviceType); entryType != "" {
+			connection.Type = entryType
+		}
+		out.LastConnection = &connection
+		return out
+	}
+	entry, ok := firstClientMAC(view.MACs)
 	if !ok {
 		return out
 	}
@@ -61,18 +73,9 @@ func physicalConnectionFields(view PortView) connectionFields {
 	return out
 }
 
-func firstPhysicalTopologyMAC(view PortView) (device.MacTableEntry, bool) {
-	for _, entry := range view.MACs {
-		if macVisibleOnPhysicalPort(view, entry) {
-			return entry, true
-		}
-	}
-	return device.MacTableEntry{}, false
-}
-
-func firstTopologyMAC(view PortView) (device.MacTableEntry, bool) {
-	for _, entry := range view.MACs {
-		if macVisibleOnGatewayPort(view, entry) {
+func firstClientMAC(entries []device.MacTableEntry) (device.MacTableEntry, bool) {
+	for _, entry := range entries {
+		if strings.TrimSpace(entry.MAC) != "" {
 			return entry, true
 		}
 	}
@@ -80,44 +83,11 @@ func firstTopologyMAC(view PortView) (device.MacTableEntry, bool) {
 }
 
 func portMACTable(view PortView) []device.MacTableEntry {
-	out := make([]device.MacTableEntry, 0, len(view.MACs))
-	for _, entry := range view.MACs {
-		if macVisibleOnPhysicalPort(view, entry) {
-			out = append(out, entry)
-		}
-	}
+	out := downstreamMACTable(view)
 	if len(out) == 0 {
 		return nil
 	}
 	return out
-}
-
-func macVisibleOnGatewayPort(view PortView, entry device.MacTableEntry) bool {
-	if view.Uplink {
-		return true
-	}
-	entryType := strings.ToLower(strings.TrimSpace(entry.Type))
-	return entryType == "" || entryType == deviceTypeClient
-}
-
-func macVisibleOnPhysicalPort(view PortView, entry device.MacTableEntry) bool {
-	if strings.TrimSpace(entry.MAC) == "" {
-		return false
-	}
-	if view.Uplink || portActsLikeSwitch(view) {
-		return true
-	}
-	entryType := strings.ToLower(strings.TrimSpace(entry.Type))
-	return entryType == "" || entryType == deviceTypeClient
-}
-
-func portActsLikeSwitch(view PortView) bool {
-	switch gatewayPortRole(view.Port) {
-	case gatewayPortRoleLAN, gatewayPortRoleLAN2:
-		return true
-	default:
-		return false
-	}
 }
 
 func gatewayHostTable(view PortView) []gatewayHostRow {

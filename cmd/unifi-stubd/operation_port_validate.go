@@ -10,7 +10,7 @@ import (
 
 // validatePortOverrides checks configured payload metadata before it can reach
 // generated ports, keeping invalid MAC/IP/speed data out of inform payloads.
-func validatePortOverrides(flags runtimeFlags) error {
+func validatePortOverrides(flags runtimeFlags, profile device.Profile) error {
 	if flags.uplinkPort < 0 || flags.uplinkPort > flags.portCount {
 		return fmt.Errorf("invalid -uplink-port %d; use 0 or 1..%d", flags.uplinkPort, flags.portCount)
 	}
@@ -23,6 +23,9 @@ func validatePortOverrides(flags runtimeFlags) error {
 		}
 		if ip := strings.TrimSpace(flags.uplinkNeighbor.IP); ip != "" && net.ParseIP(ip).To4() == nil {
 			return fmt.Errorf("invalid uplink_neighbor ip %q; use an IPv4 address", flags.uplinkNeighbor.IP)
+		}
+		if flags.uplinkNeighbor.RemotePort < 0 || flags.uplinkNeighbor.RemotePort > 65535 {
+			return fmt.Errorf("invalid uplink_neighbor remote_port %d; use 0 or 1..65535", flags.uplinkNeighbor.RemotePort)
 		}
 	}
 	for _, neighbor := range flags.portNeighbors {
@@ -38,11 +41,24 @@ func validatePortOverrides(flags runtimeFlags) error {
 		if ip := strings.TrimSpace(neighbor.Entry.IP); ip != "" && net.ParseIP(ip).To4() == nil {
 			return fmt.Errorf("invalid port neighbor ip %q on port %d; use an IPv4 address", neighbor.Entry.IP, neighbor.Port)
 		}
+		if neighbor.RemotePort < 0 || neighbor.RemotePort > 65535 {
+			return fmt.Errorf("invalid port neighbor remote_port %d on port %d; use 0 or 1..65535", neighbor.RemotePort, neighbor.Port)
+		}
 	}
 	for _, override := range flags.portOverrides {
 		if err := device.ValidatePortOverride(override, flags.portCount); err != nil {
 			return fmt.Errorf("validate port overrides: %w", err)
 		}
+	}
+	ports := device.BuildPorts(profile, device.PortBuildOptions{
+		Count:      flags.portCount,
+		LinkSpeed:  flags.linkSpeed,
+		UplinkPort: effectiveUplinkPort(profile, flags),
+	})
+	ports = device.ApplyPortNeighbors(ports, flags.portNeighbors)
+	ports = device.ApplyUplinkNeighbor(ports, flags.uplinkNeighbor)
+	if _, err := device.ResolveTopology(ports); err != nil {
+		return fmt.Errorf("validate topology neighbors: %w", err)
 	}
 	return nil
 }

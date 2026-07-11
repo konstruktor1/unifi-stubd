@@ -90,22 +90,24 @@ func printHumanDiscoveryStatus(status localStatus) {
 
 func printHumanNeighborStatus(status localStatus) {
 	if status.Config.UplinkNeighbor != nil {
-		fmt.Printf("uplink_neighbor: mac=%s hostname=%s ip=%s vlan=%d type=%s\n",
+		fmt.Printf("uplink_neighbor: mac=%s hostname=%s ip=%s vlan=%d type=%s remote_port=%d\n",
 			status.Config.UplinkNeighbor.MAC,
 			valueOrDash(status.Config.UplinkNeighbor.Hostname),
 			valueOrDash(status.Config.UplinkNeighbor.IP),
 			status.Config.UplinkNeighbor.VLAN,
 			valueOrDash(status.Config.UplinkNeighbor.Type),
+			status.Config.UplinkNeighbor.RemotePort,
 		)
 	}
 	for _, neighbor := range status.Config.PortNeighbors {
-		fmt.Printf("port_neighbor: port=%d mac=%s hostname=%s ip=%s vlan=%d type=%s\n",
+		fmt.Printf("port_neighbor: port=%d mac=%s hostname=%s ip=%s vlan=%d type=%s remote_port=%d\n",
 			neighbor.Port,
 			neighbor.MAC,
 			valueOrDash(neighbor.Hostname),
 			valueOrDash(neighbor.IP),
 			neighbor.VLAN,
 			valueOrDash(neighbor.Type),
+			neighbor.RemotePort,
 		)
 	}
 }
@@ -183,6 +185,7 @@ func printLastInform(last lastInformStatus) {
 	fmt.Printf("last_inform_raw_bytes: %d\n", last.RawBytes)
 	fmt.Printf("last_inform_json_bytes: %d\n", last.JSONBytes)
 	printLastInformTraffic(last.Traffic)
+	printLastInformTopology(last.Topology)
 	if last.IntervalSeconds > 0 {
 		fmt.Printf("last_inform_interval_seconds: %d\n", last.IntervalSeconds)
 	}
@@ -231,6 +234,23 @@ func printLastInform(last lastInformStatus) {
 	}
 	if last.Error != "" {
 		fmt.Printf("last_inform_error: %s\n", last.Error)
+	}
+}
+
+func printLastInformTopology(topology *lastInformTopologyStatus) {
+	if topology == nil {
+		return
+	}
+	for _, edge := range topology.Edges {
+		fmt.Printf("last_inform_topology_edge: local_port=%d direction=%s source=%s neighbor_mac=%s neighbor_hostname=%s neighbor_type=%s remote_port=%d\n",
+			edge.LocalPort,
+			edge.Direction,
+			edge.Source,
+			edge.NeighborMAC,
+			valueOrDash(edge.NeighborHostname),
+			valueOrDash(edge.NeighborType),
+			edge.RemotePort,
+		)
 	}
 }
 

@@ -10,8 +10,9 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/platform"
 )
 
-// applyLLDPNeighbors adds passive LLDP neighbors as MAC-table hints on the
-// matching represented UniFi ports.
+const topologySourceLLDP = "lldp"
+
+// applyLLDPNeighbors adds passive direct neighbors to matching represented ports.
 func applyLLDPNeighbors(ports []device.Port, flags runtimeFlags, plt platform.Platform) []device.Port {
 	if strings.TrimSpace(flags.lldpSource) == "" || strings.EqualFold(strings.TrimSpace(flags.lldpSource), platform.SourceOff) {
 		return ports
@@ -33,13 +34,13 @@ func applyLLDPNeighbors(ports []device.Port, flags runtimeFlags, plt platform.Pl
 		if portIndex < 1 || portIndex > len(out) {
 			continue
 		}
-		entry := lldpNeighborMACEntry(neighbor)
+		entry := lldpTopologyNeighbor(neighbor)
 		if strings.TrimSpace(entry.MAC) == "" {
 			continue
 		}
-		// LLDP neighbors are represented only as controller-facing MAC-table
-		// hints. They are never used to configure host networking.
-		out[portIndex-1].MACs = append(out[portIndex-1].MACs, entry)
+		// LLDP is passive topology input only. It never configures host networking
+		// and is deliberately kept separate from client/FDB MAC-table rows.
+		out[portIndex-1].Neighbors = append(out[portIndex-1].Neighbors, entry)
 	}
 	return out
 }
@@ -70,9 +71,8 @@ func lldpInterfacePortMap(flags runtimeFlags, ports []device.Port) map[string]in
 	return out
 }
 
-// lldpNeighborMACEntry turns one LLDP neighbor into the same MAC-table metadata
-// shape used for configured neighbors.
-func lldpNeighborMACEntry(neighbor platform.LLDPNeighbor) device.MacTableEntry {
+// lldpTopologyNeighbor converts passive LLDP data into a direct infrastructure neighbor.
+func lldpTopologyNeighbor(neighbor platform.LLDPNeighbor) device.TopologyNeighbor {
 	mac := strings.TrimSpace(neighbor.ChassisMAC)
 	if mac == "" {
 		mac = strings.TrimSpace(neighbor.ChassisID)
@@ -80,15 +80,22 @@ func lldpNeighborMACEntry(neighbor platform.LLDPNeighbor) device.MacTableEntry {
 	if parsed, err := net.ParseMAC(mac); err == nil {
 		mac = parsed.String()
 	} else {
-		return device.MacTableEntry{}
+		return device.TopologyNeighbor{}
 	}
-	return device.MacTableEntry{
-		MAC:      mac,
-		Hostname: strings.TrimSpace(neighbor.SystemName),
-		IP:       ipv4Text(neighbor.ManagementIP),
-		Age:      4,
-		Uptime:   1200,
-		Type:     "lldp",
+	remotePortID := strings.TrimSpace(neighbor.PortID)
+	if remotePortID == "" {
+		remotePortID = strings.TrimSpace(neighbor.PortDescription)
+	}
+	return device.TopologyNeighbor{
+		MAC:          mac,
+		Hostname:     strings.TrimSpace(neighbor.SystemName),
+		IP:           ipv4Text(neighbor.ManagementIP),
+		DeviceType:   topologySourceLLDP,
+		Age:          4,
+		Uptime:       1200,
+		RemotePort:   device.ParseRemotePortID(remotePortID),
+		RemotePortID: remotePortID,
+		Source:       device.NeighborSourceLLDP,
 	}
 }
 

@@ -3,50 +3,20 @@ package device
 import "strings"
 
 // ApplyUplinkNeighbor adds a configured neighbor entry to the uplink port.
-func ApplyUplinkNeighbor(ports []Port, neighbor *MacTableEntry) []Port {
+func ApplyUplinkNeighbor(ports []Port, neighbor *TopologyNeighbor) []Port {
 	if neighbor == nil || strings.TrimSpace(neighbor.MAC) == "" {
 		return ports
 	}
-	entry := normalizeMacTableEntry(*neighbor, deviceTypeUSW)
+	entry := *neighbor
+	entry.Source = NeighborSourceConfigUplink
 	for index := range ports {
 		if !ports[index].Uplink {
 			continue
 		}
-		for macIndex := range ports[index].MACs {
-			if strings.EqualFold(ports[index].MACs[macIndex].MAC, entry.MAC) {
-				ports[index].MACs[macIndex] = entry
-				return ports
-			}
-		}
-		ports[index].MACs = withoutSyntheticUplinkNeighbor(ports[index].MACs)
-		ports[index].MACs = append([]MacTableEntry{entry}, ports[index].MACs...)
+		ports[index].Neighbors = append(ports[index].Neighbors, entry)
 		return ports
 	}
 	return ports
-}
-
-func withoutSyntheticUplinkNeighbor(entries []MacTableEntry) []MacTableEntry {
-	if len(entries) == 0 {
-		return entries
-	}
-	out := make([]MacTableEntry, 0, len(entries))
-	for _, entry := range entries {
-		if isSyntheticUplinkNeighbor(entry) {
-			continue
-		}
-		out = append(out, entry)
-	}
-	return out
-}
-
-func isSyntheticUplinkNeighbor(entry MacTableEntry) bool {
-	return strings.EqualFold(strings.TrimSpace(entry.MAC), syntheticUplinkNeighborMAC) &&
-		strings.TrimSpace(entry.Hostname) == "" &&
-		strings.TrimSpace(entry.IP) == "" &&
-		entry.VLAN == 1 &&
-		entry.Age == 4 &&
-		entry.Uptime == 1200 &&
-		strings.EqualFold(strings.TrimSpace(entry.Type), deviceTypeUSW)
 }
 
 // ApplyPortNeighbors adds configured MAC-table entries to their target ports.
@@ -60,6 +30,21 @@ func ApplyPortNeighbors(ports []Port, neighbors []PortNeighbor) []Port {
 		}
 		entry := normalizeMacTableEntry(neighbor.Entry, "client")
 		port := &ports[neighbor.Port-1]
+		if !strings.EqualFold(strings.TrimSpace(entry.Type), "client") {
+			port.Neighbors = append(port.Neighbors, TopologyNeighbor{
+				MAC:        entry.MAC,
+				Hostname:   entry.Hostname,
+				IP:         entry.IP,
+				DeviceType: entry.Type,
+				VLAN:       entry.VLAN,
+				Age:        entry.Age,
+				Uptime:     entry.Uptime,
+				RemotePort: neighbor.RemotePort,
+				Source:     NeighborSourceConfigPort,
+				Static:     entry.Static,
+			})
+			continue
+		}
 		replaced := false
 		for index := range port.MACs {
 			if strings.EqualFold(port.MACs[index].MAC, entry.MAC) {

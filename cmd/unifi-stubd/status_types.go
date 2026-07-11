@@ -71,27 +71,29 @@ type statusConfig struct {
 
 // statusUplinkNeighbor summarizes the configured uplink MAC-table neighbor.
 type statusUplinkNeighbor struct {
-	MAC      string `json:"mac"`
-	Hostname string `json:"hostname,omitempty"`
-	IP       string `json:"ip,omitempty"`
-	VLAN     int    `json:"vlan,omitempty"`
-	Static   bool   `json:"static,omitempty"`
-	Type     string `json:"type,omitempty"`
-	Age      int    `json:"age,omitempty"`
-	Uptime   int    `json:"uptime,omitempty"`
+	MAC        string `json:"mac"`
+	Hostname   string `json:"hostname,omitempty"`
+	IP         string `json:"ip,omitempty"`
+	VLAN       int    `json:"vlan,omitempty"`
+	Static     bool   `json:"static,omitempty"`
+	Type       string `json:"type,omitempty"`
+	Age        int    `json:"age,omitempty"`
+	Uptime     int    `json:"uptime,omitempty"`
+	RemotePort int    `json:"remote_port,omitempty"`
 }
 
 // statusPortNeighbor summarizes one configured per-port MAC-table neighbor.
 type statusPortNeighbor struct {
-	Port     int    `json:"port"`
-	MAC      string `json:"mac"`
-	Hostname string `json:"hostname,omitempty"`
-	IP       string `json:"ip,omitempty"`
-	VLAN     int    `json:"vlan,omitempty"`
-	Static   bool   `json:"static,omitempty"`
-	Type     string `json:"type,omitempty"`
-	Age      int    `json:"age,omitempty"`
-	Uptime   int    `json:"uptime,omitempty"`
+	Port       int    `json:"port"`
+	MAC        string `json:"mac"`
+	Hostname   string `json:"hostname,omitempty"`
+	IP         string `json:"ip,omitempty"`
+	VLAN       int    `json:"vlan,omitempty"`
+	Static     bool   `json:"static,omitempty"`
+	Type       string `json:"type,omitempty"`
+	Age        int    `json:"age,omitempty"`
+	Uptime     int    `json:"uptime,omitempty"`
+	RemotePort int    `json:"remote_port,omitempty"`
 }
 
 // statusWANHealthConfig summarizes optional active gateway WAN probes.
@@ -165,6 +167,7 @@ type lastInformStatus struct {
 	RawBytes            int                              `json:"raw_bytes,omitempty"`
 	JSONBytes           int                              `json:"json_bytes,omitempty"`
 	Traffic             *lastInformTrafficStatus         `json:"traffic,omitempty"`
+	Topology            *lastInformTopologyStatus        `json:"topology,omitempty"`
 	IntervalSeconds     int                              `json:"interval_seconds,omitempty"`
 	Schedule            lastInformScheduleStatus         `json:"schedule"`
 	IncludeBlocks       []string                         `json:"include_blocks,omitempty"`
@@ -184,6 +187,22 @@ type lastInformStatus struct {
 	Ignored             bool                             `json:"ignored,omitempty"`
 	IgnoredReason       string                           `json:"ignored_reason,omitempty"`
 	Error               string                           `json:"error,omitempty"`
+}
+
+// lastInformTopologyStatus contains only direct infrastructure edges from the sent payload.
+type lastInformTopologyStatus struct {
+	Edges []lastInformTopologyEdge `json:"edges"`
+}
+
+// lastInformTopologyEdge is a sanitized direct neighbor relationship.
+type lastInformTopologyEdge struct {
+	LocalPort        int    `json:"local_port"`
+	Direction        string `json:"direction"`
+	Source           string `json:"source"`
+	NeighborMAC      string `json:"neighbor_mac"`
+	NeighborHostname string `json:"neighbor_hostname,omitempty"`
+	NeighborType     string `json:"neighbor_type,omitempty"`
+	RemotePort       int    `json:"remote_port,omitempty"`
 }
 
 // lastInformScheduleStatus exposes only effective timing and retry counters.

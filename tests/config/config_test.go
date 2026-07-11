@@ -113,6 +113,7 @@ uplink_neighbor:
   mac: 02:aa:bb:cc:dd:01
   vlan: 1
   type: usw
+  remote_port: 50
 port_neighbors:
   - port: 2
     mac: 02:00:5e:00:53:03
@@ -121,6 +122,7 @@ port_neighbors:
     vlan: 1
     static: true
     type: usw
+    remote_port: 7
 port_overrides:
   - port: 2
     interface: eth1
@@ -240,13 +242,13 @@ status_path: /tmp/unifi-stubd/status.json
 	if cfg.UplinkNeighbor == nil {
 		t.Fatal("UplinkNeighbor is nil")
 	}
-	if cfg.UplinkNeighbor.MAC != "02:aa:bb:cc:dd:01" || cfg.UplinkNeighbor.VLAN != 1 || cfg.UplinkNeighbor.Type != "usw" {
+	if cfg.UplinkNeighbor.MAC != "02:aa:bb:cc:dd:01" || cfg.UplinkNeighbor.VLAN != 1 || cfg.UplinkNeighbor.Type != "usw" || cfg.UplinkNeighbor.RemotePort != 50 {
 		t.Fatalf("UplinkNeighbor = %+v", cfg.UplinkNeighbor)
 	}
 	if len(cfg.PortNeighbors) != 1 {
 		t.Fatalf("len(PortNeighbors) = %d, want 1", len(cfg.PortNeighbors))
 	}
-	if cfg.PortNeighbors[0].Port != 2 || cfg.PortNeighbors[0].MAC != "02:00:5e:00:53:03" {
+	if cfg.PortNeighbors[0].Port != 2 || cfg.PortNeighbors[0].MAC != "02:00:5e:00:53:03" || cfg.PortNeighbors[0].RemotePort != 7 {
 		t.Fatalf("first PortNeighbor = %+v", cfg.PortNeighbors[0])
 	}
 	if cfg.PortNeighbors[0].Name != "lab-host-2" ||

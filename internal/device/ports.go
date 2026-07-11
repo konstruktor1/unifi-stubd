@@ -4,15 +4,12 @@
 package device
 
 const (
-	deviceTypeUSW       = "usw"
 	gatewayPortRoleLAN  = "lan"
 	gatewayPortRoleLAN2 = "lan2"
 	gatewayPortRoleNone = "unassigned"
 	gatewayPortRoleWAN  = "wan"
 	gatewayPortRoleWAN2 = "wan2"
 	mediaSFPPlus        = "SFP+"
-
-	syntheticUplinkNeighborMAC = "02:aa:bb:cc:dd:01"
 )
 
 // BuildPorts returns generated switch ports from profile plus runtime options.

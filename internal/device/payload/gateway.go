@@ -16,9 +16,11 @@ func buildGatewayPayload(base basePayload, profile device.Profile, id device.Ide
 	configWAN, _ := gatewayConfigNetwork(ports, gatewayPortRoleWAN)
 	configWAN2, hasWAN2 := gatewayConfigNetwork(ports, gatewayPortRoleWAN2)
 	configLAN, hasLAN := gatewayConfigLAN(ports)
+	telemetry := newGatewayTelemetry(id, now, uptime, base.CFGVersion)
+	telemetry.LLDPTable = lldpTable(ports)
 	payload := gatewayPayload{
 		basePayload:      base,
-		gatewayTelemetry: newGatewayTelemetry(id, now, uptime, base.CFGVersion),
+		gatewayTelemetry: telemetry,
 		gatewayTrafficSummary: gatewayTrafficSummaryFor(
 			ports,
 			gatewayPortRoleWAN,

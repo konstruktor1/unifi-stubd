@@ -67,11 +67,41 @@ type switchLastConnection struct {
 	Type      string `json:"type,omitempty"`
 }
 
+type switchUplinkRow struct {
+	Name             string `json:"name"`
+	IP               string `json:"ip"`
+	MAC              string `json:"mac"`
+	NumPort          int    `json:"num_port"`
+	Type             string `json:"type"`
+	PortIdx          int    `json:"port_idx"`
+	Up               bool   `json:"up"`
+	FullDuplex       bool   `json:"full_duplex"`
+	UplinkMAC        string `json:"uplink_mac"`
+	UplinkDeviceName string `json:"uplink_device_name,omitempty"`
+	UplinkRemotePort int    `json:"uplink_remote_port,omitempty"`
+	UplinkSource     string `json:"uplink_source,omitempty"`
+	linkFields
+	counterFields
+	BytesRate   int64 `json:"bytes-r"`
+	RXBytesRate int64 `json:"rx_bytes-r"`
+	TXBytesRate int64 `json:"tx_bytes-r"`
+}
+
+type switchLastUplinkRow struct {
+	PortIdx          int    `json:"port_idx"`
+	UplinkMAC        string `json:"uplink_mac"`
+	UplinkRemotePort int    `json:"uplink_remote_port,omitempty"`
+	Type             string `json:"type"`
+}
+
 type switchPayload struct {
 	basePayload
 	IfTable       []switchInterfaceRow `json:"if_table"`
 	EthernetTable []switchEthernetRow  `json:"ethernet_table"`
 	PortTable     []switchPortRow      `json:"port_table"`
+	Uplink        *switchUplinkRow     `json:"uplink,omitempty"`
+	LastUplink    *switchLastUplinkRow `json:"last_uplink,omitempty"`
+	LLDPTable     []lldpRow            `json:"lldp_table"`
 }
 
 // buildSwitchPayload fills the tables expected by UniFi switch devices.
@@ -88,6 +118,7 @@ func buildSwitchPayload(base basePayload, profile device.Profile, id device.Iden
 		VLAN:           id.ManagementVLAN,
 		ManagementVLAN: id.ManagementVLAN,
 	}
+	uplink, lastUplink := switchUplinkRows(profile, id, ports, numPorts)
 	return switchPayload{
 		basePayload: base,
 		IfTable:     []switchInterfaceRow{iface},
@@ -105,8 +136,56 @@ func buildSwitchPayload(base basePayload, profile device.Profile, id device.Iden
 				MAC:  incrementMAC(id.MAC),
 			},
 		},
-		PortTable: portTable(ports),
+		PortTable:  portTable(ports),
+		Uplink:     uplink,
+		LastUplink: lastUplink,
+		LLDPTable:  lldpTable(ports),
 	}
+}
+
+func switchUplinkRows(profile device.Profile, id device.Identity, ports []PortView, numPorts int) (*switchUplinkRow, *switchLastUplinkRow) {
+	for _, port := range ports {
+		if port.TopologyNeighbor == nil || port.TopologyDirection != device.DirectionUpstream {
+			continue
+		}
+		neighbor := *port.TopologyNeighbor
+		rxRate, txRate := portRateFields(port.Port)
+		name := strings.TrimSpace(profile.Payload.ManagementInterface)
+		if name == "" {
+			name = "eth0"
+		}
+		source := ""
+		if neighbor.Source == device.NeighborSourceLLDP {
+			source = "lldp_uplink"
+		}
+		uplink := &switchUplinkRow{
+			Name:             name,
+			IP:               id.IP,
+			MAC:              strings.ToLower(strings.TrimSpace(id.MAC)),
+			NumPort:          numPorts,
+			Type:             payloadTypeWire,
+			PortIdx:          port.Index,
+			Up:               port.Up,
+			FullDuplex:       true,
+			UplinkMAC:        strings.ToLower(strings.TrimSpace(neighbor.MAC)),
+			UplinkDeviceName: strings.TrimSpace(neighbor.Hostname),
+			UplinkRemotePort: neighbor.RemotePort,
+			UplinkSource:     source,
+			linkFields:       portLinkFields(port.Speed, port.Media),
+			counterFields:    portCounterFields(port.Port),
+			BytesRate:        rxRate + txRate,
+			RXBytesRate:      rxRate,
+			TXBytesRate:      txRate,
+		}
+		last := &switchLastUplinkRow{
+			PortIdx:          port.Index,
+			UplinkMAC:        uplink.UplinkMAC,
+			UplinkRemotePort: neighbor.RemotePort,
+			Type:             payloadTypeWire,
+		}
+		return uplink, last
+	}
+	return nil, nil
 }
 
 // incrementMAC derives the secondary switch interface MAC from the device MAC.
@@ -125,7 +204,7 @@ func portTable(ports []PortView) []switchPortRow {
 	out := make([]switchPortRow, 0, len(ports))
 	for _, p := range ports {
 		rxRate, txRate := portRateFields(p.Port)
-		macTable := switchPortMACTable(p)
+		macTable := downstreamMACTable(p)
 		// Every switch row is rendered from PortView so switch and gateway
 		// payloads agree on observed counters, source interface, link state, and
 		// MAC-table metadata.
@@ -161,29 +240,6 @@ func portTable(ports []PortView) []switchPortRow {
 		out = append(out, row)
 	}
 	return out
-}
-
-func switchPortMACTable(port PortView) []device.MacTableEntry {
-	if !port.Uplink {
-		return port.MACs
-	}
-	out := make([]device.MacTableEntry, 0, len(port.MACs))
-	for _, entry := range port.MACs {
-		if suppressesUplinkNeighbor(entry.Type) {
-			continue
-		}
-		out = append(out, entry)
-	}
-	return out
-}
-
-func suppressesUplinkNeighbor(value string) bool {
-	switch strings.ToLower(strings.TrimSpace(value)) {
-	case "uxg", "ugw", "usg", "gateway":
-		return true
-	default:
-		return false
-	}
 }
 
 func switchLastConnectionFor(entries []device.MacTableEntry) *switchLastConnection {

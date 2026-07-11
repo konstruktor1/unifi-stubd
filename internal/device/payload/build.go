@@ -60,7 +60,11 @@ func Build(profile device.Profile, id device.Identity, ports []device.Port) ([]b
 		ManagementVLAN: id.ManagementVLAN,
 		InformIP:       id.InformIP,
 	}
-	portViews := BuildPortViews(profile, id, ports)
+	topology, topologyErr := device.ResolveTopology(ports)
+	if topologyErr != nil {
+		return nil, fmt.Errorf("resolve topology: %w", topologyErr)
+	}
+	portViews := BuildPortViews(profile, id, ports, topology)
 	var data []byte
 	var err error
 	if profile.Payload.Kind == payloadKindGateway {

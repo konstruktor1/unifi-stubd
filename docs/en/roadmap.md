@@ -78,14 +78,14 @@
   metadata.
 - [x] Preserve disconnected unused ports instead of controller-visible fake
   traffic on empty ports.
-- [ ] Add explicit `uplink_neighbor.remote_port` metadata and feed it into the
+- [x] Add explicit `uplink_neighbor.remote_port` metadata and feed it into the
   switch payload when known.
-- [ ] Add automatic uplink-neighbor derivation from passive LLDP, with manual
-  `uplink_neighbor` as a deterministic override.
+- [x] Add automatic directed-neighbor derivation from passive LLDP, with manual
+  configuration as a deterministic override.
 - [ ] Add LLDP/CDP/FDP neighbor normalization for local interface, chassis,
   remote port, VLAN, and system name fields.
-- [ ] Add topology regression tests for physical-MAC collision versus synthetic
-  locally administered stub MACs.
+- [x] Add topology regression tests that keep real identity/port MACs separate
+  from direct-neighbor direction and FDB reachability.
 - [ ] Add profile coverage for additional common UniFi switch models used in
   homelabs.
 

@@ -62,15 +62,11 @@ sie als `disabled` oder `unmapped`. Gemappte Ports uebernehmen read-only
 physische Eigenschaften wie MAC-Adresse, Link-State, Speed/Media soweit
 verfuegbar, Adressen, Counter und LLDP-Nachbarn.
 
-Bei Proxmox-artiger Bridge-Darstellung ist die Topologie controller-abhaengig.
-Ein konfigurierter `uplink_neighbor` kann UniFi Network dazu bringen, den
-Upstream und die letzte Verbindung auf dem Stub-Uplink-Port zu melden. Wenn der
-Stub die physische Host- oder Bridge-MAC meldet, kann ein echter
-Upstream-UniFi-Switch diese MAC aber bereits auf einem eigenen Port sehen.
-UniFi Network kann dann diese reale Beobachtung bevorzugen und die Link-Richtung
-falsch herum darstellen. Reine Darstellungs-Tests sollten deshalb eine
-synthetische lokal administrierte Stub-MAC bevorzugen, ausser genau diese
-Physical-MAC-Heuristik soll getestet werden.
+Bei Proxmox-artiger Bridge-Darstellung wird direkte Infrastruktur getrennt von
+FDB-Clients aufgeloest. Der aktive dargestellte Uplink bestimmt die Upstream-
+Richtung, konfigurierte Nachbarn gewinnen vor LLDP und reale Host-/Bridge-MACs
+bleiben gueltige Identitaeten. Switch-Payloads melden den Upstream ueber
+`uplink` und `last_uplink`, statt das Gateway als verbundenen Client zu zeigen.
 
 ## Konfigurationsoberflaeche
 

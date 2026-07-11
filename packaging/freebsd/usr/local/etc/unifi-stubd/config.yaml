@@ -20,6 +20,7 @@ uplink_neighbor:
   mac: ""
   vlan: 1
   type: usw
+  # remote_port: 50
 port_neighbors: []
 # Optional per-port overrides applied after profile data. Profiles describe
 # hardware. Use these overrides for OPNsense/FreeBSD lab assignments such as

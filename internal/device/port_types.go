@@ -20,6 +20,34 @@ type MacTableEntry struct {
 	Type string `json:"type,omitempty"`
 }
 
+// NeighborSource identifies where a direct infrastructure neighbor came from.
+type NeighborSource string
+
+const (
+	// NeighborSourceConfigUplink is the explicit uplink_neighbor setting.
+	NeighborSourceConfigUplink NeighborSource = "config-uplink"
+	// NeighborSourceConfigPort is an infrastructure entry from port_neighbors.
+	NeighborSourceConfigPort NeighborSource = "config-port"
+	// NeighborSourceLLDP is a neighbor learned passively through lldpd.
+	NeighborSourceLLDP NeighborSource = "lldp"
+)
+
+// TopologyNeighbor describes one direct infrastructure neighbor. It is kept
+// separate from client MAC-table rows so reachability cannot imply direction.
+type TopologyNeighbor struct {
+	MAC          string
+	Hostname     string
+	IP           string
+	DeviceType   string
+	VLAN         int
+	Age          int
+	Uptime       int
+	RemotePort   int
+	RemotePortID string
+	Source       NeighborSource
+	Static       bool
+}
+
 // Port describes one fake switch port in the UniFi payload.
 type Port struct {
 	// Index is the one-based UniFi port index.
@@ -103,6 +131,8 @@ type Port struct {
 	TrafficRatesSet bool
 	// MACs contains learned MAC entries for this port.
 	MACs []MacTableEntry
+	// Neighbors contains direct infrastructure neighbors for topology projection.
+	Neighbors []TopologyNeighbor
 }
 
 // PortGroup describes one contiguous block in a switch port layout.
@@ -136,4 +166,6 @@ type PortNeighbor struct {
 	Port int
 	// Entry is the controller-facing MAC table entry to expose.
 	Entry MacTableEntry
+	// RemotePort is the optional one-based port on the neighboring device.
+	RemotePort int
 }
