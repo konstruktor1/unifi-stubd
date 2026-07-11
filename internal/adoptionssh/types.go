@@ -13,6 +13,10 @@ const (
 	defaultStatePath   = "/var/lib/unifi-stubd/adoption.env"
 	commandInfo        = "info"
 	commandSetInform   = "set-inform"
+	commandExit        = "exit"
+	commandQuit        = "quit"
+	commandReset       = "reset2defaults"
+	commandRestore     = "restore-default"
 	okOutput           = "OK\n"
 )
 

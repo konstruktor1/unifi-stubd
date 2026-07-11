@@ -5,10 +5,10 @@ fuer den Go-Stub. Es verwendet drei laenger laufende Services:
 
 - UniFi Network Application auf `https://127.0.0.1:8443/`
 - MongoDB fuer den Controller
-- Inform-MITM im internen Lab-Netz
+- Go-Inform-/Discovery-Proxy im internen Lab-Netz
 
 Das Default-Controller-Image ist auf
-`lscr.io/linuxserver/unifi-network-application:10.3.58-ls129` gepinnt.
+`lscr.io/linuxserver/unifi-network-application:10.4.57-ls135` gepinnt.
 `UNIFI_NETWORK_IMAGE` nur ueberschreiben, wenn bewusst eine andere
 Controller-Version validiert wird. `UNIFI_STUB_LAB_EXPECTED_NETWORK_VERSION`
 auf die `/status`-`server_version` dieser Version setzen, wenn der
@@ -26,7 +26,13 @@ gemountet. Das Test-Harness uebergibt Wegwerf-MACs/-IPs, Profile und Hostnamen
 weiter als CLI-Overrides, damit diese Dateien stabil bleiben und keinen
 Controller-State oder Secrets enthalten.
 
-## Smoke-Test
+Leere Controller-Volumes werden automatisch ueber denselben lokalen Setup-API-
+Ablauf wie in der Weboberflaeche initialisiert. Bereits konfigurierte Volumes
+werden nach geprueftem Lab-Login wiederverwendet. Der Setup-Helfer gibt weder
+Controller-Antworten noch generierte Device-Zugangsdaten, API-Tokens oder
+Adoption-Keys aus.
+
+## Controller-Gate
 
 Aus dem Repository-Root starten:
 
@@ -45,19 +51,27 @@ Das Target prueft:
 - Gateway-Dry-Run-Payload aus dem `uxg-lite`-Profil, inklusive `if_table`,
   `network_table`, read-only physischer `port_table`, `reported_networks`,
   `uplink_table` und `wan1` aus der gemeinsamen Port-View.
-- Einen Inform-Request pro Modus durch den MITM.
+- Einen Inform-Request und ein weitergeleitetes Discovery-Paket pro Modus durch
+  den Go-Proxy.
 - Controller-API-Login gegen die Docker-UniFi-Network-Application.
 - Controller-`/status`-Versionspruefung fuer das gepinnte Docker-Image.
 - Pending-Adoption-Sichtbarkeit fuer Bridge-Observe- und Gateway-Smoke-Geraet.
 - Controller-getriggerte Adoption ueber die Controller-API fuer Switch- und
   Gateway-artige Payloads.
-- Persistierten lokalen Stub-Adoption-State mit `STATE=connected` und gesetztem
-  Authkey, ohne den Authkey auszugeben.
-- Mindestens einen Post-Adoption-Inform-Heartbeat pro adoptiertem Switch- und
-  Gateway-Testgeraet durch den MITM.
+- Eine mit dem Default-Key dekodierte `setparam`-Antwort mit Authkey,
+  cfgversion und `use_aes_gcm=true`, nur als bereinigte Presence-Flags erfasst.
+- Persistierten lokalen Stub-Adoption-State mit `STATE=connected`, Authkey,
+  cfgversion und aktiviertem AES-GCM, ohne den Authkey auszugeben.
+- Mindestens zwei Post-Adoption-AES-GCM-Informs pro adoptiertem Switch- und
+  Gateway-Testgeraet.
+- Drei aufeinanderfolgende Controller-Samples mit `adopted=true`, `state=1`
+  und abgeschlossener Adoption.
+- Kein Gateway-Kommando, Ergebnis, Duplikat oder ausstehender State vor und
+  nach dem 75-Sekunden-Stabilitaetsfenster des aktuellen 10.4.57-Pins.
 
-Die Default-Lab-Zugangsdaten sind `admin` / `admin`. Fuer einen abweichenden
-lokalen Lab-Controller koennen sie ueberschrieben werden:
+Die nur an Loopback gebundenen Default-Lab-Zugangsdaten sind `admin` / `admin`;
+sie werden auch beim Bootstrap leerer Volumes verwendet. Fuer einen
+abweichenden lokalen Lab-Controller koennen sie ueberschrieben werden:
 
 ```sh
 UNIFI_STUB_LAB_ADMIN_USER=admin \
@@ -100,8 +114,18 @@ Pass-Kriterien:
 - Der Log zeigt die Versionspruefung der gepinnten UniFi Network Application.
 - Der Log zeigt die erzeugten Bridge-, Port-Map- und Gateway-Wegwerf-
   Identitaeten.
-- Switch- und Gateway-Adoption-Smoke-Tests erreichen beide verbundenen lokalen
-  State und mindestens einen Post-Adoption-Inform-Heartbeat.
+- Switch- und Gateway-Gates erfassen jeweils Discovery, bereinigtes `setparam`,
+  zwei GCM-Informs, vollstaendigen persistierten Adoption-State und stabile
+  Connected-Samples.
+- Der Gateway-Gate erfuellt die explizite Controller-Kommando-Erwartung vor und
+  nach einem Stabilitaetsfenster von 75 Sekunden. Der aktuelle 10.4.57-Pin
+  erwartet kein Kommando; Kompatibilitaetslaeufe koennen fuer Controller, die
+  `wg-genkeypair` senden, mit
+  `UNIFI_STUB_DOCKER_GATEWAY_COMMAND_EXPECTATION=required` den kompletten
+  Antwortpfad erzwingen.
+- Der abschliessende Gateway-Status meldet den positiven Controller-Hinweis,
+  begrenzt auf die lokalen Werte, als effektiven und naechsten Takt, mit null
+  aufeinanderfolgenden Fehlern und ohne aktiven Backoff.
 
 Als Promotion-Evidenz wird festgehalten:
 
@@ -145,6 +169,17 @@ fuer die Test-MACs zu loeschen. Controller-Volumes werden nicht zurueckgesetzt.
 Die Controller-Loeschanfrage ist Best-Effort; verlaessliche Isolation kommt von
 frischen Wegwerf-MACs pro Lauf.
 
+Am Anfang eines Standardlaufs entfernt der Helfer ausserdem adoptierte Geraete
+mit dem reservierten Docker-Fixture-MAC-Praefix `02:15:6d`. Dadurch erholt sich
+der Gate selbst von einem vorherigen Lauf mit
+`UNIFI_STUB_DOCKER_KEEP_RESOURCES=1`, ohne Geraete ausserhalb des
+projekt-eigenen Fixture-Praefix anzufassen.
+
+Liefert UniFi beim Loeschen eines solchen reservierten Fixtures
+`api.err.DeviceBusy`, startet der Gate nur den wegwerfbaren Controller-Service
+neu und wiederholt danach die normale Loeschung ueber die Controller-API. Die
+Controller- und MongoDB-Volumes werden nicht zurueckgesetzt.
+
 UniFi Network kann nicht adoptierte Pending-Zeilen bis zum Discovery-TTL im
 Prozessspeicher behalten. Im beobachteten Docker-Lab sind diese Zeilen nicht in
 MongoDB persistiert. Frische Wegwerf-MACs vermeiden Kollisionen zwischen
@@ -159,10 +194,10 @@ inspiziert werden soll.
 ## Grenzen
 
 Dieses Lab belegt container-lokale Linux-Bridge-/FDB-Observation, sysfs-Zaehler,
-explizites Port-Mapping, Gateway-Tabellen-Rendering, Inform-Framing,
-Controller-Adoption und lokale Adoption-State-Persistenz. Es belegt nicht
-Proxmox-Host-Bridge-Verhalten, FreeBSD-Runtime-Verhalten, LLDP-Import oder
-Event-Subscriptions.
+explizites Port-Mapping, Gateway-Tabellen-Rendering, Discovery-Weiterleitung,
+Inform-Framing, Controller-Adoption, lokale Adoption-State-Persistenz und
+AES-GCM. Es belegt nicht Proxmox-Host-Bridge-Verhalten,
+FreeBSD-Runtime-Verhalten, LLDP-Import oder Event-Subscriptions.
 
 Es belegt auch keine physische Topologie-Richtung. Container-Tests nutzen
 Wegwerf-Identitaeten, decken also nicht den Fall ab, dass ein echter

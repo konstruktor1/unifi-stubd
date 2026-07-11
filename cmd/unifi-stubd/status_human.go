@@ -23,6 +23,10 @@ func printHumanStatus(status localStatus) {
 	fmt.Printf("controller_url: %s\n", valueOrDash(status.Config.ControllerURL))
 	fmt.Printf("inform_url: %s\n", valueOrDash(status.Config.InformURL))
 	fmt.Printf("interval: %s\n", status.Config.Interval)
+	fmt.Printf("controller_interval_min: %s\n", status.Config.ControllerIntervalMin)
+	fmt.Printf("controller_interval_max: %s\n", status.Config.ControllerIntervalMax)
+	fmt.Printf("inform_backoff_max: %s\n", status.Config.InformBackoffMax)
+	fmt.Printf("inform_backoff_jitter_percent: %d\n", status.Config.InformBackoffJitterPercent)
 	fmt.Printf("no_discovery: %t\n", status.Config.NoDiscovery)
 	printHumanManagementLANStatus(status)
 	printHumanSourceStatus(status)
@@ -182,6 +186,13 @@ func printLastInform(last lastInformStatus) {
 	if last.IntervalSeconds > 0 {
 		fmt.Printf("last_inform_interval_seconds: %d\n", last.IntervalSeconds)
 	}
+	if last.Schedule.EffectiveInterval != "" {
+		fmt.Printf("last_inform_effective_interval: %s\n", last.Schedule.EffectiveInterval)
+		fmt.Printf("last_inform_next_delay: %s\n", last.Schedule.NextDelay)
+		fmt.Printf("last_inform_consecutive_failures: %d\n", last.Schedule.ConsecutiveFailures)
+		fmt.Printf("last_inform_backoff: %t\n", last.Schedule.Backoff)
+		fmt.Printf("last_inform_controller_hint_applied: %t\n", last.Schedule.ControllerHintApplied)
+	}
 	for _, block := range last.IncludeBlocks {
 		fmt.Printf("last_inform_include_block: %s\n", block)
 	}
@@ -189,6 +200,20 @@ func printLastInform(last lastInformStatus) {
 		fmt.Println("last_inform_reset_requested: true")
 		fmt.Printf("last_inform_reset_applied: %t\n", last.ResetApplied)
 		fmt.Printf("last_inform_reset_reason: %s\n", valueOrDash(last.ResetReason))
+	}
+	if last.CommandName != "" {
+		fmt.Printf("last_inform_command: %s\n", last.CommandName)
+		fmt.Printf("last_inform_command_request_id_set: %t\n", last.CommandRequestIDSet)
+		fmt.Printf("last_inform_command_handled: %t\n", last.CommandHandled)
+		fmt.Printf("last_inform_command_result_queued: %t\n", last.CommandResultQueued)
+		fmt.Printf("last_inform_command_duplicate: %t\n", last.CommandDuplicate)
+	}
+	if last.ControllerCommands.LastCommand != "" {
+		fmt.Printf("controller_commands_last: %s\n", last.ControllerCommands.LastCommand)
+		fmt.Printf("controller_commands_handled: %d\n", last.ControllerCommands.HandledCount)
+		fmt.Printf("controller_command_results_sent: %d\n", last.ControllerCommands.ResultSentCount)
+		fmt.Printf("controller_command_duplicates: %d\n", last.ControllerCommands.DuplicateCount)
+		fmt.Printf("controller_command_pending: %t\n", last.ControllerCommands.Pending)
 	}
 	if last.HasMgmtCFG {
 		fmt.Println("last_inform_has_mgmt_cfg: true")

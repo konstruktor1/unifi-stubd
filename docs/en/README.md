@@ -9,6 +9,7 @@
 - [Development Workflow](development.md)
 - [CI/CD, Build, Packaging, and Deployment Catalog](ci-cd.md)
 - [Project Status](project-status.md)
+- [Prioritized Backlog](backlog.md)
 - [Lab Project Status](lab-project-status.md)
 - [Protocol Notes](protocol-notes.md)
 - [Architecture](architecture.md)

@@ -18,18 +18,20 @@ Die Pipeline ist getrennt in:
 
 - `CI`: Validierung, Vulnerability Scan, SBOM, vertrauenswuerdiger
   FreeBSD-Artefaktcheck und `main`-only Linux-Package-Smoke.
-- `Package Repositories`: Release-Paketbuild und GitHub-Pages-Deployment fuer
-  unsignierte Alpha-Paketquellen.
+- `Package Repositories`: Release-Paket- und persistenter SBOM-Build,
+  GitHub-Pre-Release-Artefakte sowie Pages-Deployment fuer unsignierte
+  Alpha-Paketquellen.
 
 ## Build-Ziele
 
 | Ziel | Toolchain | Einstieg | Output | OS/Arch | Umgebung | Status |
 | --- | --- | --- | --- | --- | --- | --- |
-| `make build` | Go 1.25 Floor | `go build ./...` | Lokale Binaries im Go-Buildcache | Host OS/Arch | Lokal oder GitHub Ubuntu | Definiert, kein Upload |
-| `make check` | Go, golangci-lint, Shell-Policy | `lint`, `validate-config`, `test` | Pass/fail Gate | Host OS/Arch | GitHub Ubuntu und lokal | Primaerer Pre-Merge-Gate |
-| `make vulncheck` | Go `govulncheck` | `govulncheck ./...` | Pass/fail Gate | Host OS/Arch | GitHub Ubuntu | CI-Security-Gate |
-| `make build-freebsd` | Go Cross-Compile | `cmd/unifi-stubd` | `dist/unifi-stubd_freebsd_<arch>` | FreeBSD `PKG_FREEBSD_GOARCH` | Lokal | Lokales Diagnoseziel, kein Release-CI |
-| `make package` | Go plus nFPM | `scripts/package.sh` | `.deb`, `.rpm`, Arch-Paket, Linux-`.tar.gz` | Linux `amd64` oder `arm64` | GitHub Ubuntu | Release-Paketpfad |
+| `make build` | Aktueller von GitHub unterstuetzter Go-1.25-Patch | `go build ./...` | Lokale Binaries im Go-Buildcache | Host OS/Arch | Lokal oder GitHub Ubuntu | Definiert, kein Upload |
+| `make check` | Go 1.25, golangci-lint, Shell-Policy | `lint`, `validate-config`, `test` | Pass/fail Gate | Host OS/Arch | GitHub Ubuntu und lokal | Primaerer Pre-Merge-Gate |
+| `make coverage` | Go-1.25-Coverage-Instrumentierung | Externe Tests unter `tests/...` mit allen produktiven `internal/...`-Paketen | `dist/cover.out`, `dist/coverage.html` und ein Mindest-Gate von 60 Prozent | Host OS/Arch | GitHub Ubuntu und lokal | CI-Qualitaets-Gate |
+| `make vulncheck` | Go 1.25 `govulncheck` | `govulncheck ./...` | Pass/fail Gate | Host OS/Arch | GitHub Ubuntu | CI-Security-Gate |
+| `make build-freebsd` | Go 1.25 Cross-Compile | `cmd/unifi-stubd` | `dist/unifi-stubd_freebsd_<arch>` | FreeBSD `PKG_FREEBSD_GOARCH` | Lokal | Lokales Diagnoseziel, kein Release-CI |
+| `make package` | Go 1.25 plus nFPM | `scripts/package.sh` | `.deb`, `.rpm`, Arch-Paket, Linux-`.tar.gz` | Linux `amd64` oder `arm64` | GitHub Ubuntu | Release-Paketpfad |
 | `make package-deb` | Go plus nFPM | `scripts/package.sh deb` | Debian-Paket | Linux `PKG_GOARCH` | Lokal oder GitHub Ubuntu | Definiert |
 | `make package-rpm` | Go plus nFPM | `scripts/package.sh rpm` | RPM-Paket | Linux `PKG_GOARCH` | Lokal oder GitHub Ubuntu | Definiert |
 | `make package-arch` | Go plus nFPM | `scripts/package.sh archlinux` | Arch-Linux-Paket | Linux `PKG_GOARCH` | Lokal oder GitHub Ubuntu | Definiert |
@@ -37,8 +39,8 @@ Die Pipeline ist getrennt in:
 | `make package-freebsd-tgz` | Go Cross-Compile plus tar | `scripts/package.sh tgz` | FreeBSD-Tarball | FreeBSD `amd64` oder `arm64` | Lokal | Definiert, nicht Release-Workflow |
 | `make package-freebsd-pkg-repos` | Go auf FreeBSD-Builder, FreeBSD `pkg`, tar | `scripts/package-freebsd-pkg-repos.sh` | Native FreeBSD-`pkg`-Repos und FreeBSD-Tarballs | `FreeBSD:14/15` fuer `amd64`, `aarch64`, `armv7`; Tarballs default `amd64`, `arm64` | Self-hosted FreeBSD-Builder; optional gemappte `jexec`-Jails | Release-BSD-Pfad |
 | `make package-repos` | dpkg, createrepo-c, repo-add, tar | `scripts/build-package-repos.sh` | Statische Paketquellen-Seite | Paketmetadaten fuer definierte Ziele | GitHub Ubuntu | GitHub-Pages-Input |
-| `make integration-docker` | Docker Compose und Go-Helfer | `lab/stub/scripts/run-docker-integration.sh` | Pass/fail Smoke | Linux-Container-Lab | Lokal/manuell | Definiert, nicht automatisch in CI |
-| Root `Dockerfile` | Docker BuildKit, Go, Alpine | `Dockerfile` | Runtime-/Lab-Image mit Daemon und Inform-Proxy | Linux multi-arch-faehig | Lokal/manuell | Kein Publish-Ziel definiert |
+| `make integration-docker` | Docker Compose, gepinntes UniFi Network und Go-Helfer | `lab/stub/scripts/run-docker-integration.sh` | Controller-Adoption-Gate | Linux-Container-Lab | Lokal/manuell | Definiert, nicht automatisch in CI |
+| Root `Dockerfile` | Docker BuildKit, Go, Alpine | `Dockerfile` | Runtime-/Lab-Image mit Daemon und Inform-/Discovery-Proxy | Linux multi-arch-faehig | Lokal/manuell | Kein Publish-Ziel definiert |
 
 Offene Build-Zieldefinitionen:
 
@@ -64,7 +66,7 @@ Offene Build-Zieldefinitionen:
 | Artefakte | `sbom`, `packages` bei `main`-Push |
 | Sicherheitsgrenze | Self-hosted FreeBSD-Job wird fuer Pull Requests uebersprungen. |
 
-`check` fuehrt `make check`, `make vulncheck`, SBOM-Erzeugung und Upload aus.
+`check` fuehrt `make check`, `make coverage`, `make vulncheck`, SBOM-Erzeugung und Upload aus.
 Auf `main` wird Go `stable` genutzt; andere Refs nutzen die Version aus
 `go.mod`.
 
@@ -75,22 +77,22 @@ kanonische Builder nutzt Go-Cross-Compile auf dem FreeBSD-Host plus FreeBSD
 laufenden `jexec`-Jails gedacht.
 
 `package` laeuft nur bei Pushes auf `main`, nachdem `check` und
-`freebsd-build` erfolgreich waren. Der Job ermittelt den neuesten
-`v[0-9]*`-Tag, baut Linux-Pakete, installiert das Debian-Paket einmal,
-validiert die installierte Config und laedt `dist/packages/` hoch.
+`freebsd-build` erfolgreich waren. Der Job liest den zentralen Wert aus
+`VERSION`, baut Linux-Pakete, installiert das Debian-Paket einmal, validiert
+die installierte Config und laedt `dist/packages/` hoch.
 
 ### `Package Repositories`
 
 | Bereich | Aktueller Wert |
 | --- | --- |
 | Datei | `.github/workflows/package-pages.yml` |
-| Trigger | `workflow_dispatch`, `v*`-Tag-Push, published/prereleased GitHub Release |
+| Trigger | `workflow_dispatch`, `v*`-Tag-Push |
 | Default-Permissions | `contents: read` |
 | Deploy-Permissions | `contents: read`, `pages: write`, `id-token: write` nur im Deploy-Job |
-| Jobs | `build-packages`, `build-freebsd-artifacts`, `build-and-deploy` |
+| Jobs | `build-packages`, `build-freebsd-artifacts`, `build-sbom`, `build-and-deploy`, `publish-release` |
 | Runner | Ubuntu fuer Linux-Pakete und Pages-Seite; self-hosted Builder fuer BSD-Artefakte |
-| Actions | `actions/checkout@v6`, `actions/setup-go@v6`, `actions/upload-artifact@v7`, `actions/download-artifact@v7`, `actions/configure-pages@v6`, `actions/upload-pages-artifact@v5`, `actions/deploy-pages@v5` |
-| Artefakte | `linux-package-artifacts`, `freebsd-package-artifacts`, `freebsd-pkg-repos`, Pages-Artefakt |
+| Actions | `actions/checkout@v6`, `actions/setup-go@v6`, `anchore/sbom-action@v0`, `actions/upload-artifact@v7`, `actions/download-artifact@v7`, `actions/configure-pages@v6`, `actions/upload-pages-artifact@v5`, `actions/deploy-pages@v5` |
+| Artefakte | `linux-package-artifacts`, `freebsd-package-artifacts`, `freebsd-pkg-repos`, `release-sbom`, Pages-Artefakt, persistente GitHub-Release-Artefakte |
 | Environment | `github-pages` |
 | Concurrency | Eine `github-pages`-Deployment-Gruppe, kein Cancel-in-progress |
 
@@ -142,7 +144,7 @@ Der BSD-Builder muss bereitstellen:
 
 Container sind nur fuer Runtime und Lab definiert:
 
-- Root-`Dockerfile`: Daemon und Inform-Proxy in Alpine-Runtime-Image.
+- Root-`Dockerfile`: Daemon und Inform-/Discovery-Proxy im Alpine-Runtime-Image.
 - Lab-Gateway-Profil-Dockerfiles: Firmware- und Controller-Lab-Research-Pfade.
 - Kein CI-Buildcontainer, kein GHCR-Image, kein Container-Release definiert.
 
@@ -156,7 +158,7 @@ Container sind nur fuer Runtime und Lab definiert:
 | Linux-Tarball | Linux-Stage | `make package` oder `make package-tgz` | `unifi-stubd_<version>-<release>_linux_<arch>.tar.gz` | Checksums | Artefakt, Pages-Checksum |
 | FreeBSD-Tarball | FreeBSD-Stage mit BSD-gebautem Binary | `make package-freebsd-pkg-repos` | `unifi-stubd_<version>-<release>_freebsd_<arch>.tar.gz` | Checksums | Artefakt, Pages-FreeBSD-Pfade |
 | FreeBSD `pkg` | FreeBSD-Stage und UCL-Manifest | `make package-freebsd-pkg-repos` | `repo/FreeBSD:*/*` inkl. `packagesite.pkg` | `pkg repo` und Checksums | Pages-FreeBSD/pkg-Pfade |
-| SBOM | Repository-Baum | `anchore/sbom-action@v0` | `dist/sbom.spdx.json` | Action-Erfolg | CI-Artefakt |
+| SBOM | Repository-Baum | `anchore/sbom-action@v0` | `unifi-stubd.spdx.json` | Action-Erfolg | CI-Artefakt und persistentes GitHub-Release-Artefakt |
 | Statische Paketseite | Package-Artefakte und FreeBSD-pkg-Repo | `make package-repos` | `dist/package-site/` | `checksums.txt`, Paketmetadaten-Tools | GitHub Pages |
 
 ## Deployment- und Release-Grenzen
@@ -167,10 +169,11 @@ Container sind nur fuer Runtime und Lab definiert:
   BSD-Artefaktchecks, veroeffentlichen aber keine Paketquellen.
 - Pushes nach `main` laufen durch Validierung, BSD-Artefaktchecks und den
   Linux-Package-Smoke. Sie laden nur Run-Artefakte hoch.
-- `v*`-Tags, published/prereleased GitHub Releases und manueller Dispatch von
-  `main` bauen und deployen die GitHub-Pages-Paketquellen.
-- Die Workflows laden keine GitHub-Release-Assets hoch. Das bleibt der manuelle
-  `gh release create ... dist/releases/...`-Pfad aus der Release-Checkliste.
+- `v*`-Tags bauen Pakete und SBOM, erstellen oder aktualisieren den GitHub-Pre-
+  Release, haengen alle Release-Artefakte plus `SHA256SUMS` an und deployen die
+  Pages-Paketquellen.
+- Manueller Dispatch von `main` baut die Pages-Paketquellen neu, ohne einen
+  neuen GitHub-Release zu erstellen.
 
 ## Gefundene Probleme und Korrekturen
 

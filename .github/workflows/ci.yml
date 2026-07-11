@@ -14,19 +14,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - name: Set up Go from latest stable release
-        if: github.ref == 'refs/heads/main'
-        uses: actions/setup-go@v6
-        with:
-          go-version: stable
-          check-latest: true
       - name: Set up Go from module version
-        if: github.ref != 'refs/heads/main'
         uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
           check-latest: true
       - run: make check
+      - run: make coverage
       - run: make vulncheck
       - run: mkdir -p dist
       - uses: anchore/sbom-action@v0
@@ -34,6 +28,13 @@ jobs:
           path: .
           format: spdx-json
           output-file: dist/sbom.spdx.json
+      - uses: actions/upload-artifact@v7
+        with:
+          name: coverage
+          path: |
+            dist/cover.out
+            dist/coverage.html
+          retention-days: 7
       - uses: actions/upload-artifact@v7
         with:
           name: sbom
@@ -45,14 +46,7 @@ jobs:
     runs-on: [self-hosted, Linux, X64, freebsd-pkg-builder]
     steps:
       - uses: actions/checkout@v6
-      - name: Set up Go from latest stable release
-        if: github.ref == 'refs/heads/main'
-        uses: actions/setup-go@v6
-        with:
-          go-version: stable
-          check-latest: true
       - name: Set up Go from module version
-        if: github.ref != 'refs/heads/main'
         uses: actions/setup-go@v6
         with:
           go-version-file: go.mod
@@ -77,13 +71,13 @@ jobs:
           fetch-depth: 0
       - uses: actions/setup-go@v6
         with:
-          go-version: stable
+          go-version-file: go.mod
           check-latest: true
       - name: Resolve package version
         id: package-version
         run: |
           set -eu
-          version="$(git describe --tags --abbrev=0 --match 'v[0-9]*' | sed 's/^v//')"
+          version="$(sed -n '1p' VERSION)"
           test -n "$version"
           echo "version=$version" >> "$GITHUB_OUTPUT"
       - run: PKG_VERSION='${{ steps.package-version.outputs.version }}' make package

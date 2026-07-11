@@ -90,6 +90,9 @@ type Port struct {
 	RXErrors int64
 	// TXErrors is the transmit error counter.
 	TXErrors int64
+	// CountersSet reports that counters came from a complete observed sample,
+	// including valid zero packet counters.
+	CountersSet bool
 	// RXBytesRate is the receive byte rate in bytes per second.
 	RXBytesRate int64
 	// TXBytesRate is the transmit byte rate in bytes per second.

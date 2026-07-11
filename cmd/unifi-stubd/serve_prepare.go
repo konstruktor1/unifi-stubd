@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"strings"
 
@@ -88,9 +87,6 @@ func prepareServeRuntime(flags *runtimeFlags, changed map[string]bool) (serveRun
 		return serveRuntime{}, false, err
 	}
 
-	enrichCtx, enrichCancel := context.WithTimeout(context.Background(), observeTimeout)
-	flags.portOverrides = enrichOverrides(enrichCtx, plt, flags.portOverrides)
-	enrichCancel()
 	if err := validatePortOverrides(*flags); err != nil {
 		return serveRuntime{}, false, err
 	}
@@ -101,6 +97,12 @@ func prepareServeRuntime(flags *runtimeFlags, changed map[string]bool) (serveRun
 }
 
 func validateServeRuntime(flags runtimeFlags, profile device.Profile) error {
+	if err := validateInformSchedule(flags); err != nil {
+		if flags.validate {
+			return withExitCode(1, err)
+		}
+		return err
+	}
 	if err := validateWANHealthConfig(flags); err != nil {
 		if flags.validate {
 			return withExitCode(1, err)

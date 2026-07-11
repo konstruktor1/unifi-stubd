@@ -104,8 +104,9 @@ Observed UXG-Pro 5.0.16 controller-lab flow:
 | Key switch | Firmware immediately sends the next inform with the adopted key and AES-GCM. | Use the adopted key for all later inform traffic. |
 | Adopted inform | Firmware reports `default=false`, then `state=2`. | Treat the device as connected once the controller returns `noop`. |
 | System config | Controller sends another `_type: "setparam"` containing `system_cfg`. | Record safe metadata only; do not apply host users, firewall, routes, certificates, tokens, or secrets. |
+| WireGuard key request | Controller sends `_type: "cmd"`, `cmd: "wg-genkeypair"`, and a `request_id` without arguments. | Generate an X25519 key pair in memory and attach a firmware-compatible notification to the next ordinary inform: `inform_as_notif=true`, `notif_reason="cmd"`, and a `notif_payload` containing `event_string`, the correlated `request_id`, and `params.private_key`/`params.public_key`. Retry until one HTTP `200`; do not persist or log the keys or request ID. |
 | Forget/reset | Controller sends a forget, delete, remove, or restore-default command. | Clear only local adoption state, return to factory/default inform, and never reset the host. |
-| Steady state | Controller returns `_type: "noop"` with `interval` and `include_blocks`. | Continue inform on the requested interval; a 10-second interval was observed. |
+| Steady state | Controller returns `_type: "noop"` with `interval` and `include_blocks`. | Clamp a positive interval to local operator bounds and reset transport-failure backoff; a 10-second interval was observed. |
 
 The first `mgmt_cfg` observed in the lab contained `cfgversion`, `stun_url`,
 `mgmt_url`, `authkey`, `use_aes_gcm=true`, and `report_crash=true`. It did not
@@ -117,6 +118,18 @@ The adopted `system_cfg` shape was a JSON string with top-level `ubntconf` and
 firewall sets/filter chains/settings, static routes, and Radius profiles. This
 is provisioning data for a real gateway, not a safe set of host instructions
 for `unifi-stubd`.
+
+`wg-genkeypair` is the only controller command with an executable result. It
+uses Go's in-process X25519 implementation and performs no shell execution,
+file write, service action, or host-network mutation. Missing request IDs,
+arguments, parameters, malformed requests, and all other commands are ignored.
+
+Heartbeat policy remains local. Packaged defaults start at 10 seconds, accept
+controller hints from 5 through 60 seconds, cap failure backoff at 300 seconds,
+and apply 20 percent symmetric jitter. Transport failures double the effective
+delay; a completed HTTP exchange resets the failure count. If the configured
+normal interval exceeds the backoff maximum, it remains the lower bound so a
+failure never accelerates inform traffic.
 
 Alternative adoption over SSH:
 

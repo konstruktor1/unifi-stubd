@@ -4,6 +4,9 @@
 package adoption_test
 
 import (
+	"bytes"
+	"crypto/ecdh"
+	"encoding/base64"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -191,6 +194,162 @@ func TestParseControllerResponseInfoCommandRestoreDefaultRequestsReset(t *testin
 	if !info.ResetRequested || info.Store.State != adoption.StateFactory {
 		t.Fatalf("response summary = %+v", info)
 	}
+}
+
+// TestWireGuardCommandLifecycleBuildsMemoryOnlyResult verifies the one allowed
+// controller command produces a valid correlated X25519 result and reuses it
+// for duplicate request IDs.
+func TestWireGuardCommandLifecycleBuildsMemoryOnlyResult(t *testing.T) {
+	const requestID = "controller-request-id-must-not-leak"
+	info, err := adoption.ParseControllerResponseInfo([]byte(`{
+  "_type": "cmd",
+  "cmd": "wg-genkeypair",
+  "request_id": "` + requestID + `"
+}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.CommandName != "wg-genkeypair" || !info.CommandRequestIDSet || info.Ignored {
+		t.Fatalf("command summary before handling = %+v", info)
+	}
+	serializedInfo, err := json.Marshal(info)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(serializedInfo), requestID) {
+		t.Fatalf("controller request ID leaked into response summary: %s", serializedInfo)
+	}
+
+	var lifecycle adoption.CommandLifecycle
+	if err := lifecycle.Handle(&info); err != nil {
+		t.Fatal(err)
+	}
+	if !info.CommandHandled || !info.CommandResultQueued || info.CommandDuplicate {
+		t.Fatalf("command summary after handling = %+v", info)
+	}
+	firstPayload, attached, err := lifecycle.Attach([]byte(`{"mac":"02:00:5e:00:53:01","state":2}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !attached {
+		t.Fatal("command result was not attached")
+	}
+	first := decodeWireGuardCommandResult(t, firstPayload)
+	if first.EventString != "wg-genkeypair" || first.RequestID != requestID {
+		t.Fatalf("command result correlation = %+v", first)
+	}
+	privateBytes, err := base64.StdEncoding.DecodeString(first.Params.PrivateKey)
+	if err != nil {
+		t.Fatalf("decode private key: %v", err)
+	}
+	publicBytes, err := base64.StdEncoding.DecodeString(first.Params.PublicKey)
+	if err != nil {
+		t.Fatalf("decode public key: %v", err)
+	}
+	if len(privateBytes) != 32 || privateBytes[0]&7 != 0 || privateBytes[31]&128 != 0 || privateBytes[31]&64 == 0 {
+		t.Fatal("private key is not a WireGuard-clamped X25519 scalar")
+	}
+	privateKey, err := ecdh.X25519().NewPrivateKey(privateBytes)
+	if err != nil {
+		t.Fatalf("parse private key: %v", err)
+	}
+	if !bytes.Equal(privateKey.PublicKey().Bytes(), publicBytes) {
+		t.Fatal("public key does not match private key")
+	}
+
+	lifecycle.MarkResultSent()
+	if err := lifecycle.Handle(&info); err != nil {
+		t.Fatal(err)
+	}
+	secondPayload, attached, err := lifecycle.Attach([]byte(`{"mac":"02:00:5e:00:53:01","state":2}`))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !attached {
+		t.Fatal("duplicate command result was not attached")
+	}
+	second := decodeWireGuardCommandResult(t, secondPayload)
+	if first.Params != second.Params {
+		t.Fatal("duplicate request generated a different key pair")
+	}
+	summary := lifecycle.Summary()
+	if summary.HandledCount != 1 || summary.ResultSentCount != 1 || summary.DuplicateCount != 1 || !summary.Pending {
+		t.Fatalf("command lifecycle summary = %+v", summary)
+	}
+	serializedSummary, err := json.Marshal(summary)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(string(serializedSummary), first.Params.PrivateKey) || strings.Contains(string(serializedSummary), requestID) {
+		t.Fatalf("command secret or request ID leaked into summary: %s", serializedSummary)
+	}
+}
+
+// TestWireGuardCommandRequiresNarrowShape verifies arguments and missing
+// correlation IDs are rejected without preparing a result.
+func TestWireGuardCommandRequiresNarrowShape(t *testing.T) {
+	tests := []struct {
+		name string
+		body string
+	}{
+		{name: "missing request ID", body: `{"_type":"cmd","cmd":"wg-genkeypair"}`},
+		{name: "unexpected params", body: `{"_type":"cmd","cmd":"wg-genkeypair","request_id":"id","params":{"path":"/tmp/key"}}`},
+		{name: "unexpected args", body: `{"_type":"cmd","cmd":"wg-genkeypair","request_id":"id","args":["shell"]}`},
+		{name: "unsupported command", body: `{"_type":"cmd","cmd":"shell","request_id":"id"}`},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			info, err := adoption.ParseControllerResponseInfo([]byte(test.body))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !info.Ignored || info.CommandHandled || info.CommandResultQueued {
+				t.Fatalf("unsafe command summary = %+v", info)
+			}
+			var lifecycle adoption.CommandLifecycle
+			if err := lifecycle.Handle(&info); err != nil {
+				t.Fatal(err)
+			}
+			_, attached, err := lifecycle.Attach([]byte(`{"state":2}`))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if attached {
+				t.Fatal("unsafe command produced a result")
+			}
+		})
+	}
+}
+
+type wireGuardCommandResult struct {
+	EventString string `json:"event_string"`
+	RequestID   string `json:"request_id"`
+	Params      struct {
+		PrivateKey string `json:"private_key"`
+		PublicKey  string `json:"public_key"`
+	} `json:"params"`
+}
+
+func decodeWireGuardCommandResult(t *testing.T, payload []byte) wireGuardCommandResult {
+	t.Helper()
+	var notification struct {
+		InformAsNotification bool                   `json:"inform_as_notif"`
+		NotificationReason   string                 `json:"notif_reason"`
+		NotificationPayload  wireGuardCommandResult `json:"notif_payload"`
+		EventString          string                 `json:"event_string"`
+		RequestID            string                 `json:"request_id"`
+		Params               map[string]any         `json:"params"`
+	}
+	if err := json.Unmarshal(payload, &notification); err != nil {
+		t.Fatalf("decode command result: %v", err)
+	}
+	if !notification.InformAsNotification || notification.NotificationReason != "cmd" {
+		t.Fatalf("command notification metadata = enabled %t reason %q", notification.InformAsNotification, notification.NotificationReason)
+	}
+	if notification.EventString != "" || notification.RequestID != "" || notification.Params != nil {
+		t.Fatal("command result leaked into the ordinary inform root")
+	}
+	return notification.NotificationPayload
 }
 
 // FuzzParseControllerResponseInfo verifies arbitrary controller JSON bytes do

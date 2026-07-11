@@ -7,7 +7,9 @@ ip: 172.31.242.27
 hostname: stub-gateway-smoke
 uplink_speed: profile
 interval_seconds: 2
-no_discovery: true
+no_discovery: false
+discovery_targets:
+  - unifi:10001
 
 port_mappings:
   - port: 1

@@ -21,16 +21,20 @@ func ReadInterfaceStats(sysfsRoot, iface string) (InterfaceStats, error) {
 	stats := filepath.Join(base, "statistics")
 	out := InterfaceStats{}
 	var errs []error
+	countersRead := 0
 	read := func(name string) int64 {
 		value, err := readInt64(filepath.Join(stats, name))
 		if err != nil {
 			errs = append(errs, fmt.Errorf("%s: %w", name, err))
+		} else {
+			countersRead++
 		}
 		return value
 	}
 	for _, field := range interfaceStatsFields {
 		field.setStats(&out, read(field.sysfsName))
 	}
+	out.CountersSet = countersRead == len(interfaceStatsFields)
 	speed, err := readInt64(filepath.Join(base, "speed"))
 	if err != nil {
 		errs = append(errs, fmt.Errorf("speed: %w", err))
@@ -46,6 +50,9 @@ func ReadInterfaceStats(sysfsRoot, iface string) (InterfaceStats, error) {
 // hasCounters distinguishes a usable zero-speed observation from a snapshot
 // with no traffic data at all.
 func hasCounters(stats InterfaceStats) bool {
+	if stats.CountersSet {
+		return true
+	}
 	for _, field := range interfaceStatsFields {
 		if field.get(stats) != 0 {
 			return true
@@ -110,6 +117,7 @@ func applyInterfaceStatsToPort(port *device.Port, stats InterfaceStats) {
 	for _, field := range interfaceStatsFields {
 		field.setPort(port, field.get(stats))
 	}
+	port.CountersSet = true
 }
 
 // readInt64 parses Linux sysfs counter and speed files.

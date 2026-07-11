@@ -146,7 +146,29 @@
     },
     "interval_seconds": {
       "type": "integer",
-      "minimum": 1
+      "minimum": 1,
+      "description": "Operator-selected base interval for discovery and inform traffic."
+    },
+    "controller_interval_min_seconds": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Lower bound applied to positive controller heartbeat interval hints."
+    },
+    "controller_interval_max_seconds": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Upper bound applied to positive controller heartbeat interval hints. Must not be below controller_interval_min_seconds."
+    },
+    "inform_backoff_max_seconds": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Maximum transport-failure retry delay. The effective interval remains a lower bound so backoff never accelerates informs."
+    },
+    "inform_backoff_jitter_percent": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 100,
+      "description": "Symmetric random jitter percentage applied to exponential inform retry delays."
     },
     "no_discovery": {
       "type": "boolean"

@@ -1,13 +1,15 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"log"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 
+	"github.com/konstruktor1/unifi-stubd/internal/adoption"
+	"github.com/konstruktor1/unifi-stubd/internal/inform"
 	"github.com/konstruktor1/unifi-stubd/internal/observe"
 )
 
@@ -16,10 +18,8 @@ import (
 // reflected without restarting the daemon.
 func maintainControllerPresence(cfg controllerPresence) error {
 	stop := make(chan os.Signal, 1)
-	signal.Notify(stop, os.Interrupt)
-
-	ticker := time.NewTicker(cfg.flags.interval)
-	defer ticker.Stop()
+	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+	defer signal.Stop(stop)
 
 	var packet []byte
 	ann := cfg.announcement
@@ -28,11 +28,15 @@ func maintainControllerPresence(cfg controllerPresence) error {
 		startedAt = time.Now()
 	}
 	var rateTracker *observe.TrafficRateTracker
+	var commands adoption.CommandLifecycle
+	schedule, err := inform.NewSchedule(informScheduleConfig(cfg.flags))
+	if err != nil {
+		return fmt.Errorf("create inform schedule: %w", err)
+	}
 	if cfg.flags.trafficRatesEnabled {
 		rateTracker = observe.NewTrafficRateTracker()
 	}
 
-	var err error
 	for {
 		uptimeSeconds := runtimeUptime(startedAt)
 		store := loadAdoptionState(cfg.flags.sshState)
@@ -45,14 +49,6 @@ func maintainControllerPresence(cfg controllerPresence) error {
 		}
 		flags := cfg.flags
 		plt := runtimePlatform(flags)
-		if flags.trafficRatesEnabled {
-			// Rate reporting is based on current observed counters, so enrich
-			// interface-backed overrides on every heartbeat instead of only at
-			// startup.
-			ctx, cancel := context.WithTimeout(context.Background(), observeTimeout)
-			flags.portOverrides = enrichOverrides(ctx, plt, flags.portOverrides)
-			cancel()
-		}
 		ports := portsForRuntime(flags, cfg.profile, cfg.portBuildOptions, plt)
 		if flags.trafficRatesEnabled {
 			ports = applyTrafficRates(ports, rateTracker, time.Now())
@@ -63,19 +59,39 @@ func maintainControllerPresence(cfg controllerPresence) error {
 		}
 
 		sendDiscovery(packet, cfg.hostname, cfg.mac, cfg.discoverySkipped, cfg.discoveryInterface, cfg.discoveryTargets)
-		sendInformHeartbeat(cfg.mac, informURL, cfg.flags.sshState, cfg.flags.statusPath, store, payload, informSourceIP(cfg.flags, cfg.ip))
+		decision := sendInformHeartbeat(
+			cfg.mac,
+			informURL,
+			cfg.flags.sshState,
+			cfg.flags.statusPath,
+			store,
+			payload,
+			informSourceIP(cfg.flags, cfg.ip),
+			&commands,
+			schedule,
+		)
 
 		if cfg.flags.once {
 			return nil
 		}
 
-		select {
-		case <-ticker.C:
+		if waitForNextHeartbeat(decision.NextDelay, stop) {
 			ann.Sequence++
-		case <-stop:
-			log.Println("stopping")
-			return nil
+			continue
 		}
+		log.Println("stopping")
+		return nil
+	}
+}
+
+func waitForNextHeartbeat(delay time.Duration, stop <-chan os.Signal) bool {
+	timer := time.NewTimer(delay)
+	defer timer.Stop()
+	select {
+	case <-timer.C:
+		return true
+	case <-stop:
+		return false
 	}
 }
 

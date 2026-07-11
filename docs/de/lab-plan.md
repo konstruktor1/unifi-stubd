@@ -329,7 +329,7 @@ make package-freebsd-tgz
 Version, Release oder Zielarchitektur ueberschreiben:
 
 ```sh
-PKG_VERSION=0.1.0 PKG_RELEASE=1 PKG_GOARCH=amd64 \
+PKG_VERSION=0.2.4-alpha PKG_RELEASE=1 PKG_GOARCH=amd64 \
   PKG_MAINTAINER='Name <email@example.com>' make package
 ```
 

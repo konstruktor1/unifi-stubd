@@ -126,6 +126,13 @@ instance_guard: fail
 instance_guard_path: /var/db/unifi-stubd/instance.lock
 
 interval_seconds: 10
+# Positive controller interval hints are clamped to these local bounds.
+controller_interval_min_seconds: 5
+controller_interval_max_seconds: 60
+# Transport failures double the effective interval up to this delay. Jitter is
+# symmetric and bounded; a completed HTTP exchange resets the failure sequence.
+inform_backoff_max_seconds: 300
+inform_backoff_jitter_percent: 20
 no_discovery: false
 discovery_interface: ""
 # Optional explicit UDP discovery targets for routed or FreeBSD labs where

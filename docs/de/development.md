@@ -7,7 +7,7 @@ expliziten Package-Workflow-Lauf veroeffentlicht.
 
 Das Modell passt zur vorhandenen Repository-Infrastruktur:
 
-- GitHub Actions `CI` fuehrt `make check`, `make vulncheck`,
+- GitHub Actions `CI` fuehrt `make check`, `make coverage`, `make vulncheck`,
   SBOM-Erzeugung und einen separaten FreeBSD-Artefakt-Build auf dem
   self-hosted FreeBSD-Builder-Pfad aus.
 - Bei Pushes auf `main` baut `CI` zusaetzlich Pakete und installiert das
@@ -17,6 +17,16 @@ Das Modell passt zur vorhandenen Repository-Infrastruktur:
   deployed danach GitHub Pages.
 - Das `github-pages`-Environment erlaubt Deployments bereits nur von `main` und
   `v*`-Tags.
+
+## Go-Toolchain
+
+`go.mod` und `go.work` deklarieren die unterstuetzte Go-Minor-Linie `1.25`.
+Patchversionen und eine separate `toolchain`-Direktive werden bewusst nicht
+festgeschrieben.
+
+Alle GitHub-Actions-Jobs lesen `go.mod` ueber `actions/setup-go` mit
+`check-latest: true`. GitHub waehlt damit den neuesten verfuegbaren Go-`1.25`-
+Patch. Der Docker-Build folgt mit `golang:1.25-bookworm` derselben Minor-Linie.
 
 ## Branch-Stufen
 
@@ -74,28 +84,28 @@ vorbehalten. Der normale Weg ist Pull-Request-Review nach `main`.
 ## Release Und Paketveroeffentlichung
 
 Versionsnummern kommen aus `v*`-Tags oder einem expliziten Package-Workflow-
-Input. Fuer Release-Builds nicht auf den Makefile-Default vertrauen.
+Input. `VERSION`, Changelog-Abschnitt und Release-Tag muessen uebereinstimmen.
 
 Der normale Alpha-Release-Pfad ist:
 
 ```sh
 git switch main
 git pull --ff-only origin main
-git tag -a v0.2.0-alpha -m "unifi-stubd v0.2.0-alpha"
-git push origin v0.2.0-alpha
+git tag -a v0.2.4-alpha -m "unifi-stubd v0.2.4-alpha"
+git push origin v0.2.4-alpha
 ```
 
-Ein `v*`-Tag oder GitHub-Pre-Release startet `Package Repositories`. Manuelle
-Retries laufen von `main`:
+Ein `v*`-Tag startet `Package Repositories` und erstellt nach erfolgreichem
+Build aller Release-Artefakte den GitHub-Pre-Release. Manuelle Retries laufen
+von `main`:
 
 ```sh
 gh workflow run package-pages.yml --ref main \
-  -f version=0.2.0-alpha \
+  -f version=0.2.4-alpha \
   -f package_release=1
 ```
 
-Wenn `version` bei einem manuellen Lauf fehlt, ermittelt der Workflow den
-neuesten erreichbaren `v[0-9]*`-Tag und entfernt das fuehrende `v`.
+Wenn `version` bei einem manuellen Lauf fehlt, liest der Workflow `VERSION`.
 
 ## Hotfixes
 
@@ -109,7 +119,7 @@ neuesten erreichbaren `v[0-9]*`-Tag und entfernt das fuehrende `v`.
 
 | Aenderungstyp | Erforderlicher lokaler Gate | Zusaetzlicher Gate |
 | --- | --- | --- |
-| Go-Code, Config-Schema, Profildaten | `make check`, `git diff --check` | Gezieltes `go test ./tests/...`, wenn sinnvoll |
+| Go-Code, Config-Schema, Profildaten | `make check`, `make coverage`, `git diff --check` | Gezieltes `go test ./tests/...`, wenn sinnvoll |
 | Inform, Adoption, Controller-Payload, Profil-Rendering | `make check` | Standardisierter Docker-Gate mit `make integration-docker` vor `dev` nach `main` |
 | Paketierte Config, Service-Dateien, Paket-Metadaten | `make check`, `make package` | GitHub-`main`-Package-Install-Smoke |
 | FreeBSD- oder OPNsense-Runtime-Verhalten | `make check` | `make package-freebsd-pkg-repos` auf dem konfigurierten BSD-Builder-Pfad plus FreeBSD-/OPNsense-Smoke mit temporaerem State, wenn Verhalten geaendert wurde |

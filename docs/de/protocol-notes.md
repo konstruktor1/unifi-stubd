@@ -104,8 +104,9 @@ Beobachteter UXG-Pro-5.0.16-Ablauf im Controller-Lab:
 | Key-Wechsel | Firmware sendet den naechsten Inform sofort mit Adopted-Key und AES-GCM. | Fuer alle weiteren Informs den Adopted-Key verwenden. |
 | Adopted Inform | Firmware meldet `default=false`, danach `state=2`. | Geraet als connected behandeln, sobald der Controller `noop` liefert. |
 | System-Konfiguration | Controller sendet ein weiteres `_type: "setparam"` mit `system_cfg`. | Nur sichere Metadaten erfassen; keine Host-User, Firewall, Routen, Zertifikate, Tokens oder Secrets anwenden. |
+| WireGuard-Key-Anfrage | Controller sendet `_type: "cmd"`, `cmd: "wg-genkeypair"` und eine `request_id` ohne Argumente. | Ein X25519-Keypaar im Speicher erzeugen und als firmwarekompatible Notification an den naechsten regulaeren Inform anhaengen: `inform_as_notif=true`, `notif_reason="cmd"` und ein `notif_payload` mit `event_string`, korrelierter `request_id` sowie `params.private_key`/`params.public_key`. Bis zu einem HTTP `200` erneut senden; Keys und Request-ID weder persistieren noch loggen. |
 | Forget/Reset | Controller sendet ein Forget-, Delete-, Remove- oder Restore-Default-Kommando. | Nur lokalen Adoption-State loeschen, wieder factory/default informieren und niemals den Host zuruecksetzen. |
-| Steady State | Controller antwortet mit `_type: "noop"`, `interval` und `include_blocks`. | Mit dem geforderten Intervall weiter informieren; beobachtet wurden 10 Sekunden. |
+| Steady State | Controller antwortet mit `_type: "noop"`, `interval` und `include_blocks`. | Ein positives Intervall auf lokale Betreibergrenzen begrenzen und den Transportfehler-Backoff zuruecksetzen; beobachtet wurden 10 Sekunden. |
 
 Das erste im Lab beobachtete `mgmt_cfg` enthielt `cfgversion`, `stun_url`,
 `mgmt_url`, `authkey`, `use_aes_gcm=true` und `report_crash=true`. Ein neues
@@ -117,6 +118,20 @@ Das adoptierte `system_cfg` war ein JSON-String mit den Top-Level-Keys
 System-User, Firewall-Sets/-Filterketten/-Settings, statische Routen und
 Radius-Profile. Das ist Provisioning-Datenmaterial fuer ein echtes Gateway,
 aber kein sicherer Satz Host-Anweisungen fuer `unifi-stubd`.
+
+`wg-genkeypair` ist das einzige Controller-Kommando mit einem ausfuehrbaren
+Ergebnis. Es nutzt die prozessinterne X25519-Implementierung von Go und fuehrt
+weder Shell-Kommandos, Dateischreibvorgaenge, Service-Aktionen noch Host-
+Netzwerkmutationen aus. Fehlende Request-IDs, Argumente, Parameter, ungueltige
+Requests und alle anderen Kommandos werden ignoriert.
+
+Die Heartbeat-Policy bleibt lokal. Paketierte Defaults starten mit 10 Sekunden,
+akzeptieren Controller-Hinweise von 5 bis 60 Sekunden, begrenzen den Fehler-
+Backoff auf 300 Sekunden und verwenden 20 Prozent symmetrischen Jitter.
+Transportfehler verdoppeln die effektive Wartezeit; ein abgeschlossener HTTP-
+Austausch setzt den Fehlerzaehler zurueck. Liegt der konfigurierte Normaltakt
+ueber dem Backoff-Maximum, bleibt er die Untergrenze, damit ein Fehler Inform-
+Traffic niemals beschleunigt.
 
 Alternative Adoption ueber SSH:
 

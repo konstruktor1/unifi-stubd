@@ -12,6 +12,12 @@ Der UniFi `authkey` ist ein symmetrischer Schluessel fuer Inform-Payloads. Er da
 
 `adoption.env`, SSH-Hostkeys und Controller-API-Tokens duerfen nicht geteilt werden.
 
+Der Adoption-SSH-Shim protokolliert nur feste Kommandobezeichnungen. Vom
+Controller gelieferte Argumente, Adoption-Keys und SSH-Passwoerter erscheinen
+weder in Audit-Logs noch in Statusausgaben oder Authentifizierungsfehlern. Der
+Authkey bleibt in der Adoption-State-Datei mit Modus `0600` gespeichert, weil
+die Inform-Verschluesselung ihn benoetigt.
+
 ## Keine Host-Provisionierung
 
 Der Controller darf nicht ungeprueft Host-Konfigurationen veraendern. Fuer den MVP gilt:
@@ -20,6 +26,10 @@ Der Controller darf nicht ungeprueft Host-Konfigurationen veraendern. Fuer den M
 - `noop` quittieren.
 - Fuer Gateway-`system_cfg` nur bereinigte Metadaten wie Byte-Laenge und
   Top-Level-Keys erfassen.
+- Nur ein argumentfreies `wg-genkeypair` mit Request-ID verarbeiten. Die
+  X25519-Keys im Speicher erzeugen, das korrelierte Ergebnis nur bis zur
+  erfolgreichen Auslieferung erneut senden und Keys oder Request-ID niemals
+  persistieren oder loggen.
 - Restart-/Upgrade-/Provisioning-Kommandos als per Policy ignoriert markieren.
 - Keine Shell-Kommandos vom Controller ausfuehren.
 

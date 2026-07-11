@@ -12,6 +12,11 @@ The UniFi `authkey` is a symmetric key for inform payloads. It must not land in 
 
 Do not share `adoption.env`, SSH host keys, or controller API tokens.
 
+The adoption SSH shim logs only fixed command labels. Controller-supplied
+arguments, adoption keys, and SSH passwords are excluded from audit logs,
+status output, and authentication errors. The authkey is still persisted in the
+mode-`0600` adoption state because inform encryption requires it.
+
 ## No Host Provisioning
 
 The controller must not blindly mutate host configuration. For the MVP:
@@ -20,6 +25,9 @@ The controller must not blindly mutate host configuration. For the MVP:
 - Acknowledge `noop`.
 - Record only sanitized metadata for gateway `system_cfg`, such as byte length
   and top-level keys.
+- Handle only an argument-free `wg-genkeypair` with a request ID. Generate its
+  X25519 keys in memory, retry the correlated result only until successful
+  delivery, and never persist or log its keys or request ID.
 - Mark restart/upgrade/provisioning commands as ignored by policy.
 - Do not execute shell commands from the controller.
 

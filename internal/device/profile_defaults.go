@@ -16,7 +16,7 @@ func applyProfileDefaults(profile *Profile) {
 		target *string
 		value  string
 	}{
-		{target: &profile.Stability, value: "tested"},
+		{target: &profile.Stability, value: stabilityExperimental},
 		{target: &profile.Payload.Kind, value: defaultPayloadKind(profile.DeviceType)},
 		{target: &profile.Payload.RequiredVersion, value: defaultRequiredVersion},
 		{target: &profile.Payload.ManagementInterface, value: defaultMgmtInterface},

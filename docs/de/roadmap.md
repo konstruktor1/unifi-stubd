@@ -36,7 +36,8 @@
 - [x] Sichere Metadaten fuer ignorierte Provisioning-Antworten aufzeichnen.
 - [ ] Fixture-Abdeckung fuer `include_blocks`-Antworten wie `gw_caps`,
   `dns_shield_servers`, aktive Leases und WAN-Status-Bloecke ergaenzen.
-- [ ] Retry-/Backoff- und Timeout-Policy fuer Controller-Inform-Fehler testen.
+- [x] Begrenzte Intervallhinweis- und Retry-/Backoff-Policy fuer Controller-
+  Inform-Fehler testen.
 - [ ] Begrenzte Status-Historie fuer letzte Inform-Antworttypen ergaenzen, ohne
   Authkeys oder Controller-Secrets zu leaken.
 
@@ -115,7 +116,7 @@
 - [ ] Package-Manager-Install-Smoke-Tests in CI fuer APT-, RPM- und Pacman-Repos.
 - [ ] Pages-Repository-Freshness-Check in CI fuer APT `Packages.gz`, RPM
   `repomd.xml`, Arch `unifi-stubd.db`, FreeBSD-Tarballs und Checksums.
-- [ ] Release-SBOM und Provenance-Artefakte neben Checksums veroeffentlichen.
+- [x] Persistente SPDX-Release-SBOM neben Paket-Checksummen veroeffentlichen.
 - [ ] Paket-Upgrade-, Downgrade-, Uninstall- und Purge-Tests mit explizitem
   Adoption-State-Retention-Verhalten ergaenzen.
 - [ ] Package-Rollback-Runbook ergaenzen, das paketverwaltete Services wieder

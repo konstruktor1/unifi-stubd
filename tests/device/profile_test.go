@@ -4,10 +4,82 @@ package device_test
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/konstruktor1/unifi-stubd/internal/device"
 )
+
+// TestBuiltinProfileMaturityMatchesEvidence verifies gateway identities remain
+// experimental and tested profiles cite a concrete controller version.
+func TestBuiltinProfileMaturityMatchesEvidence(t *testing.T) {
+	for _, profile := range device.Profiles() {
+		if profile.Payload.Kind == "gateway" && profile.Stability != "experimental" {
+			t.Errorf("gateway profile %q stability = %q, want experimental", profile.Name, profile.Stability)
+		}
+		if profile.Stability == "tested" && len(profile.ValidatedControllerVersions) == 0 {
+			t.Errorf("tested profile %q has no validated controller version", profile.Name)
+		}
+	}
+
+	us8, ok := device.LookupProfile("us8")
+	if !ok {
+		t.Fatal("us8 profile not found")
+	}
+	if us8.Stability != "tested" || strings.Join(us8.ValidatedControllerVersions, ",") != "10.3.58,10.4.57" {
+		t.Fatalf("us8 maturity = %q %#v, want tested on 10.3.58 and 10.4.57", us8.Stability, us8.ValidatedControllerVersions)
+	}
+
+	uxgLite, ok := device.LookupProfile("uxg-lite")
+	if !ok {
+		t.Fatal("uxg-lite profile not found")
+	}
+	if uxgLite.Stability != "experimental" || strings.Join(uxgLite.ValidatedControllerVersions, ",") != "10.3.58,10.4.57" {
+		t.Fatalf("uxg-lite maturity = %q %#v, want experimental with 10.3.58 and 10.4.57 evidence", uxgLite.Stability, uxgLite.ValidatedControllerVersions)
+	}
+}
+
+// TestProfileMaturityValidation rejects optimistic or vague maturity claims.
+func TestProfileMaturityValidation(t *testing.T) {
+	base := `schema_version: 1
+name: maturity-test
+model: MATURITYTEST
+ports: 1
+port_speed: 1000
+uplink_speed: 1000
+`
+	tests := []struct {
+		name      string
+		maturity  string
+		wantError string
+	}{
+		{name: "experimental default"},
+		{name: "tested without evidence", maturity: "stability: tested\n", wantError: "validated_controller_versions is required"},
+		{name: "tested with vague evidence", maturity: "stability: tested\nvalidated_controller_versions:\n  - latest\n", wantError: "is not a concrete controller version"},
+		{name: "unknown stability", maturity: "stability: stable\n", wantError: "stability \"stable\" is invalid"},
+		{name: "tested with version", maturity: "stability: tested\nvalidated_controller_versions:\n  - ' 10.3.58 '\n"},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			profile, _, err := device.DecodeConfig([]byte(base + test.maturity))
+			if test.wantError != "" {
+				if err == nil || !strings.Contains(err.Error(), test.wantError) {
+					t.Fatalf("DecodeConfig() error = %v, want containing %q", err, test.wantError)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatal(err)
+			}
+			if test.name == "experimental default" && profile.Stability != "experimental" {
+				t.Fatalf("default stability = %q, want experimental", profile.Stability)
+			}
+			if test.name == "tested with version" && profile.ValidatedControllerVersions[0] != "10.3.58" {
+				t.Fatalf("normalized controller version = %q, want 10.3.58", profile.ValidatedControllerVersions[0])
+			}
+		})
+	}
+}
 
 // TestLookupProfile verifies built-in profiles can be found by profile name.
 func TestLookupProfile(t *testing.T) {

@@ -2,7 +2,10 @@ GO ?= go
 GOLANGCI_LINT ?= $(GO) tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint
 NFPM ?= $(GO) tool github.com/goreleaser/nfpm/v2/cmd/nfpm
 GOVULNCHECK ?= $(GO) tool golang.org/x/vuln/cmd/govulncheck
-PKG_VERSION ?= 0.1.0
+COVERAGE_MIN ?= 60.0
+COVERAGE_PACKAGES ?= ./internal/...
+COVERAGE_TESTS ?= ./tests/...
+PKG_VERSION ?= $(shell sed -n '1p' VERSION)
 PKG_RELEASE ?= 1
 PKG_GOOS ?= linux
 PKG_GOARCH ?= $(shell $(GO) env GOARCH)
@@ -30,12 +33,12 @@ help:
 		'Targets:' \
 		'  make check        Run lint, policy checks, and tests' \
 		'  make build-freebsd  Cross-build the FreeBSD/OPNsense binary' \
-		'  make coverage     Generate HTML coverage report in dist/coverage.html' \
+		'  make coverage     Enforce coverage and write dist/coverage.html' \
 		'  make lint         Run golangci-lint and repository policy checks' \
 		'  make test         Run all Go tests' \
 		'  make validate-config  Validate packaged configs and example profiles' \
 		'  make vulncheck    Run Go vulnerability scanning' \
-		'  make integration-docker  Run Docker payload and inform-capture smoke tests' \
+		'  make integration-docker  Run the pinned Docker controller adoption gate' \
 		'  make switch-payload  Print discovery and inform payloads' \
 		'  make switch-emulation  Start the lab switch emulator' \
 		'  make package      Build deb, rpm, archlinux, and tgz packages' \
@@ -83,7 +86,15 @@ integration-docker:
 	sh lab/stub/scripts/run-docker-integration.sh
 
 coverage:
-	$(GO) test -coverprofile=dist/cover.out ./...
+	mkdir -p dist
+	$(GO) test -covermode=atomic -coverpkg='$(COVERAGE_PACKAGES)' -coverprofile=dist/cover.out $(COVERAGE_TESTS)
+	@total="$$($(GO) tool cover -func=dist/cover.out | awk '$$1 == "total:" { gsub(/%/, "", $$3); print $$3 }')"; \
+		test -n "$$total"; \
+		printf 'total coverage: %s%% (minimum $(COVERAGE_MIN)%%)\n' "$$total"; \
+		if ! awk -v total="$$total" -v minimum='$(COVERAGE_MIN)' 'BEGIN { exit !(total + 0 >= minimum + 0) }'; then \
+			printf 'coverage %.1f%% is below minimum %.1f%%\n' "$$total" '$(COVERAGE_MIN)' >&2; \
+			exit 1; \
+		fi
 	$(GO) tool cover -html=dist/cover.out -o dist/coverage.html
 	@printf 'coverage report written to dist/coverage.html\n'
 

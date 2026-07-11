@@ -20,4 +20,5 @@ port_speed: 1000
 uplink_speed: 10000
 port_media: GE
 uplink_media: SFP+
+stability: experimental
 description: 48-port UniFi Switch with PoE, 2 SFP+, and 2 SFP uplinks

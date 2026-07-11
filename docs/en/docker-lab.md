@@ -5,10 +5,10 @@ for the Go stub. It reuses three long-lived services:
 
 - UniFi Network Application on `https://127.0.0.1:8443/`
 - MongoDB for the controller
-- inform MITM on the internal lab network
+- Go inform/discovery proxy on the internal lab network
 
 The default controller image is pinned to
-`lscr.io/linuxserver/unifi-network-application:10.3.58-ls129`. Override
+`lscr.io/linuxserver/unifi-network-application:10.4.57-ls135`. Override
 `UNIFI_NETWORK_IMAGE` only when intentionally validating another controller
 version; set `UNIFI_STUB_LAB_EXPECTED_NETWORK_VERSION` with that controller's
 `/status` `server_version` when the integration test should enforce it.
@@ -25,7 +25,12 @@ test harness still passes throwaway MAC/IP/profile/hostname values as CLI
 overrides, so these files stay stable and do not contain controller state or
 secrets.
 
-## Smoke Test
+Empty controller volumes are initialized automatically through the same local
+setup API flow used by the web UI. Existing configured volumes are reused after
+the helper verifies the lab login. The setup helper never prints controller
+responses, generated device credentials, API tokens, or adoption keys.
+
+## Controller Gate
 
 Run from the repository root:
 
@@ -44,19 +49,27 @@ The target verifies:
 - Gateway dry-run payload from the `uxg-lite` profile, including
   `if_table`, `network_table`, read-only physical `port_table`,
   `reported_networks`, `uplink_table`, and `wan1` from the shared port view.
-- One inform request per mode through the MITM.
+- One inform request and one forwarded discovery packet per mode through the Go
+  proxy.
 - Controller API login against the Docker UniFi Network Application.
 - Controller `/status` version check for the pinned Docker image.
 - Pending adoption visibility for the bridge-observe and gateway-smoke devices.
 - Controller-triggered adoption through the controller API for both switch and
   gateway-shaped payloads.
-- Persisted local stub adoption state with `STATE=connected` and an authkey
-  present, without printing the authkey.
-- At least one post-adoption inform heartbeat per adopted switch/gateway test
-  device through the MITM.
+- A default-key `setparam` response with authkey, cfgversion, and
+  `use_aes_gcm=true`, captured only as sanitized presence flags.
+- Persisted local stub adoption state with `STATE=connected`, authkey,
+  cfgversion, and AES-GCM enabled, without printing the authkey.
+- At least two post-adoption AES-GCM inform heartbeats per adopted
+  switch/gateway test device.
+- Three consecutive controller samples with `adopted=true`, `state=1`, and
+  completed adoption.
+- No gateway command, command result, duplicate, or pending result before and
+  after the 75-second stability window expected from the current 10.4.57 pin.
 
-The default lab credentials are `admin` / `admin`. Override them only for a
-local lab controller:
+The default loopback-only lab credentials are `admin` / `admin`; they are also
+used when bootstrapping empty volumes. Override them only for a local lab
+controller:
 
 ```sh
 UNIFI_STUB_LAB_ADMIN_USER=admin \
@@ -97,8 +110,16 @@ Pass criteria:
 - The log shows the pinned UniFi Network Application version check.
 - The log shows the generated bridge, port-map, and gateway throwaway
   identities.
-- Switch and gateway adoption smoke tests both reach connected local state and
-  at least one post-adoption inform heartbeat.
+- Switch and gateway gates both record discovery, sanitized `setparam`, two GCM
+  heartbeats, complete persisted adoption state, and stable connected samples.
+- The gateway gate matches the explicit controller-command expectation before
+  and after a 75-second stability window. The current 10.4.57 pin expects no
+  command; compatibility runs can set
+  `UNIFI_STUB_DOCKER_GATEWAY_COMMAND_EXPECTATION=required` for controllers
+  known to issue `wg-genkeypair`.
+- The final gateway status reports the controller's positive interval, clamped
+  to local bounds, as effective and next delay, with zero consecutive failures
+  and no active backoff.
 
 Promotion evidence should record:
 
@@ -139,6 +160,16 @@ adopted state for the test MACs. Controller volumes are not reset. The
 controller delete request is best-effort; tests must treat fresh throwaway MACs
 as the reliable isolation boundary.
 
+At the beginning of a standard run, the helper also removes adopted devices
+with the reserved Docker-fixture MAC prefix `02:15:6d`. This makes the gate
+self-recover from an earlier `UNIFI_STUB_DOCKER_KEEP_RESOURCES=1` run without
+touching devices outside the project-owned fixture prefix.
+
+If UniFi returns `api.err.DeviceBusy` while deleting one of those reserved
+fixtures, the gate restarts only the disposable controller service and retries
+the normal controller API deletion. The controller and MongoDB volumes are not
+reset.
+
 UniFi Network can keep non-adopted Pending rows in process memory until its
 discovery TTL expires. Those rows are not persisted in MongoDB in the observed
 Docker lab. Fresh throwaway MACs avoid collisions between repeated runs. In the
@@ -151,9 +182,10 @@ inspect the adopted test device or stub state volume after a failing run.
 ## Boundaries
 
 This lab proves container-local Linux bridge/FDB observation, sysfs counters,
-explicit port mapping, gateway table rendering, inform framing, controller
-adoption, and local adoption state persistence. It does not prove Proxmox host
-bridge behavior, FreeBSD runtime behavior, LLDP import, or event subscriptions.
+explicit port mapping, gateway table rendering, discovery forwarding, inform
+framing, controller adoption, local adoption state persistence, and AES-GCM.
+It does not prove Proxmox host bridge behavior, FreeBSD runtime behavior, LLDP
+import, or event subscriptions.
 
 It also does not prove physical-topology direction. Container tests use
 throwaway synthetic identities, so they do not cover the case where a real

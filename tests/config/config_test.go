@@ -37,6 +37,19 @@ func TestDefaultSeparatesConfigAndStatePaths(t *testing.T) {
 	if cfg.InstanceGuardPath != "/var/lib/unifi-stubd/instance.lock" {
 		t.Fatalf("InstanceGuardPath = %q", cfg.InstanceGuardPath)
 	}
+	if cfg.IntervalSeconds != 10 ||
+		cfg.ControllerIntervalMinSeconds != 5 ||
+		cfg.ControllerIntervalMaxSeconds != 60 ||
+		cfg.InformBackoffMaxSeconds != 300 ||
+		cfg.InformBackoffJitterPercent != 20 {
+		t.Fatalf("inform schedule defaults = interval=%d min=%d max=%d backoff=%d jitter=%d",
+			cfg.IntervalSeconds,
+			cfg.ControllerIntervalMinSeconds,
+			cfg.ControllerIntervalMaxSeconds,
+			cfg.InformBackoffMaxSeconds,
+			cfg.InformBackoffJitterPercent,
+		)
+	}
 	if cfg.TrafficRatesEnabled {
 		t.Fatal("TrafficRatesEnabled default = true, want false")
 	}
@@ -90,6 +103,11 @@ management_lan:
   ip: 192.0.2.42
   controller_reachable: warn
   adoption_strategy: untagged-first
+interval_seconds: 12
+controller_interval_min_seconds: 4
+controller_interval_max_seconds: 45
+inform_backoff_max_seconds: 180
+inform_backoff_jitter_percent: 15
 uplink_port: 1
 uplink_neighbor:
   mac: 02:aa:bb:cc:dd:01
@@ -157,6 +175,19 @@ status_path: /tmp/unifi-stubd/status.json
 	}
 	if cfg.OperationMode != "observe" {
 		t.Fatalf("OperationMode = %q", cfg.OperationMode)
+	}
+	if cfg.IntervalSeconds != 12 ||
+		cfg.ControllerIntervalMinSeconds != 4 ||
+		cfg.ControllerIntervalMaxSeconds != 45 ||
+		cfg.InformBackoffMaxSeconds != 180 ||
+		cfg.InformBackoffJitterPercent != 15 {
+		t.Fatalf("inform schedule config = interval=%d min=%d max=%d backoff=%d jitter=%d",
+			cfg.IntervalSeconds,
+			cfg.ControllerIntervalMinSeconds,
+			cfg.ControllerIntervalMaxSeconds,
+			cfg.InformBackoffMaxSeconds,
+			cfg.InformBackoffJitterPercent,
+		)
 	}
 	if cfg.ProfileFile != "/etc/unifi-stubd/profiles/lab.yaml" {
 		t.Fatalf("ProfileFile = %q", cfg.ProfileFile)

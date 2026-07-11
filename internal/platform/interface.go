@@ -53,6 +53,17 @@ func (p hostPlatform) Interface(ctx context.Context, iface string) (observe.Port
 // mergeInterfaceStats fills missing fields from a fallback counter source while
 // preserving values already returned by the primary interface reader.
 func mergeInterfaceStats(primary, fallback observe.InterfaceStats) observe.InterfaceStats {
+	if !primary.CountersSet {
+		fillMissingInterfaceCounters(&primary, fallback)
+	}
+	primary.CountersSet = primary.CountersSet || fallback.CountersSet
+	if primary.SpeedMbps == 0 {
+		primary.SpeedMbps = fallback.SpeedMbps
+	}
+	return primary
+}
+
+func fillMissingInterfaceCounters(primary *observe.InterfaceStats, fallback observe.InterfaceStats) {
 	if primary.RXBytes == 0 {
 		primary.RXBytes = fallback.RXBytes
 	}
@@ -71,8 +82,4 @@ func mergeInterfaceStats(primary, fallback observe.InterfaceStats) observe.Inter
 	if primary.TXErrors == 0 {
 		primary.TXErrors = fallback.TXErrors
 	}
-	if primary.SpeedMbps == 0 {
-		primary.SpeedMbps = fallback.SpeedMbps
-	}
-	return primary
 }

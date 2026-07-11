@@ -9,4 +9,8 @@ port_speed: 1000
 uplink_speed: 1000
 port_media: GE
 uplink_media: GE
+stability: tested
+validated_controller_versions:
+  - 10.3.58
+  - 10.4.57
 description: 8-port UniFi Switch

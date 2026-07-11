@@ -23,35 +23,53 @@ onto the installed system after the package is installed.
    sh scripts/check-policy.sh
    ```
 
-7. Update `CHANGELOG.md`.
+7. Confirm `VERSION`, the newest dated `CHANGELOG.md` section, and the intended
+   `v<version>` tag all match.
 8. Update `CREDITS.md` and `NOTICE.md` if new sources, copied code, packages,
    or tools were added.
 9. Confirm `packaging/linux/etc/unifi-stubd/config.yaml` and `lab/` contain
    documentation addresses or neutral defaults only.
-10. For public releases, sign packages or checksums with the project release key
-   once that key exists; do not publish unsigned artifacts as stable releases.
+10. Verify repository metadata with `gh repo view --json
+    description,homepageUrl,licenseInfo,repositoryTopics` and compare package
+    name, license, maintainer, and project URL with `packaging/nfpm.yaml`.
+11. Verify signing status. Alpha releases may publish the generated unsigned
+    `SHA256SUMS` only while they remain marked as pre-releases. Stable releases
+    require a signed tag and a detached signature for `SHA256SUMS`.
 
 ## Tagging
 
 Use semantic version tags:
 
 ```sh
-git tag -a v0.2.0-alpha -m "unifi-stubd v0.2.0-alpha"
-git push origin v0.2.0-alpha
+git tag -a v0.2.4-alpha -m "unifi-stubd v0.2.4-alpha"
+git push origin v0.2.4-alpha
 ```
 
 Tag only commits that already passed the `main` CI run. The Package
-Repositories workflow runs for `v*` tags and GitHub pre-releases, so the
-`github-pages` environment must allow deployments from `main` and `v*` tags.
+Repositories workflow runs for `v*` tags, so the `github-pages` environment
+must allow deployments from `main` and `v*` tags.
 
-Create a pre-release for alpha package sets:
+The tag push owns alpha publication. The Package Repositories workflow creates
+the GitHub pre-release and attaches Linux packages, FreeBSD packages and
+repository archive, `SHA256SUMS`, and `unifi-stubd.spdx.json`. Verify the
+persistent release assets after the workflow completes:
 
 ```sh
-gh release create v0.2.0-alpha --prerelease \
-  --title "unifi-stubd v0.2.0-alpha" \
-  --notes-file dist/releases/v0.2.0-alpha/release-notes.md \
-  dist/releases/v0.2.0-alpha/*
+gh release view v0.2.4-alpha --json isPrerelease,assets,url
 ```
+
+## Signing And Repository Metadata
+
+When a release signing key is configured, create a signed tag with `git tag
+-s`, download the release `SHA256SUMS`, and publish a detached signature such
+as `SHA256SUMS.asc`. Verify both with `git tag -v <tag>` and `gpg --verify
+SHA256SUMS.asc SHA256SUMS`. Without a configured key, keep the release alpha,
+pre-release, and explicitly unsigned; do not promote it to stable.
+
+Repository description, homepage, SPDX license, and topics must remain
+populated and consistent with `README.md`, `LICENSE`, and package metadata.
+The release target must be the tested commit on `main`, and the tag SHA must
+match the release target SHA.
 
 ## GitHub Pages Package Repositories
 
@@ -64,24 +82,28 @@ https://konstruktor1.github.io/unifi-stubd/
 Build all package artifacts first, then generate the static repository site:
 
 ```sh
-PKG_VERSION=0.2.0-alpha PKG_RELEASE=1 PKG_GOARCH=amd64 make package
-PKG_VERSION=0.2.0-alpha PKG_RELEASE=1 PKG_GOARCH=arm64 make package
-PKG_VERSION=0.2.0-alpha PKG_RELEASE=1 make package-freebsd-pkg-repos
+PKG_VERSION=0.2.4-alpha PKG_RELEASE=1 PKG_GOARCH=amd64 make package
+PKG_VERSION=0.2.4-alpha PKG_RELEASE=1 PKG_GOARCH=arm64 make package
+PKG_VERSION=0.2.4-alpha PKG_RELEASE=1 make package-freebsd-pkg-repos
 make package-repos
 ```
 
 The Package Repositories workflow publishes the package repository through
-GitHub Pages when a `v*` tag or pre-release is published. To retry or rebuild
-the package repository manually, run the workflow from `main`:
+GitHub Pages when a `v*` tag is pushed. To retry or rebuild the package
+repository manually without creating another release, run the workflow from
+`main`:
 
 ```sh
 gh workflow run package-pages.yml --ref main \
-  -f version=0.2.0-alpha \
+  -f version=0.2.4-alpha \
   -f package_release=1
 ```
 
-If `version` is omitted in a manual run, the workflow resolves the latest
-reachable `v[0-9]*` tag and strips the leading `v`.
+If `version` is omitted in a manual run, the workflow reads `VERSION`.
+
+The SPDX JSON SBOM is attached to the GitHub release and therefore does not
+expire with the seven-day Actions artifact retention. Release checksums cover
+the SBOM and every uploaded package artifact.
 
 `make package-repos` writes `dist/package-site/` with APT, RPM, Arch Linux,
 FreeBSD/OPNsense tarball paths, and native FreeBSD `pkg` repository paths when

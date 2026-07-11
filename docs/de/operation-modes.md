@@ -337,6 +337,13 @@ dieses Ports. Das ist fuer FreeBSD-/OPNsense-Stub-only-Gateway-Tests nuetzlich,
 wenn WAN/LAN aus echten Interfaces visualisiert werden sollen, ohne
 Host-Netzwerk zu veraendern.
 
+Der Dienst baut Interface-basierte Overrides bei jedem Heartbeat neu aus der
+unveraenderten Betreiberkonfiguration auf. MAC, IPv4, IPv6, Link-State, Speed,
+Medium und Counter folgen damit auch bei deaktivierten Traffic-Rates dem
+aktuellen Interface-Snapshot. Explizit konfigurierte Werte behalten Vorrang;
+ein vollstaendiger beobachteter Counter-Snapshot behaelt auch einen gueltigen
+Reset auf null bei.
+
 `uplink_neighbor` ist fuer reine Stubs und virtuelle Lab-Ports gedacht, bei
 denen es keinen physischen Linkpartner gibt. Der Eintrag fuegt eine konfigurierte
 MAC-Table-Zeile auf dem aktuellen Uplink-Port ein.

@@ -36,21 +36,9 @@ func runtimePlatformConfig(flags runtimeFlags) platform.Config {
 
 // enrichOverrides reads local interface facts for explicit operator overrides.
 func enrichOverrides(ctx context.Context, plt platform.Platform, overrides []device.PortOverride) []device.PortOverride {
-	if len(overrides) == 0 {
-		return overrides
-	}
-	out := device.ClonePortOverrides(overrides)
-	for index := range out {
-		iface := strings.TrimSpace(out[index].Interface)
-		if iface == "" {
-			continue
-		}
-		out[index].Interface = iface
-		observation, errs := plt.Interface(ctx, iface)
-		for _, err := range errs {
-			log.Printf("port %d interface source %s warning: %v", out[index].Port, iface, err)
-		}
-		ifsource.ApplyObservation(&out[index], observation)
+	out, warnings := ifsource.RefreshOverrides(ctx, plt, overrides)
+	for _, warning := range warnings {
+		log.Printf("port %d interface source %s warning: %v", warning.Port, warning.Interface, warning.Err)
 	}
 	return out
 }

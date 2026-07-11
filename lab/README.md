@@ -42,7 +42,7 @@ by packages automatically.
 
 - a UniFi Network Application container,
 - a MongoDB container,
-- a Go inform proxy container, and
+- a Go inform/discovery proxy container, and
 - the generic `stub` switch stub container.
 
 The path, service, default container name, hostname, and persistent volume are
@@ -64,8 +64,10 @@ mkdir -p lab/stub/captures
 docker compose -f lab/stub/compose.yaml up -d --build stub
 ```
 
-Open the UniFi UI at `https://localhost:8443`. During setup, keep device
-communication on TCP `8080` and set the Inform Host override to `unifi`.
+Open the UniFi UI at `https://localhost:8443`. `make integration-docker`
+bootstraps a fresh controller automatically with disposable lab credentials;
+manual exploratory setup remains possible. Keep device communication on TCP
+`8080` and set the Inform Host override to `unifi`.
 The stub sends informs to `http://unifi:8080/inform`; inside the container,
 `unifi` is mapped to the inform proxy container, which forwards to the real
 controller service. Captures are written to ignored `lab/stub/captures/`.

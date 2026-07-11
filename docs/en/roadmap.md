@@ -36,7 +36,8 @@
 - [x] Record safe metadata for ignored provisioning responses.
 - [ ] Add fixture coverage for `include_blocks` responses such as `gw_caps`,
   `dns_shield_servers`, active leases, and WAN status blocks.
-- [ ] Add retry/backoff and timeout policy tests for controller inform failures.
+- [x] Add bounded interval-hint and retry/backoff policy tests for controller
+  inform failures.
 - [ ] Add bounded status history for recent inform response types without
   leaking authkeys or controller secrets.
 
@@ -112,7 +113,7 @@
 - [ ] Package-manager install smoke tests in CI for APT, RPM, and Pacman repos.
 - [ ] Pages repository freshness check in CI for APT `Packages.gz`, RPM
   `repomd.xml`, Arch `unifi-stubd.db`, FreeBSD tarballs, and checksums.
-- [ ] Publish release SBOM and provenance artifacts alongside checksums.
+- [x] Publish a persistent SPDX release SBOM alongside package checksums.
 - [ ] Add package upgrade, downgrade, uninstall, and purge tests with explicit
   adoption-state retention behavior.
 - [ ] Add package rollback runbook that maps package-managed services back to a

@@ -105,7 +105,7 @@ func generatedPort(index, speed int, media string, uplink, profileUplink bool, n
 		// factory-default payloads are useful before any bridge or LLDP source is
 		// configured.
 		port.MACs = []MacTableEntry{
-			{MAC: "02:aa:bb:cc:dd:01", Age: 4, Uptime: 1200, VLAN: 1, Type: deviceTypeUSW},
+			{MAC: syntheticUplinkNeighborMAC, Age: 4, Uptime: 1200, VLAN: 1, Type: deviceTypeUSW},
 		}
 	}
 	return port

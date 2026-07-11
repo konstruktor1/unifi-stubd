@@ -15,13 +15,21 @@ if find . -name '*_test.go' -not -path './.git/*' -not -path './tests/*' | grep 
 fi
 
 printf '== policy: lab secrets are not committed ==\n'
-if rg -n 'JoemcROV|X-API-KEY|10\.0\.0\.194|/Users/corspi' . \
-  --glob '!.git/**' \
-  --glob '!.utm-build/**' \
-  --glob '!dist/**' \
-  --glob '!scripts/check-policy.sh'; then
+if git grep -nE 'JoemcROV|X-API-KEY|10\.0\.0\.194|/Users/corspi' -- \
+  ':!scripts/check-policy.sh'; then
   fail "possible lab secret or API endpoint leaked"
 fi
+
+printf '== policy: release version is centralized and documented ==\n'
+release_version=$(sed -n '1p' VERSION)
+case "$release_version" in
+  [0-9]*.[0-9]*.[0-9]*-alpha)
+    ;;
+  *)
+    fail "VERSION must contain an alpha semantic version without a leading v"
+    ;;
+esac
+grep -Fq "## [$release_version]" CHANGELOG.md || fail "CHANGELOG.md is missing VERSION $release_version"
 
 printf '== policy: Go module and workspace use a flexible minor floor ==\n'
 mod_go=$(sed -n 's/^go //p' go.mod | head -n 1)
@@ -31,7 +39,7 @@ work_go=$(sed -n 's/^go //p' go.work | head -n 1)
 major=${mod_go%%.*}
 minor=${mod_go#*.}
 if [ "$major" = "$mod_go" ] || [ -z "$major" ] || [ -z "$minor" ]; then
-  fail "go.mod/go.work must use an unpatched Go minor version, for example: go 1.25"
+  fail "go.mod/go.work must use a major.minor version without a patch component"
 fi
 case "$major" in
   '' | *[!0-9]*)
@@ -43,9 +51,6 @@ case "$minor" in
     fail "go.mod/go.work must not pin a Go patch version"
     ;;
 esac
-if [ "$major" -lt 1 ] || { [ "$major" -eq 1 ] && [ "$minor" -lt 25 ]; }; then
-  fail "go.mod/go.work must use Go 1.25 or newer"
-fi
 if grep -Eq '^toolchain ' go.mod go.work; then
   fail "toolchain must not be pinned in committed module or workspace files"
 fi

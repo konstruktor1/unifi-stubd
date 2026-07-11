@@ -216,7 +216,19 @@ reset. They clear adoption state and make the next inform look factory-default
 again.
 
 Provisioning commands that would affect the host are summarized as ignored
-metadata. Arbitrary controller shell commands are not executed.
+metadata. Arbitrary controller shell commands are not executed. The sole
+command-result exception is an argument-free `wg-genkeypair` with a request ID:
+the daemon generates an X25519 key pair in process and attaches the correlated
+result to the next inform. The keys and request ID remain memory-only; logs and
+status expose only the fixed command name and sanitized lifecycle counters.
+
+The presence loop uses a resettable timer rather than a fixed ticker. The
+operator's `interval_seconds` is the initial interval. Positive controller
+`noop.interval` hints are clamped to the configured controller minimum and
+maximum. Transport or response-decoding failures double the effective delay up
+to the configured backoff maximum and add bounded symmetric jitter. A completed
+HTTP exchange resets the failure count; the most recent effective interval,
+next delay, failure count, and backoff state are recorded as sanitized status.
 
 ## Persistence And Status
 
@@ -228,6 +240,11 @@ Persistent state is intentionally narrow:
 | `/var/lib/unifi-stubd/status.json` | Linux sanitized runtime status |
 | `/var/db/unifi-stubd/adoption.env` | FreeBSD adoption store |
 | `/var/db/unifi-stubd/status.json` | FreeBSD sanitized runtime status |
+
+Adoption and runtime status updates are written to same-directory temporary
+files, synced, and atomically renamed. An interrupted update therefore leaves
+the previous complete state file in place rather than exposing partial data.
+`SIGINT` and `SIGTERM` both stop the daemon through its normal cleanup path.
 
 Status output must be useful for operators but safe to share. It reports
 identity, selected profile, operation mode, observation summary, platform

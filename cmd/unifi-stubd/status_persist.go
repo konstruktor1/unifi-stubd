@@ -5,10 +5,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"path/filepath"
 	"time"
 
 	"github.com/konstruktor1/unifi-stubd/internal/adoption"
+	"github.com/konstruktor1/unifi-stubd/internal/atomicfile"
 )
 
 // loadPersistedRunStatus reads the sanitized last-inform status written by the
@@ -31,15 +31,12 @@ func saveLastInformStatus(path string, last lastInformStatus) error {
 	if path == "" {
 		return errors.New("status path is required")
 	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return fmt.Errorf("create runtime status directory: %w", err)
-	}
 	data, err := json.MarshalIndent(persistedRunStatus{LastInform: last}, "", "  ")
 	if err != nil {
 		return fmt.Errorf("marshal runtime status: %w", err)
 	}
 	data = append(data, '\n')
-	if err := os.WriteFile(path, data, 0o600); err != nil {
+	if err := atomicfile.WriteFile(path, data, 0o600); err != nil {
 		return fmt.Errorf("write runtime status %s: %w", path, err)
 	}
 	return nil

@@ -134,8 +134,8 @@ func gatewayHostTable(view PortView) []gatewayHostRow {
 			Authorized: true,
 			RXBytes:    port.RXBytes,
 			TXBytes:    port.TXBytes,
-			RXPackets:  firstNonZeroInt64(port.RXPackets, 1),
-			TXPackets:  firstNonZeroInt64(port.TXPackets, 1),
+			RXPackets:  packetCounter(port.RXPackets, port.CountersSet),
+			TXPackets:  packetCounter(port.TXPackets, port.CountersSet),
 			Uptime:     firstNonZero(entry.Uptime, 1200),
 		}
 		if hostname := strings.TrimSpace(entry.Hostname); hostname != "" {

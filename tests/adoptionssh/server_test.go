@@ -2,6 +2,8 @@
 package adoptionssh_test
 
 import (
+	"bytes"
+	"log"
 	"net"
 	"os"
 	"path/filepath"
@@ -97,6 +99,91 @@ VERSION=5.0.17.1
 	}
 }
 
+// TestSetAdoptDoesNotExposeCredentials verifies adoption credentials remain
+// available to the state store without reaching logs, responses, or errors.
+func TestSetAdoptDoesNotExposeCredentials(t *testing.T) {
+	const (
+		user             = "adoption-agent"
+		password         = "configured-ssh-password-do-not-log"
+		rejectedPassword = "rejected-ssh-password-do-not-log"
+		authKey          = "adoption-authkey-do-not-log"
+	)
+
+	var logs bytes.Buffer
+	previousOutput := log.Writer()
+	previousFlags := log.Flags()
+	previousPrefix := log.Prefix()
+	log.SetOutput(&logs)
+	log.SetFlags(0)
+	log.SetPrefix("")
+	t.Cleanup(func() {
+		log.SetOutput(previousOutput)
+		log.SetFlags(previousFlags)
+		log.SetPrefix(previousPrefix)
+	})
+
+	dir := t.TempDir()
+	statePath := filepath.Join(dir, "adoption.env")
+	server, err := adoptionssh.Start(adoptionssh.Config{
+		Listen:      "127.0.0.1:0",
+		User:        user,
+		Password:    password,
+		HostKeyPath: filepath.Join(dir, "ssh_host_rsa_key"),
+		StatePath:   statePath,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() {
+		if err := server.Close(); err != nil {
+			t.Fatalf("server close: %v", err)
+		}
+	}()
+
+	_, err = ssh.Dial("tcp", server.Addr().String(), &ssh.ClientConfig{
+		User:            user,
+		Auth:            []ssh.AuthMethod{ssh.Password(rejectedPassword)},
+		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
+	})
+	if err == nil {
+		t.Fatal("SSH login with rejected password succeeded")
+	}
+	if strings.Contains(err.Error(), rejectedPassword) {
+		t.Fatalf("SSH authentication error leaked password: %v", err)
+	}
+
+	command := "syswrapper.sh set-adopt http://192.0.2.10:8080/inform " + authKey
+	output := runSSHCommandWithCredentials(t, server.Addr().String(), user, password, command)
+	output += runSSHCommandWithCredentials(t, server.Addr().String(), user, password, "unsupported-command --password "+password)
+	state, err := os.ReadFile(statePath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(state), "AUTHKEY="+authKey) {
+		t.Fatalf("adoption state did not persist authkey: %q", state)
+	}
+
+	for _, surface := range []struct {
+		name string
+		text string
+	}{
+		{name: "logs", text: logs.String()},
+		{name: "response", text: output},
+	} {
+		for _, secret := range []string{authKey, password, rejectedPassword} {
+			if strings.Contains(surface.text, secret) {
+				t.Fatalf("%s leaked credential %q:\n%s", surface.name, secret, surface.text)
+			}
+		}
+	}
+	if !strings.Contains(logs.String(), "syswrapper.sh") {
+		t.Fatalf("sanitized command audit entry missing:\n%s", logs.String())
+	}
+	if !strings.Contains(logs.String(), "adoption ssh command: unsupported") {
+		t.Fatalf("unsupported command audit entry missing:\n%s", logs.String())
+	}
+}
+
 // FuzzCommandFields verifies the SSH command splitter tolerates arbitrary
 // shell-like input.
 func FuzzCommandFields(f *testing.F) {
@@ -117,9 +204,14 @@ func FuzzCommandFields(f *testing.F) {
 // output.
 func runSSHCommand(t *testing.T, addr, command string) string {
 	t.Helper()
+	return runSSHCommandWithCredentials(t, addr, "ubnt", "ubnt", command)
+}
+
+func runSSHCommandWithCredentials(t *testing.T, addr, user, password, command string) string {
+	t.Helper()
 	client, err := ssh.Dial("tcp", addr, &ssh.ClientConfig{
-		User:            "ubnt",
-		Auth:            []ssh.AuthMethod{ssh.Password("ubnt")},
+		User:            user,
+		Auth:            []ssh.AuthMethod{ssh.Password(password)},
 		HostKeyCallback: ssh.InsecureIgnoreHostKey(),
 	})
 	if err != nil {

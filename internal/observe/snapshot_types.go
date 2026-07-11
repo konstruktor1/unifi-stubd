@@ -18,6 +18,9 @@ type Config struct {
 
 // InterfaceStats contains passive counters and link speed for one interface.
 type InterfaceStats struct {
+	// CountersSet reports that all counter fields were read successfully. It is
+	// intentionally omitted from status JSON because it is merge metadata.
+	CountersSet bool `json:"-"`
 	// RXBytes is the received byte counter.
 	RXBytes int64 `json:"rx_bytes,omitempty"`
 	// TXBytes is the transmitted byte counter.

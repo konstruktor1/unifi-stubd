@@ -223,7 +223,20 @@ Factory-Default aussehen.
 
 Provisioning-Kommandos, die den Host betreffen wuerden, werden nur als
 ignorierte Metadaten zusammengefasst. Beliebige Controller-Shell-Kommandos
-werden nicht ausgefuehrt.
+werden nicht ausgefuehrt. Die einzige Command-Result-Ausnahme ist ein
+argumentfreies `wg-genkeypair` mit Request-ID: Der Daemon erzeugt prozessintern
+ein X25519-Keypaar und haengt das korrelierte Ergebnis an den naechsten Inform.
+Keys und Request-ID bleiben nur im Speicher; Logs und Status enthalten nur den
+festen Kommandonamen und bereinigte Lifecycle-Zaehler.
+
+Der Presence-Loop verwendet statt eines festen Tickers einen ruecksetzbaren
+Timer. `interval_seconds` des Betreibers ist der Starttakt. Positive Controller-
+Hinweise aus `noop.interval` werden auf das konfigurierte Minimum und Maximum
+begrenzt. Transport- oder Response-Decoding-Fehler verdoppeln den effektiven
+Takt bis zum konfigurierten Backoff-Maximum und ergaenzen begrenzten
+symmetrischen Jitter. Ein abgeschlossener HTTP-Austausch setzt den Fehlerzaehler
+zurueck; effektiver Takt, naechste Wartezeit, Fehlerzaehler und Backoff-State
+werden bereinigt im Status erfasst.
 
 ## Persistenz und Status
 
@@ -235,6 +248,12 @@ Persistenter State ist absichtlich eng:
 | `/var/lib/unifi-stubd/status.json` | Linux-sanitized Runtime-Status |
 | `/var/db/unifi-stubd/adoption.env` | FreeBSD-Adoption-Store |
 | `/var/db/unifi-stubd/status.json` | FreeBSD-sanitized Runtime-Status |
+
+Adoption- und Runtime-Status-Updates werden in temporaere Dateien im selben
+Verzeichnis geschrieben, synchronisiert und atomisch umbenannt. Ein
+unterbrochenes Update laesst dadurch die vorherige vollstaendige State-Datei
+bestehen, statt Teildaten sichtbar zu machen. `SIGINT` und `SIGTERM` beenden den
+Daemon beide ueber seinen normalen Aufraeumpfad.
 
 Status-Ausgabe muss fuer Betreiber nuetzlich, aber teilbar bleiben. Sie meldet
 Identity, gewaehltes Profil, Operation-Mode, Observation-Zusammenfassung,

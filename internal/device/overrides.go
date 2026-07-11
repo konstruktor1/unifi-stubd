@@ -109,6 +109,7 @@ func PortOverrideEmpty(override PortOverride) bool {
 		override.TXPackets == 0 &&
 		override.RXErrors == 0 &&
 		override.TXErrors == 0 &&
+		!override.CountersSet &&
 		override.VLAN == 0 &&
 		override.WANUptimePercent == nil &&
 		override.WANLatencyMS == 0 &&
