@@ -7,6 +7,8 @@ semantic version tags once releases are published.
 
 ## [Unreleased]
 
+## [0.2.4-alpha] - 2026-07-11
+
 ### Changed
 
 - Standardized GitHub Actions builds on the current Go `1.25` release selected
@@ -36,6 +38,9 @@ semantic version tags once releases are published.
 - Made profile maturity evidence-based: unvalidated profiles and all gateway
   identities remain experimental, while tested profiles require concrete
   controller versions.
+- Centralized the package version, refreshed current installation paths, and
+  made tag builds publish packages, checksums, and a persistent SPDX SBOM as
+  GitHub pre-release assets.
 
 ### Security
 
@@ -45,6 +50,21 @@ semantic version tags once releases are published.
 - Restricted controller command handling to an argument-free `wg-genkeypair`.
   The generated keys and request ID remain memory-only, logs and status expose
   sanitized counters, and all other controller commands remain ignored.
+
+## [0.2.3-alpha] - 2026-06-27
+
+### Fixed
+
+- Corrected the trusted FreeBSD builder workflow so native packages and
+  repositories can use host-side Go cross-compilation without mandatory
+  long-running `jexec` jails.
+
+## [0.2.2-alpha] - 2026-06-27
+
+### Added
+
+- Added the read-only OPNsense API configuration generator, FreeBSD package
+  repository builds, and the bilingual CI/CD and deployment catalog.
 
 ## [0.2.1-alpha] - 2026-06-21
 

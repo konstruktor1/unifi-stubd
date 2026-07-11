@@ -84,28 +84,28 @@ vorbehalten. Der normale Weg ist Pull-Request-Review nach `main`.
 ## Release Und Paketveroeffentlichung
 
 Versionsnummern kommen aus `v*`-Tags oder einem expliziten Package-Workflow-
-Input. Fuer Release-Builds nicht auf den Makefile-Default vertrauen.
+Input. `VERSION`, Changelog-Abschnitt und Release-Tag muessen uebereinstimmen.
 
 Der normale Alpha-Release-Pfad ist:
 
 ```sh
 git switch main
 git pull --ff-only origin main
-git tag -a v0.2.0-alpha -m "unifi-stubd v0.2.0-alpha"
-git push origin v0.2.0-alpha
+git tag -a v0.2.4-alpha -m "unifi-stubd v0.2.4-alpha"
+git push origin v0.2.4-alpha
 ```
 
-Ein `v*`-Tag oder GitHub-Pre-Release startet `Package Repositories`. Manuelle
-Retries laufen von `main`:
+Ein `v*`-Tag startet `Package Repositories` und erstellt nach erfolgreichem
+Build aller Release-Artefakte den GitHub-Pre-Release. Manuelle Retries laufen
+von `main`:
 
 ```sh
 gh workflow run package-pages.yml --ref main \
-  -f version=0.2.0-alpha \
+  -f version=0.2.4-alpha \
   -f package_release=1
 ```
 
-Wenn `version` bei einem manuellen Lauf fehlt, ermittelt der Workflow den
-neuesten erreichbaren `v[0-9]*`-Tag und entfernt das fuehrende `v`.
+Wenn `version` bei einem manuellen Lauf fehlt, liest der Workflow `VERSION`.
 
 ## Hotfixes
 

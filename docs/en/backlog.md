@@ -21,14 +21,14 @@ change, and `L` for work that includes controller integration and fixtures.
 | B07 | P2 | **Completed 2026-07-10:** add heartbeat and failure policy | Positive controller interval hints drive the dynamic timer after clamping to operator-configured bounds. Transport failures double the effective delay with bounded symmetric jitter; a completed HTTP exchange resets the failure sequence. Unit and live-daemon tests cover clamping, cap, jitter, reset, status, and invalid configuration. The pinned controller gate proves its returned positive hint becomes the bounded effective and next interval with zero pending failures or backoff. | M |
 | B08 | P2 | **Completed 2026-07-10:** repair the coverage target | `make coverage` instruments all production `internal/...` packages from the external `tests/...` suites, reports the aggregate result, and enforces an initial 60 percent minimum locally and in CI. | S |
 | B09 | P2 | **Completed 2026-07-11:** make profile maturity evidence-based | Experimental gateway profiles report `experimental`. `tested` requires at least one concrete entry in `validated_controller_versions`; `us8` and `uxg-lite` record their 10.3.58 and 10.4.57 controller evidence without promoting the gateway profile. | S |
-| B10 | P2 | Restore release hygiene | Changelog and install docs match the current tag. Release artifacts include a persistent SBOM. The release checklist covers signing and repository metadata. | M |
+| B10 | P2 | **Completed 2026-07-11:** restore release hygiene | `VERSION`, changelog, and install docs agree on 0.2.4-alpha. Tag builds attach packages, checksums, and a persistent SPDX SBOM to the GitHub pre-release. The release checklist covers signing and repository metadata. | M |
 
 ## Delivery Order
 
 1. Security blockers B01 and B02 were completed on 2026-07-10.
 2. Runtime correctness: B03 and B04 were completed on 2026-07-10.
 3. Controller compatibility: B05, B06, and B07 were completed on 2026-07-10.
-4. Quality and release gates: B08 and B09 are complete; next is B10.
+4. Quality and release gates: B08, B09, and B10 are complete.
 
 ## Alpha Release Gate
 

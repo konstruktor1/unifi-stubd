@@ -23,14 +23,14 @@ Controller-Integration und Fixtures.
 | B07 | P2 | **Abgeschlossen 2026-07-10:** Heartbeat- und Fehlerstrategie einfuehren | Positive Controller-Intervallhinweise steuern nach Begrenzung auf betreiberseitig konfigurierte Werte den dynamischen Timer. Transportfehler verdoppeln den effektiven Takt mit begrenztem symmetrischem Jitter; ein abgeschlossener HTTP-Austausch setzt die Fehlerfolge zurueck. Unit- und Live-Daemon-Tests decken Begrenzung, Cap, Jitter, Reset, Status und ungueltige Konfiguration ab. Der gepinnte Controller-Gate belegt, dass sein positiver Rueckgabewert zum begrenzten effektiven und naechsten Takt wird, ohne ausstehende Fehler oder Backoff. | M |
 | B08 | P2 | **Abgeschlossen 2026-07-10:** Coverage-Target reparieren | `make coverage` instrumentiert alle produktiven `internal/...`-Pakete ueber die externen `tests/...`-Suites, meldet den aggregierten Wert und erzwingt lokal sowie in CI anfangs mindestens 60 Prozent. | S |
 | B09 | P2 | **Abgeschlossen 2026-07-11:** Profilreife evidenzbasiert ausweisen | Experimentelle Gateway-Profile melden `experimental`. `tested` erfordert mindestens einen konkreten Eintrag in `validated_controller_versions`; `us8` und `uxg-lite` dokumentieren ihre Controller-Evidenz fuer 10.3.58 und 10.4.57, ohne das Gateway-Profil hochzustufen. | S |
-| B10 | P2 | Release-Hygiene wiederherstellen | Changelog und Installationsdokumentation entsprechen dem aktuellen Tag. Release-Artefakte enthalten ein dauerhaftes SBOM. Die Release-Checkliste deckt Signierung und Repository-Metadaten ab. | M |
+| B10 | P2 | **Abgeschlossen 2026-07-11:** Release-Hygiene wiederherstellen | `VERSION`, Changelog und Installationsdoku stimmen auf 0.2.4-alpha ueberein. Tag-Builds haengen Pakete, Checksummen und eine persistente SPDX-SBOM an den GitHub-Pre-Release. Die Release-Checkliste deckt Signierung und Repository-Metadaten ab. | M |
 
 ## Umsetzungsreihenfolge
 
 1. Die Sicherheitsblocker B01 und B02 wurden am 2026-07-10 abgeschlossen.
 2. Laufzeitkorrektheit: B03 und B04 wurden am 2026-07-10 abgeschlossen.
 3. Controller-Kompatibilitaet: B05, B06 und B07 wurden am 2026-07-10 abgeschlossen.
-4. Qualitaets- und Release-Gates: B08 und B09 sind abgeschlossen; als Naechstes folgt B10.
+4. Qualitaets- und Release-Gates: B08, B09 und B10 sind abgeschlossen.
 
 ## Alpha-Release-Gate
 

@@ -15,13 +15,21 @@ if find . -name '*_test.go' -not -path './.git/*' -not -path './tests/*' | grep 
 fi
 
 printf '== policy: lab secrets are not committed ==\n'
-if rg -n 'JoemcROV|X-API-KEY|10\.0\.0\.194|/Users/corspi' . \
-  --glob '!.git/**' \
-  --glob '!.utm-build/**' \
-  --glob '!dist/**' \
-  --glob '!scripts/check-policy.sh'; then
+if git grep -nE 'JoemcROV|X-API-KEY|10\.0\.0\.194|/Users/corspi' -- \
+  ':!scripts/check-policy.sh'; then
   fail "possible lab secret or API endpoint leaked"
 fi
+
+printf '== policy: release version is centralized and documented ==\n'
+release_version=$(sed -n '1p' VERSION)
+case "$release_version" in
+  [0-9]*.[0-9]*.[0-9]*-alpha)
+    ;;
+  *)
+    fail "VERSION must contain an alpha semantic version without a leading v"
+    ;;
+esac
+grep -Fq "## [$release_version]" CHANGELOG.md || fail "CHANGELOG.md is missing VERSION $release_version"
 
 printf '== policy: Go module and workspace use a flexible minor floor ==\n'
 mod_go=$(sed -n 's/^go //p' go.mod | head -n 1)

@@ -79,28 +79,28 @@ cases. The normal route is pull request review into `main`.
 ## Release And Package Publishing
 
 Version numbers come from `v*` tags or an explicit package workflow input. Do
-not rely on the Makefile default for release builds.
+keep `VERSION`, the changelog section, and the release tag aligned.
 
 The normal alpha release path is:
 
 ```sh
 git switch main
 git pull --ff-only origin main
-git tag -a v0.2.0-alpha -m "unifi-stubd v0.2.0-alpha"
-git push origin v0.2.0-alpha
+git tag -a v0.2.4-alpha -m "unifi-stubd v0.2.4-alpha"
+git push origin v0.2.4-alpha
 ```
 
-Publishing a `v*` tag or GitHub pre-release starts `Package Repositories`.
+Publishing a `v*` tag starts `Package Repositories` and creates the GitHub
+pre-release after all release artifacts are built.
 Manual retries run from `main`:
 
 ```sh
 gh workflow run package-pages.yml --ref main \
-  -f version=0.2.0-alpha \
+  -f version=0.2.4-alpha \
   -f package_release=1
 ```
 
-If `version` is omitted in a manual run, the workflow resolves the latest
-reachable `v[0-9]*` tag and strips the leading `v`.
+If `version` is omitted in a manual run, the workflow reads `VERSION`.
 
 ## Hotfixes
 

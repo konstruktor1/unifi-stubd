@@ -18,8 +18,9 @@ The CI path is split into:
 
 - `CI`: validation, vulnerability scan, SBOM, trusted FreeBSD artifact check,
   and a `main`-only Linux package smoke test.
-- `Package Repositories`: release-package build and GitHub Pages deployment for
-  unsigned alpha package repositories.
+- `Package Repositories`: release-package and persistent SBOM build, GitHub
+  pre-release asset publication, and Pages deployment for unsigned alpha
+  package repositories.
 
 ## Build Targets
 
@@ -75,7 +76,7 @@ canonical builder uses FreeBSD host-side Go cross-compilation plus FreeBSD
 running `jexec` jails.
 
 `package` runs only on pushes to `main` after `check` and `freebsd-build`.
-It resolves the latest `v[0-9]*` tag, builds Linux packages, installs the
+It reads the centralized `VERSION`, builds Linux packages, installs the
 generated Debian package once, validates the installed config, and uploads
 `dist/packages/`.
 
@@ -84,13 +85,13 @@ generated Debian package once, validates the installed config, and uploads
 | Area | Current value |
 | --- | --- |
 | File | `.github/workflows/package-pages.yml` |
-| Triggers | `workflow_dispatch`, `v*` tag push, published/prereleased GitHub Release |
+| Triggers | `workflow_dispatch`, `v*` tag push |
 | Default permissions | `contents: read` |
 | Deploy permissions | `contents: read`, `pages: write`, `id-token: write` on `build-and-deploy` only |
-| Jobs | `build-packages`, `build-freebsd-artifacts`, `build-and-deploy` |
+| Jobs | `build-packages`, `build-freebsd-artifacts`, `build-sbom`, `build-and-deploy`, `publish-release` |
 | Runners | Ubuntu for Linux packages and Pages site; self-hosted builder for BSD artifacts |
-| Actions | `actions/checkout@v6`, `actions/setup-go@v6`, `actions/upload-artifact@v7`, `actions/download-artifact@v7`, `actions/configure-pages@v6`, `actions/upload-pages-artifact@v5`, `actions/deploy-pages@v5` |
-| Artifacts | `linux-package-artifacts`, `freebsd-package-artifacts`, `freebsd-pkg-repos`, Pages artifact |
+| Actions | `actions/checkout@v6`, `actions/setup-go@v6`, `anchore/sbom-action@v0`, `actions/upload-artifact@v7`, `actions/download-artifact@v7`, `actions/configure-pages@v6`, `actions/upload-pages-artifact@v5`, `actions/deploy-pages@v5` |
+| Artifacts | `linux-package-artifacts`, `freebsd-package-artifacts`, `freebsd-pkg-repos`, `release-sbom`, Pages artifact, persistent GitHub Release assets |
 | Environment | `github-pages` |
 | Concurrency | One `github-pages` deployment group, no cancel-in-progress |
 
@@ -157,7 +158,7 @@ Containers are defined for runtime and lab use only:
 | Linux tarball | Linux stage tree | `make package` or `make package-tgz` | `unifi-stubd_<version>-<release>_linux_<arch>.tar.gz` | Checksums | Artifact, Pages checksum |
 | FreeBSD tarball | FreeBSD stage tree from BSD-built binary | `make package-freebsd-pkg-repos` | `unifi-stubd_<version>-<release>_freebsd_<arch>.tar.gz` | Checksums | Artifact, Pages freebsd paths |
 | FreeBSD `pkg` | FreeBSD stage tree and UCL manifest | `make package-freebsd-pkg-repos` | `repo/FreeBSD:*/*` including `packagesite.pkg` | `pkg repo` metadata and checksums | Pages freebsd/pkg paths |
-| SBOM | Repository tree | `anchore/sbom-action@v0` | `dist/sbom.spdx.json` | Action success | CI artifact |
+| SBOM | Repository tree | `anchore/sbom-action@v0` | `unifi-stubd.spdx.json` | Action success | CI artifact and persistent GitHub Release asset |
 | Static package site | Package artifacts and FreeBSD pkg repo output | `make package-repos` | `dist/package-site/` | `checksums.txt`; package metadata tools | GitHub Pages |
 
 ## Deployment and Release Boundaries
@@ -168,11 +169,11 @@ Containers are defined for runtime and lab use only:
   publish package repositories.
 - Pushes to `main` run validation, trusted BSD artifact checks, and the Linux
   package smoke job. They upload run artifacts only.
-- `v*` tags, GitHub published/prereleased releases, and manual dispatch from
-  `main` build and deploy the GitHub Pages package repositories.
-- The checked-in workflows do not upload GitHub Release assets. Release asset
-  upload remains a manual `gh release create ... dist/releases/...` process in
-  the release checklist.
+- `v*` tags build packages and SBOM, create or update the GitHub pre-release,
+  attach all release assets plus `SHA256SUMS`, and deploy the Pages package
+  repositories.
+- Manual dispatch from `main` rebuilds the Pages package repositories without
+  creating a new GitHub release.
 
 ## Problems Found and Corrections
 

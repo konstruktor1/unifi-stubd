@@ -18,8 +18,9 @@ Die Pipeline ist getrennt in:
 
 - `CI`: Validierung, Vulnerability Scan, SBOM, vertrauenswuerdiger
   FreeBSD-Artefaktcheck und `main`-only Linux-Package-Smoke.
-- `Package Repositories`: Release-Paketbuild und GitHub-Pages-Deployment fuer
-  unsignierte Alpha-Paketquellen.
+- `Package Repositories`: Release-Paket- und persistenter SBOM-Build,
+  GitHub-Pre-Release-Artefakte sowie Pages-Deployment fuer unsignierte
+  Alpha-Paketquellen.
 
 ## Build-Ziele
 
@@ -76,22 +77,22 @@ kanonische Builder nutzt Go-Cross-Compile auf dem FreeBSD-Host plus FreeBSD
 laufenden `jexec`-Jails gedacht.
 
 `package` laeuft nur bei Pushes auf `main`, nachdem `check` und
-`freebsd-build` erfolgreich waren. Der Job ermittelt den neuesten
-`v[0-9]*`-Tag, baut Linux-Pakete, installiert das Debian-Paket einmal,
-validiert die installierte Config und laedt `dist/packages/` hoch.
+`freebsd-build` erfolgreich waren. Der Job liest den zentralen Wert aus
+`VERSION`, baut Linux-Pakete, installiert das Debian-Paket einmal, validiert
+die installierte Config und laedt `dist/packages/` hoch.
 
 ### `Package Repositories`
 
 | Bereich | Aktueller Wert |
 | --- | --- |
 | Datei | `.github/workflows/package-pages.yml` |
-| Trigger | `workflow_dispatch`, `v*`-Tag-Push, published/prereleased GitHub Release |
+| Trigger | `workflow_dispatch`, `v*`-Tag-Push |
 | Default-Permissions | `contents: read` |
 | Deploy-Permissions | `contents: read`, `pages: write`, `id-token: write` nur im Deploy-Job |
-| Jobs | `build-packages`, `build-freebsd-artifacts`, `build-and-deploy` |
+| Jobs | `build-packages`, `build-freebsd-artifacts`, `build-sbom`, `build-and-deploy`, `publish-release` |
 | Runner | Ubuntu fuer Linux-Pakete und Pages-Seite; self-hosted Builder fuer BSD-Artefakte |
-| Actions | `actions/checkout@v6`, `actions/setup-go@v6`, `actions/upload-artifact@v7`, `actions/download-artifact@v7`, `actions/configure-pages@v6`, `actions/upload-pages-artifact@v5`, `actions/deploy-pages@v5` |
-| Artefakte | `linux-package-artifacts`, `freebsd-package-artifacts`, `freebsd-pkg-repos`, Pages-Artefakt |
+| Actions | `actions/checkout@v6`, `actions/setup-go@v6`, `anchore/sbom-action@v0`, `actions/upload-artifact@v7`, `actions/download-artifact@v7`, `actions/configure-pages@v6`, `actions/upload-pages-artifact@v5`, `actions/deploy-pages@v5` |
+| Artefakte | `linux-package-artifacts`, `freebsd-package-artifacts`, `freebsd-pkg-repos`, `release-sbom`, Pages-Artefakt, persistente GitHub-Release-Artefakte |
 | Environment | `github-pages` |
 | Concurrency | Eine `github-pages`-Deployment-Gruppe, kein Cancel-in-progress |
 
@@ -157,7 +158,7 @@ Container sind nur fuer Runtime und Lab definiert:
 | Linux-Tarball | Linux-Stage | `make package` oder `make package-tgz` | `unifi-stubd_<version>-<release>_linux_<arch>.tar.gz` | Checksums | Artefakt, Pages-Checksum |
 | FreeBSD-Tarball | FreeBSD-Stage mit BSD-gebautem Binary | `make package-freebsd-pkg-repos` | `unifi-stubd_<version>-<release>_freebsd_<arch>.tar.gz` | Checksums | Artefakt, Pages-FreeBSD-Pfade |
 | FreeBSD `pkg` | FreeBSD-Stage und UCL-Manifest | `make package-freebsd-pkg-repos` | `repo/FreeBSD:*/*` inkl. `packagesite.pkg` | `pkg repo` und Checksums | Pages-FreeBSD/pkg-Pfade |
-| SBOM | Repository-Baum | `anchore/sbom-action@v0` | `dist/sbom.spdx.json` | Action-Erfolg | CI-Artefakt |
+| SBOM | Repository-Baum | `anchore/sbom-action@v0` | `unifi-stubd.spdx.json` | Action-Erfolg | CI-Artefakt und persistentes GitHub-Release-Artefakt |
 | Statische Paketseite | Package-Artefakte und FreeBSD-pkg-Repo | `make package-repos` | `dist/package-site/` | `checksums.txt`, Paketmetadaten-Tools | GitHub Pages |
 
 ## Deployment- und Release-Grenzen
@@ -168,10 +169,11 @@ Container sind nur fuer Runtime und Lab definiert:
   BSD-Artefaktchecks, veroeffentlichen aber keine Paketquellen.
 - Pushes nach `main` laufen durch Validierung, BSD-Artefaktchecks und den
   Linux-Package-Smoke. Sie laden nur Run-Artefakte hoch.
-- `v*`-Tags, published/prereleased GitHub Releases und manueller Dispatch von
-  `main` bauen und deployen die GitHub-Pages-Paketquellen.
-- Die Workflows laden keine GitHub-Release-Assets hoch. Das bleibt der manuelle
-  `gh release create ... dist/releases/...`-Pfad aus der Release-Checkliste.
+- `v*`-Tags bauen Pakete und SBOM, erstellen oder aktualisieren den GitHub-Pre-
+  Release, haengen alle Release-Artefakte plus `SHA256SUMS` an und deployen die
+  Pages-Paketquellen.
+- Manueller Dispatch von `main` baut die Pages-Paketquellen neu, ohne einen
+  neuen GitHub-Release zu erstellen.
 
 ## Gefundene Probleme und Korrekturen
 

@@ -13,8 +13,6 @@ on:
   push:
     tags:
       - "v*"
-  release:
-    types: [published, prereleased]
 
 permissions:
   contents: read
@@ -44,7 +42,7 @@ jobs:
       - name: Resolve package version
         id: package-version
         env:
-          RAW_VERSION: ${{ inputs.version || github.event.release.tag_name || github.ref_name }}
+          RAW_VERSION: ${{ inputs.version || github.ref_name }}
         run: |
           set -eu
           case "$RAW_VERSION" in
@@ -55,10 +53,13 @@ jobs:
               version="$RAW_VERSION"
               ;;
             *)
-              version="$(git describe --tags --abbrev=0 --match 'v[0-9]*' | sed 's/^v//')"
+              version="$(sed -n '1p' VERSION)"
               ;;
           esac
           test -n "$version"
+          if [ "${GITHUB_REF_TYPE:-}" = "tag" ]; then
+            test "$version" = "$(sed -n '1p' VERSION)"
+          fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Build Linux package artifacts
@@ -91,7 +92,7 @@ jobs:
       - name: Resolve package version
         id: package-version
         env:
-          RAW_VERSION: ${{ inputs.version || github.event.release.tag_name || github.ref_name }}
+          RAW_VERSION: ${{ inputs.version || github.ref_name }}
         run: |
           set -eu
           case "$RAW_VERSION" in
@@ -102,10 +103,13 @@ jobs:
               version="$RAW_VERSION"
               ;;
             *)
-              version="$(git describe --tags --abbrev=0 --match 'v[0-9]*' | sed 's/^v//')"
+              version="$(sed -n '1p' VERSION)"
               ;;
           esac
           test -n "$version"
+          if [ "${GITHUB_REF_TYPE:-}" = "tag" ]; then
+            test "$version" = "$(sed -n '1p' VERSION)"
+          fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Build FreeBSD package artifacts and pkg repositories
@@ -130,6 +134,25 @@ jobs:
         with:
           name: freebsd-pkg-repos
           path: dist/freebsd-pkg-repos.tar.gz
+          retention-days: 7
+
+  build-sbom:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - run: mkdir -p dist
+
+      - uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: spdx-json
+          output-file: dist/unifi-stubd.spdx.json
+
+      - uses: actions/upload-artifact@v7
+        with:
+          name: release-sbom
+          path: dist/unifi-stubd.spdx.json
           retention-days: 7
 
   build-and-deploy:
@@ -185,3 +208,59 @@ jobs:
 
       - id: deployment
         uses: actions/deploy-pages@v5
+
+  publish-release:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/v')
+    needs:
+      - build-packages
+      - build-freebsd-artifacts
+      - build-sbom
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: linux-package-artifacts
+          path: dist/release
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: freebsd-package-artifacts
+          path: dist/release
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: freebsd-pkg-repos
+          path: dist/release
+
+      - uses: actions/download-artifact@v7
+        with:
+          name: release-sbom
+          path: dist/release
+
+      - name: Create release checksums
+        run: |
+          set -eu
+          cd dist/release
+          sha256sum ./* > SHA256SUMS
+
+      - name: Publish persistent release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_REPOSITORY: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -eu
+          if ! gh release view "$RELEASE_TAG" --repo "$RELEASE_REPOSITORY" >/dev/null 2>&1; then
+            gh release create "$RELEASE_TAG" \
+              --repo "$RELEASE_REPOSITORY" \
+              --verify-tag \
+              --title "unifi-stubd $RELEASE_TAG" \
+              --prerelease \
+              --generate-notes
+          fi
+          gh release upload "$RELEASE_TAG" \
+            --repo "$RELEASE_REPOSITORY" \
+            --clobber \
+            dist/release/*

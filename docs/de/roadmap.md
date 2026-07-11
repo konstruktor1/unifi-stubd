@@ -116,7 +116,7 @@
 - [ ] Package-Manager-Install-Smoke-Tests in CI fuer APT-, RPM- und Pacman-Repos.
 - [ ] Pages-Repository-Freshness-Check in CI fuer APT `Packages.gz`, RPM
   `repomd.xml`, Arch `unifi-stubd.db`, FreeBSD-Tarballs und Checksums.
-- [ ] Release-SBOM und Provenance-Artefakte neben Checksums veroeffentlichen.
+- [x] Persistente SPDX-Release-SBOM neben Paket-Checksummen veroeffentlichen.
 - [ ] Paket-Upgrade-, Downgrade-, Uninstall- und Purge-Tests mit explizitem
   Adoption-State-Retention-Verhalten ergaenzen.
 - [ ] Package-Rollback-Runbook ergaenzen, das paketverwaltete Services wieder

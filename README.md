@@ -150,11 +150,11 @@ when the FreeBSD builder runner is online:
 
 ```sh
 ARCH=amd64 # or arm64
-fetch https://konstruktor1.github.io/unifi-stubd/freebsd/${ARCH}/unifi-stubd_0.2.1-alpha-1_freebsd_${ARCH}.tar.gz
+fetch https://konstruktor1.github.io/unifi-stubd/freebsd/${ARCH}/unifi-stubd_0.2.4-alpha-1_freebsd_${ARCH}.tar.gz
 fetch https://konstruktor1.github.io/unifi-stubd/checksums.txt
-grep "freebsd/${ARCH}/unifi-stubd_0.2.1-alpha-1_freebsd_${ARCH}.tar.gz" checksums.txt
-sha256 unifi-stubd_0.2.1-alpha-1_freebsd_${ARCH}.tar.gz
-sudo tar -xzf unifi-stubd_0.2.1-alpha-1_freebsd_${ARCH}.tar.gz -C /
+grep "freebsd/${ARCH}/unifi-stubd_0.2.4-alpha-1_freebsd_${ARCH}.tar.gz" checksums.txt
+sha256 unifi-stubd_0.2.4-alpha-1_freebsd_${ARCH}.tar.gz
+sudo tar -xzf unifi-stubd_0.2.4-alpha-1_freebsd_${ARCH}.tar.gz -C /
 sudo vi /usr/local/etc/unifi-stubd/config.yaml
 sudo sysrc unifi_stubd_enable=YES
 sudo service unifi-stubd start
@@ -545,7 +545,7 @@ Poudriere target jails are not long-running `jexec` build environments.
 Common overrides:
 
 ```sh
-PKG_VERSION=0.1.0 PKG_RELEASE=1 PKG_GOARCH=amd64 \
+PKG_VERSION=0.2.4-alpha PKG_RELEASE=1 PKG_GOARCH=amd64 \
   PKG_MAINTAINER='Name <email@example.com>' make package
 ```
 
