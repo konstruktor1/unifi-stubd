@@ -566,7 +566,7 @@ esac
 remote_dir_quoted="$(shell_quote "$remote_dir")"
 cleanup_remote() {
   if ! ssh_remote "rm -rf $remote_dir_quoted; rmdir $remote_base_quoted 2>/dev/null || true" >/dev/null 2>&1; then
-    printf 'warning: could not remove remote Tier 3 work directory: %s\n' "$remote_dir" >&2
+    printf 'warning: could not remove remote FreeBSD packaging work directory: %s\n' "$remote_dir" >&2
   fi
 }
 trap cleanup_remote EXIT

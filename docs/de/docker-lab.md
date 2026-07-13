@@ -99,10 +99,12 @@ Metadaten enthaelt.
 
 Das Repository stellt den eigenstaendigen, ausschliesslich manuell gestarteten
 Workflow `Tier 2 Docker Integration` bereit. Er ist von den normalen `CI`- und
-Package-Workflows unabhaengig und fuehrt auf dem ueber `docker-dmz` und
-`unifi-stubd` ausgewaehlten vertrauenswuerdigen Runner nur
-`make integration-docker` aus. Er wird fuer den exakt zu pruefenden Ref
-gestartet:
+Package-Workflows unabhaengig und fuehrt auf dem ueber `[self-hosted, Linux,
+X64, docker-dmz, docker-engine, unifi-stubd]` ausgewaehlten
+vertrauenswuerdigen Runner nur `make integration-docker` aus. `docker-dmz`
+kennzeichnet den Runner-Standort auf `docker.dmz.lan`; `docker-engine`
+kennzeichnet explizit die Docker-Daemon-Faehigkeit. Er wird fuer den exakt zu
+pruefenden Ref gestartet:
 
 ```sh
 gh workflow run tier2-docker.yml --ref dev
@@ -160,9 +162,11 @@ von 30 Minuten. Sein Preflight prueft Linux/X64, Go, Docker-Daemon-Zugriff,
 Docker Compose v2 und die kombinierte Compose-Konfiguration, bevor ein Lab-
 Service startet. Captures oder Controller-State werden nicht hochgeladen. Der
 normale `CI`-Workflow, Package-Workflows, Branch-Regeln und Required Checks
-haengen nicht von diesem Tier-2-Gate ab. FreeBSD-Packaging ist separat und
-manuell Tier 3. Der alte FreeBSD-Proxy-Runner darf das Label `docker-dmz` nicht
-tragen; Tier 2 benoetigt daher einen anderen dedizierten Docker-Runner.
+haengen nicht von diesem Tier-2-Gate ab. `FreeBSD Packaging` ist eine separate
+manuelle GitHub-Actions-Pipeline, keine Teststufe. Ihr Runner-Container darf
+`docker.dmz.lan` und das Standort-Label `docker-dmz` gemeinsam nutzen, traegt
+aber nicht das Capability-Label `docker-engine`. Tier 2 und FreeBSD-Packaging
+nutzen daher getrennte Runner-Container auf demselben Host.
 
 ## Cleanup-Semantik
 
@@ -214,5 +218,6 @@ validieren, bevor das Ergebnis als repraesentativ gilt.
 
 Firmware-Research-Stacks unter `lab/gateway-profiles`, reale Proxmox-/Linux-
 Bridges, FreeBSD-/OPNsense-Hosts, deployte Controller und physische UniFi-
-Geraete bleiben Tier-3-Tests. Auch die FreeBSD-Paketerzeugung auf dem
-dedizierten SSH-Proxy-Builder ist Tier 3 und nicht Teil dieses Docker-Labs.
+Geraete bleiben Tier-3-Tests. Die FreeBSD-Paketerzeugung ist eine separate
+GitHub-Actions-Packaging-Pipeline und weder Teil dieses Docker-Labs noch der
+Test-Tier-Klassifizierung.

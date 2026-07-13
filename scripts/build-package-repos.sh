@@ -257,8 +257,8 @@ write_freebsd_unavailable_index() {
     <h1>unifi-stubd FreeBSD and OPNsense artifacts</h1>
     <p>
       FreeBSD artifacts are produced separately by the manually dispatched
-      Tier 3 FreeBSD Packaging workflow. No FreeBSD artifacts were included in
-      this Linux-first package-site build.
+      FreeBSD Packaging workflow. No FreeBSD artifacts were included in this
+      Linux-first package-site build.
     </p>
     <p><a href="pkg/">Native FreeBSD pkg repository status</a></p>
     <p><a href="../">Back to package repositories</a></p>
@@ -283,8 +283,8 @@ EOF
     <h1>unifi-stubd FreeBSD ${arch} artifacts</h1>
     <p>
       No FreeBSD ${arch} tarball was included in this Linux-first package-site
-      build. FreeBSD artifacts are published separately by the manual Tier 3
-      FreeBSD Packaging workflow.
+      build. FreeBSD artifacts are published separately by the manual FreeBSD
+      Packaging workflow.
     </p>
     <p><a href="../">Back to FreeBSD and OPNsense artifacts</a></p>
   </main>
@@ -310,8 +310,8 @@ write_freebsd_pkg_unavailable_index() {
     <h1>unifi-stubd FreeBSD pkg repositories</h1>
     <p>
       Native FreeBSD <code>pkg</code> repositories were not generated in this
-      package-site build. Run the manual Tier 3 FreeBSD Packaging workflow for
-      a new release tag that contains that workflow to publish them. Legacy
+      package-site build. Run the manual FreeBSD Packaging workflow for a new
+      release tag that contains that workflow to publish them. Legacy
       releases are not backfilled by this split path.
     </p>
     <p><a href="../">Back to FreeBSD and OPNsense artifacts</a></p>

@@ -69,39 +69,42 @@ The canonical Poudriere buildhost builds FreeBSD binaries on the FreeBSD host
 with `go`, `go125`, or `go126`, then creates ABI-specific `pkg` repositories
 with the FreeBSD `pkg` tool.
 
-In GitHub Actions this path is Tier 3 and manual-only. A build-only run is
-allowed from `main` or the matching version tag and retains one evidence
+In GitHub Actions this packaging path is manual-only; it is not a Tier 1, Tier
+2, or Tier 3 test classification. A build-only run is allowed from `main` or
+the matching version tag and retains one `freebsd-release-<sha>` evidence
 artifact for seven days:
 
 ```sh
-gh workflow run tier3-freebsd.yml --ref main -f publish=false
+gh workflow run freebsd-packaging.yml --ref main -f publish=false
 ```
 
 After the automatic Linux tag workflow has created the matching pre-release,
-Tier 3 can add the FreeBSD assets and rebuild Pages with both operating-system
-families:
+`FreeBSD Packaging` can add the FreeBSD assets and rebuild Pages with both
+operating-system families:
 
 ```sh
-gh workflow run tier3-freebsd.yml --ref <v-tag-with-tier3-workflow> -f publish=true
+gh workflow run freebsd-packaging.yml --ref <v-tag-with-freebsd-workflow> -f publish=true
 ```
 
-The self-hosted job is selected by `[self-hosted, Linux, X64, unifi-stubd,
-tier3, freebsd-pkg-builder]`. This Linux runner is only an SSH proxy to the
-FreeBSD package host. It must not retain the `docker-dmz` role or Docker daemon
-access. Passwordless sudo is forbidden on a bare-host proxy. A disposable,
-containerized proxy may use container-local passwordless sudo only when the
-protected `tier3-freebsd` environment explicitly sets
+The self-hosted job is selected by `[self-hosted, Linux, X64, docker-dmz,
+unifi-stubd, freebsd-pkg-builder]`. This is a containerized GitHub Actions
+runner on `docker.dmz.lan`; `docker-dmz` describes its location, not Docker
+daemon access. It uses strict SSH/SCP to a non-root account on the FreeBSD
+package host. Passwordless sudo is forbidden on a bare-host proxy. A
+disposable, containerized proxy may use container-local passwordless sudo only
+when the protected `freebsd-packaging` environment explicitly sets
 `ALLOW_CONTAINER_LOCAL_SUDO=true` and the workflow preflight recognizes its
 container marker, confirms an enforced seccomp filter and private container
 root mount, and verifies that PID 1's root either matches the container root
 when inspectable or is inaccessible even to container root because of the
 sandbox. It must also find no dangerous root capabilities, exposed block
-devices, host-root mounts, or host runtime sockets. Tier 2 still uses a separate
-Docker runner, and no runner carries both role labels. Protect the
-`tier3-freebsd` environment with required reviewers and allow only `main` and
-`v*` refs.
+devices, host-root mounts, or host runtime sockets. Tier 2 uses a separate
+runner container selected by `[self-hosted, Linux, X64, docker-dmz,
+docker-engine, unifi-stubd]`; both runner containers may share
+`docker.dmz.lan`. Protect the `freebsd-packaging` environment with required
+reviewers and allow only `main` and `v*` refs.
 
-This split starts with tags that contain `tier3-freebsd.yml` and whose
+This split starts with tags that contain `freebsd-packaging.yml` and whose
 automatic `SHA256SUMS` covers Linux and SBOM assets only. Legacy releases whose
 checksum file already covers FreeBSD artifacts are deliberately not backfilled.
 
@@ -118,9 +121,10 @@ checksum file already covers FreeBSD artifacts are deliberately not backfilled.
 ## Install Published Tarballs
 
 Published alpha tarballs become available from GitHub Releases and the GitHub
-Pages package site only after the optional manual Tier 3 publication. A normal
-tag can therefore have Linux packages and an SBOM while FreeBSD output is still
-absent. The Pages site provides stable URLs once Tier 3 has completed:
+Pages package site only after the optional manual `FreeBSD Packaging`
+publication. A normal tag can therefore have Linux packages and an SBOM while
+FreeBSD output is still absent. The Pages site provides stable URLs once that
+workflow has completed:
 
 ```text
 https://konstruktor1.github.io/unifi-stubd/freebsd/amd64/

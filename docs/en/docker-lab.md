@@ -97,8 +97,10 @@ descendant that only contains unrelated documentation or release metadata.
 The repository provides the standalone, manually dispatched `Tier 2 Docker
 Integration` workflow. It is independent of the standard `CI` and package
 workflows and runs only `make integration-docker` on the trusted runner selected
-by the `docker-dmz` and `unifi-stubd` labels. Start it for the exact ref that is
-being validated:
+by `[self-hosted, Linux, X64, docker-dmz, docker-engine, unifi-stubd]`.
+`docker-dmz` identifies the runner location on `docker.dmz.lan`, while
+`docker-engine` explicitly identifies Docker-daemon capability. Start it for
+the exact ref that is being validated:
 
 ```sh
 gh workflow run tier2-docker.yml --ref dev
@@ -150,9 +152,11 @@ permissions, one non-cancelling concurrency group, and a 30-minute timeout. Its
 preflight verifies Linux/X64, Go, Docker daemon access, Docker Compose v2, and
 the combined Compose configuration before any lab service starts. It uploads no
 captures or controller state. The standard `CI`, package workflows, branch
-rules, and required checks do not depend on this Tier 2 gate. FreeBSD packaging
-is separately manual Tier 3. The old FreeBSD proxy runner must not carry the
-`docker-dmz` label, so Tier 2 requires a different dedicated Docker runner.
+rules, and required checks do not depend on this Tier 2 gate. `FreeBSD
+Packaging` is a separate manual GitHub Actions pipeline, not a test tier. Its
+runner container may share `docker.dmz.lan` and the `docker-dmz` location
+label, but it does not carry the `docker-engine` capability label. Tier 2 and
+FreeBSD packaging therefore use separate runner containers on the same host.
 
 ## Cleanup Semantics
 
@@ -200,5 +204,6 @@ representative.
 
 Firmware research stacks under `lab/gateway-profiles`, real Proxmox/Linux
 bridges, FreeBSD/OPNsense hosts, deployed controllers, and physical UniFi
-devices remain Tier 3 tests. FreeBSD package creation on the dedicated
-SSH-proxy builder is also Tier 3, not part of this Docker lab.
+devices remain Tier 3 tests. FreeBSD package creation is a separate GitHub
+Actions packaging pipeline and is not part of this Docker lab or the test-tier
+classification.

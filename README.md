@@ -144,11 +144,12 @@ SigLevel = Never
 Server = https://konstruktor1.github.io/unifi-stubd/arch/$arch
 ```
 
-FreeBSD/OPNsense outputs are a separate manual Tier 3 follow-up to the
+FreeBSD/OPNsense outputs are a separate manual GitHub Actions follow-up to the
 Linux-first release. A `v*` tag publishes Linux packages, the SBOM, checksums,
-and the Linux package site without waiting for the FreeBSD builder. When Tier 3
-is explicitly published for that existing pre-release, it adds `amd64` and
-`arm64` tarballs, `SHA256SUMS.freebsd`, and unsigned native FreeBSD `pkg`
+and the Linux package site without waiting for the FreeBSD builder. When
+`FreeBSD Packaging` is explicitly published for that existing pre-release, it
+adds `amd64` and `arm64` tarballs, `SHA256SUMS.freebsd`, and unsigned native
+FreeBSD `pkg`
 repositories; those outputs can therefore appear later or remain absent:
 
 ```sh
@@ -536,9 +537,9 @@ make package-freebsd-pkg-repos
 
 The standalone `make package-freebsd-tgz` target defaults to `amd64`; set
 `PKG_FREEBSD_GOARCH=arm64` for ARM FreeBSD hosts. FreeBSD release artifacts are
-a manual Tier 3 build through the configured FreeBSD builder and include
-native `pkg` repositories for `FreeBSD:14` and `FreeBSD:15` on `amd64`,
-`aarch64`, and `armv7`.
+a manual GitHub Actions build through the configured FreeBSD builder and
+include native `pkg` repositories for `FreeBSD:14` and `FreeBSD:15` on
+`amd64`, `aarch64`, and `armv7`.
 `make package-freebsd-pkg-repos` sends the source tree to that builder, builds
 each configured FreeBSD ABI there, and writes the native `pkg` repos plus the
 `amd64` and `arm64` tarballs. The builder must provide FreeBSD
@@ -546,42 +547,46 @@ each configured FreeBSD ABI there, and writes the native `pkg` repos plus the
 `FREEBSD_PKG_BUILD_JAILS` only for custom builders with running `jexec` jails;
 Poudriere target jails are not long-running `jexec` build environments.
 
-The Tier 3 workflow is manual-only and uses
-`[self-hosted, Linux, X64, unifi-stubd, tier3, freebsd-pkg-builder]`. Build
-seven-day Actions evidence from `main` or the matching version tag without
-publishing it:
+The `FreeBSD Packaging` workflow is manual-only. Its containerized self-hosted
+GitHub Actions runner runs on `docker.dmz.lan` and is selected by
+`[self-hosted, Linux, X64, docker-dmz, unifi-stubd,
+freebsd-pkg-builder]`. It transfers the source through strict SSH/SCP to a
+non-root FreeBSD build-host account. Build seven-day Actions evidence from
+`main` or the matching version tag without publishing it:
 
 ```sh
-gh workflow run tier3-freebsd.yml --ref main -f publish=false
+gh workflow run freebsd-packaging.yml --ref main -f publish=false
 ```
 
 After the automatic Linux workflow has created a matching `v*` pre-release,
 publish the FreeBSD assets and rebuild Pages as a combined Linux/FreeBSD site:
 
 ```sh
-gh workflow run tier3-freebsd.yml --ref <new-v-tag-with-tier3-workflow> -f publish=true
+gh workflow run freebsd-packaging.yml --ref <new-v-tag-with-freebsd-workflow> -f publish=true
 ```
 
 Publication is rejected for a branch, a missing or final release, an
 incomplete Linux pre-release, a release with signed checksum assets, or a
 legacy `SHA256SUMS` that already includes FreeBSD. The selected tag must contain
-this workflow. Tier 3 has no trigger or dependency from normal CI, Tier 2,
-pushes, tags, or schedules.
-The Tier 3 runner is a dedicated Linux SSH proxy to the FreeBSD package host,
-not a general lab runner. It must not retain the `docker-dmz` label or Docker
-daemon access, and a bare-host installation must not grant passwordless sudo.
-A disposable, containerized proxy may retain container-local passwordless sudo
-only when the protected `tier3-freebsd` environment explicitly sets
+this workflow. FreeBSD packaging has no trigger or dependency from normal CI,
+Tier 2, pushes, tags, or schedules.
+The runner container is a dedicated GitHub Actions SSH proxy to the FreeBSD
+package host, not a general lab runner. The `docker-dmz` label identifies its
+location on `docker.dmz.lan`; it does not imply access to a Docker daemon. A
+bare-host installation must not grant passwordless sudo. A disposable,
+containerized proxy may retain container-local passwordless sudo only when the
+protected `freebsd-packaging` environment explicitly sets
 `ALLOW_CONTAINER_LOCAL_SUDO=true` and the workflow preflight recognizes its
 container marker, confirms an enforced seccomp filter and private container
 root mount, and verifies that PID 1's root either matches the container root
 when inspectable or is inaccessible even to container root because of the
 sandbox. It must also find no dangerous root capabilities, exposed block
 devices, host-root mounts, or host runtime sockets. This narrow exception does
-not make the proxy a Docker lab runner: Tier 2 requires a separate runner
-carrying `docker-dmz`, and no runner may carry both role labels. Protect the
-`tier3-freebsd` environment with required reviewers and allow only `main` and
-`v*` deployment refs.
+not give the proxy Docker-engine capability. Tier 2 uses a separate runner
+container selected by `[self-hosted, Linux, X64, docker-dmz, docker-engine,
+unifi-stubd]`; both containers may share `docker.dmz.lan`. Protect the
+`freebsd-packaging` environment with required reviewers and allow only `main`
+and `v*` deployment refs.
 
 Common overrides:
 
@@ -600,8 +605,8 @@ make package-repos
 
 The generated site is written to `dist/package-site/`. The automatic package
 workflow publishes APT, RPM, Arch Linux, and Linux tarball paths first. A
-successful Tier 3 publication rebuilds that site with the FreeBSD/OPNsense
-tarball paths and native FreeBSD `pkg` repository paths added.
+successful `FreeBSD Packaging` publication rebuilds that site with the
+FreeBSD/OPNsense tarball paths and native FreeBSD `pkg` repository paths added.
 
 Release packages are intentionally neutral. They install the daemon, service
 files, documentation, and the packaged example config only. Keep real controller
@@ -643,8 +648,9 @@ The staged development path is documented in
 [docs/de/development.md](docs/de/development.md): topic branches target `dev`,
 `main` is the tested release base, and package repositories publish only from
 tags, GitHub releases, or an explicit workflow run from `main`. The normal
-path is Linux-first; FreeBSD packaging is an independent manual Tier 3
-follow-up for an exact ref or existing pre-release.
+path is Linux-first; `FreeBSD Packaging` is an independent manual GitHub
+Actions follow-up for an exact ref or existing pre-release. Packaging is not a
+Tier 1, Tier 2, or Tier 3 test classification.
 
 ## Security
 

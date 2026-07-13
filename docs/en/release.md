@@ -37,8 +37,9 @@ onto the installed system after the package is installed.
     require a signed tag and a detached signature for `SHA256SUMS`.
 
 FreeBSD package generation is not a pre-tag gate. It belongs exclusively to
-the manual Tier 3 workflow and may extend the pre-release only after the
-automatic Linux publication has completed.
+the manual `FreeBSD Packaging` workflow and may extend the pre-release only
+after the automatic Linux publication has completed. This packaging pipeline
+is not a Tier 1, Tier 2, or Tier 3 test classification.
 
 ## Tagging
 
@@ -56,30 +57,30 @@ must allow deployments from `main` and `v*` tags.
 The tag push owns the first alpha publication. The Package Repositories
 workflow creates the GitHub pre-release, attaches Linux packages,
 `SHA256SUMS`, and `unifi-stubd.spdx.json`, and deploys the Linux-only Pages
-site. It never starts or waits for FreeBSD Tier 3. Verify the persistent Linux
-release assets after the workflow completes:
+site. It never starts or waits for FreeBSD packaging. Verify the persistent
+Linux release assets after the workflow completes:
 
 ```sh
 gh release view v0.2.5-alpha --json isPrerelease,assets,url
 ```
 
-## Manual Tier 3 FreeBSD Extension
+## Manual FreeBSD Packaging Extension
 
-`Tier 3 FreeBSD Packaging` is manual-only and has no trigger or `needs`
+`FreeBSD Packaging` is manual-only and has no trigger or `needs`
 relationship with `CI` or `Package Repositories`. Its `publish` input defaults
 to `false`; that mode builds FreeBSD tarballs and native `pkg` repositories for
 the selected ref and retains the Actions artifacts for seven days as build
 evidence:
 
 ```sh
-gh workflow run tier3-freebsd.yml --ref main -f publish=false
+gh workflow run freebsd-packaging.yml --ref main -f publish=false
 ```
 
 To publish the result, dispatch the exact release tag with explicit
 confirmation:
 
 ```sh
-gh workflow run tier3-freebsd.yml --ref <v-tag-with-tier3-workflow> -f publish=true
+gh workflow run freebsd-packaging.yml --ref <v-tag-with-freebsd-workflow> -f publish=true
 ```
 
 Publication is accepted only when the selected ref is a `v*` tag, the tag
@@ -100,19 +101,20 @@ combined Linux and FreeBSD Pages site:
 - `SHA256SUMS.freebsd`
 
 `SHA256SUMS.freebsd` covers only the three FreeBSD artifacts. The automatic
-Linux and SBOM checksum file remains unchanged. Rerunning Tier 3 for the same
-pre-release is idempotent because the four Tier 3 assets are replaced by name.
+Linux and SBOM checksum file remains unchanged. Rerunning `FreeBSD Packaging`
+for the same pre-release is idempotent because the four FreeBSD assets are
+replaced by name.
 
 ## Signing And Repository Metadata
 
 When a release signing key is configured, create a signed tag with `git tag
 -s`, download the release `SHA256SUMS`, and publish a detached signature such
-as `SHA256SUMS.asc`. If Tier 3 FreeBSD assets are present, sign
+as `SHA256SUMS.asc`. If FreeBSD assets are present, sign
 `SHA256SUMS.freebsd` separately as well. Verify the tag and every published
 checksum signature before promotion. Without a configured key, keep the
 release alpha, pre-release, and explicitly unsigned; do not promote it to
-stable. Add Tier 3 artifacts before signing because the Tier 3 workflow will
-not modify a release with signed checksum assets.
+stable. Add FreeBSD artifacts before signing because the FreeBSD packaging
+workflow will not modify a release with signed checksum assets.
 
 Repository description, homepage, SPDX license, and topics must remain
 populated and consistent with `README.md`, `LICENSE`, and package metadata.
@@ -137,8 +139,9 @@ make package-repos
 ```
 
 The Package Repositories workflow publishes a Linux-only package repository
-through GitHub Pages when a `v*` tag is pushed. Until Tier 3 is published, the
-FreeBSD section states that the manual artifacts are unavailable. To retry or
+through GitHub Pages when a `v*` tag is pushed. Until FreeBSD packaging is
+published, the FreeBSD section states that the manual artifacts are
+unavailable. To retry or
 rebuild this Linux-only repository without creating another release, run the
 workflow from `main`:
 
@@ -151,24 +154,28 @@ gh workflow run package-pages.yml --ref main \
 If `version` is omitted in a manual run, the workflow reads `VERSION`.
 
 A later Linux-only Package Repositories run replaces the combined Pages site
-with the Linux-only form. Rerun `tier3-freebsd.yml` with `publish=true` on the
-matching tag to restore the combined site from the persistent release assets.
+with the Linux-only form. Rerun `freebsd-packaging.yml` with `publish=true` on
+the matching tag to restore the combined site from the persistent release
+assets.
 
 The SPDX JSON SBOM is attached to the GitHub release and therefore does not
 expire with the seven-day Actions artifact retention. `SHA256SUMS` covers the
 automatic Linux and SBOM assets; `SHA256SUMS.freebsd` covers the separately
-published Tier 3 assets.
+published FreeBSD assets.
 
 `make package-repos` writes `dist/package-site/` with APT, RPM, Arch Linux,
 FreeBSD/OPNsense tarball paths, and native FreeBSD `pkg` repository paths when
 `dist/freebsd-pkg-repos/repo/` exists. Its default mode requires the FreeBSD
 artifacts; the automatic workflow explicitly allows their absence for the
-Linux-first deployment. Only the manual Tier 3 workflow uses the self-hosted
-runner labelled `tier3` and `freebsd-pkg-builder`. The canonical builder uses
-FreeBSD host-side Go cross-compilation plus FreeBSD `pkg`;
+Linux-first deployment. Only the manual `FreeBSD Packaging` workflow uses the
+containerized self-hosted GitHub Actions runner on `docker.dmz.lan`, selected
+by `[self-hosted, Linux, X64, docker-dmz, unifi-stubd,
+freebsd-pkg-builder]`. It uses strict SSH/SCP to a non-root FreeBSD build-host
+account. The canonical builder uses FreeBSD host-side Go cross-compilation plus
+FreeBSD `pkg`;
 `FREEBSD_PKG_BUILD_JAILS` is optional for custom builders with running `jexec`
 jails. The combined static site is assembled and deployed from Ubuntu after
-the Tier 3 build. Keep alpha repository instructions visibly unsigned
+the FreeBSD build. Keep alpha repository instructions visibly unsigned
 (`trusted=yes`, `gpgcheck=0`, `SigLevel = Never`) until a project release key
 exists.
 

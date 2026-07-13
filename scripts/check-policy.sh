@@ -20,19 +20,25 @@ if git grep -nE 'JoemcROV|X-API-KEY|10\.0\.0\.194|/Users/corspi' -- \
   fail "possible lab secret or API endpoint leaked"
 fi
 
-printf '== policy: privileged FreeBSD builder stays manual Tier 3 ==\n'
+printf '== policy: remote FreeBSD packaging stays manually dispatched ==\n'
 if grep -q 'freebsd-pkg-builder' \
   .github/workflows/ci.yml \
-  .github/workflows/package-pages.yml; then
-  fail "automatic CI and package workflows must not select the Tier 3 FreeBSD builder"
+  .github/workflows/package-pages.yml \
+  .github/workflows/tier2-docker.yml; then
+  fail "CI, package, and Docker-lab workflows must not select the FreeBSD package builder"
 fi
-tier3_workflow=.github/workflows/tier3-freebsd.yml
-grep -q 'workflow_dispatch:' "$tier3_workflow" || fail "Tier 3 FreeBSD workflow must be manually dispatched"
-if grep -Eq '^[[:space:]]+(push|pull_request|pull_request_target|schedule|workflow_call|workflow_run|repository_dispatch|merge_group):' "$tier3_workflow"; then
-  fail "Tier 3 FreeBSD workflow must not have an automatic trigger"
+freebsd_workflow=.github/workflows/freebsd-packaging.yml
+grep -q 'workflow_dispatch:' "$freebsd_workflow" || fail "FreeBSD Packaging workflow must be manually dispatched"
+if grep -Eq '^[[:space:]]+(push|pull_request|pull_request_target|schedule|workflow_call|workflow_run|repository_dispatch|merge_group):' "$freebsd_workflow"; then
+  fail "FreeBSD Packaging workflow must not have an automatic trigger"
 fi
-grep -Fq 'runs-on: [self-hosted, Linux, X64, unifi-stubd, tier3, freebsd-pkg-builder]' "$tier3_workflow" ||
-  fail "Tier 3 FreeBSD workflow must use only the dedicated FreeBSD builder selector"
+grep -Fq 'runs-on: [self-hosted, Linux, X64, docker-dmz, unifi-stubd, freebsd-pkg-builder]' "$freebsd_workflow" ||
+  fail "FreeBSD Packaging must select the containerized docker.dmz.lan runner with FreeBSD build capability"
+if grep -Eiq 'tier[ -]?3|tier3' "$freebsd_workflow"; then
+  fail "FreeBSD Packaging must not couple the GitHub Actions runner to a test tier"
+fi
+grep -Fq 'runs-on: [self-hosted, Linux, X64, docker-dmz, docker-engine, unifi-stubd]' .github/workflows/tier2-docker.yml ||
+  fail "Tier 2 Docker Integration must require the explicit docker-engine capability"
 
 printf '== policy: release version is centralized and documented ==\n'
 release_version=$(sed -n '1p' VERSION)

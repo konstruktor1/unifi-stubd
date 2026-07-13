@@ -7,6 +7,13 @@ semantic version tags once releases are published.
 
 ## [Unreleased]
 
+### Fixed
+
+- Decoupled the containerized GitHub Actions runner on `docker.dmz.lan` and the
+  SSH-backed FreeBSD packaging pipeline from test-tier labels. The runner
+  location, Docker-daemon capability, and FreeBSD-builder capability now use
+  distinct selectors.
+
 ## [0.2.5-alpha] - 2026-07-13
 
 ### Added

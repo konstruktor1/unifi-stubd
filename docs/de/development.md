@@ -14,9 +14,10 @@ Das Modell passt zur vorhandenen Repository-Infrastruktur:
 - `Package Repositories` baut Linux-Pakete und die Release-SBOM auf Ubuntu,
   deployed die Linux-only-GitHub-Pages-Seite und erstellt oder aktualisiert
   fuer einen `v*`-Tag den GitHub-Pre-Release.
-- `Tier 3 FreeBSD Packaging` ist ein separater manueller Workflow. Er nutzt den
+- `FreeBSD Packaging` ist ein separater manueller Workflow. Er nutzt den
   self-hosted FreeBSD-Builder-Pfad nur nach explizitem Dispatch und ist nie
-  Bestandteil von `CI` oder des automatischen Package-Workflows.
+  Bestandteil von `CI` oder des automatischen Package-Workflows. Packaging ist
+  keine Testklassifizierung als Tier 1, Tier 2 oder Tier 3.
 - Das `github-pages`-Environment erlaubt Deployments bereits nur von `main` und
   `v*`-Tags.
 
@@ -38,7 +39,7 @@ Patch. Der Docker-Build folgt mit `golang:1.25-bookworm` derselben Minor-Linie.
 | Integration | `dev` | Reviewte Arbeit vor Release-Promotion sammeln | `CI / check` im Pull Request und bei Push | Keine Paketveroeffentlichung |
 | Release-Basis | `main` | Stabile, getestete Quelle fuer Tags und oeffentliche Pakete | `CI / check` plus Package-Build und Debian-Install-Smoke bei Push | Paketartefakte im Workflow-Lauf |
 | Paketquelle | `v*`-Tag, GitHub-Pre-Release oder manueller Workflow von `main` | Standard-Paketset veroeffentlichen | Linux-Package-Matrix und Release-SBOM | Linux-only-GitHub-Pages und bei einem Tag ein GitHub-Pre-Release |
-| FreeBSD-Erweiterung | Manueller Tier-3-Dispatch | FreeBSD-/OPNsense-Paketevidenz bauen oder veroeffentlichen | Self-hosted FreeBSD-Builder-Pfad | Nur Lauf-Evidenz oder FreeBSD-Release-Artefakte und kombinierte Pages |
+| FreeBSD-Erweiterung | Manueller `FreeBSD Packaging`-Dispatch | FreeBSD-/OPNsense-Paketevidenz bauen oder veroeffentlichen | Containerisierter self-hosted Runner und FreeBSD-Builder-Pfad | Nur Lauf-Evidenz oder FreeBSD-Release-Artefakte und kombinierte Pages |
 
 Kurzlebige Branches sollten normalerweise nur wenige Tage leben. Wenn eine
 Aenderung zu gross wird, wird sie in kleinere Pull Requests geteilt, die jeweils
@@ -113,13 +114,13 @@ Dieses manuelle Event erstellt oder aktualisiert keinen GitHub-Release. Wenn
 der Pre-Release selbst repariert werden muss, wird der fehlgeschlagene Tag-
 Workflow-Lauf erneut ausgefuehrt.
 
-FreeBSD-Packaging ist ein unabhaengiger Tier-3-Vorgang. Der Input `publish`
+FreeBSD-Packaging ist ein unabhaengiger GitHub-Actions-Vorgang. Der Input `publish`
 steht standardmaessig auf `false`; dieser Modus baut den ausgewaehlten Ref und
 behaelt nur sieben Tage gueltige Actions-Artefakte sowie die
 Job-Zusammenfassung als Evidenz:
 
 ```sh
-gh workflow run tier3-freebsd.yml --ref main -f publish=false
+gh workflow run freebsd-packaging.yml --ref main -f publish=false
 ```
 
 Um einen bestehenden passenden `v*`-Pre-Release zu erweitern und kombinierte
@@ -127,14 +128,14 @@ Linux-/FreeBSD-Pages zu deployen, wird derselbe Tag mit explizit aktivierter
 Veroeffentlichung gestartet:
 
 ```sh
-gh workflow run tier3-freebsd.yml --ref <v-tag-mit-tier3-workflow> -f publish=true
+gh workflow run freebsd-packaging.yml --ref <v-tag-mit-freebsd-workflow> -f publish=true
 ```
 
 Der Publish-Modus fuegt FreeBSD-Tarballs, das native `pkg`-Repository-Archiv
 und `SHA256SUMS.freebsd` hinzu. Die automatische Linux-`SHA256SUMS` wird nicht
-ersetzt. Tier 3 ist nie Trigger, `needs`-Abhaengigkeit oder erforderliches
-Ergebnis von `CI` oder `Package Repositories`.
-Legacy-Tags ohne den Tier-3-Workflow oder mit FreeBSD-Eintraegen in
+ersetzt. FreeBSD-Packaging ist nie Trigger, `needs`-Abhaengigkeit oder
+erforderliches Ergebnis von `CI` oder `Package Repositories`.
+Legacy-Tags ohne den FreeBSD-Packaging-Workflow oder mit FreeBSD-Eintraegen in
 `SHA256SUMS` sind fuer diese getrennte Erweiterung nicht zulaessig.
 
 ## Hotfixes
@@ -152,8 +153,8 @@ Legacy-Tags ohne den Tier-3-Workflow oder mit FreeBSD-Eintraegen in
 | Go-Code, Config-Schema, Profildaten | `make check`, `make coverage`, `git diff --check` | Gezieltes `go test ./tests/...`, wenn sinnvoll |
 | Inform, Adoption, Controller-Payload, Profil-Rendering | `make check` | Standardisierter Docker-Gate mit `make integration-docker` vor `dev` nach `main` |
 | Paketierte Config, Service-Dateien, Paket-Metadaten | `make check`, `make package` | GitHub-`main`-Package-Install-Smoke |
-| FreeBSD- oder OPNsense-Runtime-Verhalten | `make check` | Manueller Lauf von `Tier 3 FreeBSD Packaging` plus FreeBSD-/OPNsense-Smoke mit temporaerem State, wenn Verhalten geaendert wurde |
-| Release Notes, Paketveroeffentlichung | `make check` | Linux-first `Package Repositories`; optionale manuelle Tier-3-Veroeffentlichung erst nach vorhandenem passenden Pre-Release |
+| FreeBSD- oder OPNsense-Runtime-Verhalten | `make check` | Manueller `FreeBSD Packaging`-Build plus Tier-3-FreeBSD-/OPNsense-Runtime-Smoke mit temporaerem State, wenn Verhalten geaendert wurde |
+| Release Notes, Paketveroeffentlichung | `make check` | Linux-first `Package Repositories`; optionale manuelle `FreeBSD Packaging`-Veroeffentlichung erst nach vorhandenem passenden Pre-Release |
 
 Zielhost-Paketinstallation ist kein Standard-Gate der Entwicklung. Sie wird nur
 fuer explizite Rollout-Tests genutzt; host-spezifische Configs bleiben ausserhalb
@@ -171,20 +172,25 @@ gelten:
 - `dev`: Pull Requests und `CI / check` verlangen, sobald der Branch als
   Integrationsstufe genutzt wird.
 - `github-pages`-Environment: Deployment nur von `main` und `v*`.
-- `tier3-freebsd`-Environment: Freigabe verlangen, nur `main` und `v*`
+- `freebsd-packaging`-Environment: Freigabe verlangen, nur `main` und `v*`
   erlauben und dem self-hosted Build-Job keine Publish-Rechte geben.
-- Runner-Rollen: `docker-dmz` und Docker-Daemon-Zugriff vom alten FreeBSD-Proxy
-  entfernen. Auf einem Bare Host ist passwortloses sudo verboten. Ein
-  wegwerfbarer, containerisierter Proxy darf containerlokales passwortloses
-  sudo nur behalten, wenn das geschuetzte Environment `tier3-freebsd`
+- Runner-Rollen: `docker-dmz` kennzeichnet Runner-Container auf
+  `docker.dmz.lan`. Der FreeBSD-Packaging-Container wird mit `[self-hosted,
+  Linux, X64, docker-dmz, unifi-stubd, freebsd-pkg-builder]` ausgewaehlt und
+  nutzt striktes SSH/SCP zu einem Non-root-Konto auf dem FreeBSD-Buildhost. Der
+  Tier-2-Container wird mit `[self-hosted, Linux, X64, docker-dmz,
+  docker-engine, unifi-stubd]` ausgewaehlt; nur `docker-engine` bezeichnet die
+  Docker-Daemon-Faehigkeit. Beide Container duerfen `docker.dmz.lan` gemeinsam
+  nutzen. Auf einem Bare Host ist passwortloses sudo verboten. Ein wegwerfbarer,
+  containerisierter Proxy darf containerlokales passwortloses sudo nur
+  behalten, wenn das geschuetzte Environment `freebsd-packaging`
   `ALLOW_CONTAINER_LOCAL_SUDO=true` explizit setzt und der Workflow seinen
   Container-Marker, einen aktiven Seccomp-Filter, einen privaten Container-
   Root-Mount sowie die PID-1-Root-Grenze bestaetigt. Bei Einsehbarkeit muss sie
   dem Container-Root entsprechen; andernfalls muss sie durch die Sandbox selbst
   fuer Container-Root unzugaenglich sein. Der Workflow bestaetigt zudem das
   Fehlen gefaehrlicher Root-Capabilities, exponierter Blockgeraete, von Host-
-  Root-Mounts und Host-Runtime-Sockets. Tier 2 benoetigt einen separaten Docker-
-  Runner; kein Runner traegt gleichzeitig Tier-2- und Tier-3-Rollenlabels.
+  Root-Mounts und Host-Runtime-Sockets.
 
 Der Package-Job laeuft absichtlich nach dem Merge auf `main`, weil er die exakt
 committete Release-Basis prueft und Paketartefakte fuer diesen Lauf hochlaedt.

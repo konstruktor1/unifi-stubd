@@ -2,5 +2,5 @@ self-hosted-runner:
   labels:
     - freebsd-pkg-builder
     - docker-dmz
+    - docker-engine
     - unifi-stubd
-    - tier3

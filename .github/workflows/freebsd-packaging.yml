@@ -1,4 +1,4 @@
-name: Tier 3 FreeBSD Packaging
+name: FreeBSD Packaging
 
 on:
   workflow_dispatch:
@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: unifi-stubd-tier3-freebsd
+  group: unifi-stubd-freebsd-packaging
   cancel-in-progress: false
 
 env:
@@ -44,7 +44,7 @@ jobs:
             refs/heads/main | refs/tags/v*)
               ;;
             *)
-              echo "::error::Tier 3 accepts only main or a matching v* release tag"
+              echo "::error::FreeBSD Packaging accepts only main or a matching v* release tag"
               exit 2
               ;;
           esac
@@ -54,7 +54,7 @@ jobs:
               v[0-9]*)
                 ;;
               *)
-                echo "::error::Tier 3 publication requires a v* release tag"
+                echo "::error::FreeBSD publication requires a v* release tag"
                 exit 2
                 ;;
             esac
@@ -70,7 +70,7 @@ jobs:
           if [ "$PUBLISH" = "true" ]; then
             is_prerelease="$(gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json isPrerelease --jq .isPrerelease)"
             if [ "$is_prerelease" != "true" ]; then
-              echo "::error::Tier 3 may extend only an existing GitHub pre-release"
+              echo "::error::FreeBSD Packaging may extend only an existing GitHub pre-release"
               exit 2
             fi
 
@@ -99,7 +99,7 @@ jobs:
               exit 2
             fi
 
-            validation_dir="$RUNNER_TEMP/tier3-release-validation"
+            validation_dir="$RUNNER_TEMP/freebsd-release-validation"
             rm -rf "$validation_dir"
             mkdir -p "$validation_dir"
             gh release download "$GITHUB_REF_NAME" \
@@ -127,16 +127,16 @@ jobs:
 
   build-freebsd:
     needs: validate-request
-    runs-on: [self-hosted, Linux, X64, unifi-stubd, tier3, freebsd-pkg-builder]
+    runs-on: [self-hosted, Linux, X64, docker-dmz, unifi-stubd, freebsd-pkg-builder]
     timeout-minutes: 30
-    environment: tier3-freebsd
+    environment: freebsd-packaging
     steps:
       - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
         with:
           fetch-depth: 1
           persist-credentials: false
 
-      - name: Preflight Tier 3 FreeBSD builder
+      - name: Preflight FreeBSD packaging runner
         env:
           ALLOW_CONTAINER_LOCAL_SUDO: ${{ vars.ALLOW_CONTAINER_LOCAL_SUDO }}
           FREEBSD_PKG_REMOTE: unifi-stubd-freebsd-builder
@@ -145,7 +145,7 @@ jobs:
           test "$(uname -s)/$(uname -m)" = "Linux/x86_64"
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           if [ "$(id -u)" -eq 0 ]; then
-            echo "::error::The dedicated Tier 3 runner must use a non-root service account"
+            echo "::error::The FreeBSD packaging runner must use a non-root service account"
             exit 2
           fi
           for command in awk find git make scp sha256sum ssh stat tar; do
@@ -155,11 +155,11 @@ jobs:
             }
           done
           if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
-            echo "::error::The dedicated Tier 3 runner must not have Docker daemon access"
+            echo "::error::The FreeBSD packaging runner must not have Docker daemon access"
             exit 2
           fi
           if [ -S /var/run/docker.sock ] && [ -r /var/run/docker.sock ] && [ -w /var/run/docker.sock ]; then
-            echo "::error::The dedicated Tier 3 runner account can access the Docker socket"
+            echo "::error::The FreeBSD packaging runner account can access the Docker socket"
             exit 2
           fi
           if command -v sudo >/dev/null 2>&1; then
@@ -167,11 +167,11 @@ jobs:
           fi
           if command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then
             if [ "$ALLOW_CONTAINER_LOCAL_SUDO" != "true" ]; then
-              echo "::error::Container-local sudo requires an explicit Tier 3 environment opt-in"
+              echo "::error::Container-local sudo requires an explicit FreeBSD Packaging environment opt-in"
               exit 2
             fi
             if [ ! -e /.dockerenv ] && [ ! -e /run/.containerenv ]; then
-              echo "::error::A bare-host Tier 3 runner must not have passwordless sudo"
+              echo "::error::A bare-host FreeBSD packaging runner must not have passwordless sudo"
               exit 2
             fi
 
@@ -191,13 +191,13 @@ jobs:
               (1 << 21) | (1 << 22) | (1 << 25) | (1 << 34) | (1 << 39) | \
               (1 << 40)))
             if [ $((root_capabilities & forbidden_capabilities)) -ne 0 ]; then
-              echo "::error::The Tier 3 runner container exposes host-sensitive root capabilities"
+              echo "::error::The FreeBSD packaging runner exposes host-sensitive root capabilities"
               exit 2
             fi
             root_seccomp="$(sudo -n sh -c \
               'awk '\''$1 == "Seccomp:" { print $2 }'\'' /proc/self/status')"
             if [ "$root_seccomp" != "2" ]; then
-              echo "::error::The Tier 3 runner container must enforce a seccomp filter"
+              echo "::error::The FreeBSD packaging runner must enforce a seccomp filter"
               exit 2
             fi
             if ! sudo -n awk '
@@ -211,12 +211,12 @@ jobs:
               }
               END { if (!found) exit 2 }
             ' /proc/self/mountinfo; then
-              echo "::error::The Tier 3 runner container root mount is not private"
+              echo "::error::The FreeBSD packaging runner root mount is not private"
               exit 2
             fi
             block_devices="$(sudo -n find /dev -xdev -type b -print -quit)"
             if [ -n "$block_devices" ]; then
-              echo "::error::The Tier 3 runner container exposes a block device"
+              echo "::error::The FreeBSD packaging runner exposes a block device"
               exit 2
             fi
             host_roots="$(sudo -n sh -c '
@@ -227,7 +227,7 @@ jobs:
               done
             ')"
             if [ -n "$host_roots" ]; then
-              echo "::error::The Tier 3 runner container exposes a host-root path"
+              echo "::error::The FreeBSD packaging runner exposes a host-root path"
               exit 2
             fi
             if sudo -n awk '
@@ -235,7 +235,7 @@ jobs:
               $5 == "/mnt/host" || $5 == "/run/host" { found = 1 }
               END { exit !found }
             ' /proc/self/mountinfo; then
-              echo "::error::The Tier 3 runner container exposes a host-root mount"
+              echo "::error::The FreeBSD packaging runner exposes a host-root mount"
               exit 2
             fi
             container_root="$(stat -Lc '%d:%i' /)"
@@ -264,7 +264,7 @@ jobs:
               done
             ')"
             if [ -n "$runtime_sockets" ]; then
-              echo "::error::The Tier 3 runner container exposes a host runtime socket"
+              echo "::error::The FreeBSD packaging runner exposes a host runtime socket"
               exit 2
             fi
             echo "Container-local sudo boundary: ok"
@@ -289,12 +289,12 @@ jobs:
           fi
           case "$remote_uid" in
             '' | 0 | *[!0-9]*)
-              echo "::error::Tier 3 FreeBSD builds must use a non-root remote account"
+              echo "::error::FreeBSD package builds must use a non-root remote account"
               exit 2
               ;;
           esac
           if [ "$remote_uid" = "$remote_identity" ]; then
-            echo "::error::Tier 3 FreeBSD builds must use a non-root remote account"
+            echo "::error::FreeBSD package builds must use a non-root remote account"
             exit 2
           fi
           echo "FreeBSD builder preflight: ok"
@@ -313,27 +313,27 @@ jobs:
           set -eu
           make package-freebsd-pkg-repos
           tar -C dist/freebsd-pkg-repos -czf dist/freebsd-pkg-repos.tar.gz repo
-          mkdir -p dist/tier3-freebsd-release
-          cp dist/packages/unifi-stubd_*_freebsd_*.tar.gz dist/tier3-freebsd-release/
-          cp dist/freebsd-pkg-repos.tar.gz dist/tier3-freebsd-release/
-          for artifact in dist/tier3-freebsd-release/*~*; do
+          mkdir -p dist/freebsd-release
+          cp dist/packages/unifi-stubd_*_freebsd_*.tar.gz dist/freebsd-release/
+          cp dist/freebsd-pkg-repos.tar.gz dist/freebsd-release/
+          for artifact in dist/freebsd-release/*~*; do
             [ -e "$artifact" ] || continue
             mv -- "$artifact" "${artifact//\~/.}"
           done
           (
-            cd dist/tier3-freebsd-release
+            cd dist/freebsd-release
             rm -f SHA256SUMS.freebsd
             sha256sum ./* > SHA256SUMS.freebsd
           )
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
-          name: tier3-freebsd-release-${{ github.sha }}
-          path: dist/tier3-freebsd-release/
+          name: freebsd-release-${{ github.sha }}
+          path: dist/freebsd-release/
           if-no-files-found: error
           retention-days: 7
 
-      - name: Record Tier 3 evidence
+      - name: Record FreeBSD packaging evidence
         if: always()
         env:
           JOB_STATUS: ${{ job.status }}
@@ -341,7 +341,7 @@ jobs:
           PUBLISH: ${{ inputs.publish }}
         run: |
           {
-            printf '## Tier 3 FreeBSD Packaging\n\n'
+            printf '## FreeBSD Packaging\n\n'
             printf -- '- Commit: %s\n' "$GITHUB_SHA"
             printf -- '- Ref: %s\n' "$GITHUB_REF"
             printf -- '- Runner: %s\n' "$RUNNER_NAME"
@@ -379,7 +379,7 @@ jobs:
 
       - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
         with:
-          name: tier3-freebsd-release-${{ github.sha }}
+          name: freebsd-release-${{ github.sha }}
           path: dist/freebsd-release
 
       - name: Validate and prepare release assets
@@ -393,7 +393,7 @@ jobs:
 
           is_prerelease="$(gh release view "$RELEASE_TAG" --repo "$RELEASE_REPOSITORY" --json isPrerelease --jq .isPrerelease)"
           if [ "$is_prerelease" != "true" ]; then
-            echo "::error::Tier 3 may extend only an existing GitHub pre-release"
+            echo "::error::FreeBSD Packaging may extend only an existing GitHub pre-release"
             exit 2
           fi
           assets="$(gh release view "$RELEASE_TAG" --repo "$RELEASE_REPOSITORY" --json assets --jq '.assets[].name')"
@@ -457,7 +457,7 @@ jobs:
           fi
           for expected_asset in "$@"; do
             test -f "dist/freebsd-release/$expected_asset" || {
-              echo "::error::Tier 3 build artifact is incomplete; missing $expected_asset"
+              echo "::error::FreeBSD build artifact is incomplete; missing $expected_asset"
               exit 2
             }
             awk -v expected="./$expected_asset" '$2 == expected { found = 1 } END { exit !found }' dist/freebsd-release/SHA256SUMS.freebsd || {

@@ -72,40 +72,44 @@ laufenden `jexec`-Jails setzen. Der kanonische Poudriere-Buildhost baut die
 FreeBSD-Binaries auf dem FreeBSD-Host mit `go`, `go125` oder `go126` und
 erstellt danach ABI-spezifische `pkg`-Repositories mit dem FreeBSD-`pkg`-Tool.
 
-In GitHub Actions ist dieser Pfad Tier 3 und ausschliesslich manuell. Ein Build-
-only-Lauf ist von `main` oder dem passenden Versions-Tag erlaubt und behaelt
-ein Evidenz-Artefakt sieben Tage:
+In GitHub Actions ist dieser Packaging-Pfad ausschliesslich manuell; er ist
+keine Testklassifizierung als Tier 1, Tier 2 oder Tier 3. Ein Build-only-Lauf
+ist von `main` oder dem passenden Versions-Tag erlaubt und behaelt ein
+`freebsd-release-<sha>`-Evidenz-Artefakt sieben Tage:
 
 ```sh
-gh workflow run tier3-freebsd.yml --ref main -f publish=false
+gh workflow run freebsd-packaging.yml --ref main -f publish=false
 ```
 
 Nachdem der automatische Linux-Tag-Workflow den passenden Pre-Release erzeugt
-hat, kann Tier 3 die FreeBSD-Artefakte anfuegen und Pages mit beiden
-Betriebssystemfamilien neu bauen:
+hat, kann `FreeBSD Packaging` die FreeBSD-Artefakte anfuegen und Pages mit
+beiden Betriebssystemfamilien neu bauen:
 
 ```sh
-gh workflow run tier3-freebsd.yml --ref <v-tag-mit-tier3-workflow> -f publish=true
+gh workflow run freebsd-packaging.yml --ref <v-tag-mit-freebsd-workflow> -f publish=true
 ```
 
-Der self-hosted Job wird mit `[self-hosted, Linux, X64, unifi-stubd, tier3,
-freebsd-pkg-builder]` ausgewaehlt. Dieser Linux-Runner ist nur SSH-Proxy zum
-FreeBSD-Pakethost. Er darf weder die Rolle `docker-dmz` noch Docker-Daemon-
-Zugriff behalten. Auf einem Bare-Host-Proxy ist passwortloses sudo verboten.
-Ein wegwerfbarer, containerisierter Proxy darf containerlokales passwortloses
-sudo nur nutzen, wenn das geschuetzte Environment `tier3-freebsd`
+Der self-hosted Job wird mit `[self-hosted, Linux, X64, docker-dmz,
+unifi-stubd, freebsd-pkg-builder]` ausgewaehlt. Das ist ein containerisierter
+GitHub-Actions-Runner auf `docker.dmz.lan`; `docker-dmz` beschreibt seinen
+Standort, nicht Docker-Daemon-Zugriff. Er nutzt striktes SSH/SCP zu einem
+Non-root-Konto auf dem FreeBSD-Pakethost. Auf einem Bare-Host-Proxy ist
+passwortloses sudo verboten. Ein wegwerfbarer, containerisierter Proxy darf
+containerlokales passwortloses sudo nur nutzen, wenn das geschuetzte
+Environment `freebsd-packaging`
 `ALLOW_CONTAINER_LOCAL_SUDO=true` explizit setzt. Der Workflow-Preflight muss
 seinen Container-Marker erkennen, einen aktiven Seccomp-Filter und einen
 privaten Container-Root-Mount bestaetigen sowie nachweisen, dass das Root-
 Dateisystem von PID 1 bei Einsehbarkeit dem Container-Root entspricht oder
 durch die Sandbox selbst fuer Container-Root unzugaenglich ist. Zudem duerfen
 keine gefaehrlichen Root-Capabilities, exponierten Blockgeraete, Host-Root-
-Mounts oder Host-Runtime-Sockets vorhanden sein. Tier 2 nutzt weiterhin einen
-separaten Docker-Runner, und kein Runner traegt beide Rollenlabels. Das
-Environment `tier3-freebsd` braucht Required Reviewer und erlaubt nur `main`
-und `v*` als Refs.
+Mounts oder Host-Runtime-Sockets vorhanden sein. Tier 2 nutzt einen separaten
+Runner-Container mit `[self-hosted, Linux, X64, docker-dmz, docker-engine,
+unifi-stubd]`; beide Runner-Container duerfen `docker.dmz.lan` gemeinsam
+nutzen. Das Environment `freebsd-packaging` braucht Required Reviewer und
+erlaubt nur `main` und `v*` als Refs.
 
-Diese Trennung beginnt mit Tags, die `tier3-freebsd.yml` enthalten und deren
+Diese Trennung beginnt mit Tags, die `freebsd-packaging.yml` enthalten und deren
 automatische `SHA256SUMS` nur Linux- und SBOM-Artefakte abdeckt. Legacy-
 Releases, deren Pruefsummendatei FreeBSD bereits enthaelt, werden bewusst nicht
 nachtraeglich umgestellt.
@@ -122,11 +126,11 @@ nachtraeglich umgestellt.
 
 ## Veroeffentlichte Tarballs installieren
 
-Veroeffentlichte Alpha-Tarballs liegen erst nach der optionalen manuellen Tier-
-3-Veroeffentlichung in GitHub Releases und auf der GitHub-Pages-Paketeseite.
-Ein normaler Tag kann daher bereits Linux-Pakete und eine SBOM enthalten,
-waehrend FreeBSD-Output noch fehlt. Nach abgeschlossenem Tier 3 bietet Pages
-stabile URLs fuer direkte FreeBSD-/OPNsense-Downloads:
+Veroeffentlichte Alpha-Tarballs liegen erst nach der optionalen manuellen
+`FreeBSD Packaging`-Veroeffentlichung in GitHub Releases und auf der GitHub-
+Pages-Paketeseite. Ein normaler Tag kann daher bereits Linux-Pakete und eine
+SBOM enthalten, waehrend FreeBSD-Output noch fehlt. Nach abgeschlossenem
+Workflow bietet Pages stabile URLs fuer direkte FreeBSD-/OPNsense-Downloads:
 
 ```text
 https://konstruktor1.github.io/unifi-stubd/freebsd/amd64/
