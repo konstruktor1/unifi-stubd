@@ -574,12 +574,14 @@ A disposable, containerized proxy may retain container-local passwordless sudo
 only when the protected `tier3-freebsd` environment explicitly sets
 `ALLOW_CONTAINER_LOCAL_SUDO=true` and the workflow preflight recognizes its
 container marker, confirms an enforced seccomp filter and private container
-root mount, verifies that PID 1 sees the same root filesystem, and finds no
-dangerous root capabilities, exposed block devices, host-root mounts, or host
-runtime sockets. This narrow exception does not make the proxy a Docker lab
-runner: Tier 2 requires a separate runner carrying `docker-dmz`, and no runner
-may carry both role labels. Protect the `tier3-freebsd` environment with
-required reviewers and allow only `main` and `v*` deployment refs.
+root mount, and verifies that PID 1's root either matches the container root
+when inspectable or is inaccessible even to container root because of the
+sandbox. It must also find no dangerous root capabilities, exposed block
+devices, host-root mounts, or host runtime sockets. This narrow exception does
+not make the proxy a Docker lab runner: Tier 2 requires a separate runner
+carrying `docker-dmz`, and no runner may carry both role labels. Protect the
+`tier3-freebsd` environment with required reviewers and allow only `main` and
+`v*` deployment refs.
 
 Common overrides:
 

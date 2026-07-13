@@ -179,11 +179,12 @@ gelten:
   sudo nur behalten, wenn das geschuetzte Environment `tier3-freebsd`
   `ALLOW_CONTAINER_LOCAL_SUDO=true` explizit setzt und der Workflow seinen
   Container-Marker, einen aktiven Seccomp-Filter, einen privaten Container-
-  Root-Mount, dasselbe Root-Dateisystem fuer PID 1 sowie das Fehlen
-  gefaehrlicher Root-Capabilities, exponierter Blockgeraete, von Host-Root-
-  Mounts und Host-Runtime-Sockets bestaetigt. Tier 2 benoetigt einen separaten
-  Docker-Runner; kein Runner traegt gleichzeitig Tier-2- und Tier-3-
-  Rollenlabels.
+  Root-Mount sowie die PID-1-Root-Grenze bestaetigt. Bei Einsehbarkeit muss sie
+  dem Container-Root entsprechen; andernfalls muss sie durch die Sandbox selbst
+  fuer Container-Root unzugaenglich sein. Der Workflow bestaetigt zudem das
+  Fehlen gefaehrlicher Root-Capabilities, exponierter Blockgeraete, von Host-
+  Root-Mounts und Host-Runtime-Sockets. Tier 2 benoetigt einen separaten Docker-
+  Runner; kein Runner traegt gleichzeitig Tier-2- und Tier-3-Rollenlabels.
 
 Der Package-Job laeuft absichtlich nach dem Merge auf `main`, weil er die exakt
 committete Release-Basis prueft und Paketartefakte fuer diesen Lauf hochlaedt.

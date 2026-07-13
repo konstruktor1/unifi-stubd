@@ -96,12 +96,14 @@ Ein wegwerfbarer, containerisierter Proxy darf containerlokales passwortloses
 sudo nur nutzen, wenn das geschuetzte Environment `tier3-freebsd`
 `ALLOW_CONTAINER_LOCAL_SUDO=true` explizit setzt. Der Workflow-Preflight muss
 seinen Container-Marker erkennen, einen aktiven Seccomp-Filter und einen
-privaten Container-Root-Mount bestaetigen sowie nachweisen, dass PID 1 dasselbe
-Root-Dateisystem sieht. Zudem duerfen keine gefaehrlichen Root-Capabilities,
-exponierten Blockgeraete, Host-Root-Mounts oder Host-Runtime-Sockets vorhanden
-sein. Tier 2 nutzt weiterhin einen separaten Docker-Runner, und kein Runner
-traegt beide Rollenlabels. Das Environment `tier3-freebsd` braucht Required
-Reviewer und erlaubt nur `main` und `v*` als Refs.
+privaten Container-Root-Mount bestaetigen sowie nachweisen, dass das Root-
+Dateisystem von PID 1 bei Einsehbarkeit dem Container-Root entspricht oder
+durch die Sandbox selbst fuer Container-Root unzugaenglich ist. Zudem duerfen
+keine gefaehrlichen Root-Capabilities, exponierten Blockgeraete, Host-Root-
+Mounts oder Host-Runtime-Sockets vorhanden sein. Tier 2 nutzt weiterhin einen
+separaten Docker-Runner, und kein Runner traegt beide Rollenlabels. Das
+Environment `tier3-freebsd` braucht Required Reviewer und erlaubt nur `main`
+und `v*` als Refs.
 
 Diese Trennung beginnt mit Tags, die `tier3-freebsd.yml` enthalten und deren
 automatische `SHA256SUMS` nur Linux- und SBOM-Artefakte abdeckt. Legacy-

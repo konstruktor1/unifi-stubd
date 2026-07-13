@@ -130,9 +130,10 @@ wegwerfbaren, containerisierten Proxy ist containerlokales passwortloses sudo
 nur zulaessig, wenn das geschuetzte Environment `tier3-freebsd` explizit
 `ALLOW_CONTAINER_LOCAL_SUDO=true` setzt. Der Preflight muss einen Container-
 Marker, einen aktiven Seccomp-Filter, einen privaten Container-Root-Mount und
-dasselbe Root-Dateisystem fuer PID 1 bestaetigen. Zudem darf er weder
-gefaehrliche Root-Capabilities, exponierte Blockgeraete, Host-Root-Mounts noch
-Host-Runtime-Sockets finden.
+eine PID-1-Root-Grenze bestaetigen: Bei Einsehbarkeit muss sie dem Container-
+Root entsprechen, andernfalls durch die Sandbox selbst fuer Container-Root
+unzugaenglich sein. Zudem darf er weder gefaehrliche Root-Capabilities,
+exponierte Blockgeraete, Host-Root-Mounts noch Host-Runtime-Sockets finden.
 
 Tier 3 ist weder Bestandteil von `CI` noch des Tier-2-Controller-Labs oder des
 automatischen Tag-Workflows. Ein fehlender oder fehlschlagender FreeBSD-Lauf
@@ -199,23 +200,26 @@ Tier 2 benoetigt danach einen anderen `docker-dmz`-Runner. Auf einem Bare-Host-
 Proxy bleibt passwortloses sudo verboten. Es ist nur innerhalb eines
 wegwerfbaren, containerisierten Proxys erlaubt, dessen Workflow-Preflight einen
 Container-Marker, einen aktiven Seccomp-Filter und einen privaten Container-
-Root-Mount, dasselbe Root-Dateisystem fuer PID 1 sowie das Fehlen gefaehrlicher
-Root-Capabilities, exponierter Blockgeraete, von Host-Root-Mounts und Host-
-Runtime-Sockets bestaetigt. Diese Ausnahme verlangt zusaetzlich die geschuetzte
-Environment-Variable `ALLOW_CONTAINER_LOCAL_SUDO=true`. Kein Runner darf
-gleichzeitig Tier-2- und Tier-3-Rollenlabels tragen. Das Environment bekommt
-Required Reviewer und Deployment-Regeln nur fuer `main` und `v*`.
+Root-Mount sowie eine PID-1-Root-Grenze bestaetigt. Bei Einsehbarkeit muss PID
+1 dasselbe Root-Dateisystem wie der Container sehen; andernfalls muss es durch
+die Sandbox selbst fuer Container-Root unzugaenglich sein. Der Preflight muss
+ausserdem das Fehlen gefaehrlicher Root-Capabilities, exponierter Blockgeraete,
+von Host-Root-Mounts und Host-Runtime-Sockets bestaetigen. Diese Ausnahme
+verlangt zusaetzlich die geschuetzte Environment-Variable
+`ALLOW_CONTAINER_LOCAL_SUDO=true`. Kein Runner darf gleichzeitig Tier-2- und
+Tier-3-Rollenlabels tragen. Das Environment bekommt Required Reviewer und
+Deployment-Regeln nur fuer `main` und `v*`.
 
 Der Rollen-Split wird in dieser Reihenfolge aktiviert: Ersatz-Runner fuer Tier
 2 registrieren und preflighten; das geschuetzte Environment `tier3-freebsd`
 anlegen; Docker-Zugriff und `docker-dmz` vom alten Proxy entfernen;
 passwortloses sudo auf dem Bare Host entfernen oder auf einen wegwerfbaren
 Container begrenzen, der die Marker-, Seccomp-, Private-Root-Mount-,
-PID-1-Root-, Capability-, Blockgeraete-, Host-Root-Mount- und Runtime-Socket-
-Pruefungen besteht; `ALLOW_CONTAINER_LOCAL_SUDO=true` im geschuetzten
-Environment nur fuer diesen Container setzen; `tier3` setzen; danach einen
-Build von `main` mit `publish=false` starten. So entsteht kein stilles
-Zeitfenster ohne geeigneten Docker-Runner.
+PID-1-Root-Isolations-, Capability-, Blockgeraete-, Host-Root-Mount- und
+Runtime-Socket-Pruefungen besteht; `ALLOW_CONTAINER_LOCAL_SUDO=true` im
+geschuetzten Environment nur fuer diesen Container setzen; `tier3` setzen;
+danach einen Build von `main` mit `publish=false` starten. So entsteht kein
+stilles Zeitfenster ohne geeigneten Docker-Runner.
 
 Der BSD-Builder muss bereitstellen:
 

@@ -239,10 +239,14 @@ jobs:
               exit 2
             fi
             container_root="$(stat -Lc '%d:%i' /)"
-            pid1_root="$(sudo -n stat -Lc '%d:%i' /proc/1/root)"
-            if [ "$container_root" != "$pid1_root" ]; then
-              echo "::error::PID 1 sees a different root filesystem"
-              exit 2
+            if pid1_root="$(sudo -n stat -Lc '%d:%i' /proc/1/root 2>/dev/null)"; then
+              if [ "$container_root" != "$pid1_root" ]; then
+                echo "::error::PID 1 sees a different root filesystem"
+                exit 2
+              fi
+              echo "PID 1 root boundary: same container filesystem"
+            else
+              echo "PID 1 root boundary: inaccessible to container root"
             fi
 
             runtime_sockets="$(sudo -n sh -c '

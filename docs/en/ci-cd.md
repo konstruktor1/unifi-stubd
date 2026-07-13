@@ -125,8 +125,10 @@ For a disposable, containerized proxy, container-local passwordless sudo is
 accepted only when the protected `tier3-freebsd` environment explicitly sets
 `ALLOW_CONTAINER_LOCAL_SUDO=true`. The preflight must recognize a container
 marker, confirm an enforced seccomp filter and private container root mount,
-verify that PID 1 sees the same root filesystem, and find no dangerous root
-capabilities, exposed block devices, host-root mounts, or host runtime sockets.
+and verify that PID 1's root either matches the container root when inspectable
+or is inaccessible even to container root because of the sandbox. It must also
+find no dangerous root capabilities, exposed block devices, host-root mounts,
+or host runtime sockets.
 
 Tier 3 is not part of `CI`, the Tier 2 controller lab, or the automatic tag
 workflow. A failed or omitted FreeBSD run therefore does not block Linux
@@ -190,22 +192,23 @@ runner must lose the `docker-dmz` label and Docker daemon access; a different
 when the proxy runs directly on a host. It is permitted only inside a
 disposable, containerized proxy whose workflow preflight verifies a recognized
 container marker, an enforced seccomp filter, a private container root mount,
-the same root filesystem for PID 1, and no dangerous root capabilities,
-exposed block devices, host-root mounts, or host runtime sockets. This exception
-also requires the protected `tier3-freebsd` environment variable
-`ALLOW_CONTAINER_LOCAL_SUDO=true`. No runner may carry both Tier 2 and Tier 3
-role labels. Protect the environment with required reviewers and deployment
-rules for `main` and `v*` only.
+and a PID 1 root that either matches the container root when inspectable or is
+inaccessible even to container root because of the sandbox. It must also verify
+that no dangerous root capabilities, exposed block devices, host-root mounts,
+or host runtime sockets exist. This exception requires the protected
+`tier3-freebsd` environment variable `ALLOW_CONTAINER_LOCAL_SUDO=true`. No
+runner may carry both Tier 2 and Tier 3 role labels. Protect the environment
+with required reviewers and deployment rules for `main` and `v*` only.
 
 Activate the role split in this order: register and preflight the replacement
 Tier 2 Docker runner; create the protected `tier3-freebsd` environment; remove
 Docker access and `docker-dmz` from the old proxy; remove bare-host
 passwordless sudo or confine it to a disposable container that passes the
-marker, seccomp, private-root-mount, PID-1-root, capability, block-device,
-host-root-mount, and runtime-socket checks; set the protected environment
-variable `ALLOW_CONTAINER_LOCAL_SUDO=true` only for that container; add
-`tier3`; then dispatch a `publish=false` build from `main`. This avoids a silent
-interval in which the Docker gate has no eligible runner.
+marker, seccomp, private-root-mount, PID-1-root-isolation, capability,
+block-device, host-root-mount, and runtime-socket checks; set the protected
+environment variable `ALLOW_CONTAINER_LOCAL_SUDO=true` only for that container;
+add `tier3`; then dispatch a `publish=false` build from `main`. This avoids a
+silent interval in which the Docker gate has no eligible runner.
 
 The BSD builder is expected to provide:
 

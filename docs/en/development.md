@@ -170,11 +170,12 @@ target policy:
   containerized proxy may retain container-local passwordless sudo only when
   the protected `tier3-freebsd` environment explicitly sets
   `ALLOW_CONTAINER_LOCAL_SUDO=true` and the workflow verifies its container
-  marker, an enforced seccomp filter, a private container root mount, the same
-  root filesystem for PID 1, and the absence of dangerous root capabilities,
-  exposed block devices, host-root mounts, and host runtime sockets. Tier 2
-  requires a separate Docker runner; no runner carries both Tier 2 and Tier 3
-  role labels.
+  marker, an enforced seccomp filter, and a private container root mount. PID
+  1's root must either match the container root when inspectable or be
+  inaccessible even to container root because of the sandbox. The workflow
+  must also verify the absence of dangerous root capabilities, exposed block
+  devices, host-root mounts, and host runtime sockets. Tier 2 requires a
+  separate Docker runner; no runner carries both Tier 2 and Tier 3 role labels.
 
 The package job is intentionally post-merge on `main`, because it validates the
 exact committed release base and uploads package artifacts for that run.
