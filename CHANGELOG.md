@@ -36,6 +36,10 @@ semantic version tags once releases are published.
   pinned the new workflow actions by commit, kept publication on a
   GitHub-hosted job, and hardened the SSH handoff with strict host-key checking,
   non-root checks, disabled forwarding, and private remote work directories.
+  Container-local passwordless sudo now requires an explicit protected-
+  environment opt-in and passes capability, seccomp, mount, device, namespace,
+  and host-runtime-socket isolation checks; bare-host passwordless sudo remains
+  rejected.
 
 ## [0.2.4-alpha] - 2026-07-11
 

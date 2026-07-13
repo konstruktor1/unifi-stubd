@@ -567,12 +567,19 @@ incomplete Linux pre-release, a release with signed checksum assets, or a
 legacy `SHA256SUMS` that already includes FreeBSD. The selected tag must contain
 this workflow. Tier 3 has no trigger or dependency from normal CI, Tier 2,
 pushes, tags, or schedules.
-The Tier 3 runner is a Linux SSH proxy to the FreeBSD package host, not a
-general lab runner: remove its `docker-dmz` label, Docker daemon access, and
-passwordless sudo. Tier 2 then requires a separate runner carrying
-`docker-dmz`; the old runner must never carry both role labels. Protect the
-`tier3-freebsd` environment with required reviewers and allow only `main` and
-`v*` deployment refs.
+The Tier 3 runner is a dedicated Linux SSH proxy to the FreeBSD package host,
+not a general lab runner. It must not retain the `docker-dmz` label or Docker
+daemon access, and a bare-host installation must not grant passwordless sudo.
+A disposable, containerized proxy may retain container-local passwordless sudo
+only when the protected `tier3-freebsd` environment explicitly sets
+`ALLOW_CONTAINER_LOCAL_SUDO=true` and the workflow preflight recognizes its
+container marker, confirms an enforced seccomp filter and private container
+root mount, verifies that PID 1 sees the same root filesystem, and finds no
+dangerous root capabilities, exposed block devices, host-root mounts, or host
+runtime sockets. This narrow exception does not make the proxy a Docker lab
+runner: Tier 2 requires a separate runner carrying `docker-dmz`, and no runner
+may carry both role labels. Protect the `tier3-freebsd` environment with
+required reviewers and allow only `main` and `v*` deployment refs.
 
 Common overrides:
 

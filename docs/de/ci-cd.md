@@ -123,9 +123,16 @@ Release mit den erwarteten Linux-Paketen, der persistenten SBOM und
 noch einen unvollstaendigen Pre-Release, einen Release mit signierten Checksum-
 Artefakten oder eine Legacy-`SHA256SUMS`, die FreeBSD bereits abdeckt. Der
 gewaehlte Release-Tag muss diesen Workflow selbst enthalten. Der Tier-3-
-Preflight prueft Linux/X64, SSH/SCP/tar, dass
-weder Docker-Daemon-Zugriff noch passwortloses sudo bestehen, sowie den
-non-root FreeBSD-Buildhost mit nativem `pkg`, `tar` und Go vor dem Build.
+Preflight prueft Linux/X64, SSH/SCP/tar, fehlenden Docker-Daemon-Zugriff sowie
+den non-root FreeBSD-Buildhost mit nativem `pkg`, `tar` und Go vor dem Build.
+Auf einem Bare-Host-Proxy lehnt er passwortloses sudo ab. Bei einem
+wegwerfbaren, containerisierten Proxy ist containerlokales passwortloses sudo
+nur zulaessig, wenn das geschuetzte Environment `tier3-freebsd` explizit
+`ALLOW_CONTAINER_LOCAL_SUDO=true` setzt. Der Preflight muss einen Container-
+Marker, einen aktiven Seccomp-Filter, einen privaten Container-Root-Mount und
+dasselbe Root-Dateisystem fuer PID 1 bestaetigen. Zudem darf er weder
+gefaehrliche Root-Capabilities, exponierte Blockgeraete, Host-Root-Mounts noch
+Host-Runtime-Sockets finden.
 
 Tier 3 ist weder Bestandteil von `CI` noch des Tier-2-Controller-Labs oder des
 automatischen Tag-Workflows. Ein fehlender oder fehlschlagender FreeBSD-Lauf
@@ -187,16 +194,28 @@ unifi-stubd]`; er fuehrt nur `lab/stub` aus und benoetigt Docker-Daemon-Zugriff
 und Docker Compose v2. Der manuelle Tier-3-Selektor ist `[self-hosted, Linux,
 X64, unifi-stubd, tier3, freebsd-pkg-builder]`; er stellt den SSH-
 orchestrierten FreeBSD-Paketpfad bereit. Das muessen getrennte Runner sein. Der
-alte FreeBSD-Proxy verliert das Label `docker-dmz`, Docker-Daemon-Zugriff und
-passwortloses sudo; Tier 2 benoetigt danach einen anderen `docker-dmz`-Runner.
-Das Environment `tier3-freebsd` bekommt Required Reviewer und Deployment-
-Regeln nur fuer `main` und `v*`.
+alte FreeBSD-Proxy verliert das Label `docker-dmz` und Docker-Daemon-Zugriff;
+Tier 2 benoetigt danach einen anderen `docker-dmz`-Runner. Auf einem Bare-Host-
+Proxy bleibt passwortloses sudo verboten. Es ist nur innerhalb eines
+wegwerfbaren, containerisierten Proxys erlaubt, dessen Workflow-Preflight einen
+Container-Marker, einen aktiven Seccomp-Filter und einen privaten Container-
+Root-Mount, dasselbe Root-Dateisystem fuer PID 1 sowie das Fehlen gefaehrlicher
+Root-Capabilities, exponierter Blockgeraete, von Host-Root-Mounts und Host-
+Runtime-Sockets bestaetigt. Diese Ausnahme verlangt zusaetzlich die geschuetzte
+Environment-Variable `ALLOW_CONTAINER_LOCAL_SUDO=true`. Kein Runner darf
+gleichzeitig Tier-2- und Tier-3-Rollenlabels tragen. Das Environment bekommt
+Required Reviewer und Deployment-Regeln nur fuer `main` und `v*`.
 
 Der Rollen-Split wird in dieser Reihenfolge aktiviert: Ersatz-Runner fuer Tier
 2 registrieren und preflighten; das geschuetzte Environment `tier3-freebsd`
-anlegen; Docker-Zugriff, passwortloses sudo und `docker-dmz` vom alten Proxy
-entfernen; `tier3` setzen; danach einen Build von `main` mit `publish=false`
-starten. So entsteht kein stilles Zeitfenster ohne geeigneten Docker-Runner.
+anlegen; Docker-Zugriff und `docker-dmz` vom alten Proxy entfernen;
+passwortloses sudo auf dem Bare Host entfernen oder auf einen wegwerfbaren
+Container begrenzen, der die Marker-, Seccomp-, Private-Root-Mount-,
+PID-1-Root-, Capability-, Blockgeraete-, Host-Root-Mount- und Runtime-Socket-
+Pruefungen besteht; `ALLOW_CONTAINER_LOCAL_SUDO=true` im geschuetzten
+Environment nur fuer diesen Container setzen; `tier3` setzen; danach einen
+Build von `main` mit `publish=false` starten. So entsteht kein stilles
+Zeitfenster ohne geeigneten Docker-Runner.
 
 Der BSD-Builder muss bereitstellen:
 

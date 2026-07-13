@@ -87,10 +87,17 @@ gh workflow run tier3-freebsd.yml --ref <v-tag-with-tier3-workflow> -f publish=t
 
 The self-hosted job is selected by `[self-hosted, Linux, X64, unifi-stubd,
 tier3, freebsd-pkg-builder]`. This Linux runner is only an SSH proxy to the
-FreeBSD package host. It must not retain the `docker-dmz` role, Docker daemon
-access, or passwordless sudo; Tier 2 uses a different Docker runner. Protect
-the `tier3-freebsd` environment with required reviewers and allow only `main`
-and `v*` refs.
+FreeBSD package host. It must not retain the `docker-dmz` role or Docker daemon
+access. Passwordless sudo is forbidden on a bare-host proxy. A disposable,
+containerized proxy may use container-local passwordless sudo only when the
+protected `tier3-freebsd` environment explicitly sets
+`ALLOW_CONTAINER_LOCAL_SUDO=true` and the workflow preflight recognizes its
+container marker, confirms an enforced seccomp filter and private container
+root mount, verifies that PID 1 sees the same root filesystem, and finds no
+dangerous root capabilities, exposed block devices, host-root mounts, or host
+runtime sockets. Tier 2 still uses a separate Docker runner, and no runner
+carries both role labels. Protect the `tier3-freebsd` environment with required
+reviewers and allow only `main` and `v*` refs.
 
 This split starts with tags that contain `tier3-freebsd.yml` and whose
 automatic `SHA256SUMS` covers Linux and SBOM assets only. Legacy releases whose

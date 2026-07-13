@@ -165,9 +165,16 @@ target policy:
 - `github-pages` environment: allow deployment from `main` and `v*` only.
 - `tier3-freebsd` environment: require approval, allow only `main` and `v*`,
   and grant no publication permissions to the self-hosted build job.
-- Runner roles: remove `docker-dmz`, Docker daemon access, and passwordless
-  sudo from the old FreeBSD proxy. Tier 2 requires a separate Docker runner;
-  no runner carries both Tier 2 and Tier 3 role labels.
+- Runner roles: remove `docker-dmz` and Docker daemon access from the old
+  FreeBSD proxy. Bare-host passwordless sudo is forbidden. A disposable,
+  containerized proxy may retain container-local passwordless sudo only when
+  the protected `tier3-freebsd` environment explicitly sets
+  `ALLOW_CONTAINER_LOCAL_SUDO=true` and the workflow verifies its container
+  marker, an enforced seccomp filter, a private container root mount, the same
+  root filesystem for PID 1, and the absence of dangerous root capabilities,
+  exposed block devices, host-root mounts, and host runtime sockets. Tier 2
+  requires a separate Docker runner; no runner carries both Tier 2 and Tier 3
+  role labels.
 
 The package job is intentionally post-merge on `main`, because it validates the
 exact committed release base and uploads package artifacts for that run.

@@ -138,6 +138,7 @@ jobs:
 
       - name: Preflight Tier 3 FreeBSD builder
         env:
+          ALLOW_CONTAINER_LOCAL_SUDO: ${{ vars.ALLOW_CONTAINER_LOCAL_SUDO }}
           FREEBSD_PKG_REMOTE: unifi-stubd-freebsd-builder
         run: |
           set -eu
@@ -147,7 +148,7 @@ jobs:
             echo "::error::The dedicated Tier 3 runner must use a non-root service account"
             exit 2
           fi
-          for command in git make ssh scp tar sha256sum; do
+          for command in awk find git make scp sha256sum ssh stat tar; do
             command -v "$command" >/dev/null 2>&1 || {
               echo "::error::Missing required command: $command"
               exit 2
@@ -161,9 +162,108 @@ jobs:
             echo "::error::The dedicated Tier 3 runner account can access the Docker socket"
             exit 2
           fi
+          if command -v sudo >/dev/null 2>&1; then
+            sudo -k || true
+          fi
           if command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then
-            echo "::error::The dedicated Tier 3 runner must not have passwordless sudo"
-            exit 2
+            if [ "$ALLOW_CONTAINER_LOCAL_SUDO" != "true" ]; then
+              echo "::error::Container-local sudo requires an explicit Tier 3 environment opt-in"
+              exit 2
+            fi
+            if [ ! -e /.dockerenv ] && [ ! -e /run/.containerenv ]; then
+              echo "::error::A bare-host Tier 3 runner must not have passwordless sudo"
+              exit 2
+            fi
+
+            root_cap_eff="$(sudo -n sh -c \
+              'awk '\''$1 == "CapEff:" { print $2 }'\'' /proc/self/status')"
+            case "$root_cap_eff" in
+              '' | *[!0-9A-Fa-f]*)
+                echo "::error::Unable to validate container-local root capabilities"
+                exit 2
+                ;;
+            esac
+            root_capabilities=$((16#$root_cap_eff))
+            # Reject CAP_SYS_MODULE, CAP_SYS_RAWIO, CAP_SYS_PTRACE,
+            # CAP_SYS_ADMIN, CAP_SYS_BOOT, CAP_SYS_TIME, CAP_SYSLOG, CAP_BPF,
+            # and CAP_CHECKPOINT_RESTORE.
+            forbidden_capabilities=$(((1 << 16) | (1 << 17) | (1 << 19) | \
+              (1 << 21) | (1 << 22) | (1 << 25) | (1 << 34) | (1 << 39) | \
+              (1 << 40)))
+            if [ $((root_capabilities & forbidden_capabilities)) -ne 0 ]; then
+              echo "::error::The Tier 3 runner container exposes host-sensitive root capabilities"
+              exit 2
+            fi
+            root_seccomp="$(sudo -n sh -c \
+              'awk '\''$1 == "Seccomp:" { print $2 }'\'' /proc/self/status')"
+            if [ "$root_seccomp" != "2" ]; then
+              echo "::error::The Tier 3 runner container must enforce a seccomp filter"
+              exit 2
+            fi
+            if ! sudo -n awk '
+              $5 == "/" {
+                found = 1
+                for (field = 7; field <= NF && $field != "-"; field++) {
+                  if ($field ~ /^(shared|master|propagate_from):/) {
+                    exit 1
+                  }
+                }
+              }
+              END { if (!found) exit 2 }
+            ' /proc/self/mountinfo; then
+              echo "::error::The Tier 3 runner container root mount is not private"
+              exit 2
+            fi
+            block_devices="$(sudo -n find /dev -xdev -type b -print -quit)"
+            if [ -n "$block_devices" ]; then
+              echo "::error::The Tier 3 runner container exposes a block device"
+              exit 2
+            fi
+            host_roots="$(sudo -n sh -c '
+              for root in /host /hostfs /rootfs /mnt/host /run/host /var/host; do
+                if [ -e "$root" ] || [ -L "$root" ]; then
+                  printf "%s\\n" "$root"
+                fi
+              done
+            ')"
+            if [ -n "$host_roots" ]; then
+              echo "::error::The Tier 3 runner container exposes a host-root path"
+              exit 2
+            fi
+            if sudo -n awk '
+              $5 == "/host" || $5 == "/hostfs" || $5 == "/rootfs" ||
+              $5 == "/mnt/host" || $5 == "/run/host" { found = 1 }
+              END { exit !found }
+            ' /proc/self/mountinfo; then
+              echo "::error::The Tier 3 runner container exposes a host-root mount"
+              exit 2
+            fi
+            container_root="$(stat -Lc '%d:%i' /)"
+            pid1_root="$(sudo -n stat -Lc '%d:%i' /proc/1/root)"
+            if [ "$container_root" != "$pid1_root" ]; then
+              echo "::error::PID 1 sees a different root filesystem"
+              exit 2
+            fi
+
+            runtime_sockets="$(sudo -n sh -c '
+              for socket in \
+                /var/run/docker.sock \
+                /run/docker.sock \
+                /run/containerd/containerd.sock \
+                /run/podman/podman.sock \
+                /run/buildkit/buildkitd.sock \
+                /var/run/crio/crio.sock \
+                /var/lib/lxd/unix.socket; do
+                if [ -S "$socket" ]; then
+                  printf "%s\\n" "$socket"
+                fi
+              done
+            ')"
+            if [ -n "$runtime_sockets" ]; then
+              echo "::error::The Tier 3 runner container exposes a host runtime socket"
+              exit 2
+            fi
+            echo "Container-local sudo boundary: ok"
           fi
           remote_identity="$(ssh \
             -o BatchMode=yes \

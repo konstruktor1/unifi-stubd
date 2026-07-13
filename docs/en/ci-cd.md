@@ -118,10 +118,15 @@ containing the expected Linux packages, persistent SBOM, and `SHA256SUMS`. It
 refuses to mutate a final release, an incomplete pre-release, a release with
 signed checksum assets, or a legacy `SHA256SUMS` that already covers FreeBSD.
 The selected release tag must itself contain this workflow. The Tier 3 runner
-preflight verifies Linux/X64,
-SSH/SCP/tar, absence of Docker-daemon and passwordless-sudo access, and the
-non-root FreeBSD build host with its native `pkg`, `tar`, and Go tools before
-starting the build.
+preflight verifies Linux/X64, SSH/SCP/tar, absence of Docker-daemon access, and
+the non-root FreeBSD build host with its native `pkg`, `tar`, and Go tools
+before starting the build. It rejects passwordless sudo on a bare-host proxy.
+For a disposable, containerized proxy, container-local passwordless sudo is
+accepted only when the protected `tier3-freebsd` environment explicitly sets
+`ALLOW_CONTAINER_LOCAL_SUDO=true`. The preflight must recognize a container
+marker, confirm an enforced seccomp filter and private container root mount,
+verify that PID 1 sees the same root filesystem, and find no dangerous root
+capabilities, exposed block devices, host-root mounts, or host runtime sockets.
 
 Tier 3 is not part of `CI`, the Tier 2 controller lab, or the automatic tag
 workflow. A failed or omitted FreeBSD run therefore does not block Linux
@@ -180,14 +185,25 @@ unifi-stubd]`; it runs only `lab/stub` and requires Docker daemon access and
 Docker Compose v2. The manual Tier 3 selector is `[self-hosted, Linux, X64,
 unifi-stubd, tier3, freebsd-pkg-builder]`; it provides the SSH-orchestrated
 FreeBSD package path. These must be separate runners. The old FreeBSD proxy
-runner must lose the `docker-dmz` label, Docker daemon access, and passwordless
-sudo; a different `docker-dmz` runner is required for Tier 2. Protect the
-`tier3-freebsd` environment with required reviewers and deployment rules for
-`main` and `v*` only.
+runner must lose the `docker-dmz` label and Docker daemon access; a different
+`docker-dmz` runner is required for Tier 2. Passwordless sudo remains forbidden
+when the proxy runs directly on a host. It is permitted only inside a
+disposable, containerized proxy whose workflow preflight verifies a recognized
+container marker, an enforced seccomp filter, a private container root mount,
+the same root filesystem for PID 1, and no dangerous root capabilities,
+exposed block devices, host-root mounts, or host runtime sockets. This exception
+also requires the protected `tier3-freebsd` environment variable
+`ALLOW_CONTAINER_LOCAL_SUDO=true`. No runner may carry both Tier 2 and Tier 3
+role labels. Protect the environment with required reviewers and deployment
+rules for `main` and `v*` only.
 
 Activate the role split in this order: register and preflight the replacement
 Tier 2 Docker runner; create the protected `tier3-freebsd` environment; remove
-Docker access, passwordless sudo, and `docker-dmz` from the old proxy; add
+Docker access and `docker-dmz` from the old proxy; remove bare-host
+passwordless sudo or confine it to a disposable container that passes the
+marker, seccomp, private-root-mount, PID-1-root, capability, block-device,
+host-root-mount, and runtime-socket checks; set the protected environment
+variable `ALLOW_CONTAINER_LOCAL_SUDO=true` only for that container; add
 `tier3`; then dispatch a `publish=false` build from `main`. This avoids a silent
 interval in which the Docker gate has no eligible runner.
 

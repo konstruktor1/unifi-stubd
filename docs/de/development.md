@@ -173,9 +173,17 @@ gelten:
 - `github-pages`-Environment: Deployment nur von `main` und `v*`.
 - `tier3-freebsd`-Environment: Freigabe verlangen, nur `main` und `v*`
   erlauben und dem self-hosted Build-Job keine Publish-Rechte geben.
-- Runner-Rollen: `docker-dmz`, Docker-Daemon-Zugriff und passwortloses sudo vom
-  alten FreeBSD-Proxy entfernen. Tier 2 benoetigt einen separaten Docker-
-  Runner; kein Runner traegt gleichzeitig Tier-2- und Tier-3-Rollenlabels.
+- Runner-Rollen: `docker-dmz` und Docker-Daemon-Zugriff vom alten FreeBSD-Proxy
+  entfernen. Auf einem Bare Host ist passwortloses sudo verboten. Ein
+  wegwerfbarer, containerisierter Proxy darf containerlokales passwortloses
+  sudo nur behalten, wenn das geschuetzte Environment `tier3-freebsd`
+  `ALLOW_CONTAINER_LOCAL_SUDO=true` explizit setzt und der Workflow seinen
+  Container-Marker, einen aktiven Seccomp-Filter, einen privaten Container-
+  Root-Mount, dasselbe Root-Dateisystem fuer PID 1 sowie das Fehlen
+  gefaehrlicher Root-Capabilities, exponierter Blockgeraete, von Host-Root-
+  Mounts und Host-Runtime-Sockets bestaetigt. Tier 2 benoetigt einen separaten
+  Docker-Runner; kein Runner traegt gleichzeitig Tier-2- und Tier-3-
+  Rollenlabels.
 
 Der Package-Job laeuft absichtlich nach dem Merge auf `main`, weil er die exakt
 committete Release-Basis prueft und Paketartefakte fuer diesen Lauf hochlaedt.
