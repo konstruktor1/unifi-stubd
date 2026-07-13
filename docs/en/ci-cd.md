@@ -18,6 +18,8 @@ The CI path is split into:
 
 - `CI`: validation, vulnerability scan, SBOM, trusted FreeBSD artifact check,
   and a `main`-only Linux package smoke test.
+- `Tier 2 Docker Integration`: manually dispatched controller-adoption gate on
+  the trusted Docker lab runner, independent of `CI`.
 - `Package Repositories`: release-package and persistent SBOM build, GitHub
   pre-release asset publication, and Pages deployment for unsigned alpha
   package repositories.
@@ -39,7 +41,7 @@ The CI path is split into:
 | `make package-freebsd-tgz` | Go cross-compile plus tar | `scripts/package.sh tgz` | FreeBSD tarball | FreeBSD `amd64` or `arm64` | Local diagnostic path | Defined, not used by release workflow |
 | `make package-freebsd-pkg-repos` | Go on FreeBSD builder, FreeBSD `pkg`, tar | `scripts/package-freebsd-pkg-repos.sh` | Native FreeBSD `pkg` repos and published FreeBSD tarballs | `FreeBSD:14/15` for `amd64`, `aarch64`, `armv7`; tarballs for `amd64`, `arm64` by default | Self-hosted FreeBSD builder; optional mapped `jexec` jails | Release BSD path |
 | `make package-repos` | dpkg, createrepo-c, repo-add, tar | `scripts/build-package-repos.sh` | Static package repository site | Repository metadata for packaged targets | GitHub Ubuntu | GitHub Pages input |
-| `make integration-docker` | Docker Compose, pinned UniFi Network, and Go helpers | `lab/stub/scripts/run-docker-integration.sh` | Controller adoption gate | Linux container lab | Local/manual | Defined, not automatic in CI |
+| `make integration-docker` | Docker Compose, pinned UniFi Network, and Go helpers | `lab/stub/scripts/run-docker-integration.sh` | Tier 2 controller adoption gate | Linux container lab | Local or manual GitHub Actions dispatch | Defined in standalone Tier 2 workflow |
 | Root `Dockerfile` | Docker BuildKit, Go, Alpine | `Dockerfile` | Runtime/lab image with daemon and inform/discovery proxy | Linux multi-arch capable | Local/manual | No publish target defined |
 
 Open build target definitions:
@@ -79,6 +81,26 @@ running `jexec` jails.
 It reads the centralized `VERSION`, builds Linux packages, installs the
 generated Debian package once, validates the installed config, and uploads
 `dist/packages/`.
+
+### `Tier 2 Docker Integration`
+
+| Area | Current value |
+| --- | --- |
+| File | `.github/workflows/tier2-docker.yml` |
+| Trigger | `workflow_dispatch` only |
+| Permissions | `contents: read` |
+| Job | `controller-adoption` |
+| Runner | `[self-hosted, Linux, X64, docker-dmz, unifi-stubd]` |
+| Command | `make integration-docker` |
+| State boundary | Fresh Compose project and volumes before the run; unconditional teardown after it |
+| Artifacts | None; captures and controller state are never uploaded |
+| Concurrency | One `unifi-stubd-tier2-docker` group, no cancel-in-progress |
+
+The runner preflight validates Linux/X64, Go, Docker daemon access, Docker
+Compose v2, resource visibility, and the combined lab configuration. The
+workflow uses the pinned `10.4.57-ls135` controller image, records sanitized
+run evidence in the job summary, and has no dependency on or trigger from the
+standard `CI`, package workflows, pull requests, pushes, or schedules.
 
 ### `Package Repositories`
 
@@ -129,6 +151,12 @@ used only for trusted BSD work and is not used for pull requests. This follows
 GitHub's self-hosted-runner risk model: untrusted pull request code must not run
 on persistent project infrastructure.
 
+The same registered host exposes the narrower `docker-dmz` and `unifi-stubd`
+labels for manually dispatched Tier 2 work. The Tier 2 selector does not use
+the unrelated `freebsd-pkg-builder` label. It requires Docker daemon access and
+Docker Compose v2 and removes all project-owned lab containers, volumes, and
+captures after every run.
+
 The BSD builder is expected to provide:
 
 - SSH alias `unifi-stubd-freebsd-builder`, unless `FREEBSD_PKG_REMOTE` is
@@ -174,6 +202,9 @@ Containers are defined for runtime and lab use only:
   repositories.
 - Manual dispatch from `main` rebuilds the Pages package repositories without
   creating a new GitHub release.
+- Manual dispatch of `Tier 2 Docker Integration` tests only the selected ref
+  and does not invoke or modify `CI`, package publication, branch rules, or
+  required checks.
 
 ## Problems Found and Corrections
 

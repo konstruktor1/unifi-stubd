@@ -1,0 +1,127 @@
+name: Tier 2 Docker Integration
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: unifi-stubd-tier2-docker
+  cancel-in-progress: false
+
+env:
+  UNIFI_NETWORK_IMAGE: lscr.io/linuxserver/unifi-network-application:10.4.57-ls135
+  UNIFI_STUB_LAB_EXPECTED_NETWORK_VERSION: "10.4.57"
+
+jobs:
+  controller-adoption:
+    runs-on: [self-hosted, Linux, X64, docker-dmz, unifi-stubd]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Set up Go from module version
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          check-latest: true
+
+      - name: Preflight Tier 2 runner
+        run: |
+          set -eu
+
+          os="$(uname -s)"
+          arch="$(uname -m)"
+          if [ "$os/$arch" != "Linux/x86_64" ]; then
+            echo "::error::Tier 2 requires Linux/x86_64; found $os/$arch"
+            exit 2
+          fi
+
+          if ! command -v go >/dev/null 2>&1; then
+            echo "::error::Go is not available after actions/setup-go"
+            exit 2
+          fi
+          if ! command -v docker >/dev/null 2>&1; then
+            echo "::error::Docker is not installed on the Tier 2 runner"
+            exit 2
+          fi
+          if ! docker info >/dev/null 2>&1; then
+            echo "::error::The Tier 2 runner cannot access the Docker daemon"
+            exit 2
+          fi
+          if ! docker compose version >/dev/null 2>&1; then
+            echo "::error::Docker Compose v2 is not available on the Tier 2 runner"
+            exit 2
+          fi
+
+          compose_version="$(docker compose version --short)"
+          compose_major="${compose_version#v}"
+          compose_major="${compose_major%%.*}"
+          case "$compose_major" in
+            ''|*[!0-9]*)
+              echo "::error::Cannot parse Docker Compose version $compose_version"
+              exit 2
+              ;;
+          esac
+          if [ "$compose_major" -lt 2 ]; then
+            echo "::error::The Docker Compose v2-compatible CLI is required; found $compose_version"
+            exit 2
+          fi
+
+          go version
+          docker version --format 'Docker client={{.Client.Version}} server={{.Server.Version}}'
+          printf 'Docker Compose %s\n' "$compose_version"
+          docker info --format 'Docker OS={{.OperatingSystem}} arch={{.Architecture}} storage={{.Driver}} cgroup={{.CgroupVersion}}'
+          df -h .
+          if [ -r /proc/meminfo ]; then
+            awk '/MemTotal:/ {printf "Memory total: %.1f GiB\n", $2 / 1024 / 1024}' /proc/meminfo
+          fi
+          printf 'Controller image: %s\n' "$UNIFI_NETWORK_IMAGE"
+          printf 'Expected controller version: %s\n' "$UNIFI_STUB_LAB_EXPECTED_NETWORK_VERSION"
+
+          docker compose \
+            -f lab/stub/compose.yaml \
+            -f lab/stub/compose.tests.yaml \
+            config >/dev/null
+
+      - name: Reset Tier 2 lab state
+        run: |
+          set -eu
+          docker compose \
+            -f lab/stub/compose.yaml \
+            -f lab/stub/compose.tests.yaml \
+            down --volumes --remove-orphans
+          rm -rf lab/stub/captures
+
+      - name: Run Tier 2 controller adoption gate
+        run: make integration-docker
+
+      - name: Clean Tier 2 lab state
+        if: always()
+        run: |
+          cleanup_status=0
+          if command -v docker >/dev/null 2>&1 \
+            && docker info >/dev/null 2>&1 \
+            && docker compose version >/dev/null 2>&1; then
+            docker compose \
+              -f lab/stub/compose.yaml \
+              -f lab/stub/compose.tests.yaml \
+              down --volumes --remove-orphans || cleanup_status=$?
+          fi
+          rm -rf lab/stub/captures || cleanup_status=$?
+          exit "$cleanup_status"
+
+      - name: Record Tier 2 evidence
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          {
+            printf '## Tier 2 Docker Integration\n\n'
+            printf -- '- Commit: `%s`\n' "$GITHUB_SHA"
+            printf -- '- Runner: `%s`\n' "$RUNNER_NAME"
+            printf -- '- Controller image: `%s`\n' "$UNIFI_NETWORK_IMAGE"
+            printf -- '- Expected controller version: `%s`\n' "$UNIFI_STUB_LAB_EXPECTED_NETWORK_VERSION"
+            printf -- '- Job status: `%s`\n' "$JOB_STATUS"
+          } >> "$GITHUB_STEP_SUMMARY"

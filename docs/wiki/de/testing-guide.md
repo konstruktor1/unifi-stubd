@@ -2,7 +2,14 @@
 
 Diese Seite beschreibt, welche Teststufe fuer welche Aenderung sinnvoll ist.
 
-## Lokaler Standard-Gate
+- Tier 1 umfasst deterministische Lint-, Policy-, Unit-, Fixture-, Config- und
+  Package-Build-Pruefungen.
+- Tier 2 ist der gepinnte, reine Container-Gate fuer die UniFi-Controller-
+  Adoption unter `lab/stub`.
+- Tier 3 umfasst Firmware-Research-Container und Tests gegen reale Bridges,
+  Hosts, Controller oder physische UniFi-Geraete.
+
+## Tier 1: Lokaler Standard-Gate
 
 Vor einem Commit ausfuehren:
 
@@ -14,7 +21,7 @@ git diff --check
 `make check` prueft Lint-Konfiguration, fuehrt Lint aus, erzwingt Repo-Policy,
 validiert paketierte Config-/Profil-YAMLs und startet `go test ./...`.
 
-## Docker-Controller-Gate
+## Tier 2: Docker-Controller-Gate
 
 Ausfuehren, wenn Adoption, Inform, Payload-Shape, Profile oder Controller-
 Kompatibilitaet geaendert wurden:
@@ -26,6 +33,17 @@ make integration-docker
 Das Docker-Lab ist der Referenz-Controller-Pfad. Es validiert den gepinnten
 UniFi-Network-Application-Container, Pending Adoption, controller-getriggerte
 Adoption, persistierten lokalen State und ausgewaehlte Dry-Run-Payloads.
+
+Der eigenstaendige Tier-2-Workflow wird fuer einen exakten
+vertrauenswuerdigen Ref manuell gestartet:
+
+```sh
+gh workflow run tier2-docker.yml --ref dev
+```
+
+Dieser Workflow ist vom normalen `CI`- und den Package-Workflows unabhaengig.
+Er startet mit frischen Controller-Volumes, entfernt seinen Lab-State immer und
+laedt weder Captures noch Controller-State hoch.
 
 Fuer die Promotion von `dev` nach `main` ist dieser Gate in
 [`docs/de/docker-lab.md`](../../de/docker-lab.md) standardisiert. Der promotete
@@ -49,7 +67,7 @@ Paketinhalte nur inspizieren, ausser der Test verlangt explizit eine temporaere
 Installation. Permanente Service-Aktivierung gehoert nicht in einen Package-
 Smoke-Test.
 
-## Reales Linux-Bridge-Gate
+## Tier 3: Reales Linux-Bridge-Gate
 
 Nutzen fuer `bridge-observe`-Verhalten, das Docker nicht beweisen kann:
 Topologie-Richtung, physische Uplinks, SFP-/SFP+-Platzierung und Interaktion
@@ -67,7 +85,7 @@ cat /proc/net/dev
 Danach temporaeren Dry-Run oder einen kontrollierten Controller-Test mit
 disposable MAC/State ausfuehren.
 
-## Reales FreeBSD-/OPNsense-Gate
+## Tier 3: Reales FreeBSD-/OPNsense-Gate
 
 Nutzen fuer FreeBSD-Parsing und Runtime-Smoke-Tests. Nicht permanent
 installieren.
@@ -83,7 +101,7 @@ tail /var/log/messages
 Temporaere Extraktion und temporaere State-Pfade nutzen. Fehlende Tools werden
 als skipped dokumentiert und nicht waehrend dieses Gates installiert.
 
-## Controller-Lab-Gate
+## Tier 3: Reales Controller-Lab-Gate
 
 Nur mit disposable MACs und explizitem Cleanup nutzen.
 
@@ -107,3 +125,7 @@ Checkliste:
 | reale Linux-Bridge | physische Bridge-Observation | FreeBSD-Verhalten |
 | realer FreeBSD-Host | FreeBSD-Runtime-Basics | Linux-Bridge-Verhalten |
 | realer Controller | Adoption gegen deployed Controller | Sicherheit bei MAC-/IP-Kollisionen |
+
+Firmware-Research-Stacks unter `lab/gateway-profiles` sind ebenfalls Tier 3,
+weil sie ignorierte Firmware-/Rootfs-Eingaben, architekturspezifische
+Ausfuehrung oder Mock-Hardware-State benoetigen.

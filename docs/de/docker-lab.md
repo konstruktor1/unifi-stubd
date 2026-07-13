@@ -1,7 +1,7 @@
 # Docker-Controller-Lab
 
 Das Docker-Lab unter `lab/stub/` ist die projekt-eigene Integrationsumgebung
-fuer den Go-Stub. Es verwendet drei laenger laufende Services:
+fuer den Go-Stub. Es verwendet drei Services:
 
 - UniFi Network Application auf `https://127.0.0.1:8443/`
 - MongoDB fuer den Controller
@@ -27,10 +27,11 @@ weiter als CLI-Overrides, damit diese Dateien stabil bleiben und keinen
 Controller-State oder Secrets enthalten.
 
 Leere Controller-Volumes werden automatisch ueber denselben lokalen Setup-API-
-Ablauf wie in der Weboberflaeche initialisiert. Bereits konfigurierte Volumes
-werden nach geprueftem Lab-Login wiederverwendet. Der Setup-Helfer gibt weder
-Controller-Antworten noch generierte Device-Zugangsdaten, API-Tokens oder
-Adoption-Keys aus.
+Ablauf wie in der Weboberflaeche initialisiert. Lokale Laeufe duerfen bereits
+konfigurierte Volumes nach geprueftem Lab-Login wiederverwenden. Der Tier-2-
+Workflow entfernt dagegen vor und nach jedem Lauf alle Lab-Volumes. Der Setup-
+Helfer gibt weder Controller-Antworten noch generierte Device-Zugangsdaten,
+API-Tokens oder Adoption-Keys aus.
 
 ## Controller-Gate
 
@@ -79,7 +80,7 @@ UNIFI_STUB_LAB_ADMIN_PASSWORD=... \
 make integration-docker
 ```
 
-## Docker-Gate Von Dev Nach Main
+## Tier-2-Docker-Gate
 
 Das Docker-Lab ist der standardisierte Controller-Kompatibilitaets-Gate vor der
 Promotion von `dev` nach `main`, sobald die gesammelten `dev`-Aenderungen einen
@@ -96,19 +97,28 @@ promotete Commit muss derselbe Commit sein, der den Docker-Gate bestanden hat,
 oder ein Nachfolger, der nur nicht fachliche Dokumentation oder Release-
 Metadaten enthaelt.
 
-Standardlauf:
+Das Repository stellt den eigenstaendigen, ausschliesslich manuell gestarteten
+Workflow `Tier 2 Docker Integration` bereit. Er ist von den normalen `CI`- und
+Package-Workflows unabhaengig und fuehrt auf dem ueber `docker-dmz` und
+`unifi-stubd` ausgewaehlten vertrauenswuerdigen Runner nur
+`make integration-docker` aus. Er wird fuer den exakt zu pruefenden Ref
+gestartet:
+
+```sh
+gh workflow run tier2-docker.yml --ref dev
+```
+
+Der entsprechende lokale Lauf ist:
 
 ```sh
 git switch dev
 git pull --ff-only origin dev
-make check
 make integration-docker
 git rev-parse HEAD
 ```
 
 Pass-Kriterien:
 
-- `make check` beendet mit `0`.
 - `make integration-docker` beendet mit `0` und gibt `docker integration: ok`
   aus.
 - Der Log zeigt die Versionspruefung der gepinnten UniFi Network Application.
@@ -144,30 +154,24 @@ anderen Commit lief. Fuer Fehleranalyse darf einmal mit
 temporaeres Geraet und State-Volume vor dem naechsten Standardlauf entfernt
 werden.
 
-Automatisierungsziel:
-
-1. Manueller Gate bleibt die Basis, bis der Docker-Lab-Runner stabil ist.
-2. Ein separater `Docker Integration`-GitHub-Actions-Workflow bekommt
-   `workflow_dispatch` und `pull_request` fuer `dev` nach `main`.
-3. Dieser Workflow fuehrt nach gruenem normalem `CI / check` nur
-   `make integration-docker` aus.
-4. Eine einzelne Concurrency-Gruppe fuer das Docker-Controller-Lab verhindert,
-   dass zwei Adoption-Tests gleichzeitig Controller-State teilen.
-5. Sobald stabil, wird `Docker Integration` als Required Status Check fuer
-   `dev`-nach-`main`-Pull-Requests mit controller-sichtbaren Aenderungen
-   verwendet.
-
-Der normale `CI`-Workflow bleibt der schnelle Gate. Der Docker-Gate ist der
-Controller-Kompatibilitaets-Gate, und der `main`-Package-Job bleibt der
-Package-Install-Smoke-Gate.
+Der Workflow hat nur den Trigger `workflow_dispatch`, Read-only-Rechte auf das
+Repository, eine einzelne nicht abbrechende Concurrency-Gruppe und ein Timeout
+von 30 Minuten. Sein Preflight prueft Linux/X64, Go, Docker-Daemon-Zugriff,
+Docker Compose v2 und die kombinierte Compose-Konfiguration, bevor ein Lab-
+Service startet. Captures oder Controller-State werden nicht hochgeladen. Der
+normale `CI`-Workflow, Package-Workflows, Branch-Regeln und Required Checks
+bleiben unveraendert.
 
 ## Cleanup-Semantik
 
 Das Skript erzeugt pro Lauf Wegwerf-MACs/IPs, stoppt und entfernt temporaere
 Stub-Container und Volumes und fordert den Controller auf, adoptierten State
-fuer die Test-MACs zu loeschen. Controller-Volumes werden nicht zurueckgesetzt.
-Die Controller-Loeschanfrage ist Best-Effort; verlaessliche Isolation kommt von
-frischen Wegwerf-MACs pro Lauf.
+fuer die Test-MACs zu loeschen. Bei lokalen Laeufen werden Controller-Volumes
+nicht zurueckgesetzt und die Controller-Loeschanfrage bleibt Best-Effort;
+verlaessliche Isolation kommt dort von frischen Wegwerf-MACs. Der Tier-2-
+Workflow stellt eine staerkere CI-Grenze bereit: Er entfernt vor und nach jedem
+Lauf, auch nach Fehlern, das gesamte Compose-Projekt, alle Lab-Volumes, Orphans
+und ignorierte Captures.
 
 Am Anfang eines Standardlaufs entfernt der Helfer ausserdem adoptierte Geraete
 mit dem reservierten Docker-Fixture-MAC-Praefix `02:15:6d`. Dadurch erholt sich
@@ -193,7 +197,7 @@ inspiziert werden soll.
 
 ## Grenzen
 
-Dieses Lab belegt container-lokale Linux-Bridge-/FDB-Observation, sysfs-Zaehler,
+Dieses Tier-2-Lab belegt container-lokale Linux-Bridge-/FDB-Observation, sysfs-Zaehler,
 explizites Port-Mapping, Gateway-Tabellen-Rendering, Discovery-Weiterleitung,
 Inform-Framing, Controller-Adoption, lokale Adoption-State-Persistenz und
 AES-GCM. Es belegt nicht Proxmox-Host-Bridge-Verhalten,
@@ -205,3 +209,7 @@ Upstream-UniFi-Switch dieselbe physische Host-MAC bereits meldet. Reale
 Proxmox- oder Bridge-Deployments sollten `uplink_neighbor`, `uplink_port` und
 die Wahl zwischen synthetischer und physischer MAC gegen den Zielcontroller
 validieren, bevor das Ergebnis als repraesentativ gilt.
+
+Firmware-Research-Stacks unter `lab/gateway-profiles`, reale Proxmox-/Linux-
+Bridges, FreeBSD-/OPNsense-Hosts, deployte Controller und physische UniFi-
+Geraete bleiben Tier-3-Tests.

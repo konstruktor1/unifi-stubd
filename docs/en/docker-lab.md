@@ -1,7 +1,7 @@
 # Docker Controller Lab
 
 The Docker lab under `lab/stub/` is the project-owned integration environment
-for the Go stub. It reuses three long-lived services:
+for the Go stub. It uses three services:
 
 - UniFi Network Application on `https://127.0.0.1:8443/`
 - MongoDB for the controller
@@ -26,8 +26,9 @@ overrides, so these files stay stable and do not contain controller state or
 secrets.
 
 Empty controller volumes are initialized automatically through the same local
-setup API flow used by the web UI. Existing configured volumes are reused after
-the helper verifies the lab login. The setup helper never prints controller
+setup API flow used by the web UI. Local runs may reuse configured volumes after
+the helper verifies the lab login. The Tier 2 workflow always removes all lab
+volumes before and after its run. The setup helper never prints controller
 responses, generated device credentials, API tokens, or adoption keys.
 
 ## Controller Gate
@@ -77,7 +78,7 @@ UNIFI_STUB_LAB_ADMIN_PASSWORD=... \
 make integration-docker
 ```
 
-## Dev To Main Docker Gate
+## Tier 2 Docker Gate
 
 Use the Docker lab as the standard controller-compatibility gate before
 promoting `dev` to `main` whenever the accumulated `dev` changes touch any of
@@ -93,19 +94,27 @@ The gate is tied to a commit, not to a branch name. The commit promoted from
 `dev` to `main` must be the same commit that passed the Docker gate, or a
 descendant that only contains unrelated documentation or release metadata.
 
-Standard manual run:
+The repository provides the standalone, manually dispatched `Tier 2 Docker
+Integration` workflow. It is independent of the standard `CI` and package
+workflows and runs only `make integration-docker` on the trusted runner selected
+by the `docker-dmz` and `unifi-stubd` labels. Start it for the exact ref that is
+being validated:
+
+```sh
+gh workflow run tier2-docker.yml --ref dev
+```
+
+The equivalent local run is:
 
 ```sh
 git switch dev
 git pull --ff-only origin dev
-make check
 make integration-docker
 git rev-parse HEAD
 ```
 
 Pass criteria:
 
-- `make check` exits `0`.
 - `make integration-docker` exits `0` and prints `docker integration: ok`.
 - The log shows the pinned UniFi Network Application version check.
 - The log shows the generated bridge, port-map, and gateway throwaway
@@ -136,29 +145,23 @@ needs inspection, rerun once with `UNIFI_STUB_DOCKER_KEEP_RESOURCES=1`, inspect
 the temporary device and state volume, then remove the resources before the next
 standard run.
 
-Automation target:
-
-1. Keep the manual gate as the baseline until the Docker lab runner is stable.
-2. Add a separate `Docker Integration` GitHub Actions workflow with
-   `workflow_dispatch` and `pull_request` for `dev` to `main`.
-3. Run only `make integration-docker` in that workflow after the normal `CI /
-   check` is green.
-4. Use a single concurrency group for the Docker controller lab so two adoption
-   tests cannot share controller state at the same time.
-5. Once stable, require the `Docker Integration` status check on `dev` to
-   `main` pull requests that include controller-facing changes.
-
-The standard `CI` workflow remains the fast gate. The Docker gate is the
-controller-compatibility gate, and the `main` package job remains the package
-install smoke gate.
+The workflow has only a `workflow_dispatch` trigger, read-only repository
+permissions, one non-cancelling concurrency group, and a 30-minute timeout. Its
+preflight verifies Linux/X64, Go, Docker daemon access, Docker Compose v2, and
+the combined Compose configuration before any lab service starts. It uploads no
+captures or controller state. The standard `CI`, package workflows, branch
+rules, and required checks remain unchanged.
 
 ## Cleanup Semantics
 
 The script derives throwaway MAC/IP identities for every run, stops and removes
 temporary stub containers and volumes, and asks the controller to delete any
-adopted state for the test MACs. Controller volumes are not reset. The
-controller delete request is best-effort; tests must treat fresh throwaway MACs
-as the reliable isolation boundary.
+adopted state for the test MACs. For local runs, controller volumes are not reset
+and the controller delete request is best-effort; tests must treat fresh
+throwaway MACs as the reliable isolation boundary. The Tier 2 workflow provides
+the stronger CI boundary: it removes the complete Compose project, all lab
+volumes, orphans, and ignored captures before and after every run, including
+failed runs.
 
 At the beginning of a standard run, the helper also removes adopted devices
 with the reserved Docker-fixture MAC prefix `02:15:6d`. This makes the gate
@@ -181,7 +184,7 @@ inspect the adopted test device or stub state volume after a failing run.
 
 ## Boundaries
 
-This lab proves container-local Linux bridge/FDB observation, sysfs counters,
+This Tier 2 lab proves container-local Linux bridge/FDB observation, sysfs counters,
 explicit port mapping, gateway table rendering, discovery forwarding, inform
 framing, controller adoption, local adoption state persistence, and AES-GCM.
 It does not prove Proxmox host bridge behavior, FreeBSD runtime behavior, LLDP
@@ -192,3 +195,7 @@ identities, while real Proxmox or bridge deployments should validate directed
 `uplink_neighbor`, optional `remote_port`, `uplink_port`, and real interface
 MAC reporting against the target controller before the result is treated as
 representative.
+
+Firmware research stacks under `lab/gateway-profiles`, real Proxmox/Linux
+bridges, FreeBSD/OPNsense hosts, deployed controllers, and physical UniFi
+devices remain Tier 3 tests.

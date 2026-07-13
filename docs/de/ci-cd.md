@@ -18,6 +18,8 @@ Die Pipeline ist getrennt in:
 
 - `CI`: Validierung, Vulnerability Scan, SBOM, vertrauenswuerdiger
   FreeBSD-Artefaktcheck und `main`-only Linux-Package-Smoke.
+- `Tier 2 Docker Integration`: manuell gestarteter Controller-Adoption-Gate auf
+  dem vertrauenswuerdigen Docker-Lab-Runner, unabhaengig von `CI`.
 - `Package Repositories`: Release-Paket- und persistenter SBOM-Build,
   GitHub-Pre-Release-Artefakte sowie Pages-Deployment fuer unsignierte
   Alpha-Paketquellen.
@@ -39,7 +41,7 @@ Die Pipeline ist getrennt in:
 | `make package-freebsd-tgz` | Go Cross-Compile plus tar | `scripts/package.sh tgz` | FreeBSD-Tarball | FreeBSD `amd64` oder `arm64` | Lokal | Definiert, nicht Release-Workflow |
 | `make package-freebsd-pkg-repos` | Go auf FreeBSD-Builder, FreeBSD `pkg`, tar | `scripts/package-freebsd-pkg-repos.sh` | Native FreeBSD-`pkg`-Repos und FreeBSD-Tarballs | `FreeBSD:14/15` fuer `amd64`, `aarch64`, `armv7`; Tarballs default `amd64`, `arm64` | Self-hosted FreeBSD-Builder; optional gemappte `jexec`-Jails | Release-BSD-Pfad |
 | `make package-repos` | dpkg, createrepo-c, repo-add, tar | `scripts/build-package-repos.sh` | Statische Paketquellen-Seite | Paketmetadaten fuer definierte Ziele | GitHub Ubuntu | GitHub-Pages-Input |
-| `make integration-docker` | Docker Compose, gepinntes UniFi Network und Go-Helfer | `lab/stub/scripts/run-docker-integration.sh` | Controller-Adoption-Gate | Linux-Container-Lab | Lokal/manuell | Definiert, nicht automatisch in CI |
+| `make integration-docker` | Docker Compose, gepinntes UniFi Network und Go-Helfer | `lab/stub/scripts/run-docker-integration.sh` | Tier-2-Controller-Adoption-Gate | Linux-Container-Lab | Lokal oder manueller GitHub-Actions-Dispatch | Im eigenstaendigen Tier-2-Workflow definiert |
 | Root `Dockerfile` | Docker BuildKit, Go, Alpine | `Dockerfile` | Runtime-/Lab-Image mit Daemon und Inform-/Discovery-Proxy | Linux multi-arch-faehig | Lokal/manuell | Kein Publish-Ziel definiert |
 
 Offene Build-Zieldefinitionen:
@@ -80,6 +82,27 @@ laufenden `jexec`-Jails gedacht.
 `freebsd-build` erfolgreich waren. Der Job liest den zentralen Wert aus
 `VERSION`, baut Linux-Pakete, installiert das Debian-Paket einmal, validiert
 die installierte Config und laedt `dist/packages/` hoch.
+
+### `Tier 2 Docker Integration`
+
+| Bereich | Aktueller Wert |
+| --- | --- |
+| Datei | `.github/workflows/tier2-docker.yml` |
+| Trigger | Nur `workflow_dispatch` |
+| Rechte | `contents: read` |
+| Job | `controller-adoption` |
+| Runner | `[self-hosted, Linux, X64, docker-dmz, unifi-stubd]` |
+| Befehl | `make integration-docker` |
+| State-Grenze | Frisches Compose-Projekt und Volumes vor dem Lauf; bedingungsloser Teardown danach |
+| Artefakte | Keine; Captures und Controller-State werden nie hochgeladen |
+| Concurrency | Eine Gruppe `unifi-stubd-tier2-docker`, kein Cancel-in-progress |
+
+Der Runner-Preflight prueft Linux/X64, Go, Docker-Daemon-Zugriff, Docker Compose
+v2, sichtbare Ressourcen und die kombinierte Lab-Konfiguration. Der Workflow
+verwendet das gepinnte Controller-Image `10.4.57-ls135`, schreibt bereinigte
+Laufevidenz in die Job-Zusammenfassung und hat keine Abhaengigkeit von oder
+Trigger durch den normalen `CI`-Workflow, Package-Workflows, Pull Requests,
+Pushes oder Zeitplaene.
 
 ### `Package Repositories`
 
@@ -131,6 +154,12 @@ Repository-Metadaten und Pages-Deployment genutzt. Der self-hosted Runner
 laeuft nicht fuer Pull Requests. Damit wird vermieden, untrusted PR-Code auf
 persistenter Projektinfrastruktur auszufuehren.
 
+Derselbe registrierte Host stellt die engeren Labels `docker-dmz` und
+`unifi-stubd` fuer manuell gestartete Tier-2-Arbeit bereit. Der Tier-2-Selektor
+verwendet das sachfremde Label `freebsd-pkg-builder` nicht. Er setzt Docker-
+Daemon-Zugriff und Docker Compose v2 voraus und entfernt nach jedem Lauf alle
+projekt-eigenen Lab-Container, Volumes und Captures.
+
 Der BSD-Builder muss bereitstellen:
 
 - SSH-Alias `unifi-stubd-freebsd-builder`, sofern `FREEBSD_PKG_REMOTE` nicht
@@ -174,6 +203,9 @@ Container sind nur fuer Runtime und Lab definiert:
   Pages-Paketquellen.
 - Manueller Dispatch von `main` baut die Pages-Paketquellen neu, ohne einen
   neuen GitHub-Release zu erstellen.
+- Ein manueller Dispatch von `Tier 2 Docker Integration` prueft nur den
+  ausgewaehlten Ref und startet oder veraendert weder `CI` noch Package-
+  Veroeffentlichung, Branch-Regeln oder Required Checks.
 
 ## Gefundene Probleme und Korrekturen
 
