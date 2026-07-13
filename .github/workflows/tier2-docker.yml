@@ -46,8 +46,17 @@ jobs:
             echo "::error::Docker is not installed on the Tier 2 runner"
             exit 2
           fi
-          if ! docker info >/dev/null 2>&1; then
-            echo "::error::The Tier 2 runner cannot access the Docker daemon"
+          if ! docker_info="$(docker info 2>&1)"; then
+            printf 'Runner identity: '
+            id
+            if [ -e /var/run/docker.sock ]; then
+              printf 'Docker socket: '
+              ls -ln /var/run/docker.sock
+            else
+              echo 'Docker socket: /var/run/docker.sock is absent'
+            fi
+            printf '%s\n' "$docker_info" >&2
+            echo "::error::The Tier 2 runner cannot access the Docker daemon; inspect the identity and socket diagnostics above"
             exit 2
           fi
           if ! docker compose version >/dev/null 2>&1; then
