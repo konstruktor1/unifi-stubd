@@ -54,6 +54,46 @@ shell_quote() {
   printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"
 }
 
+ssh_remote() {
+  ssh \
+    -o BatchMode=yes \
+    -o IdentitiesOnly=yes \
+    -o StrictHostKeyChecking=yes \
+    -o ForwardAgent=no \
+    -o ClearAllForwardings=yes \
+    -o RequestTTY=no \
+    -o ConnectTimeout=10 \
+    -o ServerAliveInterval=15 \
+    -o ServerAliveCountMax=3 \
+    "$FREEBSD_PKG_REMOTE" "$@"
+}
+
+scp_to_remote() {
+  scp \
+    -o BatchMode=yes \
+    -o IdentitiesOnly=yes \
+    -o StrictHostKeyChecking=yes \
+    -o ForwardAgent=no \
+    -o ClearAllForwardings=yes \
+    -o ConnectTimeout=10 \
+    -o ServerAliveInterval=15 \
+    -o ServerAliveCountMax=3 \
+    "$1" "$FREEBSD_PKG_REMOTE:$2"
+}
+
+scp_from_remote() {
+  scp \
+    -o BatchMode=yes \
+    -o IdentitiesOnly=yes \
+    -o StrictHostKeyChecking=yes \
+    -o ForwardAgent=no \
+    -o ClearAllForwardings=yes \
+    -o ConnectTimeout=10 \
+    -o ServerAliveInterval=15 \
+    -o ServerAliveCountMax=3 \
+    "$FREEBSD_PKG_REMOTE:$1" "$2"
+}
+
 freebsd_pkg_version() {
   version="$(printf '%s' "$PKG_VERSION" | sed 's/^[vV]//; s/[-~]/./g')"
   printf '%s_%s' "$version" "$PKG_RELEASE"
@@ -475,26 +515,71 @@ need_cmd ssh
 need_cmd scp
 need_cmd tar
 
+case "$PKG_VERSION" in
+  '' | *[!A-Za-z0-9._+-]*)
+    fail "invalid package version: use only letters, numbers, dot, underscore, plus, and hyphen"
+    ;;
+esac
+case "$PKG_RELEASE" in
+  '' | 0 | *[!0-9]*)
+    fail "invalid package release: expected a positive integer"
+    ;;
+esac
+case "$FREEBSD_PKG_REMOTE" in
+  '' | -* | *[!A-Za-z0-9._@-]*)
+    fail "invalid FreeBSD builder SSH alias"
+    ;;
+esac
+case "$FREEBSD_PKG_REMOTE_DIR" in
+  /*)
+    ;;
+  *)
+    fail "FreeBSD builder work directory must be an absolute path"
+    ;;
+esac
+case "$FREEBSD_PKG_REMOTE_DIR" in
+  / | *[!A-Za-z0-9._/-]* | */../* | */..)
+    fail "invalid FreeBSD builder work directory"
+    ;;
+esac
+
 rm -rf "$WORK_DIR" "$OUT_DIR"
 mkdir -p "$WORK_DIR/bin" "$WORK_DIR/upload" "$OUT_DIR" "$PACKAGE_DIR"
 
 write_source_archive
 write_build_env
 
-remote_dir="$FREEBSD_PKG_REMOTE_DIR/$PKG_VERSION-$PKG_RELEASE-$$"
+remote_base_quoted="$(shell_quote "$FREEBSD_PKG_REMOTE_DIR")"
+remote_dir="$(ssh_remote "set -eu; umask 077; base=$remote_base_quoted; mkdir -p \"\$base\"; mktemp -d \"\$base/run.XXXXXXXXXX\"")"
+case "$remote_dir" in
+  "$FREEBSD_PKG_REMOTE_DIR"/run.*)
+    ;;
+  *)
+    fail "FreeBSD builder returned an unexpected temporary directory"
+    ;;
+esac
+case "$remote_dir" in
+  *[!A-Za-z0-9._/-]*)
+    fail "FreeBSD builder returned an unsafe temporary directory"
+    ;;
+esac
+remote_dir_quoted="$(shell_quote "$remote_dir")"
 cleanup_remote() {
-  ssh "$FREEBSD_PKG_REMOTE" "rm -rf '$remote_dir'; rmdir '$FREEBSD_PKG_REMOTE_DIR' 2>/dev/null || true" >/dev/null 2>&1 || true
+  if ! ssh_remote "rm -rf $remote_dir_quoted; rmdir $remote_base_quoted 2>/dev/null || true" >/dev/null 2>&1; then
+    printf 'warning: could not remove remote Tier 3 work directory: %s\n' "$remote_dir" >&2
+  fi
 }
-trap cleanup_remote EXIT INT TERM
+trap cleanup_remote EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
-ssh "$FREEBSD_PKG_REMOTE" "rm -rf '$remote_dir' && mkdir -p '$remote_dir'"
-scp "$WORK_DIR/upload/source.tar.gz" "$FREEBSD_PKG_REMOTE:$remote_dir/source.tar.gz"
-scp "$WORK_DIR/upload/build.env" "$FREEBSD_PKG_REMOTE:$remote_dir/build.env"
+scp_to_remote "$WORK_DIR/upload/source.tar.gz" "$remote_dir/source.tar.gz"
+scp_to_remote "$WORK_DIR/upload/build.env" "$remote_dir/build.env"
 remote_binary_script="$WORK_DIR/upload/remote-build-binaries.sh"
 remote_binary_build_script >"$remote_binary_script"
-scp "$remote_binary_script" "$FREEBSD_PKG_REMOTE:$remote_dir/remote-build-binaries.sh"
-ssh "$FREEBSD_PKG_REMOTE" "sh '$remote_dir/remote-build-binaries.sh' '$remote_dir'"
-scp "$FREEBSD_PKG_REMOTE:$remote_dir/bin.tar.gz" "$WORK_DIR/bin.tar.gz"
+scp_to_remote "$remote_binary_script" "$remote_dir/remote-build-binaries.sh"
+ssh_remote "sh $remote_dir_quoted/remote-build-binaries.sh $remote_dir_quoted"
+scp_from_remote "$remote_dir/bin.tar.gz" "$WORK_DIR/bin.tar.gz"
 tar -xzf "$WORK_DIR/bin.tar.gz" -C "$WORK_DIR"
 
 for abi in $ABIS; do
@@ -504,12 +589,12 @@ done
 
 COPYFILE_DISABLE=1 tar -C "$WORK_DIR/stage" -czf "$WORK_DIR/upload/stage.tar.gz" .
 
-scp "$WORK_DIR/upload/stage.tar.gz" "$FREEBSD_PKG_REMOTE:$remote_dir/stage.tar.gz"
+scp_to_remote "$WORK_DIR/upload/stage.tar.gz" "$remote_dir/stage.tar.gz"
 remote_script="$WORK_DIR/upload/remote-build.sh"
 remote_build_script >"$remote_script"
-scp "$remote_script" "$FREEBSD_PKG_REMOTE:$remote_dir/remote-build.sh"
-ssh "$FREEBSD_PKG_REMOTE" "sh '$remote_dir/remote-build.sh' '$remote_dir'"
-scp "$FREEBSD_PKG_REMOTE:$remote_dir/repo.tar.gz" "$OUT_DIR/freebsd-pkg-repos.tar.gz"
+scp_to_remote "$remote_script" "$remote_dir/remote-build.sh"
+ssh_remote "sh $remote_dir_quoted/remote-build.sh $remote_dir_quoted"
+scp_from_remote "$remote_dir/repo.tar.gz" "$OUT_DIR/freebsd-pkg-repos.tar.gz"
 
 tar -xzf "$OUT_DIR/freebsd-pkg-repos.tar.gz" -C "$OUT_DIR"
 (

@@ -7,17 +7,35 @@ semantic version tags once releases are published.
 
 ## [Unreleased]
 
+## [0.2.5-alpha] - 2026-07-13
+
 ### Added
 
 - Added directed infrastructure-neighbor resolution with optional
   `remote_port`, Config-over-LLDP precedence, conflict diagnostics, and local
   topology summaries.
+- Added a manually dispatched Tier 2 Docker controller-adoption gate for the
+  project-owned `lab/stub` environment with fresh controller state and
+  unconditional cleanup.
+- Added a manually dispatched Tier 3 FreeBSD package workflow that produces
+  seven-day build evidence and can extend an existing matching pre-release.
 
 ### Changed
 
 - Separated real device and port identities, direct topology neighbors, and
   client/FDB rows. Switch upstreams now use UniFi-style `uplink` and
   `last_uplink` payloads without duplicating the upstream device as a client.
+- Made automatic CI, tag publication, SBOM generation, and initial GitHub Pages
+  deployment Linux-only so they never wait for a self-hosted FreeBSD builder.
+- Normalized package filenames before artifact upload so Linux release assets,
+  checksums, and package-site filenames remain consistent.
+
+### Security
+
+- Restricted the old FreeBSD build proxy to a separate Tier 3 scheduling role,
+  pinned the new workflow actions by commit, kept publication on a
+  GitHub-hosted job, and hardened the SSH handoff with strict host-key checking,
+  non-root checks, disabled forwarding, and private remote work directories.
 
 ## [0.2.4-alpha] - 2026-07-11
 

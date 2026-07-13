@@ -41,28 +41,8 @@ jobs:
           path: dist/sbom.spdx.json
           retention-days: 7
 
-  freebsd-build:
-    if: github.event_name != 'pull_request'
-    runs-on: [self-hosted, Linux, X64, freebsd-pkg-builder]
-    steps:
-      - uses: actions/checkout@v6
-      - name: Set up Go from module version
-        uses: actions/setup-go@v6
-        with:
-          go-version-file: go.mod
-          check-latest: true
-      - name: Build FreeBSD artifacts
-        env:
-          FREEBSD_PKG_BUILD_JAILS: ${{ vars.FREEBSD_PKG_BUILD_JAILS }}
-          FREEBSD_PKG_REQUIRE_JAILS: "0"
-        run: |
-          set -eu
-          make package-freebsd-pkg-repos
-
   package:
-    needs:
-      - check
-      - freebsd-build
+    needs: check
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     steps:

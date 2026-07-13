@@ -150,7 +150,9 @@ permissions, one non-cancelling concurrency group, and a 30-minute timeout. Its
 preflight verifies Linux/X64, Go, Docker daemon access, Docker Compose v2, and
 the combined Compose configuration before any lab service starts. It uploads no
 captures or controller state. The standard `CI`, package workflows, branch
-rules, and required checks remain unchanged.
+rules, and required checks do not depend on this Tier 2 gate. FreeBSD packaging
+is separately manual Tier 3. The old FreeBSD proxy runner must not carry the
+`docker-dmz` label, so Tier 2 requires a different dedicated Docker runner.
 
 ## Cleanup Semantics
 
@@ -198,4 +200,5 @@ representative.
 
 Firmware research stacks under `lab/gateway-profiles`, real Proxmox/Linux
 bridges, FreeBSD/OPNsense hosts, deployed controllers, and physical UniFi
-devices remain Tier 3 tests.
+devices remain Tier 3 tests. FreeBSD package creation on the dedicated
+SSH-proxy builder is also Tier 3, not part of this Docker lab.

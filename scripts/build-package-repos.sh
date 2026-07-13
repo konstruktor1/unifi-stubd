@@ -7,6 +7,7 @@ PACKAGE_DIR="${PACKAGE_DIR:-dist/packages}"
 SITE_DIR="${SITE_DIR:-dist/package-site}"
 CHANNEL="${CHANNEL:-alpha}"
 FREEBSD_PKG_REPO_DIR="${FREEBSD_PKG_REPO_DIR:-dist/freebsd-pkg-repos/repo}"
+REQUIRE_FREEBSD_ARTIFACTS="${REQUIRE_FREEBSD_ARTIFACTS:-1}"
 
 fail() {
   printf '%s\n' "$1" >&2
@@ -28,6 +29,17 @@ find_artifact() {
     fi
   done
   fail "missing package artifact matching: $pattern"
+}
+
+find_optional_artifact() {
+  pattern="$1"
+  for path in $pattern; do
+    if [ -f "$path" ]; then
+      printf '%s\n' "$path"
+      return 0
+    fi
+  done
+  return 1
 }
 
 file_md5() {
@@ -229,6 +241,59 @@ write_freebsd_index() {
 EOF
 }
 
+write_freebsd_unavailable_index() {
+  freebsd_dir="$SITE_DIR/freebsd"
+  mkdir -p "$freebsd_dir"
+  cat >"$freebsd_dir/index.html" <<EOF
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>unifi-stubd FreeBSD and OPNsense artifacts</title>
+</head>
+<body>
+  <main>
+    <h1>unifi-stubd FreeBSD and OPNsense artifacts</h1>
+    <p>
+      FreeBSD artifacts are produced separately by the manually dispatched
+      Tier 3 FreeBSD Packaging workflow. No FreeBSD artifacts were included in
+      this Linux-first package-site build.
+    </p>
+    <p><a href="pkg/">Native FreeBSD pkg repository status</a></p>
+    <p><a href="../">Back to package repositories</a></p>
+  </main>
+</body>
+</html>
+EOF
+
+  for arch in amd64 arm64; do
+    arch_dir="$freebsd_dir/$arch"
+    mkdir -p "$arch_dir"
+    cat >"$arch_dir/index.html" <<EOF
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>unifi-stubd FreeBSD ${arch} artifacts</title>
+</head>
+<body>
+  <main>
+    <h1>unifi-stubd FreeBSD ${arch} artifacts</h1>
+    <p>
+      No FreeBSD ${arch} tarball was included in this Linux-first package-site
+      build. FreeBSD artifacts are published separately by the manual Tier 3
+      FreeBSD Packaging workflow.
+    </p>
+    <p><a href="../">Back to FreeBSD and OPNsense artifacts</a></p>
+  </main>
+</body>
+</html>
+EOF
+  done
+}
+
 write_freebsd_pkg_unavailable_index() {
   pkg_dir="$SITE_DIR/freebsd/pkg"
   mkdir -p "$pkg_dir"
@@ -245,8 +310,9 @@ write_freebsd_pkg_unavailable_index() {
     <h1>unifi-stubd FreeBSD pkg repositories</h1>
     <p>
       Native FreeBSD <code>pkg</code> repositories were not generated in this
-      package-site build. Use the tarballs or rerun the package-pages workflow
-      with the FreeBSD builder runner online.
+      package-site build. Run the manual Tier 3 FreeBSD Packaging workflow for
+      a new release tag that contains that workflow to publish them. Legacy
+      releases are not backfilled by this split path.
     </p>
     <p><a href="../">Back to FreeBSD and OPNsense artifacts</a></p>
   </main>
@@ -437,8 +503,22 @@ build_arch_repo() {
 }
 
 copy_freebsd_tarballs() {
-  copy_artifact "$(find_artifact "$PACKAGE_DIR"/unifi-stubd_*_freebsd_amd64.tar.gz)" "$SITE_DIR/freebsd/amd64"
-  copy_artifact "$(find_artifact "$PACKAGE_DIR"/unifi-stubd_*_freebsd_arm64.tar.gz)" "$SITE_DIR/freebsd/arm64"
+  amd64_artifact="$(find_optional_artifact "$PACKAGE_DIR"/unifi-stubd_*_freebsd_amd64.tar.gz || true)"
+  arm64_artifact="$(find_optional_artifact "$PACKAGE_DIR"/unifi-stubd_*_freebsd_arm64.tar.gz || true)"
+
+  if [ -z "$amd64_artifact" ] && [ -z "$arm64_artifact" ]; then
+    if [ "$REQUIRE_FREEBSD_ARTIFACTS" = "1" ]; then
+      fail "missing required FreeBSD tarball artifacts in $PACKAGE_DIR"
+    fi
+    write_freebsd_unavailable_index
+    return 0
+  fi
+  if [ -z "$amd64_artifact" ] || [ -z "$arm64_artifact" ]; then
+    fail "FreeBSD tarball set is incomplete in $PACKAGE_DIR"
+  fi
+
+  copy_artifact "$amd64_artifact" "$SITE_DIR/freebsd/amd64"
+  copy_artifact "$arm64_artifact" "$SITE_DIR/freebsd/arm64"
   write_freebsd_index
   write_freebsd_arch_index amd64
   write_freebsd_arch_index arm64
@@ -446,6 +526,9 @@ copy_freebsd_tarballs() {
 
 copy_freebsd_pkg_repos() {
   if [ ! -d "$FREEBSD_PKG_REPO_DIR" ]; then
+    if [ "$REQUIRE_FREEBSD_ARTIFACTS" = "1" ]; then
+      fail "missing required native FreeBSD pkg repositories: $FREEBSD_PKG_REPO_DIR"
+    fi
     write_freebsd_pkg_unavailable_index
     return 0
   fi
@@ -464,6 +547,9 @@ copy_freebsd_pkg_repos() {
   done
 
   if [ "$copied" -eq 0 ]; then
+    if [ "$REQUIRE_FREEBSD_ARTIFACTS" = "1" ]; then
+      fail "no native FreeBSD pkg repositories found in $FREEBSD_PKG_REPO_DIR"
+    fi
     write_freebsd_pkg_unavailable_index
     return 0
   fi
@@ -473,6 +559,13 @@ copy_freebsd_pkg_repos() {
 if [ ! -d "$PACKAGE_DIR" ]; then
   fail "package directory not found: $PACKAGE_DIR"
 fi
+case "$REQUIRE_FREEBSD_ARTIFACTS" in
+  0 | 1)
+    ;;
+  *)
+    fail "REQUIRE_FREEBSD_ARTIFACTS must be 0 or 1"
+    ;;
+esac
 
 rm -rf "$SITE_DIR"
 mkdir -p "$SITE_DIR"

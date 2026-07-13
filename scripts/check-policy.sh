@@ -20,6 +20,20 @@ if git grep -nE 'JoemcROV|X-API-KEY|10\.0\.0\.194|/Users/corspi' -- \
   fail "possible lab secret or API endpoint leaked"
 fi
 
+printf '== policy: privileged FreeBSD builder stays manual Tier 3 ==\n'
+if grep -q 'freebsd-pkg-builder' \
+  .github/workflows/ci.yml \
+  .github/workflows/package-pages.yml; then
+  fail "automatic CI and package workflows must not select the Tier 3 FreeBSD builder"
+fi
+tier3_workflow=.github/workflows/tier3-freebsd.yml
+grep -q 'workflow_dispatch:' "$tier3_workflow" || fail "Tier 3 FreeBSD workflow must be manually dispatched"
+if grep -Eq '^[[:space:]]+(push|pull_request|pull_request_target|schedule|workflow_call|workflow_run|repository_dispatch|merge_group):' "$tier3_workflow"; then
+  fail "Tier 3 FreeBSD workflow must not have an automatic trigger"
+fi
+grep -Fq 'runs-on: [self-hosted, Linux, X64, unifi-stubd, tier3, freebsd-pkg-builder]' "$tier3_workflow" ||
+  fail "Tier 3 FreeBSD workflow must use only the dedicated FreeBSD builder selector"
+
 printf '== policy: release version is centralized and documented ==\n'
 release_version=$(sed -n '1p' VERSION)
 case "$release_version" in

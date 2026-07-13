@@ -16,13 +16,17 @@ ist nicht definiert.
 
 Die Pipeline ist getrennt in:
 
-- `CI`: Validierung, Vulnerability Scan, SBOM, vertrauenswuerdiger
-  FreeBSD-Artefaktcheck und `main`-only Linux-Package-Smoke.
+- `CI`: Validierung, Vulnerability Scan, SBOM und ein `main`-only Linux-
+  Package-Smoke, vollstaendig auf GitHub-hosted Ubuntu.
 - `Tier 2 Docker Integration`: manuell gestarteter Controller-Adoption-Gate auf
   dem vertrauenswuerdigen Docker-Lab-Runner, unabhaengig von `CI`.
 - `Package Repositories`: Release-Paket- und persistenter SBOM-Build,
-  GitHub-Pre-Release-Artefakte sowie Pages-Deployment fuer unsignierte
-  Alpha-Paketquellen.
+  GitHub-Pre-Release-Artefakte sowie Pages-Deployment fuer die Linux-first
+  unsignierten Alpha-Paketquellen.
+- `Tier 3 FreeBSD Packaging`: manuell gestarteter FreeBSD-Paketbuild. Er kann
+  entweder nur sieben Tage aufbewahrte Run-Artefakte erzeugen oder einen
+  bestehenden `v*`-Pre-Release ergaenzen und Pages mit FreeBSD-Outputs neu
+  bauen.
 
 ## Build-Ziele
 
@@ -39,8 +43,8 @@ Die Pipeline ist getrennt in:
 | `make package-arch` | Go plus nFPM | `scripts/package.sh archlinux` | Arch-Linux-Paket | Linux `PKG_GOARCH` | Lokal oder GitHub Ubuntu | Definiert |
 | `make package-tgz` | Go plus tar | `scripts/package.sh tgz` | OS-spezifischer Tarball | `PKG_GOOS`/`PKG_GOARCH` | Lokal | Definiert |
 | `make package-freebsd-tgz` | Go Cross-Compile plus tar | `scripts/package.sh tgz` | FreeBSD-Tarball | FreeBSD `amd64` oder `arm64` | Lokal | Definiert, nicht Release-Workflow |
-| `make package-freebsd-pkg-repos` | Go auf FreeBSD-Builder, FreeBSD `pkg`, tar | `scripts/package-freebsd-pkg-repos.sh` | Native FreeBSD-`pkg`-Repos und FreeBSD-Tarballs | `FreeBSD:14/15` fuer `amd64`, `aarch64`, `armv7`; Tarballs default `amd64`, `arm64` | Self-hosted FreeBSD-Builder; optional gemappte `jexec`-Jails | Release-BSD-Pfad |
-| `make package-repos` | dpkg, createrepo-c, repo-add, tar | `scripts/build-package-repos.sh` | Statische Paketquellen-Seite | Paketmetadaten fuer definierte Ziele | GitHub Ubuntu | GitHub-Pages-Input |
+| `make package-freebsd-pkg-repos` | Go auf FreeBSD-Builder, FreeBSD `pkg`, tar | `scripts/package-freebsd-pkg-repos.sh` | Native FreeBSD-`pkg`-Repos und FreeBSD-Tarballs | `FreeBSD:14/15` fuer `amd64`, `aarch64`, `armv7`; Tarballs default `amd64`, `arm64` | Manueller Tier-3-Runner; optional gemappte `jexec`-Jails | Tier-3-FreeBSD-Pfad |
+| `make package-repos` | dpkg, createrepo-c, repo-add, tar | `scripts/build-package-repos.sh` | Statische Paketquellen-Seite | Paketmetadaten fuer vorhandene Ziele | GitHub Ubuntu | Linux-first oder kombinierter GitHub-Pages-Input |
 | `make integration-docker` | Docker Compose, gepinntes UniFi Network und Go-Helfer | `lab/stub/scripts/run-docker-integration.sh` | Tier-2-Controller-Adoption-Gate | Linux-Container-Lab | Lokal oder manueller GitHub-Actions-Dispatch | Im eigenstaendigen Tier-2-Workflow definiert |
 | Root `Dockerfile` | Docker BuildKit, Go, Alpine | `Dockerfile` | Runtime-/Lab-Image mit Daemon und Inform-/Discovery-Proxy | Linux multi-arch-faehig | Lokal/manuell | Kein Publish-Ziel definiert |
 
@@ -61,27 +65,21 @@ Offene Build-Zieldefinitionen:
 | Datei | `.github/workflows/ci.yml` |
 | Trigger | `workflow_dispatch`, Pushes nach `dev` und `main`, `pull_request` |
 | Default-Permissions | `contents: read` |
-| Jobs | `check`, `freebsd-build`, `package` |
-| Runner | `ubuntu-latest`; self-hosted `[self-hosted, Linux, X64, freebsd-pkg-builder]` fuer vertrauenswuerdige FreeBSD-Builds |
+| Jobs | `check`, `package` |
+| Runner | Nur `ubuntu-latest` |
 | Actions | `actions/checkout@v6`, `actions/setup-go@v6`, `anchore/sbom-action@v0`, `actions/upload-artifact@v7` |
 | Cache | Kein expliziter Cache. `setup-go`-Defaults gelten, soweit die Action sie bereitstellt. |
-| Artefakte | `sbom`, `packages` bei `main`-Push |
-| Sicherheitsgrenze | Self-hosted FreeBSD-Job wird fuer Pull Requests uebersprungen. |
+| Artefakte | `coverage`, `sbom`; `packages` bei `main`-Push, alle sieben Tage aufbewahrt |
+| Sicherheitsgrenze | Kein self-hosted Runner und kein Zugriff auf den FreeBSD-Builder. |
 
-`check` fuehrt `make check`, `make coverage`, `make vulncheck`, SBOM-Erzeugung und Upload aus.
-Auf `main` wird Go `stable` genutzt; andere Refs nutzen die Version aus
-`go.mod`.
+`check` fuehrt `make check`, `make coverage`, `make vulncheck` und die SBOM-
+Erzeugung aus, laedt Coverage und SBOM fuer sieben Tage hoch und liest die Go-
+Version aus `go.mod`.
 
-`freebsd-build` laeuft nur ausserhalb von Pull Requests. Der Job ruft
-`make package-freebsd-pkg-repos` auf dem self-hosted BSD-Paketbuilder auf. Der
-kanonische Builder nutzt Go-Cross-Compile auf dem FreeBSD-Host plus FreeBSD
-`pkg`; `FREEBSD_PKG_BUILD_JAILS` ist optional und nur fuer eigene Builder mit
-laufenden `jexec`-Jails gedacht.
-
-`package` laeuft nur bei Pushes auf `main`, nachdem `check` und
-`freebsd-build` erfolgreich waren. Der Job liest den zentralen Wert aus
-`VERSION`, baut Linux-Pakete, installiert das Debian-Paket einmal, validiert
-die installierte Config und laedt `dist/packages/` hoch.
+`package` laeuft nur bei Pushes auf `main`, nachdem `check` erfolgreich war.
+Der Job liest den zentralen Wert aus `VERSION`, baut Linux-Pakete, installiert
+das Debian-Paket einmal, validiert die installierte Config und laedt
+`dist/packages/` fuer sieben Tage hoch.
 
 ### `Tier 2 Docker Integration`
 
@@ -104,6 +102,36 @@ Laufevidenz in die Job-Zusammenfassung und hat keine Abhaengigkeit von oder
 Trigger durch den normalen `CI`-Workflow, Package-Workflows, Pull Requests,
 Pushes oder Zeitplaene.
 
+### `Tier 3 FreeBSD Packaging`
+
+| Bereich | Aktueller Wert |
+| --- | --- |
+| Datei | `.github/workflows/tier3-freebsd.yml` |
+| Trigger | Nur `workflow_dispatch`, mit erforderlichem Boolean-Input `publish` |
+| Default-Rechte | `contents: read` |
+| Runner | `[self-hosted, Linux, X64, unifi-stubd, tier3, freebsd-pkg-builder]` nur fuer den Build |
+| Build-Befehl | `make package-freebsd-pkg-repos` |
+| Build-only-Modus | `publish=false`: ein sieben Tage aufbewahrtes Run-Artefakt `tier3-freebsd-release-<sha>` mit zwei Tarballs, Repository-Archiv und `SHA256SUMS.freebsd` |
+| Veroeffentlichungsmodus | `publish=true`: nur auf einem bestehenden passenden `v*`-Pre-Release; laedt FreeBSD-Artefakte und `SHA256SUMS.freebsd` hoch und baut danach kombinierte Pages |
+| Concurrency | Eine Build-Gruppe `unifi-stubd-tier3-freebsd`; die Pages-Veroeffentlichung nutzt zusaetzlich die gemeinsame Gruppe `github-pages` |
+
+Der Ubuntu-Validierungsjob ermittelt `VERSION`. Jeder Lauf muss `main` oder den
+passenden `v*`-Tag verwenden. Eine Veroeffentlichung muss auf diesem Tag
+gestartet werden. Zu diesem Tag muss bereits ein Pre-
+Release mit den erwarteten Linux-Paketen, der persistenten SBOM und
+`SHA256SUMS` existieren. Der Workflow veraendert weder einen finalen Release
+noch einen unvollstaendigen Pre-Release, einen Release mit signierten Checksum-
+Artefakten oder eine Legacy-`SHA256SUMS`, die FreeBSD bereits abdeckt. Der
+gewaehlte Release-Tag muss diesen Workflow selbst enthalten. Der Tier-3-
+Preflight prueft Linux/X64, SSH/SCP/tar, dass
+weder Docker-Daemon-Zugriff noch passwortloses sudo bestehen, sowie den
+non-root FreeBSD-Buildhost mit nativem `pkg`, `tar` und Go vor dem Build.
+
+Tier 3 ist weder Bestandteil von `CI` noch des Tier-2-Controller-Labs oder des
+automatischen Tag-Workflows. Ein fehlender oder fehlschlagender FreeBSD-Lauf
+blockiert daher weder Linux-Pakete noch die Linux-first Pages-Seite oder die
+Erstellung des Pre-Releases.
+
 ### `Package Repositories`
 
 | Bereich | Aktueller Wert |
@@ -112,17 +140,18 @@ Pushes oder Zeitplaene.
 | Trigger | `workflow_dispatch`, `v*`-Tag-Push |
 | Default-Permissions | `contents: read` |
 | Deploy-Permissions | `contents: read`, `pages: write`, `id-token: write` nur im Deploy-Job |
-| Jobs | `build-packages`, `build-freebsd-artifacts`, `build-sbom`, `build-and-deploy`, `publish-release` |
-| Runner | Ubuntu fuer Linux-Pakete und Pages-Seite; self-hosted Builder fuer BSD-Artefakte |
+| Jobs | `build-packages`, `build-sbom`, `build-and-deploy`, `publish-release` |
+| Runner | Nur `ubuntu-latest` |
 | Actions | `actions/checkout@v6`, `actions/setup-go@v6`, `anchore/sbom-action@v0`, `actions/upload-artifact@v7`, `actions/download-artifact@v7`, `actions/configure-pages@v6`, `actions/upload-pages-artifact@v5`, `actions/deploy-pages@v5` |
-| Artefakte | `linux-package-artifacts`, `freebsd-package-artifacts`, `freebsd-pkg-repos`, `release-sbom`, Pages-Artefakt, persistente GitHub-Release-Artefakte |
+| Artefakte | Sieben Tage aufbewahrte `linux-package-artifacts` und `release-sbom`, Pages-Artefakt, persistente Linux-/SBOM-Release-Artefakte |
 | Environment | `github-pages` |
 | Concurrency | Eine `github-pages`-Deployment-Gruppe, kein Cancel-in-progress |
 
-Linux-Pakete entstehen auf Ubuntu fuer `amd64` und `arm64`. FreeBSD-Tarballs
-und native FreeBSD-`pkg`-Repos entstehen ueber den self-hosted
-BSD-Builder-Pfad. Der Deploy-Job fuegt nur bereits gebaute Artefakte zu
-`dist/package-site` zusammen und deployed diese statische Seite.
+Linux-Pakete entstehen auf Ubuntu fuer `amd64` und `arm64`. Der Deploy-Job baut
+und veroeffentlicht ein Linux-only `dist/package-site`. Bei einem `v*`-Tag
+erstellt oder aktualisiert `publish-release` den Pre-Release mit Linux-Paketen,
+`unifi-stubd.spdx.json` und `SHA256SUMS`. Dieser Workflow waehlt nie einen self-
+hosted Runner aus und wartet nicht auf Tier 3.
 
 ## OS- und Architekturmatrix
 
@@ -130,14 +159,14 @@ BSD-Builder-Pfad. Der Deploy-Job fuegt nur bereits gebaute Artefakte zu
 | --- | --- | --- | --- | --- |
 | Linux amd64 | `PKG_GOARCH=amd64 make package` | `make check`; Debian-Install-Smoke auf `main` | Debian, RPM, Arch, Tarball | Actions-Artefakt und Pages-Paketquelle |
 | Linux arm64 | `PKG_GOARCH=arm64 make package` | `make check`; kein Install-Smoke | Debian, RPM, Arch, Tarball | Pages-Paketquelle |
-| FreeBSD 14 amd64 | `make package-freebsd-pkg-repos` via FreeBSD-Builder | Build-/Package-Verifikation; Zielhost-Smoke manuell | Native `pkg`-Repo | Pages-Paketquelle |
-| FreeBSD 14 aarch64 | Gleich | Build-/Package-Verifikation | Native `pkg`-Repo | Pages-Paketquelle |
-| FreeBSD 14 armv7 | Gleich | Build-/Package-Verifikation | Native `pkg`-Repo | Pages-Paketquelle |
-| FreeBSD 15 amd64 | Gleich | Build-/Package-Verifikation | Native `pkg`-Repo | Pages-Paketquelle |
-| FreeBSD 15 aarch64 | Gleich | Build-/Package-Verifikation | Native `pkg`-Repo | Pages-Paketquelle |
-| FreeBSD 15 armv7 | Gleich | Build-/Package-Verifikation | Native `pkg`-Repo | Pages-Paketquelle |
-| FreeBSD/OPNsense Tarball amd64 | Aus BSD-Builder-Pfad | Zielhost-Smoke manuell | Tarball | Pages und manuelle Release-Assets |
-| FreeBSD/OPNsense Tarball arm64 | Aus BSD-Builder-Pfad | Zielhost-Smoke manuell | Tarball | Pages und manuelle Release-Assets |
+| FreeBSD 14 amd64 | Manueller Tier-3-FreeBSD-Builder | Build-/Package-Verifikation; Zielhost-Smoke manuell | Native `pkg`-Repo | Sieben-Tage-Artefakt oder bestehender Pre-Release und kombinierte Pages mit `publish=true` |
+| FreeBSD 14 aarch64 | Gleich | Build-/Package-Verifikation | Native `pkg`-Repo | Gleich |
+| FreeBSD 14 armv7 | Gleich | Build-/Package-Verifikation | Native `pkg`-Repo | Gleich |
+| FreeBSD 15 amd64 | Gleich | Build-/Package-Verifikation | Native `pkg`-Repo | Gleich |
+| FreeBSD 15 aarch64 | Gleich | Build-/Package-Verifikation | Native `pkg`-Repo | Gleich |
+| FreeBSD 15 armv7 | Gleich | Build-/Package-Verifikation | Native `pkg`-Repo | Gleich |
+| FreeBSD/OPNsense Tarball amd64 | Manueller Tier-3-Builder-Pfad | Zielhost-Smoke manuell | Tarball | Sieben-Tage-Artefakt oder bestehender Pre-Release und kombinierte Pages mit `publish=true` |
+| FreeBSD/OPNsense Tarball arm64 | Manueller Tier-3-Builder-Pfad | Zielhost-Smoke manuell | Tarball | Gleich |
 
 Offene Luecken:
 
@@ -149,16 +178,25 @@ Offene Luecken:
 ## Buildhosts, Runner und Container
 
 GitHub-hosted Ubuntu wird fuer generische Validierung, Linux-Packaging,
-Repository-Metadaten und Pages-Deployment genutzt. Der self-hosted Runner
-`freebsd-pkg-builder` wird nur fuer vertrauenswuerdige BSD-Arbeit genutzt und
-laeuft nicht fuer Pull Requests. Damit wird vermieden, untrusted PR-Code auf
-persistenter Projektinfrastruktur auszufuehren.
+Repository-Metadaten, normale Release-Veroeffentlichung und Pages-Deployment
+genutzt. Normale CI und der automatische Tag-Workflow waehlen nie einen self-
+hosted Runner aus.
 
-Derselbe registrierte Host stellt die engeren Labels `docker-dmz` und
-`unifi-stubd` fuer manuell gestartete Tier-2-Arbeit bereit. Der Tier-2-Selektor
-verwendet das sachfremde Label `freebsd-pkg-builder` nicht. Er setzt Docker-
-Daemon-Zugriff und Docker Compose v2 voraus und entfernt nach jedem Lauf alle
-projekt-eigenen Lab-Container, Volumes und Captures.
+Der manuelle Tier-2-Selektor ist `[self-hosted, Linux, X64, docker-dmz,
+unifi-stubd]`; er fuehrt nur `lab/stub` aus und benoetigt Docker-Daemon-Zugriff
+und Docker Compose v2. Der manuelle Tier-3-Selektor ist `[self-hosted, Linux,
+X64, unifi-stubd, tier3, freebsd-pkg-builder]`; er stellt den SSH-
+orchestrierten FreeBSD-Paketpfad bereit. Das muessen getrennte Runner sein. Der
+alte FreeBSD-Proxy verliert das Label `docker-dmz`, Docker-Daemon-Zugriff und
+passwortloses sudo; Tier 2 benoetigt danach einen anderen `docker-dmz`-Runner.
+Das Environment `tier3-freebsd` bekommt Required Reviewer und Deployment-
+Regeln nur fuer `main` und `v*`.
+
+Der Rollen-Split wird in dieser Reihenfolge aktiviert: Ersatz-Runner fuer Tier
+2 registrieren und preflighten; das geschuetzte Environment `tier3-freebsd`
+anlegen; Docker-Zugriff, passwortloses sudo und `docker-dmz` vom alten Proxy
+entfernen; `tier3` setzen; danach einen Build von `main` mit `publish=false`
+starten. So entsteht kein stilles Zeitfenster ohne geeigneten Docker-Runner.
 
 Der BSD-Builder muss bereitstellen:
 
@@ -185,27 +223,31 @@ Container sind nur fuer Runtime und Lab definiert:
 | RPM | `packaging/nfpm.yaml`, Linux-Stage | `make package` oder `make package-rpm` | `unifi-stubd-<version>-<release>.<arch>.rpm` | Repository-Metadaten-Build | Artefakt, RPM-Repo |
 | Arch Linux | `packaging/nfpm.yaml`, Linux-Stage | `make package` oder `make package-arch` | `unifi-stubd-<version>-<release>-<arch>.pkg.tar.zst` | Repository-Metadaten-Build | Artefakt, Arch-Repo |
 | Linux-Tarball | Linux-Stage | `make package` oder `make package-tgz` | `unifi-stubd_<version>-<release>_linux_<arch>.tar.gz` | Checksums | Artefakt, Pages-Checksum |
-| FreeBSD-Tarball | FreeBSD-Stage mit BSD-gebautem Binary | `make package-freebsd-pkg-repos` | `unifi-stubd_<version>-<release>_freebsd_<arch>.tar.gz` | Checksums | Artefakt, Pages-FreeBSD-Pfade |
-| FreeBSD `pkg` | FreeBSD-Stage und UCL-Manifest | `make package-freebsd-pkg-repos` | `repo/FreeBSD:*/*` inkl. `packagesite.pkg` | `pkg repo` und Checksums | Pages-FreeBSD/pkg-Pfade |
+| FreeBSD-Tarball | FreeBSD-Stage mit BSD-gebautem Binary | `make package-freebsd-pkg-repos` | `unifi-stubd_<version>-<release>_freebsd_<arch>.tar.gz` | Bei Veroeffentlichung `SHA256SUMS.freebsd` | Manuelles Tier-3-Artefakt; optional Pre-Release und kombinierte Pages |
+| FreeBSD `pkg` | FreeBSD-Stage und UCL-Manifest | `make package-freebsd-pkg-repos` | `repo/FreeBSD:*/*` inkl. `packagesite.pkg` | `pkg repo` und Checksums | Manuelles Tier-3-Repo-Archiv; optional kombinierte Pages |
 | SBOM | Repository-Baum | `anchore/sbom-action@v0` | `unifi-stubd.spdx.json` | Action-Erfolg | CI-Artefakt und persistentes GitHub-Release-Artefakt |
-| Statische Paketseite | Package-Artefakte und FreeBSD-pkg-Repo | `make package-repos` | `dist/package-site/` | `checksums.txt`, Paketmetadaten-Tools | GitHub Pages |
+| Statische Paketseite | Linux-Pakete, optional plus veroeffentlichte Tier-3-FreeBSD-Outputs | `make package-repos` | `dist/package-site/` | `checksums.txt`, Paketmetadaten-Tools | Linux-first oder kombinierte GitHub Pages |
 
 ## Deployment- und Release-Grenzen
 
 - Pull Requests laufen nur generische CI-Validierung. Sie veroeffentlichen
   keine Pakete und laufen nicht auf dem self-hosted BSD-Builder.
-- Pushes nach `dev` laufen durch Validierung plus vertrauenswuerdige
-  BSD-Artefaktchecks, veroeffentlichen aber keine Paketquellen.
-- Pushes nach `main` laufen durch Validierung, BSD-Artefaktchecks und den
-  Linux-Package-Smoke. Sie laden nur Run-Artefakte hoch.
-- `v*`-Tags bauen Pakete und SBOM, erstellen oder aktualisieren den GitHub-Pre-
-  Release, haengen alle Release-Artefakte plus `SHA256SUMS` an und deployen die
-  Pages-Paketquellen.
+- Pushes nach `dev` fuehren nur generische Validierung aus.
+- Pushes nach `main` fuehren Validierung und den Linux-Package-Smoke aus. Sie
+  laden nur sieben Tage aufbewahrte Run-Artefakte hoch.
+- `v*`-Tags bauen Linux-Pakete und SBOM, erstellen oder aktualisieren den
+  GitHub-Pre-Release, haengen den Linux-Release-Satz plus `SHA256SUMS` an und
+  deployen die Linux-first Pages-Paketquellen.
 - Manueller Dispatch von `main` baut die Pages-Paketquellen neu, ohne einen
   neuen GitHub-Release zu erstellen.
 - Ein manueller Dispatch von `Tier 2 Docker Integration` prueft nur den
   ausgewaehlten Ref und startet oder veraendert weder `CI` noch Package-
   Veroeffentlichung, Branch-Regeln oder Required Checks.
+- Ein manueller Dispatch von `Tier 3 FreeBSD Packaging` mit `publish=false`
+  baut nur sieben Tage aufbewahrte FreeBSD-Run-Artefakte. Mit `publish=true`
+  auf einem bestehenden passenden `v*`-Pre-Release ergaenzt er FreeBSD-
+  Artefakte und `SHA256SUMS.freebsd` und ersetzt danach die Linux-only Pages-
+  Seite durch die kombinierte Linux-/FreeBSD-Seite.
 
 ## Gefundene Probleme und Korrekturen
 
@@ -213,8 +255,10 @@ Container sind nur fuer Runtime und Lab definiert:
   read`.
 - Der Pages-Workflow gab Pages/OIDC-Schreibrechte an alle Jobs. Diese Rechte
   liegen jetzt nur noch auf dem Deploy-Job.
-- BSD-Tarballs wurden im Release-Workflow auf Ubuntu gebaut. BSD-Release-
-  Artefakte kommen jetzt aus `make package-freebsd-pkg-repos`.
+- BSD-Tarballs waren zuvor Bestandteil automatischer CI- und Release-
+  Workflows. Sie kommen jetzt ausschliesslich aus dem manuell gestarteten Tier-
+  3-Workflow; Linux-CI, Release-Artefakte und Pages warten nicht mehr auf den
+  BSD-Builder.
 - Das FreeBSD-Packaging-Script baute Binaries vorher lokal und nutzte den
   BSD-Host nur fuer `pkg create`/`pkg repo`. Jetzt wird der getrackte
   Source-Tree zum Builder uebertragen und jede konfigurierte FreeBSD-ABI dort
@@ -232,7 +276,8 @@ Container sind nur fuer Runtime und Lab definiert:
   sollen. Aktuell nutzt das Projekt stabile Major-Version-Tags.
 - Entscheiden, ob Dependabot fuer GitHub Actions aktiviert werden soll.
 - Entscheiden, ob Linux arm64 einen Install-Smoke braucht.
-- Entscheiden, ob GitHub-Release-Asset-Upload automatisiert werden soll.
+- Entscheiden, ob Tier 3 vor `publish=true` Zielhost-Install-/Upgrade-Smoke-
+  Tests erhalten soll.
 - Entscheiden, ab wann Paket-/Checksum-Signaturen fuer nicht-Alpha-
   Veroeffentlichungen Pflicht sind.
 - Entscheiden, ob ein CI-Buildcontainer notwendig ist. Aktuell erzwingt die
@@ -253,10 +298,15 @@ make package-repos
 GitHub-Gates:
 
 - Pull Request: `CI / check`.
-- Vertrauenswuerdiger Push nach `dev`: `CI / check` und `CI / freebsd-build`.
-- Push nach `main`: `CI / check`, `CI / freebsd-build` und `CI / package`.
-- Release-Paketseite: `v*`-Tag pushen, GitHub Release publishen/pre-releasen
-  oder `package-pages.yml` manuell von `main` starten.
+- Push nach `dev`: `CI / check`.
+- Push nach `main`: `CI / check` und `CI / package`.
+- Linux-Release und Paketquellen-Seite: `v*`-Tag pushen oder
+  `package-pages.yml` manuell von `main` starten.
+- Tier-2-Controller-Gate: `tier2-docker.yml` manuell fuer den exakten Ref
+  starten.
+- Nur Tier-3-FreeBSD-Build: `gh workflow run tier3-freebsd.yml --ref main -f publish=false`.
+- Tier-3-FreeBSD-Veroeffentlichung: nachdem der Linux-Pre-Release existiert,
+  `gh workflow run tier3-freebsd.yml --ref <neuer-v-tag-mit-tier3-workflow> -f publish=true` ausfuehren.
 
 Gepruefte Referenzen:
 

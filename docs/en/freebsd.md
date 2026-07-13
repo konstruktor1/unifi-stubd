@@ -69,6 +69,33 @@ The canonical Poudriere buildhost builds FreeBSD binaries on the FreeBSD host
 with `go`, `go125`, or `go126`, then creates ABI-specific `pkg` repositories
 with the FreeBSD `pkg` tool.
 
+In GitHub Actions this path is Tier 3 and manual-only. A build-only run is
+allowed from `main` or the matching version tag and retains one evidence
+artifact for seven days:
+
+```sh
+gh workflow run tier3-freebsd.yml --ref main -f publish=false
+```
+
+After the automatic Linux tag workflow has created the matching pre-release,
+Tier 3 can add the FreeBSD assets and rebuild Pages with both operating-system
+families:
+
+```sh
+gh workflow run tier3-freebsd.yml --ref <v-tag-with-tier3-workflow> -f publish=true
+```
+
+The self-hosted job is selected by `[self-hosted, Linux, X64, unifi-stubd,
+tier3, freebsd-pkg-builder]`. This Linux runner is only an SSH proxy to the
+FreeBSD package host. It must not retain the `docker-dmz` role, Docker daemon
+access, or passwordless sudo; Tier 2 uses a different Docker runner. Protect
+the `tier3-freebsd` environment with required reviewers and allow only `main`
+and `v*` refs.
+
+This split starts with tags that contain `tier3-freebsd.yml` and whose
+automatic `SHA256SUMS` covers Linux and SBOM assets only. Legacy releases whose
+checksum file already covers FreeBSD artifacts are deliberately not backfilled.
+
 ```text
 /usr/local/bin/unifi-stubd
 /usr/local/etc/unifi-stubd/config.yaml
@@ -81,9 +108,10 @@ with the FreeBSD `pkg` tool.
 
 ## Install Published Tarballs
 
-Published alpha tarballs are available from GitHub Releases and from the
-GitHub Pages package site. The Pages site provides stable URLs for package
-manager documentation and direct FreeBSD/OPNsense downloads:
+Published alpha tarballs become available from GitHub Releases and the GitHub
+Pages package site only after the optional manual Tier 3 publication. A normal
+tag can therefore have Linux packages and an SBOM while FreeBSD output is still
+absent. The Pages site provides stable URLs once Tier 3 has completed:
 
 ```text
 https://konstruktor1.github.io/unifi-stubd/freebsd/amd64/
@@ -95,11 +123,11 @@ OPNsense/x86_64 installations and `arm64` for ARM FreeBSD hosts:
 
 ```sh
 ARCH=amd64 # or arm64
-fetch https://konstruktor1.github.io/unifi-stubd/freebsd/${ARCH}/unifi-stubd_0.2.4-alpha-1_freebsd_${ARCH}.tar.gz
+fetch https://konstruktor1.github.io/unifi-stubd/freebsd/${ARCH}/unifi-stubd_0.2.5-alpha-1_freebsd_${ARCH}.tar.gz
 fetch https://konstruktor1.github.io/unifi-stubd/checksums.txt
-grep "freebsd/${ARCH}/unifi-stubd_0.2.4-alpha-1_freebsd_${ARCH}.tar.gz" checksums.txt
-sha256 unifi-stubd_0.2.4-alpha-1_freebsd_${ARCH}.tar.gz
-tar -tzf unifi-stubd_0.2.4-alpha-1_freebsd_${ARCH}.tar.gz
+grep "freebsd/${ARCH}/unifi-stubd_0.2.5-alpha-1_freebsd_${ARCH}.tar.gz" checksums.txt
+sha256 unifi-stubd_0.2.5-alpha-1_freebsd_${ARCH}.tar.gz
+tar -tzf unifi-stubd_0.2.5-alpha-1_freebsd_${ARCH}.tar.gz
 ```
 
 The `sha256` output should match the checksum entry. The tarball contains
@@ -160,7 +188,7 @@ Install or extract the tarball on the FreeBSD/OPNsense host, then enable the
 service with rc.conf or OPNsense tunables:
 
 ```sh
-sudo tar -xzf unifi-stubd_0.2.4-alpha-1_freebsd_${ARCH}.tar.gz -C /
+sudo tar -xzf unifi-stubd_0.2.5-alpha-1_freebsd_${ARCH}.tar.gz -C /
 sudo vi /usr/local/etc/unifi-stubd/config.yaml
 sysrc unifi_stubd_enable=YES
 service unifi-stubd start

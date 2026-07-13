@@ -7,14 +7,16 @@ expliziten Package-Workflow-Lauf veroeffentlicht.
 
 Das Modell passt zur vorhandenen Repository-Infrastruktur:
 
-- GitHub Actions `CI` fuehrt `make check`, `make coverage`, `make vulncheck`,
-  SBOM-Erzeugung und einen separaten FreeBSD-Artefakt-Build auf dem
-  self-hosted FreeBSD-Builder-Pfad aus.
+- GitHub Actions `CI` fuehrt `make check`, `make coverage`, `make vulncheck`
+  und die SBOM-Erzeugung vollstaendig auf GitHub-gehosteten Linux-Runnern aus.
 - Bei Pushes auf `main` baut `CI` zusaetzlich Pakete und installiert das
   erzeugte Debian-Paket einmal im Ubuntu-Runner als neutralen Smoke-Test.
-- `Package Repositories` baut Linux-Pakete auf Ubuntu, baut FreeBSD-Tarballs
-  und native FreeBSD-pkg-Repositories auf dem konfigurierten BSD-Builder und
-  deployed danach GitHub Pages.
+- `Package Repositories` baut Linux-Pakete und die Release-SBOM auf Ubuntu,
+  deployed die Linux-only-GitHub-Pages-Seite und erstellt oder aktualisiert
+  fuer einen `v*`-Tag den GitHub-Pre-Release.
+- `Tier 3 FreeBSD Packaging` ist ein separater manueller Workflow. Er nutzt den
+  self-hosted FreeBSD-Builder-Pfad nur nach explizitem Dispatch und ist nie
+  Bestandteil von `CI` oder des automatischen Package-Workflows.
 - Das `github-pages`-Environment erlaubt Deployments bereits nur von `main` und
   `v*`-Tags.
 
@@ -33,9 +35,10 @@ Patch. Der Docker-Build folgt mit `golang:1.25-bookworm` derselben Minor-Linie.
 | Stufe | Branch | Zweck | Automatische Checks | Ergebnis |
 | --- | --- | --- | --- | --- |
 | Aenderung | kurzlebiger `codex/*`-, `feat/*`- oder `fix/*`-Branch | Eine fokussierte Aenderung | `CI / check` im Pull Request | Keine Paketveroeffentlichung |
-| Integration | `dev` | Reviewte Arbeit vor Release-Promotion sammeln | `CI / check` im Pull Request und bei Push; FreeBSD-Artefakt-Job bei vertrauenswuerdigen Pushes | Keine Paketveroeffentlichung |
+| Integration | `dev` | Reviewte Arbeit vor Release-Promotion sammeln | `CI / check` im Pull Request und bei Push | Keine Paketveroeffentlichung |
 | Release-Basis | `main` | Stabile, getestete Quelle fuer Tags und oeffentliche Pakete | `CI / check` plus Package-Build und Debian-Install-Smoke bei Push | Paketartefakte im Workflow-Lauf |
-| Paketquelle | `v*`-Tag, GitHub-Pre-Release oder manueller Workflow von `main` | Veroeffentlichtes Paketquellen-Set | Linux-Package-Matrix plus FreeBSD-Builder-Artefakt-/pkg-Repo-Build | GitHub-Pages-Paketquellen |
+| Paketquelle | `v*`-Tag, GitHub-Pre-Release oder manueller Workflow von `main` | Standard-Paketset veroeffentlichen | Linux-Package-Matrix und Release-SBOM | Linux-only-GitHub-Pages und bei einem Tag ein GitHub-Pre-Release |
+| FreeBSD-Erweiterung | Manueller Tier-3-Dispatch | FreeBSD-/OPNsense-Paketevidenz bauen oder veroeffentlichen | Self-hosted FreeBSD-Builder-Pfad | Nur Lauf-Evidenz oder FreeBSD-Release-Artefakte und kombinierte Pages |
 
 Kurzlebige Branches sollten normalerweise nur wenige Tage leben. Wenn eine
 Aenderung zu gross wird, wird sie in kleinere Pull Requests geteilt, die jeweils
@@ -73,9 +76,9 @@ eigenstaendig durch die Gates kommen.
 4. Den Diff als Release-Candidate-Aenderungsset reviewen, nicht als einzelne
    Feature-Aenderung.
 5. Nach `main` mergen.
-6. Der `main`-Push startet `CI / check` und den vertrauenswuerdigen
-   FreeBSD-Artefakt-Job; danach baut der Package-Job Linux-Paketformate und
-   installiert das erzeugte Debian-Paket einmal in GitHub Actions.
+6. Der `main`-Push startet `CI / check`; danach baut der Package-Job
+   Linux-Paketformate und installiert das erzeugte Debian-Paket einmal in
+   GitHub Actions.
 7. Paketquellen nicht von `dev` deployen.
 
 Direkte Pushes auf `main` bleiben expliziten Notfaellen oder Automation
@@ -91,21 +94,48 @@ Der normale Alpha-Release-Pfad ist:
 ```sh
 git switch main
 git pull --ff-only origin main
-git tag -a v0.2.4-alpha -m "unifi-stubd v0.2.4-alpha"
-git push origin v0.2.4-alpha
+git tag -a v0.2.5-alpha -m "unifi-stubd v0.2.5-alpha"
+git push origin v0.2.5-alpha
 ```
 
-Ein `v*`-Tag startet `Package Repositories` und erstellt nach erfolgreichem
-Build aller Release-Artefakte den GitHub-Pre-Release. Manuelle Retries laufen
-von `main`:
+Ein `v*`-Tag startet `Package Repositories`. Linux-Pakete, SPDX-SBOM,
+Linux-only-Pages und der GitHub-Pre-Release werden zuerst veroeffentlicht.
+Manuelle Linux-Package- und Pages-Builds koennen von `main` laufen:
 
 ```sh
 gh workflow run package-pages.yml --ref main \
-  -f version=0.2.4-alpha \
+  -f version=0.2.5-alpha \
   -f package_release=1
 ```
 
 Wenn `version` bei einem manuellen Lauf fehlt, liest der Workflow `VERSION`.
+Dieses manuelle Event erstellt oder aktualisiert keinen GitHub-Release. Wenn
+der Pre-Release selbst repariert werden muss, wird der fehlgeschlagene Tag-
+Workflow-Lauf erneut ausgefuehrt.
+
+FreeBSD-Packaging ist ein unabhaengiger Tier-3-Vorgang. Der Input `publish`
+steht standardmaessig auf `false`; dieser Modus baut den ausgewaehlten Ref und
+behaelt nur sieben Tage gueltige Actions-Artefakte sowie die
+Job-Zusammenfassung als Evidenz:
+
+```sh
+gh workflow run tier3-freebsd.yml --ref main -f publish=false
+```
+
+Um einen bestehenden passenden `v*`-Pre-Release zu erweitern und kombinierte
+Linux-/FreeBSD-Pages zu deployen, wird derselbe Tag mit explizit aktivierter
+Veroeffentlichung gestartet:
+
+```sh
+gh workflow run tier3-freebsd.yml --ref <v-tag-mit-tier3-workflow> -f publish=true
+```
+
+Der Publish-Modus fuegt FreeBSD-Tarballs, das native `pkg`-Repository-Archiv
+und `SHA256SUMS.freebsd` hinzu. Die automatische Linux-`SHA256SUMS` wird nicht
+ersetzt. Tier 3 ist nie Trigger, `needs`-Abhaengigkeit oder erforderliches
+Ergebnis von `CI` oder `Package Repositories`.
+Legacy-Tags ohne den Tier-3-Workflow oder mit FreeBSD-Eintraegen in
+`SHA256SUMS` sind fuer diese getrennte Erweiterung nicht zulaessig.
 
 ## Hotfixes
 
@@ -122,8 +152,8 @@ Wenn `version` bei einem manuellen Lauf fehlt, liest der Workflow `VERSION`.
 | Go-Code, Config-Schema, Profildaten | `make check`, `make coverage`, `git diff --check` | Gezieltes `go test ./tests/...`, wenn sinnvoll |
 | Inform, Adoption, Controller-Payload, Profil-Rendering | `make check` | Standardisierter Docker-Gate mit `make integration-docker` vor `dev` nach `main` |
 | Paketierte Config, Service-Dateien, Paket-Metadaten | `make check`, `make package` | GitHub-`main`-Package-Install-Smoke |
-| FreeBSD- oder OPNsense-Runtime-Verhalten | `make check` | `make package-freebsd-pkg-repos` auf dem konfigurierten BSD-Builder-Pfad plus FreeBSD-/OPNsense-Smoke mit temporaerem State, wenn Verhalten geaendert wurde |
-| Release Notes, Paketveroeffentlichung | `make check` | `Package Repositories` per Tag, Release oder `main`-Dispatch |
+| FreeBSD- oder OPNsense-Runtime-Verhalten | `make check` | Manueller Lauf von `Tier 3 FreeBSD Packaging` plus FreeBSD-/OPNsense-Smoke mit temporaerem State, wenn Verhalten geaendert wurde |
+| Release Notes, Paketveroeffentlichung | `make check` | Linux-first `Package Repositories`; optionale manuelle Tier-3-Veroeffentlichung erst nach vorhandenem passenden Pre-Release |
 
 Zielhost-Paketinstallation ist kein Standard-Gate der Entwicklung. Sie wird nur
 fuer explizite Rollout-Tests genutzt; host-spezifische Configs bleiben ausserhalb
@@ -141,6 +171,11 @@ gelten:
 - `dev`: Pull Requests und `CI / check` verlangen, sobald der Branch als
   Integrationsstufe genutzt wird.
 - `github-pages`-Environment: Deployment nur von `main` und `v*`.
+- `tier3-freebsd`-Environment: Freigabe verlangen, nur `main` und `v*`
+  erlauben und dem self-hosted Build-Job keine Publish-Rechte geben.
+- Runner-Rollen: `docker-dmz`, Docker-Daemon-Zugriff und passwortloses sudo vom
+  alten FreeBSD-Proxy entfernen. Tier 2 benoetigt einen separaten Docker-
+  Runner; kein Runner traegt gleichzeitig Tier-2- und Tier-3-Rollenlabels.
 
 Der Package-Job laeuft absichtlich nach dem Merge auf `main`, weil er die exakt
 committete Release-Basis prueft und Paketartefakte fuer diesen Lauf hochlaedt.

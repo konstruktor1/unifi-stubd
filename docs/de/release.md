@@ -14,9 +14,9 @@ kopiert.
 1. `make check` ausfuehren.
 2. `make package` ausfuehren.
 3. Cross-Architektur-Ziele fuer Releases bauen, z.B. `PKG_GOARCH=arm64 make
-   package`. FreeBSD-Release-Artefakte ueber den konfigurierten
-   FreeBSD-Builder mit `make package-freebsd-pkg-repos` bauen.
-4. `dist/packages/` auf Debian-, RPM-, Arch-Linux- und `.tar.gz`-Ausgaben pruefen.
+   package`.
+4. `dist/packages/` auf die Linux-Ausgaben fuer Debian, RPM, Arch Linux und
+   `.tar.gz` pruefen.
 5. Nach Dependency- oder Tool-Updates `go.mod`, `go.work` und `go.sum` pruefen.
 6. Private Lab-Daten suchen:
 
@@ -39,36 +39,87 @@ kopiert.
     verlangen einen signierten Tag und eine abgetrennte Signatur fuer
     `SHA256SUMS`.
 
+FreeBSD-Paketerzeugung ist kein Pre-Tag-Gate. Sie gehoert ausschliesslich zum
+manuellen Tier-3-Workflow und darf den Pre-Release erst erweitern, nachdem die
+automatische Linux-Veroeffentlichung abgeschlossen ist.
+
 ## Tag setzen
 
 Semantische Versionstags verwenden:
 
 ```sh
-git tag -a v0.2.4-alpha -m "unifi-stubd v0.2.4-alpha"
-git push origin v0.2.4-alpha
+git tag -a v0.2.5-alpha -m "unifi-stubd v0.2.5-alpha"
+git push origin v0.2.5-alpha
 ```
 
 Nur Commits taggen, die bereits den `main`-CI-Lauf bestanden haben. Der
 Package-Repositories-Workflow laeuft fuer `v*`-Tags, deshalb muss das
 `github-pages`-Environment Deployments von `main` und `v*`-Tags erlauben.
 
-Der Tag-Push steuert die Alpha-Veroeffentlichung. Der Package-Repositories-
-Workflow erstellt den GitHub-Pre-Release und haengt Linux-Pakete, FreeBSD-
-Pakete und Repository-Archiv, `SHA256SUMS` und `unifi-stubd.spdx.json` an.
-Die persistenten Release-Artefakte nach Workflow-Ende pruefen:
+Der Tag-Push steuert die erste Alpha-Veroeffentlichung. Der Package-
+Repositories-Workflow erstellt den GitHub-Pre-Release, haengt Linux-Pakete,
+`SHA256SUMS` und `unifi-stubd.spdx.json` an und deployed die Linux-only-Pages-
+Seite. Er startet oder erwartet Tier 3 fuer FreeBSD nie. Die persistenten
+Linux-Release-Artefakte nach Workflow-Ende pruefen:
 
 ```sh
-gh release view v0.2.4-alpha --json isPrerelease,assets,url
+gh release view v0.2.5-alpha --json isPrerelease,assets,url
 ```
+
+## Manuelle Tier-3-FreeBSD-Erweiterung
+
+`Tier 3 FreeBSD Packaging` ist ausschliesslich manuell und hat weder Trigger-
+noch `needs`-Beziehungen zu `CI` oder `Package Repositories`. Der Input
+`publish` steht standardmaessig auf `false`; dieser Modus baut FreeBSD-Tarballs
+und native `pkg`-Repositories fuer den ausgewaehlten Ref und behaelt die
+Actions-Artefakte sieben Tage als Build-Evidenz:
+
+```sh
+gh workflow run tier3-freebsd.yml --ref main -f publish=false
+```
+
+Zur Veroeffentlichung wird der exakte Release-Tag mit expliziter Bestaetigung
+gestartet:
+
+```sh
+gh workflow run tier3-freebsd.yml --ref <v-tag-mit-tier3-workflow> -f publish=true
+```
+
+Die Veroeffentlichung wird nur akzeptiert, wenn der ausgewaehlte Ref ein
+`v*`-Tag ist, der Tag ohne `v` mit `VERSION` uebereinstimmt und bereits ein
+passender GitHub-Pre-Release mit vollstaendigem Linux-Paketset, SPDX-SBOM und
+`SHA256SUMS` existiert. Der Workflow verweigert ausserdem Aenderungen an einem
+Release, der bereits eine signierte `SHA256SUMS` oder
+`SHA256SUMS.freebsd` enthaelt.
+Auch Legacy-Releases, deren `SHA256SUMS` FreeBSD-Artefakte bereits abdeckt,
+werden abgelehnt. Der gewaehlte Tag muss diesen Workflow enthalten; die
+Trennung beginnt deshalb mit dem ersten neuen Release-Tag nach dieser
+Implementierung.
+
+Ein erfolgreicher Publish-Lauf fuegt diese persistenten Artefakte hinzu und
+deployed danach eine kombinierte Linux-/FreeBSD-Pages-Seite:
+
+- `unifi-stubd_<version>-1_freebsd_amd64.tar.gz`
+- `unifi-stubd_<version>-1_freebsd_arm64.tar.gz`
+- `freebsd-pkg-repos.tar.gz`
+- `SHA256SUMS.freebsd`
+
+`SHA256SUMS.freebsd` deckt nur die drei FreeBSD-Artefakte ab. Die automatische
+Linux-/SBOM-Pruefsummendatei bleibt unveraendert. Ein erneuter Tier-3-Lauf fuer
+denselben Pre-Release ist idempotent, weil die vier Tier-3-Artefakte anhand
+ihres Namens ersetzt werden.
 
 ## Signierung und Repository-Metadaten
 
 Sobald ein Release-Key konfiguriert ist, einen signierten Tag mit `git tag -s`
 erstellen, `SHA256SUMS` vom Release laden und eine abgetrennte Signatur wie
-`SHA256SUMS.asc` veroeffentlichen. Beides mit `git tag -v <tag>` und `gpg
---verify SHA256SUMS.asc SHA256SUMS` pruefen. Ohne konfigurierten Key bleibt der
-Release Alpha, Pre-Release und explizit unsigniert; keine Hochstufung auf
-Stable.
+`SHA256SUMS.asc` veroeffentlichen. Wenn Tier-3-FreeBSD-Artefakte vorhanden
+sind, `SHA256SUMS.freebsd` ebenfalls separat signieren. Tag und jede
+veroeffentlichte Pruefsummensignatur vor der Promotion pruefen. Ohne
+konfigurierten Key bleibt der Release Alpha, Pre-Release und explizit
+unsigniert; keine Hochstufung auf Stable. Tier-3-Artefakte vor dem Signieren
+hinzufuegen, weil der Tier-3-Workflow einen Release mit signierten
+Pruefsummenartefakten nicht mehr veraendert.
 
 Repository-Beschreibung, Homepage, SPDX-Lizenz und Topics muessen gesetzt und
 mit `README.md`, `LICENSE` sowie den Paketmetadaten konsistent sein. Release-
@@ -87,37 +138,46 @@ Zuerst alle Paket-Artefakte bauen, danach die statische Repository-Seite
 erzeugen:
 
 ```sh
-PKG_VERSION=0.2.4-alpha PKG_RELEASE=1 PKG_GOARCH=amd64 make package
-PKG_VERSION=0.2.4-alpha PKG_RELEASE=1 PKG_GOARCH=arm64 make package
-PKG_VERSION=0.2.4-alpha PKG_RELEASE=1 make package-freebsd-pkg-repos
+PKG_VERSION=0.2.5-alpha PKG_RELEASE=1 PKG_GOARCH=amd64 make package
+PKG_VERSION=0.2.5-alpha PKG_RELEASE=1 PKG_GOARCH=arm64 make package
+PKG_VERSION=0.2.5-alpha PKG_RELEASE=1 make package-freebsd-pkg-repos
 make package-repos
 ```
 
-Der Package-Repositories-Workflow veroeffentlicht die Paketquelle ueber GitHub
-Pages, wenn ein `v*`-Tag gepusht wird. Fuer einen manuellen Rebuild oder Retry
-ohne neuen Release den Workflow von `main` aus starten:
+Der Package-Repositories-Workflow veroeffentlicht eine Linux-only-Paketquelle
+ueber GitHub Pages, wenn ein `v*`-Tag gepusht wird. Bis zur Tier-3-
+Veroeffentlichung meldet der FreeBSD-Bereich, dass die manuellen Artefakte nicht
+verfuegbar sind. Fuer einen manuellen Rebuild oder Retry dieser Linux-only-
+Paketquelle ohne neuen Release den Workflow von `main` aus starten:
 
 ```sh
 gh workflow run package-pages.yml --ref main \
-  -f version=0.2.4-alpha \
+  -f version=0.2.5-alpha \
   -f package_release=1
 ```
 
 Wenn `version` bei einem manuellen Lauf fehlt, liest der Workflow `VERSION`.
 
+Ein spaeterer Linux-only-Lauf von Package Repositories ersetzt die kombinierte
+Pages-Seite wieder durch die Linux-only-Form. `tier3-freebsd.yml` auf dem
+passenden Tag erneut mit `publish=true` ausfuehren, um die kombinierte Seite aus
+den persistenten Release-Artefakten wiederherzustellen.
+
 Die SPDX-JSON-SBOM wird an den GitHub-Release angehaengt und verfaellt daher
-nicht mit der siebentaegigen Actions-Artefaktaufbewahrung. Die Release-
-Checksummen decken SBOM und jedes hochgeladene Paketartefakt ab.
+nicht mit der siebentaegigen Actions-Artefaktaufbewahrung. `SHA256SUMS` deckt
+die automatischen Linux- und SBOM-Artefakte ab; `SHA256SUMS.freebsd` deckt die
+separat veroeffentlichten Tier-3-Artefakte ab.
 
 `make package-repos` schreibt `dist/package-site/` mit APT-, RPM-,
 Arch-Linux-, FreeBSD-/OPNsense-Tarball-Pfaden und nativen FreeBSD-`pkg`-Repos,
-wenn `dist/freebsd-pkg-repos/repo/` existiert. Der
-Package-Repositories-Workflow baut FreeBSD-Tarballs und native FreeBSD-Repos
-auf dem self-hosted Runner mit Label `freebsd-pkg-builder`. Der kanonische
-Builder nutzt Go-Cross-Compile auf dem FreeBSD-Host plus FreeBSD `pkg`;
-`FREEBSD_PKG_BUILD_JAILS` ist optional fuer eigene Builder mit laufenden
-`jexec`-Jails. Danach wird die kombinierte statische Seite von Ubuntu deployed.
-Alpha-Anleitungen bleiben sichtbar
+wenn `dist/freebsd-pkg-repos/repo/` existiert. Der Default-Modus verlangt die
+FreeBSD-Artefakte; der automatische Workflow erlaubt fuer das Linux-first-
+Deployment explizit deren Fehlen. Nur der manuelle Tier-3-Workflow nutzt den
+self-hosted Runner mit den Labels `tier3` und `freebsd-pkg-builder`. Der
+kanonische Builder nutzt Go-Cross-Compile auf dem FreeBSD-Host plus FreeBSD
+`pkg`; `FREEBSD_PKG_BUILD_JAILS` ist optional fuer eigene Builder mit laufenden
+`jexec`-Jails. Nach dem Tier-3-Build wird die kombinierte statische Seite auf
+Ubuntu zusammengestellt und deployed. Alpha-Anleitungen bleiben sichtbar
 unsigniert (`trusted=yes`, `gpgcheck=0`, `SigLevel = Never`), bis ein
 Projekt-Release-Key existiert.
 

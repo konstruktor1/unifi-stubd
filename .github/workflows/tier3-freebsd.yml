@@ -1,0 +1,424 @@
+name: Tier 3 FreeBSD Packaging
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Add FreeBSD assets to an existing pre-release and rebuild Pages
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: unifi-stubd-tier3-freebsd
+  cancel-in-progress: false
+
+env:
+  PKG_RELEASE: "1"
+
+jobs:
+  validate-request:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    outputs:
+      package-version: ${{ steps.version.outputs.package-version }}
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          persist-credentials: false
+
+      - name: Validate selected ref and publication request
+        id: version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PUBLISH: ${{ inputs.publish }}
+        run: |
+          set -eu
+          package_version="$(sed -n '1p' VERSION)"
+          test -n "$package_version"
+
+          case "$GITHUB_REF" in
+            refs/heads/main | refs/tags/v*)
+              ;;
+            *)
+              echo "::error::Tier 3 accepts only main or a matching v* release tag"
+              exit 2
+              ;;
+          esac
+
+          if [ "$GITHUB_REF_TYPE" = "tag" ]; then
+            case "$GITHUB_REF_NAME" in
+              v[0-9]*)
+                ;;
+              *)
+                echo "::error::Tier 3 publication requires a v* release tag"
+                exit 2
+                ;;
+            esac
+            if [ "${GITHUB_REF_NAME#v}" != "$package_version" ]; then
+              echo "::error::Tag $GITHUB_REF_NAME does not match VERSION $package_version"
+              exit 2
+            fi
+          elif [ "$PUBLISH" = "true" ]; then
+            echo "::error::Publishing is allowed only when the workflow is dispatched on a v* tag"
+            exit 2
+          fi
+
+          if [ "$PUBLISH" = "true" ]; then
+            is_prerelease="$(gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json isPrerelease --jq .isPrerelease)"
+            if [ "$is_prerelease" != "true" ]; then
+              echo "::error::Tier 3 may extend only an existing GitHub pre-release"
+              exit 2
+            fi
+
+            nfpm_version="$(printf '%s' "$package_version" | tr '-' '.')"
+            arch_version="$(printf '%s' "$package_version" | tr -d '-')"
+            set -- \
+              "unifi-stubd_${nfpm_version}-1_amd64.deb" \
+              "unifi-stubd_${nfpm_version}-1_arm64.deb" \
+              "unifi-stubd-${nfpm_version}-1.x86_64.rpm" \
+              "unifi-stubd-${nfpm_version}-1.aarch64.rpm" \
+              "unifi-stubd-${arch_version}-1-x86_64.pkg.tar.zst" \
+              "unifi-stubd-${arch_version}-1-aarch64.pkg.tar.zst" \
+              "unifi-stubd_${package_version}-1_linux_amd64.tar.gz" \
+              "unifi-stubd_${package_version}-1_linux_arm64.tar.gz" \
+              unifi-stubd.spdx.json
+
+            assets="$(gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')"
+            for expected_asset in "$@" SHA256SUMS; do
+              if ! printf '%s\n' "$assets" | grep -Fqx -- "$expected_asset"; then
+                echo "::error::Existing pre-release is incomplete; missing $expected_asset"
+                exit 2
+              fi
+            done
+            if printf '%s\n' "$assets" | grep -Eq '^SHA256SUMS(\.freebsd)?\.asc$'; then
+              echo "::error::Refusing to mutate a release with signed checksum assets"
+              exit 2
+            fi
+
+            validation_dir="$RUNNER_TEMP/tier3-release-validation"
+            rm -rf "$validation_dir"
+            mkdir -p "$validation_dir"
+            gh release download "$GITHUB_REF_NAME" \
+              --repo "$GITHUB_REPOSITORY" \
+              --dir "$validation_dir"
+            if grep -Eiq 'freebsd|freebsd-pkg-repos' "$validation_dir/SHA256SUMS"; then
+              echo "::error::Legacy SHA256SUMS already covers FreeBSD assets; this release cannot be extended safely"
+              exit 2
+            fi
+            checksum_entries="$(awk 'NF { count++ } END { print count + 0 }' "$validation_dir/SHA256SUMS")"
+            if [ "$checksum_entries" -ne "$#" ]; then
+              echo "::error::SHA256SUMS must contain exactly $# Linux and SBOM entries"
+              exit 2
+            fi
+            for expected_asset in "$@"; do
+              if ! awk -v expected="./$expected_asset" '$2 == expected { found = 1 } END { exit !found }' "$validation_dir/SHA256SUMS"; then
+                echo "::error::SHA256SUMS does not cover $expected_asset"
+                exit 2
+              fi
+            done
+            (cd "$validation_dir" && sha256sum --strict -c SHA256SUMS)
+          fi
+
+          echo "package-version=$package_version" >> "$GITHUB_OUTPUT"
+
+  build-freebsd:
+    needs: validate-request
+    runs-on: [self-hosted, Linux, X64, unifi-stubd, tier3, freebsd-pkg-builder]
+    timeout-minutes: 30
+    environment: tier3-freebsd
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Preflight Tier 3 FreeBSD builder
+        env:
+          FREEBSD_PKG_REMOTE: unifi-stubd-freebsd-builder
+        run: |
+          set -eu
+          test "$(uname -s)/$(uname -m)" = "Linux/x86_64"
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          if [ "$(id -u)" -eq 0 ]; then
+            echo "::error::The dedicated Tier 3 runner must use a non-root service account"
+            exit 2
+          fi
+          for command in git make ssh scp tar sha256sum; do
+            command -v "$command" >/dev/null 2>&1 || {
+              echo "::error::Missing required command: $command"
+              exit 2
+            }
+          done
+          if command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+            echo "::error::The dedicated Tier 3 runner must not have Docker daemon access"
+            exit 2
+          fi
+          if [ -S /var/run/docker.sock ] && [ -r /var/run/docker.sock ] && [ -w /var/run/docker.sock ]; then
+            echo "::error::The dedicated Tier 3 runner account can access the Docker socket"
+            exit 2
+          fi
+          if command -v sudo >/dev/null 2>&1 && sudo -n true >/dev/null 2>&1; then
+            echo "::error::The dedicated Tier 3 runner must not have passwordless sudo"
+            exit 2
+          fi
+          remote_identity="$(ssh \
+            -o BatchMode=yes \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -o ForwardAgent=no \
+            -o ClearAllForwardings=yes \
+            -o RequestTTY=no \
+            -o ConnectTimeout=10 \
+            -o ServerAliveInterval=15 \
+            -o ServerAliveCountMax=3 \
+            "$FREEBSD_PKG_REMOTE" \
+            'set -eu; printf "%s %s\n" "$(uname -s)" "$(id -u)"; command -v pkg >/dev/null; command -v tar >/dev/null; command -v go >/dev/null || command -v go125 >/dev/null || command -v go126 >/dev/null')"
+          remote_os="${remote_identity%% *}"
+          remote_uid="${remote_identity#* }"
+          if [ "$remote_os" != "FreeBSD" ]; then
+            echo "::error::Configured package builder is not FreeBSD"
+            exit 2
+          fi
+          case "$remote_uid" in
+            '' | 0 | *[!0-9]*)
+              echo "::error::Tier 3 FreeBSD builds must use a non-root remote account"
+              exit 2
+              ;;
+          esac
+          if [ "$remote_uid" = "$remote_identity" ]; then
+            echo "::error::Tier 3 FreeBSD builds must use a non-root remote account"
+            exit 2
+          fi
+          echo "FreeBSD builder preflight: ok"
+
+      - name: Build FreeBSD package artifacts and pkg repositories
+        env:
+          PKG_VERSION: ${{ needs.validate-request.outputs.package-version }}
+          PKG_GOOS: freebsd
+          PKG_GOARCH: amd64
+          FREEBSD_PKG_REMOTE: unifi-stubd-freebsd-builder
+          FREEBSD_PKG_ABIS: FreeBSD:14:amd64 FreeBSD:14:aarch64 FreeBSD:14:armv7 FreeBSD:15:amd64 FreeBSD:15:aarch64 FreeBSD:15:armv7
+          FREEBSD_PKG_BUILD_JAILS: ${{ vars.FREEBSD_PKG_BUILD_JAILS }}
+          FREEBSD_PKG_REQUIRE_JAILS: "0"
+          FREEBSD_TGZ_ARCHES: amd64 arm64
+        run: |
+          set -eu
+          make package-freebsd-pkg-repos
+          tar -C dist/freebsd-pkg-repos -czf dist/freebsd-pkg-repos.tar.gz repo
+          mkdir -p dist/tier3-freebsd-release
+          cp dist/packages/unifi-stubd_*_freebsd_*.tar.gz dist/tier3-freebsd-release/
+          cp dist/freebsd-pkg-repos.tar.gz dist/tier3-freebsd-release/
+          for artifact in dist/tier3-freebsd-release/*~*; do
+            [ -e "$artifact" ] || continue
+            mv -- "$artifact" "${artifact//\~/.}"
+          done
+          (
+            cd dist/tier3-freebsd-release
+            rm -f SHA256SUMS.freebsd
+            sha256sum ./* > SHA256SUMS.freebsd
+          )
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
+        with:
+          name: tier3-freebsd-release-${{ github.sha }}
+          path: dist/tier3-freebsd-release/
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Record Tier 3 evidence
+        if: always()
+        env:
+          JOB_STATUS: ${{ job.status }}
+          PACKAGE_VERSION: ${{ needs.validate-request.outputs.package-version }}
+          PUBLISH: ${{ inputs.publish }}
+        run: |
+          {
+            printf '## Tier 3 FreeBSD Packaging\n\n'
+            printf -- '- Commit: %s\n' "$GITHUB_SHA"
+            printf -- '- Ref: %s\n' "$GITHUB_REF"
+            printf -- '- Runner: %s\n' "$RUNNER_NAME"
+            printf -- '- Package version: %s\n' "$PACKAGE_VERSION"
+            printf -- '- Publish requested: %s\n' "$PUBLISH"
+            printf -- '- Job status: %s\n' "$JOB_STATUS"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  publish-freebsd:
+    if: inputs.publish
+    needs:
+      - validate-request
+      - build-freebsd
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    concurrency:
+      group: github-pages
+      cancel-in-progress: false
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+        with:
+          persist-credentials: false
+
+      - name: Install repository tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y dpkg-dev createrepo-c libarchive-tools pacman-package-manager zstd
+
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: tier3-freebsd-release-${{ github.sha }}
+          path: dist/freebsd-release
+
+      - name: Validate and prepare release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PACKAGE_VERSION: ${{ needs.validate-request.outputs.package-version }}
+          RELEASE_REPOSITORY: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -eu
+
+          is_prerelease="$(gh release view "$RELEASE_TAG" --repo "$RELEASE_REPOSITORY" --json isPrerelease --jq .isPrerelease)"
+          if [ "$is_prerelease" != "true" ]; then
+            echo "::error::Tier 3 may extend only an existing GitHub pre-release"
+            exit 2
+          fi
+          assets="$(gh release view "$RELEASE_TAG" --repo "$RELEASE_REPOSITORY" --json assets --jq '.assets[].name')"
+          if printf '%s\n' "$assets" | grep -Eq '^SHA256SUMS(\.freebsd)?\.asc$'; then
+            echo "::error::Refusing to mutate a release with signed checksum assets"
+            exit 2
+          fi
+
+          nfpm_version="$(printf '%s' "$PACKAGE_VERSION" | tr '-' '.')"
+          arch_version="$(printf '%s' "$PACKAGE_VERSION" | tr -d '-')"
+          set -- \
+            "unifi-stubd_${nfpm_version}-1_amd64.deb" \
+            "unifi-stubd_${nfpm_version}-1_arm64.deb" \
+            "unifi-stubd-${nfpm_version}-1.x86_64.rpm" \
+            "unifi-stubd-${nfpm_version}-1.aarch64.rpm" \
+            "unifi-stubd-${arch_version}-1-x86_64.pkg.tar.zst" \
+            "unifi-stubd-${arch_version}-1-aarch64.pkg.tar.zst" \
+            "unifi-stubd_${PACKAGE_VERSION}-1_linux_amd64.tar.gz" \
+            "unifi-stubd_${PACKAGE_VERSION}-1_linux_arm64.tar.gz" \
+            unifi-stubd.spdx.json
+
+          mkdir -p dist/release-assets dist/packages
+          gh release download "$RELEASE_TAG" \
+            --repo "$RELEASE_REPOSITORY" \
+            --dir dist/release-assets \
+            --clobber
+          if grep -Eiq 'freebsd|freebsd-pkg-repos' dist/release-assets/SHA256SUMS; then
+            echo "::error::Legacy SHA256SUMS already covers FreeBSD assets; this release cannot be extended safely"
+            exit 2
+          fi
+          checksum_entries="$(awk 'NF { count++ } END { print count + 0 }' dist/release-assets/SHA256SUMS)"
+          if [ "$checksum_entries" -ne "$#" ]; then
+            echo "::error::SHA256SUMS must contain exactly $# Linux and SBOM entries"
+            exit 2
+          fi
+          for expected_asset in "$@"; do
+            test -f "dist/release-assets/$expected_asset" || {
+              echo "::error::Existing pre-release is incomplete; missing $expected_asset"
+              exit 2
+            }
+            awk -v expected="./$expected_asset" '$2 == expected { found = 1 } END { exit !found }' dist/release-assets/SHA256SUMS || {
+              echo "::error::SHA256SUMS does not cover $expected_asset"
+              exit 2
+            }
+            case "$expected_asset" in
+              *.deb | *.rpm | *.pkg.tar.zst | *_linux_*.tar.gz)
+                cp "dist/release-assets/$expected_asset" dist/packages/
+                ;;
+            esac
+          done
+          (cd dist/release-assets && sha256sum --strict -c SHA256SUMS)
+
+          set -- \
+            "unifi-stubd_${PACKAGE_VERSION}-1_freebsd_amd64.tar.gz" \
+            "unifi-stubd_${PACKAGE_VERSION}-1_freebsd_arm64.tar.gz" \
+            freebsd-pkg-repos.tar.gz
+          freebsd_checksum_entries="$(awk 'NF { count++ } END { print count + 0 }' dist/freebsd-release/SHA256SUMS.freebsd)"
+          if [ "$freebsd_checksum_entries" -ne "$#" ]; then
+            echo "::error::SHA256SUMS.freebsd must contain exactly $# FreeBSD entries"
+            exit 2
+          fi
+          for expected_asset in "$@"; do
+            test -f "dist/freebsd-release/$expected_asset" || {
+              echo "::error::Tier 3 build artifact is incomplete; missing $expected_asset"
+              exit 2
+            }
+            awk -v expected="./$expected_asset" '$2 == expected { found = 1 } END { exit !found }' dist/freebsd-release/SHA256SUMS.freebsd || {
+              echo "::error::SHA256SUMS.freebsd does not cover $expected_asset"
+              exit 2
+            }
+          done
+          (cd dist/freebsd-release && sha256sum --strict -c SHA256SUMS.freebsd)
+          cp "dist/freebsd-release/unifi-stubd_${PACKAGE_VERSION}-1_freebsd_amd64.tar.gz" dist/packages/
+          cp "dist/freebsd-release/unifi-stubd_${PACKAGE_VERSION}-1_freebsd_arm64.tar.gz" dist/packages/
+          mkdir -p dist/freebsd-pkg-repos
+          archive_entries="$(tar -tzf dist/freebsd-release/freebsd-pkg-repos.tar.gz)"
+          test -n "$archive_entries"
+          if printf '%s\n' "$archive_entries" | grep -Eq '(^|/)\.\.(/|$)'; then
+            echo "::error::FreeBSD repository archive contains a parent-directory path"
+            exit 2
+          fi
+          if printf '%s\n' "$archive_entries" | grep -Ev '^repo(/|$)' >/dev/null; then
+            echo "::error::FreeBSD repository archive contains an unexpected top-level path"
+            exit 2
+          fi
+          if ! LC_ALL=C tar -tvzf dist/freebsd-release/freebsd-pkg-repos.tar.gz \
+            | awk 'substr($1, 1, 1) != "-" && substr($1, 1, 1) != "d" { exit 1 }'; then
+            echo "::error::FreeBSD repository archive contains a link or special file"
+            exit 2
+          fi
+          tar \
+            --no-same-owner \
+            --no-same-permissions \
+            --delay-directory-restore \
+            -xzf dist/freebsd-release/freebsd-pkg-repos.tar.gz \
+            -C dist/freebsd-pkg-repos
+          unexpected_entry="$(find dist/freebsd-pkg-repos/repo ! -type f ! -type d -print -quit)"
+          if [ -n "$unexpected_entry" ]; then
+            echo "::error::Extracted FreeBSD repository contains an unsafe entry: $unexpected_entry"
+            exit 2
+          fi
+
+      - name: Build combined package repositories
+        env:
+          FREEBSD_PKG_REPO_DIR: dist/freebsd-pkg-repos/repo
+          REQUIRE_FREEBSD_ARTIFACTS: "1"
+        run: scripts/build-package-repos.sh
+
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6
+
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
+        with:
+          path: dist/package-site
+
+      - name: Publish FreeBSD release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PACKAGE_VERSION: ${{ needs.validate-request.outputs.package-version }}
+          RELEASE_REPOSITORY: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          set -eu
+          gh release upload "$RELEASE_TAG" \
+            --repo "$RELEASE_REPOSITORY" \
+            --clobber \
+            "dist/freebsd-release/unifi-stubd_${PACKAGE_VERSION}-1_freebsd_amd64.tar.gz" \
+            "dist/freebsd-release/unifi-stubd_${PACKAGE_VERSION}-1_freebsd_arm64.tar.gz" \
+            dist/freebsd-release/freebsd-pkg-repos.tar.gz \
+            dist/freebsd-release/SHA256SUMS.freebsd
+
+      - id: deployment
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5

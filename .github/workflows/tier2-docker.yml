@@ -128,9 +128,9 @@ jobs:
         run: |
           {
             printf '## Tier 2 Docker Integration\n\n'
-            printf -- '- Commit: `%s`\n' "$GITHUB_SHA"
-            printf -- '- Runner: `%s`\n' "$RUNNER_NAME"
-            printf -- '- Controller image: `%s`\n' "$UNIFI_NETWORK_IMAGE"
-            printf -- '- Expected controller version: `%s`\n' "$UNIFI_STUB_LAB_EXPECTED_NETWORK_VERSION"
-            printf -- '- Job status: `%s`\n' "$JOB_STATUS"
+            printf -- '- Commit: %s\n' "$GITHUB_SHA"
+            printf -- '- Runner: %s\n' "$RUNNER_NAME"
+            printf -- '- Controller image: %s\n' "$UNIFI_NETWORK_IMAGE"
+            printf -- '- Expected controller version: %s\n' "$UNIFI_STUB_LAB_EXPECTED_NETWORK_VERSION"
+            printf -- '- Job status: %s\n' "$JOB_STATUS"
           } >> "$GITHUB_STEP_SUMMARY"

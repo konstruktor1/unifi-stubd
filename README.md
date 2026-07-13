@@ -144,17 +144,20 @@ SigLevel = Never
 Server = https://konstruktor1.github.io/unifi-stubd/arch/$arch
 ```
 
-FreeBSD/OPNsense builds are published as tarballs for `amd64` and `arm64`.
-The package site also publishes unsigned native FreeBSD `pkg` repositories
-when the FreeBSD builder runner is online:
+FreeBSD/OPNsense outputs are a separate manual Tier 3 follow-up to the
+Linux-first release. A `v*` tag publishes Linux packages, the SBOM, checksums,
+and the Linux package site without waiting for the FreeBSD builder. When Tier 3
+is explicitly published for that existing pre-release, it adds `amd64` and
+`arm64` tarballs, `SHA256SUMS.freebsd`, and unsigned native FreeBSD `pkg`
+repositories; those outputs can therefore appear later or remain absent:
 
 ```sh
 ARCH=amd64 # or arm64
-fetch https://konstruktor1.github.io/unifi-stubd/freebsd/${ARCH}/unifi-stubd_0.2.4-alpha-1_freebsd_${ARCH}.tar.gz
+fetch https://konstruktor1.github.io/unifi-stubd/freebsd/${ARCH}/unifi-stubd_0.2.5-alpha-1_freebsd_${ARCH}.tar.gz
 fetch https://konstruktor1.github.io/unifi-stubd/checksums.txt
-grep "freebsd/${ARCH}/unifi-stubd_0.2.4-alpha-1_freebsd_${ARCH}.tar.gz" checksums.txt
-sha256 unifi-stubd_0.2.4-alpha-1_freebsd_${ARCH}.tar.gz
-sudo tar -xzf unifi-stubd_0.2.4-alpha-1_freebsd_${ARCH}.tar.gz -C /
+grep "freebsd/${ARCH}/unifi-stubd_0.2.5-alpha-1_freebsd_${ARCH}.tar.gz" checksums.txt
+sha256 unifi-stubd_0.2.5-alpha-1_freebsd_${ARCH}.tar.gz
+sudo tar -xzf unifi-stubd_0.2.5-alpha-1_freebsd_${ARCH}.tar.gz -C /
 sudo vi /usr/local/etc/unifi-stubd/config.yaml
 sudo sysrc unifi_stubd_enable=YES
 sudo service unifi-stubd start
@@ -532,21 +535,49 @@ make package-freebsd-pkg-repos
 ```
 
 The standalone `make package-freebsd-tgz` target defaults to `amd64`; set
-`PKG_FREEBSD_GOARCH=arm64` for ARM FreeBSD hosts. Release FreeBSD artifacts are
-built through the configured FreeBSD builder and include native `pkg`
-repositories for `FreeBSD:14` and `FreeBSD:15` on `amd64`, `aarch64`, and
-`armv7`.
+`PKG_FREEBSD_GOARCH=arm64` for ARM FreeBSD hosts. FreeBSD release artifacts are
+a manual Tier 3 build through the configured FreeBSD builder and include
+native `pkg` repositories for `FreeBSD:14` and `FreeBSD:15` on `amd64`,
+`aarch64`, and `armv7`.
 `make package-freebsd-pkg-repos` sends the source tree to that builder, builds
 each configured FreeBSD ABI there, and writes the native `pkg` repos plus the
-published `amd64` and `arm64` tarballs. The builder must provide FreeBSD
+`amd64` and `arm64` tarballs. The builder must provide FreeBSD
 `pkg`, `tar`, and a Go command named `go`, `go125`, or `go126`. Set
 `FREEBSD_PKG_BUILD_JAILS` only for custom builders with running `jexec` jails;
 Poudriere target jails are not long-running `jexec` build environments.
 
+The Tier 3 workflow is manual-only and uses
+`[self-hosted, Linux, X64, unifi-stubd, tier3, freebsd-pkg-builder]`. Build
+seven-day Actions evidence from `main` or the matching version tag without
+publishing it:
+
+```sh
+gh workflow run tier3-freebsd.yml --ref main -f publish=false
+```
+
+After the automatic Linux workflow has created a matching `v*` pre-release,
+publish the FreeBSD assets and rebuild Pages as a combined Linux/FreeBSD site:
+
+```sh
+gh workflow run tier3-freebsd.yml --ref <new-v-tag-with-tier3-workflow> -f publish=true
+```
+
+Publication is rejected for a branch, a missing or final release, an
+incomplete Linux pre-release, a release with signed checksum assets, or a
+legacy `SHA256SUMS` that already includes FreeBSD. The selected tag must contain
+this workflow. Tier 3 has no trigger or dependency from normal CI, Tier 2,
+pushes, tags, or schedules.
+The Tier 3 runner is a Linux SSH proxy to the FreeBSD package host, not a
+general lab runner: remove its `docker-dmz` label, Docker daemon access, and
+passwordless sudo. Tier 2 then requires a separate runner carrying
+`docker-dmz`; the old runner must never carry both role labels. Protect the
+`tier3-freebsd` environment with required reviewers and allow only `main` and
+`v*` deployment refs.
+
 Common overrides:
 
 ```sh
-PKG_VERSION=0.2.4-alpha PKG_RELEASE=1 PKG_GOARCH=amd64 \
+PKG_VERSION=0.2.5-alpha PKG_RELEASE=1 PKG_GOARCH=amd64 \
   PKG_MAINTAINER='Name <email@example.com>' make package
 ```
 
@@ -558,10 +589,10 @@ Unsigned GitHub Pages package repositories can be built from those artifacts:
 make package-repos
 ```
 
-The generated site is written to `dist/package-site/` and contains APT, RPM,
-Arch Linux, FreeBSD/OPNsense tarball paths, and native FreeBSD `pkg`
-repository paths for the alpha channel when the FreeBSD builder output is
-present.
+The generated site is written to `dist/package-site/`. The automatic package
+workflow publishes APT, RPM, Arch Linux, and Linux tarball paths first. A
+successful Tier 3 publication rebuilds that site with the FreeBSD/OPNsense
+tarball paths and native FreeBSD `pkg` repository paths added.
 
 Release packages are intentionally neutral. They install the daemon, service
 files, documentation, and the packaged example config only. Keep real controller
@@ -602,7 +633,9 @@ The staged development path is documented in
 [docs/en/development.md](docs/en/development.md) and
 [docs/de/development.md](docs/de/development.md): topic branches target `dev`,
 `main` is the tested release base, and package repositories publish only from
-tags, GitHub releases, or an explicit workflow run from `main`.
+tags, GitHub releases, or an explicit workflow run from `main`. The normal
+path is Linux-first; FreeBSD packaging is an independent manual Tier 3
+follow-up for an exact ref or existing pre-release.
 
 ## Security
 

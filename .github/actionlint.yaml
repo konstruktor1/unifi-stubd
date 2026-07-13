@@ -3,3 +3,4 @@ self-hosted-runner:
     - freebsd-pkg-builder
     - docker-dmz
     - unifi-stubd
+    - tier3

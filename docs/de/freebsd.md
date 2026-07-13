@@ -72,6 +72,34 @@ laufenden `jexec`-Jails setzen. Der kanonische Poudriere-Buildhost baut die
 FreeBSD-Binaries auf dem FreeBSD-Host mit `go`, `go125` oder `go126` und
 erstellt danach ABI-spezifische `pkg`-Repositories mit dem FreeBSD-`pkg`-Tool.
 
+In GitHub Actions ist dieser Pfad Tier 3 und ausschliesslich manuell. Ein Build-
+only-Lauf ist von `main` oder dem passenden Versions-Tag erlaubt und behaelt
+ein Evidenz-Artefakt sieben Tage:
+
+```sh
+gh workflow run tier3-freebsd.yml --ref main -f publish=false
+```
+
+Nachdem der automatische Linux-Tag-Workflow den passenden Pre-Release erzeugt
+hat, kann Tier 3 die FreeBSD-Artefakte anfuegen und Pages mit beiden
+Betriebssystemfamilien neu bauen:
+
+```sh
+gh workflow run tier3-freebsd.yml --ref <v-tag-mit-tier3-workflow> -f publish=true
+```
+
+Der self-hosted Job wird mit `[self-hosted, Linux, X64, unifi-stubd, tier3,
+freebsd-pkg-builder]` ausgewaehlt. Dieser Linux-Runner ist nur SSH-Proxy zum
+FreeBSD-Pakethost. Er darf weder die Rolle `docker-dmz` noch Docker-Daemon-
+Zugriff oder passwortloses sudo behalten; Tier 2 nutzt einen anderen Docker-
+Runner. Das Environment `tier3-freebsd` braucht Required Reviewer und erlaubt
+nur `main` und `v*` als Refs.
+
+Diese Trennung beginnt mit Tags, die `tier3-freebsd.yml` enthalten und deren
+automatische `SHA256SUMS` nur Linux- und SBOM-Artefakte abdeckt. Legacy-
+Releases, deren Pruefsummendatei FreeBSD bereits enthaelt, werden bewusst nicht
+nachtraeglich umgestellt.
+
 ```text
 /usr/local/bin/unifi-stubd
 /usr/local/etc/unifi-stubd/config.yaml
@@ -84,9 +112,11 @@ erstellt danach ABI-spezifische `pkg`-Repositories mit dem FreeBSD-`pkg`-Tool.
 
 ## Veroeffentlichte Tarballs installieren
 
-Veroeffentlichte Alpha-Tarballs liegen in GitHub Releases und auf der
-GitHub-Pages-Paketeseite. Die Pages-Seite bietet stabile URLs fuer
-Paketmanager-Doku und direkte FreeBSD-/OPNsense-Downloads:
+Veroeffentlichte Alpha-Tarballs liegen erst nach der optionalen manuellen Tier-
+3-Veroeffentlichung in GitHub Releases und auf der GitHub-Pages-Paketeseite.
+Ein normaler Tag kann daher bereits Linux-Pakete und eine SBOM enthalten,
+waehrend FreeBSD-Output noch fehlt. Nach abgeschlossenem Tier 3 bietet Pages
+stabile URLs fuer direkte FreeBSD-/OPNsense-Downloads:
 
 ```text
 https://konstruktor1.github.io/unifi-stubd/freebsd/amd64/
@@ -98,11 +128,11 @@ OPNsense-/x86_64-Installationen, `arm64` fuer ARM-FreeBSD-Hosts:
 
 ```sh
 ARCH=amd64 # oder arm64
-fetch https://konstruktor1.github.io/unifi-stubd/freebsd/${ARCH}/unifi-stubd_0.2.4-alpha-1_freebsd_${ARCH}.tar.gz
+fetch https://konstruktor1.github.io/unifi-stubd/freebsd/${ARCH}/unifi-stubd_0.2.5-alpha-1_freebsd_${ARCH}.tar.gz
 fetch https://konstruktor1.github.io/unifi-stubd/checksums.txt
-grep "freebsd/${ARCH}/unifi-stubd_0.2.4-alpha-1_freebsd_${ARCH}.tar.gz" checksums.txt
-sha256 unifi-stubd_0.2.4-alpha-1_freebsd_${ARCH}.tar.gz
-tar -tzf unifi-stubd_0.2.4-alpha-1_freebsd_${ARCH}.tar.gz
+grep "freebsd/${ARCH}/unifi-stubd_0.2.5-alpha-1_freebsd_${ARCH}.tar.gz" checksums.txt
+sha256 unifi-stubd_0.2.5-alpha-1_freebsd_${ARCH}.tar.gz
+tar -tzf unifi-stubd_0.2.5-alpha-1_freebsd_${ARCH}.tar.gz
 ```
 
 Die `sha256`-Ausgabe muss zum Eintrag in `checksums.txt` passen. Der Tarball
@@ -164,7 +194,7 @@ Tarball auf dem FreeBSD-/OPNsense-Host installieren oder entpacken, dann den
 Dienst ueber rc.conf oder OPNsense-Tunables aktivieren:
 
 ```sh
-sudo tar -xzf unifi-stubd_0.2.4-alpha-1_freebsd_${ARCH}.tar.gz -C /
+sudo tar -xzf unifi-stubd_0.2.5-alpha-1_freebsd_${ARCH}.tar.gz -C /
 sudo vi /usr/local/etc/unifi-stubd/config.yaml
 sysrc unifi_stubd_enable=YES
 service unifi-stubd start
