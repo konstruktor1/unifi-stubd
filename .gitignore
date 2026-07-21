@@ -31,3 +31,7 @@ lab/gateway-profiles/**/controller-data/
 lab/gateway-profiles/**/.env
 lab/gateway-profiles/**/*.env
 !lab/gateway-profiles/udm-pro-se-vm/utm/defaults.env
+
+# Generated checkout-local Build Runner release acknowledgement.
+/build-runner/provider-ack.json
+/build-runner/runtime/

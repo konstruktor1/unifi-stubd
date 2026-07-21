@@ -1,0 +1,25 @@
+version: 1
+runner:
+  name: unifi-stubd-controller-gate
+  id: "${RUNNER_ID}"
+  lifecycle: ephemeral
+base:
+  tier: 1
+  service: go
+backend: overlay-image
+resources: {}
+image_setup:
+  script: build-runner/toolsets/controller-gate/image-setup.sh
+  inputs: []
+prepare: []
+validation:
+  - go version
+  - docker version --format 'docker_client={{.Client.Version}} docker_server={{.Server.Version}} server_osarch={{.Server.Os}}/{{.Server.Arch}}'
+  - docker compose version
+  - docker buildx version
+runtime_requirements:
+  - id: disposable-controller-docker-api
+    type: docker-api
+    reason: The product gate must build and run the project-owned disposable UniFi controller and Stub fixtures against the exact mounted consumer source.
+    host_ref: DOCKER_SOCKET
+    target: /var/run/docker.sock

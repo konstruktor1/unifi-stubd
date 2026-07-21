@@ -8,12 +8,16 @@ COVERAGE_TESTS ?= ./tests/...
 PKG_VERSION ?= $(shell sed -n '1p' VERSION)
 PKG_RELEASE ?= 1
 PKG_GOOS ?= linux
-PKG_GOARCH ?= $(shell $(GO) env GOARCH)
+# Keep Makefile parsing independent of Go. scripts/package.sh resolves the
+# current architecture inside Build Runner when no explicit target is set.
+PKG_GOARCH ?=
 PKG_FREEBSD_GOARCH ?= amd64
 PKG_FORMATS ?= deb rpm archlinux tgz
 PKG_LICENSE ?= AGPL-3.0-or-later
 PKG_MAINTAINER ?= unifi-stubd maintainers <info@spinas.org>
 BUILD_LDFLAGS := -s -w -X main.version=$(PKG_VERSION)
+BUILD_RUNNER_PROJECT_NAME := unifi-stubd
+BUILD_RUNNER_INTEGRATION_MANIFEST := build-runner/instances/controller-gate.yaml
 
 PKG_ENV_NONFPM := PKG_VERSION='$(PKG_VERSION)' \
   PKG_RELEASE='$(PKG_RELEASE)' \
@@ -82,8 +86,22 @@ validate-config:
 	tmp="$$(mktemp)"; trap 'rm -f "$$tmp"' EXIT; $(GO) run ./cmd/unifi-stubd -dry-run -config lab/stub/configs/hosts/opnsense-uxg-sfp-lab/config.example.yaml > "$$tmp"; $(GO) run ./lab/stub/tools/assert-payload opnsense-uxg "$$tmp"
 	$(GO) run ./cmd/unifi-stubd -profile-validate tests/fixtures/profiles
 
+define run_docker_integration
+	@if [ "$$(pwd -P)" = /workspace ]; then \
+		$(1); \
+	else \
+		: "$${BUILD_RUNNER_DIR:?set BUILD_RUNNER_DIR to the provider checkout}"; \
+		host_lab_dir="$$(pwd -P)/lab/stub"; \
+		"$$BUILD_RUNNER_DIR/build-runner" \
+			--project-name '$(BUILD_RUNNER_PROJECT_NAME)' \
+			instance run \
+			--manifest '$(BUILD_RUNNER_INTEGRATION_MANIFEST)' \
+			-- env UNIFI_STUB_DOCKER_HOST_LAB_DIR="$$host_lab_dir" $(1); \
+	fi
+endef
+
 integration-docker:
-	sh lab/stub/scripts/run-docker-integration.sh
+	$(call run_docker_integration,sh lab/stub/scripts/run-docker-integration.sh)
 
 coverage:
 	mkdir -p dist

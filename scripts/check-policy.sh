@@ -37,8 +37,28 @@ grep -Fq 'runs-on: [self-hosted, Linux, X64, docker-dmz, unifi-stubd, freebsd-pk
 if grep -Eiq 'tier[ -]?3|tier3' "$freebsd_workflow"; then
   fail "FreeBSD Packaging must not couple the GitHub Actions runner to a test tier"
 fi
-grep -Fq 'runs-on: [self-hosted, Linux, X64, docker-dmz, docker-engine, unifi-stubd]' .github/workflows/tier2-docker.yml ||
-  fail "Tier 2 Docker Integration must require the explicit docker-engine capability"
+controller_workflow=.github/workflows/tier2-docker.yml
+grep -Fq 'runs-on: [self-hosted, Linux, X64, docker-dmz, docker-engine, unifi-stubd]' "$controller_workflow" ||
+  fail "Controller Integration must require the explicit docker-engine capability"
+grep -Fq 'BUILD_RUNNER_DIR' "$controller_workflow" ||
+  fail "Controller Integration must require the configured Build Runner provider"
+grep -Fq 'run: make integration-docker' "$controller_workflow" ||
+  fail "Controller Integration must enter through the runner-aware Make target"
+if grep -Eq 'actions/setup-go|(^|[[:space:]])go version|docker (compose|info|version)' "$controller_workflow"; then
+  fail "Controller Integration must not create a workflow-local Go or Docker toolchain"
+fi
+
+printf '== policy: controller lab lifecycle stays behind Build Runner ==\n'
+lab_compose=lab/stub/compose.yaml
+lab_runner=lab/stub/scripts/run-docker-integration.sh
+if grep -Eq '^[[:space:]]*(container_name:|restart:[[:space:]]+unless-stopped)' "$lab_compose"; then
+  fail "Controller lab containers must not use host-global names or persistent restart policies"
+fi
+if grep -Eq 'docker volume (ls|rm)|UNIFI_STUB_DOCKER_KEEP_RESOURCES' "$lab_runner"; then
+  fail "Controller lab lifecycle must not expose partial volume cleanup or a keep-running bypass"
+fi
+grep -Fq 'compose down --volumes --remove-orphans' "$lab_runner" ||
+  fail "Controller lab runner must remove the complete Compose project"
 
 printf '== policy: release version is centralized and documented ==\n'
 release_version=$(sed -n '1p' VERSION)

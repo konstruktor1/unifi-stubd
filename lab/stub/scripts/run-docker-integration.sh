@@ -3,10 +3,16 @@ set -eu
 
 script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 repo_root="$(CDPATH= cd -- "$script_dir/../../.." && pwd)"
+if [ "$repo_root" != /workspace ]; then
+    echo "run the Docker lab through Build Runner (make integration-docker)" >&2
+    exit 2
+fi
 captures_dir="$repo_root/lab/stub/captures"
 payload_dir="${TMPDIR:-/tmp}/unifi-stubd-docker-integration.$$"
 resources_cleaned=0
 go_cmd="${GO:-go}"
+COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-unifi-stubd-controller-gate}"
+export COMPOSE_PROJECT_NAME
 default_unifi_network_image="lscr.io/linuxserver/unifi-network-application:10.4.57-ls135"
 default_gateway_command_expectation="absent"
 
@@ -27,6 +33,10 @@ compose() {
         "$@"
 }
 
+stub_run() {
+    compose run --rm --no-deps --volume /var/lib/unifi-stubd "$@"
+}
+
 format_lab_mac() {
     value="$1"
     octet4=$((value / 65536 % 256))
@@ -35,47 +45,35 @@ format_lab_mac() {
     printf '02:15:6d:%02x:%02x:%02x' "$octet4" "$octet5" "$octet6"
 }
 
-test_volume_name() {
-    suffix="$1"
-    docker volume ls -q | grep "_${suffix}$" | head -n 1 || true
-}
-
-reset_test_service() {
-    service="$1"
-    volume_suffix="$2"
-    compose stop "$service" >/dev/null 2>&1 || true
-    compose rm -fsv "$service" >/dev/null 2>&1 || true
-    volume="$(test_volume_name "$volume_suffix")"
-    if [ -n "$volume" ]; then
-        docker volume rm "$volume" >/dev/null 2>&1 || true
-    fi
-}
-
 cleanup_runtime_resources() {
     if [ "${resources_cleaned:-0}" = "1" ]; then
         return
     fi
-    resources_cleaned=1
-    if [ "${UNIFI_STUB_DOCKER_KEEP_RESOURCES:-0}" = "1" ]; then
-        return
+    if compose ps --status running --services 2>/dev/null | grep -qx unifi; then
+        for mac in "${UNIFI_STUB_BRIDGE_MAC:-}" "${UNIFI_STUB_PORTMAP_MAC:-}" "${UNIFI_STUB_GATEWAY_MAC:-}"; do
+            if [ -n "$mac" ]; then
+                controller_api forget --mac "$mac" >/dev/null 2>&1 || true
+                controller_api wait-clean --mac "$mac" --timeout "${UNIFI_STUB_DOCKER_CLEANUP_TIMEOUT:-30}" >/dev/null 2>&1 || true
+            fi
+        done
     fi
-    reset_test_service stub-bridge-observe stub-bridge-observe-state
-    reset_test_service stub-port-map stub-port-map-state
-    reset_test_service stub-gateway-smoke stub-gateway-smoke-state
-    for mac in "${UNIFI_STUB_BRIDGE_MAC:-}" "${UNIFI_STUB_PORTMAP_MAC:-}" "${UNIFI_STUB_GATEWAY_MAC:-}"; do
-        if [ -n "$mac" ]; then
-            controller_api forget --mac "$mac" >/dev/null 2>&1 || true
-            controller_api wait-clean --mac "$mac" --timeout "${UNIFI_STUB_DOCKER_CLEANUP_TIMEOUT:-30}" >/dev/null 2>&1 || true
-        fi
-    done
+    if ! compose down --volumes --remove-orphans; then
+        echo "docker integration: failed to remove disposable Compose project=$COMPOSE_PROJECT_NAME" >&2
+        return 2
+    fi
+    resources_cleaned=1
 }
 
 cleanup() {
     status=$?
     set +e
     cleanup_runtime_resources
+    cleanup_status=$?
     rm -rf "$payload_dir"
-    return "$status"
+    if [ "$status" -ne 0 ]; then
+        return "$status"
+    fi
+    return "$cleanup_status"
 }
 
 event_line_count() {
@@ -135,7 +133,7 @@ wait_for_event_count() {
 wait_for_inform_proxy() {
     deadline=$(($(date +%s) + ${UNIFI_STUB_DOCKER_MITM_TIMEOUT:-90}))
     while [ "$(date +%s)" -le "$deadline" ]; do
-        if compose run --rm --no-deps --entrypoint /bin/sh stub-port-map -ec 'nc -z -w 1 unifi 8080' >/dev/null 2>&1; then
+        if stub_run --entrypoint /bin/sh stub-port-map -ec 'nc -z -w 1 unifi 8080' >/dev/null 2>&1; then
             return 0
         fi
         sleep 2
@@ -175,7 +173,7 @@ send_one_shot_until_event() {
     attempts="${UNIFI_STUB_DOCKER_INFORM_ATTEMPTS:-5}"
     attempt=1
     while [ "$attempt" -le "$attempts" ]; do
-        compose run --rm --no-deps "$service" -once || true
+        stub_run "$service" -once || true
         if assert_events "$captures_dir/events.jsonl" "$start_line" "$mac" >/dev/null 2>&1; then
             assert_events "$captures_dir/events.jsonl" "$start_line" "$mac"
             return 0
@@ -295,11 +293,9 @@ wait_for_gateway_command_lifecycle() {
 run_controller_adoption_gate() {
     label="$1"
     service="$2"
-    volume_suffix="$3"
-    mac="$4"
+    mac="$3"
 
     echo "docker integration: controller $label adoption gate"
-    reset_test_service "$service" "$volume_suffix"
     controller_api forget --mac "$mac" >/dev/null 2>&1 || true
     controller_api wait-clean --mac "$mac" --timeout "${UNIFI_STUB_DOCKER_ADOPTION_TIMEOUT:-90}"
     adoption_start_line="$(event_line_count)"
@@ -357,10 +353,8 @@ export UNIFI_STUB_GATEWAY_IP="${UNIFI_STUB_GATEWAY_IP:-172.31.242.$((30 + run_se
 echo "docker integration: test identities bridge=$UNIFI_STUB_BRIDGE_MAC/$UNIFI_STUB_BRIDGE_IP port-map=$UNIFI_STUB_PORTMAP_MAC/$UNIFI_STUB_PORTMAP_IP gateway=$UNIFI_STUB_GATEWAY_MAC/$UNIFI_STUB_GATEWAY_IP"
 echo "docker integration: gateway command expectation=$gateway_command_expectation"
 
-echo "docker integration: resetting temporary test services"
-reset_test_service stub-bridge-observe stub-bridge-observe-state
-reset_test_service stub-port-map stub-port-map-state
-reset_test_service stub-gateway-smoke stub-gateway-smoke-state
+echo "docker integration: resetting disposable Compose project=$COMPOSE_PROJECT_NAME"
+compose down --volumes --remove-orphans
 
 echo "docker integration: validating compose configuration"
 compose config >/dev/null
@@ -373,11 +367,11 @@ else
 fi
 
 echo "docker integration: dry-run bridge-observe payload"
-compose run --rm --no-deps stub-bridge-observe -dry-run > "$payload_dir/bridge-observe.txt"
+stub_run stub-bridge-observe -dry-run > "$payload_dir/bridge-observe.txt"
 assert_payload bridge-observe "$payload_dir/bridge-observe.txt"
 
 echo "docker integration: dry-run management-lan preexisting-interface payload"
-compose run --rm --no-deps stub-bridge-observe \
+stub_run stub-bridge-observe \
     -dry-run \
     -management-lan-enabled \
     -management-lan-vlan 42 \
@@ -388,11 +382,11 @@ compose run --rm --no-deps stub-bridge-observe \
 assert_payload management-lan "$payload_dir/management-lan.txt"
 
 echo "docker integration: dry-run port-map payload"
-compose run --rm --no-deps stub-port-map -dry-run > "$payload_dir/port-map.txt"
+stub_run stub-port-map -dry-run > "$payload_dir/port-map.txt"
 assert_payload port-map "$payload_dir/port-map.txt"
 
 echo "docker integration: dry-run gateway payload"
-compose run --rm --no-deps stub-gateway-smoke -dry-run > "$payload_dir/gateway-smoke.txt"
+stub_run stub-gateway-smoke -dry-run > "$payload_dir/gateway-smoke.txt"
 assert_payload gateway-smoke "$payload_dir/gateway-smoke.txt"
 
 echo "docker integration: starting pinned controller image=$UNIFI_NETWORK_IMAGE"
@@ -443,13 +437,11 @@ wait_for_event_kind "$start_line" discovery \
 run_controller_adoption_gate \
     switch \
     stub-bridge-observe \
-    stub-bridge-observe-state \
     "$UNIFI_STUB_BRIDGE_MAC"
 
 run_controller_adoption_gate \
     gateway \
     stub-gateway-smoke \
-    stub-gateway-smoke-state \
     "$UNIFI_STUB_GATEWAY_MAC"
 
 echo "docker integration: cleaning temporary test resources"

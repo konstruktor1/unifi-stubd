@@ -15,7 +15,7 @@ lab-scoped, and reviewable.
 
 - `README.md`: user-facing overview, quick start, services, packaging.
 - `packaging/linux/etc/unifi-stubd/config.yaml`: packaged Linux service config.
-- `lab/`: lab switch identities, command snippets, and payload fixtures.
+- `lab/stub/`: project-owned controller integration fixtures.
 - `docs/en/architecture.md`: architecture and component boundaries.
 - `docs/en/protocol-notes.md`: discovery, inform, and adoption protocol notes.
 - `CREDITS.md`: research sources, license boundaries, and attribution rules.
@@ -37,14 +37,50 @@ thin adapters for common tools and should not duplicate project rules:
 
 ## Build And Validation
 
-Use the repository targets instead of inventing ad-hoc commands:
+All Go-dependent work must run through the Build Runner. Treat local Go and
+locally installed Go tools as unavailable: do not probe for, install, restore,
+or invoke them, including cached `golang.org/toolchain` binaries. Use the
+stable project name `unifi-stubd` and the configured provider checkout:
 
 ```sh
-make check
-make lint
-make test
-make package
+BUILD_RUNNER_DIR=${BUILD_RUNNER_DIR:?set BUILD_RUNNER_DIR to the provider checkout}
+PROJECT_NAME=unifi-stubd
+"$BUILD_RUNNER_DIR/build-runner" --project-name "$PROJECT_NAME" run --tier 1 --service go -- make check
+"$BUILD_RUNNER_DIR/build-runner" --project-name "$PROJECT_NAME" run --tier 1 --service go -- make lint
+"$BUILD_RUNNER_DIR/build-runner" --project-name "$PROJECT_NAME" run --tier 1 --service go -- make test
+"$BUILD_RUNNER_DIR/build-runner" --project-name "$PROJECT_NAME" run --tier 1 --service go -- make package
 ```
+
+The Docker-lab Make target is a runner-aware consumer entry point. On the
+host, `make integration-docker` delegates to the committed Build Runner
+instance manifest; inside the canonical runner workspace it executes the lab
+payload. Do not invoke
+`lab/stub/scripts/run-docker-integration.sh` directly on the host. The payload
+owns one disposable Compose project per gate and must remove all of its
+containers, networks, named volumes, and orphans before returning; do not add
+fixed container names, persistent restart policies, or a keep-running bypass.
+
+This applies equally to direct `go`, `gofmt`, `golangci-lint`, `gopls`, and
+`nFPM` use. Do not fall back to host tooling when the runner is unavailable;
+report the runner blocker instead. Run the Build Runner from this durable
+consumer checkout. `/tmp` and `/private/tmp` must not be used as its consumer
+project, source tree, workspace, manifest store, artifact store, or evidence
+store.
+
+Before planning, delegating, or executing Build Runner work, every primary or
+delegated agent must read the current provider contract at
+`$BUILD_RUNNER_DIR/snippets/AGENTS.build-runner.md`. Provider documentation and
+release notes referenced there are part of that contract; remembered or copied
+instructions are not a substitute. Until the exact provider version and commit
+are acknowledged, reread the current contract immediately before every runner
+invocation and warn the user that the provider identity is pending. Treat the
+provider checkout as read-only from this consumer project.
+
+The approved provider identity for this checkout is Build Runner `6.1.3` at
+commit `98e7049917b2c3bae99b2430eec9e47ab934ea20`. While the provider working
+tree contains an unrelated refactor, read the contract and release note from
+that exact Git object with `git -C "$BUILD_RUNNER_DIR" show <commit>:<path>`;
+do not substitute uncommitted provider files or modify the provider checkout.
 
 `make check` is the normal pre-merge command. It verifies the golangci-lint
 configuration, runs lint, enforces repository policy, validates packaged
