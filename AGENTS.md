@@ -76,10 +76,18 @@ are acknowledged, reread the current contract immediately before every runner
 invocation and warn the user that the provider identity is pending. Treat the
 provider checkout as read-only from this consumer project.
 
-The approved provider identity for this checkout is Build Runner `6.1.4` at
-commit `ac896ef0b619d366d1e619dab32e6b8eb176fc61`. Read the regular checked-out
+The approved provider identity for this checkout is Build Runner `6.2.0` at
+commit `41de60bf4e6077395f9b4a50ba12e4287938c3a2`. Read the regular checked-out
 provider contract; the former 6.1.3 Git-object reading exception is revoked.
 Do not modify the provider checkout.
+
+The direct QEMU manager in the `unifi-stubd-labs` companion repository remains
+an external-machine compatibility path for test/lab lifecycle. Its wrapper
+must warn before every action that the profile has no Provider consumer
+attribution, recommend the optional Test Runner conversion procedure, and
+leave execution and ownership unchanged. Reevaluate conversion on every use;
+never infer or apply adoption without a truthful observed source, a compatible
+blueprint/service, reviewed parity, and separate authority.
 
 `make check` is the normal pre-merge command. It verifies the golangci-lint
 configuration, runs lint, enforces repository policy, validates packaged
