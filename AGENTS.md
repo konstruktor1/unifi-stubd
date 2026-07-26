@@ -76,8 +76,8 @@ are acknowledged, reread the current contract immediately before every runner
 invocation and warn the user that the provider identity is pending. Treat the
 provider checkout as read-only from this consumer project.
 
-The approved provider identity for this checkout is Build Runner `6.2.0` at
-commit `41de60bf4e6077395f9b4a50ba12e4287938c3a2`. Read the regular checked-out
+The approved provider identity for this checkout is Build Runner `6.2.1` at
+commit `260efe778819a906eade3f1afe3b73c7282da89b`. Read the regular checked-out
 provider contract; the former 6.1.3 Git-object reading exception is revoked.
 Do not modify the provider checkout.
 
