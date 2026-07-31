@@ -102,10 +102,6 @@ func gatewayHostTable(view PortView) []gatewayHostRow {
 			MAC:        strings.ToLower(strings.TrimSpace(entry.MAC)),
 			Age:        entry.Age,
 			Authorized: true,
-			RXBytes:    port.RXBytes,
-			TXBytes:    port.TXBytes,
-			RXPackets:  packetCounter(port.RXPackets, port.CountersSet),
-			TXPackets:  packetCounter(port.TXPackets, port.CountersSet),
 			Uptime:     firstNonZero(entry.Uptime, 1200),
 		}
 		if hostname := strings.TrimSpace(entry.Hostname); hostname != "" {

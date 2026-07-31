@@ -6,11 +6,18 @@ import (
 	"time"
 )
 
+const (
+	immediateInformDelay            = 100 * time.Millisecond
+	maximumControllerInformInterval = 300 * time.Second
+)
+
 // ScheduleConfig defines the operator-controlled heartbeat and retry bounds.
 type ScheduleConfig struct {
 	BaseInterval          time.Duration
 	ControllerIntervalMin time.Duration
 	ControllerIntervalMax time.Duration
+	FirmwareIntervalMin   time.Duration
+	ControllerHints       bool
 	BackoffMax            time.Duration
 	JitterPercent         int
 }
@@ -23,15 +30,20 @@ type ScheduleDecision struct {
 	ConsecutiveFailures   int
 	Backoff               bool
 	ControllerHintApplied bool
+	ControllerHintIgnored bool
+	ControllerHints       bool
+	ImmediateApplied      bool
+	ImmediateSuppressed   bool
 }
 
-// Schedule applies controller interval hints and bounded transport-failure
+// Schedule applies controller interval hints and bounded heartbeat-failure
 // backoff for one daemon instance.
 type Schedule struct {
-	config    ScheduleConfig
-	effective time.Duration
-	failures  int
-	random    *rand.Rand
+	config           ScheduleConfig
+	effective        time.Duration
+	failures         int
+	immediateLatched bool
+	random           *rand.Rand
 }
 
 // NewSchedule validates config and starts at the operator-selected base
@@ -56,8 +68,27 @@ func ValidateScheduleConfig(config ScheduleConfig) error {
 	if config.ControllerIntervalMin <= 0 {
 		return fmt.Errorf("controller interval minimum must be positive, got %s", config.ControllerIntervalMin)
 	}
+	if config.ControllerIntervalMin > maximumControllerInformInterval {
+		return fmt.Errorf("controller interval minimum %s exceeds firmware maximum %s", config.ControllerIntervalMin, maximumControllerInformInterval)
+	}
 	if config.ControllerIntervalMax < config.ControllerIntervalMin {
 		return fmt.Errorf("controller interval maximum %s is below minimum %s", config.ControllerIntervalMax, config.ControllerIntervalMin)
+	}
+	if !config.ControllerHints && config.FirmwareIntervalMin != 0 {
+		return fmt.Errorf("firmware interval minimum must be zero when controller hints are disabled, got %s", config.FirmwareIntervalMin)
+	}
+	if config.ControllerHints && config.FirmwareIntervalMin <= 0 {
+		return fmt.Errorf("firmware interval minimum must be positive when controller hints are enabled, got %s", config.FirmwareIntervalMin)
+	}
+	if config.ControllerHints && config.FirmwareIntervalMin > maximumControllerInformInterval {
+		return fmt.Errorf("firmware interval minimum %s exceeds firmware maximum %s", config.FirmwareIntervalMin, maximumControllerInformInterval)
+	}
+	effectiveMinimum := config.FirmwareIntervalMin
+	if config.ControllerIntervalMin > effectiveMinimum {
+		effectiveMinimum = config.ControllerIntervalMin
+	}
+	if config.ControllerHints && config.ControllerIntervalMax < effectiveMinimum {
+		return fmt.Errorf("controller interval maximum %s is below effective firmware minimum %s", config.ControllerIntervalMax, effectiveMinimum)
 	}
 	if config.BackoffMax <= 0 {
 		return fmt.Errorf("inform backoff maximum must be positive, got %s", config.BackoffMax)
@@ -71,28 +102,62 @@ func ValidateScheduleConfig(config ScheduleConfig) error {
 // Current returns the normal delay without changing controller hints or retry
 // state. It is used when no inform URL is configured.
 func (schedule *Schedule) Current() ScheduleDecision {
-	return schedule.decision(schedule.effective, false, false)
+	return schedule.decision(schedule.effective, false, false, false)
+}
+
+// Reset discards controller interval and transport-failure state while keeping
+// the operator-selected schedule configuration.
+func (schedule *Schedule) Reset() ScheduleDecision {
+	schedule.effective = schedule.config.BaseInterval
+	schedule.failures = 0
+	schedule.immediateLatched = false
+	return schedule.Current()
 }
 
 // Success applies a positive controller hint within configured bounds and
-// resets all transport-failure backoff.
+// resets all heartbeat-failure backoff.
 func (schedule *Schedule) Success(controllerHint time.Duration) ScheduleDecision {
-	hintApplied := controllerHint > 0
+	return schedule.SuccessWithOptions(controllerHint, false)
+}
+
+// SuccessWithOptions applies a controller hint and optionally schedules one
+// bounded near-immediate inform without changing the retained interval.
+func (schedule *Schedule) SuccessWithOptions(controllerHint time.Duration, immediate bool) ScheduleDecision {
+	hintApplied := schedule.config.ControllerHints && controllerHint > 0
+	hintIgnored := !schedule.config.ControllerHints && controllerHint > 0
 	if hintApplied {
+		maximum := schedule.config.ControllerIntervalMax
+		if maximum > maximumControllerInformInterval {
+			maximum = maximumControllerInformInterval
+		}
+		minimum := schedule.config.FirmwareIntervalMin
+		if schedule.config.ControllerIntervalMin > minimum {
+			minimum = schedule.config.ControllerIntervalMin
+		}
 		schedule.effective = clampDuration(
 			controllerHint,
-			schedule.config.ControllerIntervalMin,
-			schedule.config.ControllerIntervalMax,
+			minimum,
+			maximum,
 		)
 	}
 	schedule.failures = 0
-	return schedule.decision(schedule.effective, false, hintApplied)
+	delay := schedule.effective
+	grantImmediate := immediate && !schedule.immediateLatched
+	schedule.immediateLatched = immediate
+	if grantImmediate {
+		delay = immediateInformDelay
+	}
+	decision := schedule.decision(delay, false, hintApplied, hintIgnored)
+	decision.ImmediateApplied = grantImmediate
+	decision.ImmediateSuppressed = immediate && !grantImmediate
+	return decision
 }
 
 // Failure advances bounded exponential backoff and applies symmetric jitter.
-// The first transport failure waits twice the effective normal interval.
+// The first failed heartbeat waits twice the effective normal interval.
 func (schedule *Schedule) Failure() ScheduleDecision {
 	schedule.failures++
+	schedule.immediateLatched = false
 	maximum := schedule.config.BackoffMax
 	if maximum < schedule.effective {
 		maximum = schedule.effective
@@ -106,16 +171,18 @@ func (schedule *Schedule) Failure() ScheduleDecision {
 		delay *= 2
 	}
 	delay = schedule.jitter(delay, schedule.effective, maximum)
-	return schedule.decision(delay, true, false)
+	return schedule.decision(delay, true, false, false)
 }
 
-func (schedule *Schedule) decision(delay time.Duration, backoff, hintApplied bool) ScheduleDecision {
+func (schedule *Schedule) decision(delay time.Duration, backoff, hintApplied, hintIgnored bool) ScheduleDecision {
 	return ScheduleDecision{
 		EffectiveInterval:     schedule.effective,
 		NextDelay:             delay,
 		ConsecutiveFailures:   schedule.failures,
 		Backoff:               backoff,
 		ControllerHintApplied: hintApplied,
+		ControllerHintIgnored: hintIgnored,
+		ControllerHints:       schedule.config.ControllerHints,
 	}
 }
 

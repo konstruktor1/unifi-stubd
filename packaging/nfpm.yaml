@@ -14,12 +14,12 @@ homepage: https://github.com/konstruktor1/unifi-stubd
 license: "@PKG_LICENSE@"
 
 contents:
-  - src: ./dist/stage/pkgroot/usr/local/bin/unifi-stubd
+  - src: "@PKG_STAGE_DIR@/usr/local/bin/unifi-stubd"
     dst: /usr/local/bin/unifi-stubd
     file_info:
       mode: 0755
 
-  - src: ./dist/stage/pkgroot/etc/unifi-stubd/config.yaml
+  - src: "@PKG_STAGE_DIR@/etc/unifi-stubd/config.yaml"
     dst: /etc/unifi-stubd/config.yaml
     type: config|noreplace
     file_info:
@@ -27,35 +27,35 @@ contents:
       owner: root
       group: unifi-stubd
 
-  - src: ./dist/stage/pkgroot/usr/lib/systemd/system/unifi-stubd.service
+  - src: "@PKG_STAGE_DIR@/usr/lib/systemd/system/unifi-stubd.service"
     dst: /usr/lib/systemd/system/unifi-stubd.service
     packager: rpm
     file_info:
       mode: 0644
 
-  - src: ./dist/stage/pkgroot/usr/lib/systemd/system/unifi-stubd.service
+  - src: "@PKG_STAGE_DIR@/usr/lib/systemd/system/unifi-stubd.service"
     dst: /usr/lib/systemd/system/unifi-stubd.service
     packager: archlinux
     file_info:
       mode: 0644
 
-  - src: ./dist/stage/pkgroot/usr/lib/systemd/system/unifi-stubd.service
+  - src: "@PKG_STAGE_DIR@/usr/lib/systemd/system/unifi-stubd.service"
     dst: /lib/systemd/system/unifi-stubd.service
     packager: deb
     file_info:
       mode: 0644
 
-  - src: ./dist/stage/pkgroot/usr/share/doc/unifi-stubd/LICENSE
+  - src: "@PKG_STAGE_DIR@/usr/share/doc/unifi-stubd/LICENSE"
     dst: /usr/share/doc/unifi-stubd/LICENSE
     file_info:
       mode: 0644
 
-  - src: ./dist/stage/pkgroot/usr/share/doc/unifi-stubd/NOTICE.md
+  - src: "@PKG_STAGE_DIR@/usr/share/doc/unifi-stubd/NOTICE.md"
     dst: /usr/share/doc/unifi-stubd/NOTICE.md
     file_info:
       mode: 0644
 
-  - src: ./dist/stage/pkgroot/usr/share/doc/unifi-stubd/CREDITS.md
+  - src: "@PKG_STAGE_DIR@/usr/share/doc/unifi-stubd/CREDITS.md"
     dst: /usr/share/doc/unifi-stubd/CREDITS.md
     file_info:
       mode: 0644

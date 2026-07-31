@@ -1,7 +1,6 @@
 .DS_Store
 .git/
 .github/
-.utm-build/
 bin/
 dist/
 __pycache__/
@@ -11,14 +10,7 @@ coverage.out
 *.log
 /unifi-stubd
 
-research/firmware/**/artifacts/
-research/firmware/**/*.bin
-research/firmware/**/*.img
-research/firmware/**/*.sqfs
-research/firmware/**/*.squashfs
-research/firmware/**/rootfs/
-research/firmware/**/.env
-research/firmware/**/*.env
-research/firmware/**/controller-data/
-research/firmware/**/captures/
-lab/captures/
+lab/stub/captures/
+lab/stub/configs/hosts/**/real/
+lab/stub/configs/hosts/**/temp/
+build-runner/runtime/

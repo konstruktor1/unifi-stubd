@@ -5,6 +5,7 @@ package main
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"os"
 
@@ -12,17 +13,24 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/inform"
 )
 
+const (
+	resetDispositionApplied        = "applied"
+	resetDispositionAlreadyFactory = "already_factory"
+	resetDispositionFailed         = "failed"
+)
+
 // loadAdoptionState reads persisted controller adoption data and treats a
-// missing state file as factory state so first boot stays non-fatal.
-func loadAdoptionState(path string) adoption.Store {
+// missing state file as factory state so first boot stays non-fatal. A present
+// but invalid file fails closed instead of being mistaken for a new device.
+func loadAdoptionState(path string) (adoption.Store, error) {
 	store, err := adoption.LoadEnv(path)
 	if err == nil {
-		return store
+		return store, nil
 	}
-	if !errors.Is(err, os.ErrNotExist) {
-		log.Printf("adoption state read failed: %v", err)
+	if errors.Is(err, os.ErrNotExist) {
+		return adoption.Store{State: adoption.StateFactory}, nil
 	}
-	return adoption.Store{}
+	return adoption.Store{}, fmt.Errorf("load adoption state: %w", err)
 }
 
 // effectiveInformURL prefers the adopted controller URL because set-inform
@@ -37,39 +45,57 @@ func effectiveInformURL(fallback string, store adoption.Store) string {
 // updateAdoptionState applies only sanitized controller response data to the
 // local adoption store. Controller reset and upgrade requests never mutate host
 // services or firmware.
-func updateAdoptionState(path string, store adoption.Store, response adoption.ControllerResponse, usedGCM bool) adoption.Store {
+func updateAdoptionState(path string, store adoption.Store, response *adoption.ControllerResponse, usedGCM bool) (adoption.Store, error) {
+	if response == nil {
+		return store, nil
+	}
 	if response.ResetRequested {
+		alreadyFactory := adoptionStoreAlreadyFactory(store)
 		resetStore, err := adoption.ResetEnv(path)
 		if err != nil {
+			response.ResetApplied = false
+			response.ResetDisposition = resetDispositionFailed
 			log.Printf("adoption state reset failed: %v", err)
-			return store
+			return store, fmt.Errorf("persist controller reset: %w", err)
+		}
+		response.ResetApplied = true
+		response.ResetDisposition = resetDispositionApplied
+		if alreadyFactory {
+			response.ResetDisposition = resetDispositionAlreadyFactory
 		}
 		log.Printf("controller reset applied to stub adoption state only: %s", response.ResetReason)
-		return resetStore
+		return resetStore, nil
 	}
 	update := response.Store
 	if !response.HasStateUpdate {
 		if usedGCM && store.AuthKey != "" && !store.UseAESGCM {
-			store.UseAESGCM = true
-			if err := adoption.SaveEnv(path, store); err != nil {
+			updated := store
+			updated.UseAESGCM = true
+			if err := adoption.SaveEnv(path, updated); err != nil {
 				log.Printf("adoption state write failed: %v", err)
+				return store, fmt.Errorf("persist adoption cipher state: %w", err)
 			}
+			return updated, nil
 		}
-		return store
+		return store, nil
 	}
 	if usedGCM {
 		update.UseAESGCM = true
 	}
-	store, changed := adoption.Merge(store, update)
+	updated, changed := adoption.Merge(store, update)
 	if changed {
-		if err := adoption.SaveEnv(path, store); err != nil {
+		if err := adoption.SaveEnv(path, updated); err != nil {
 			log.Printf("adoption state write failed: %v", err)
+			return store, fmt.Errorf("persist controller adoption state: %w", err)
 		}
 	}
-	if response.Type == "upgrade" {
-		log.Printf("controller requested firmware version %q; reporting it from next inform", store.Version)
-	}
-	return store
+	return updated, nil
+}
+
+func adoptionStoreAlreadyFactory(store adoption.Store) bool {
+	return store.AuthKey == "" && store.InformURL == "" && store.CFGVersion == "" &&
+		!store.UseAESGCM && store.Version == "" &&
+		(store.State == "" || store.State == adoption.StateFactory)
 }
 
 // logInformResponse writes a compact audit line for the controller response so
@@ -105,10 +131,11 @@ func logInformResponse(resp *inform.Response, response adoption.ControllerRespon
 		}
 		if response.ResetRequested {
 			log.Printf(
-				"inform response status=%d type=%s reset_requested=true reset_applied=%t reason=%q state=%q cipher=%s",
+				"inform response status=%d type=%s reset_requested=true reset_applied=%t reset_disposition=%s reason=%q state=%q cipher=%s",
 				resp.StatusCode,
 				response.Type,
 				response.ResetApplied,
+				response.ResetDisposition,
 				response.ResetReason,
 				store.State,
 				cipherStatusText(cipher),
@@ -128,13 +155,17 @@ func logInformResponse(resp *inform.Response, response adoption.ControllerRespon
 			return
 		}
 		log.Printf(
-			"inform response status=%d type=%s state=%q version=%q interval=%d include_blocks=%v cipher=%s",
+			"inform response status=%d type=%s state=%q version=%q interval=%d immediate=%t block_selection_limited=%t include_blocks=%q exclude_blocks=%q udapi_blocks=%q cipher=%s",
 			resp.StatusCode,
 			response.Type,
 			store.State,
 			store.Version,
 			response.IntervalSeconds,
+			response.Immediate,
+			response.BlockSelectionLimited,
 			response.IncludeBlocks,
+			response.ExcludeBlocks,
+			response.UDAPIBlocks,
 			cipherStatusText(cipher),
 		)
 		return

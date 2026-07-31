@@ -1,12 +1,16 @@
-# unifi-stubd - UniFi Stub for Proxmox Lab Emulation
+# unifi-stubd — Add Non-UniFi Hosts To UniFi Network
 
-`unifi-stubd` is a minimal UniFi network device stub for Proxmox, Linux
-bridges, and FreeBSD. It emulates UniFi switches and gateway identities in a
-UniFi Network Controller without mutating the host.
+`unifi-stubd` lets a Proxmox or Linux-bridge host appear in UniFi Network, be
+adopted, remain connected, and expose real local read-only link and traffic
+metrics without letting the controller mutate the host. Minimal UniFi switch
+identities are the representation mechanism, not the product outcome. The
+FreeBSD/OPNsense package path remains experimental and stub-only.
 
 Documentation: [English](docs/en/README.md) | [Deutsch](docs/de/README.md) |
 [Wiki](docs/wiki/README.md) | [Project Status](docs/en/project-status.md) |
 [Projektstand](docs/de/project-status.md) |
+[Product Requirements](docs/en/requirements.md) |
+[Produktanforderungen](docs/de/requirements.md) |
 [Prioritized Backlog](docs/en/backlog.md) |
 [Priorisierter Backlog](docs/de/backlog.md) |
 [Development Workflow](docs/en/development.md) |
@@ -16,13 +20,16 @@ Coding-agent instructions live in [AGENTS.md](AGENTS.md). Tool-specific bridge
 files only point back to that file. [llms.txt](llms.txt) is a public project
 index, not an agent instruction source.
 
-## Fake UniFi Device Emulation for Homelabs
+## Non-UniFi Host Representation For Labs
 
 `unifi-stubd` speaks the minimal UniFi discovery, inform, and adoption flows
 needed to show a fake UniFi device in a UniFi Network Controller. It is meant
 for isolated homelab and network-lab environments where a Linux host, Proxmox
 bridge, FreeBSD system, or firewall VM should appear as a controller-visible
-UniFi switch or gateway stub.
+UniFi switch or gateway stub. Its first product outcome is to adopt one such
+non-UniFi host and expose real read-only link, counter, and traffic metrics
+from a locally selected interface; it does not import remote third-party
+devices through UniFi's native third-party-device feature.
 
 ## UniFi Controller Proxmox Switch and Gateway Use Cases
 
@@ -43,6 +50,8 @@ UniFi switch or gateway stub.
 - Persists safe adoption state while rejecting controller-triggered host
   provisioning.
 - Supports read-only Linux bridge observation for Proxmox-style lab networks.
+- Reports selected-uplink link state, speed, cumulative counters, and measured
+  RX/TX rates when a local interface source is configured.
 - Provides explicit port mapping for lab interfaces without changing host
   networking.
 - Includes built-in UniFi device profiles, YAML configuration, and
@@ -74,33 +83,19 @@ Implemented:
 - OpenRC and systemd service definitions.
 - Package builders for Debian, RPM, Arch Linux, and `.tar.gz`.
 - Stub-only FreeBSD/OPNsense tarball with rc.d service artifact.
-- Docker controller integration gate against a pinned UniFi Network Application
-  container, including controller-triggered adoption.
+- Current Stable/Release-Candidate compatibility gate with dynamically resolved
+  controller releases and one exact Stub product image in both lanes.
 
-Lab/research status:
+Repository boundary:
 
-- Gateway firmware simulation profiles live under `lab/gateway-profiles/` and
-  are intentionally separate from `internal/device` stub profile data.
-- The UDM Pro SE VM reference under `lab/gateway-profiles/udm-pro-se-vm/`
-  reaches the UDM firmware `systemd` path with a foreign QEMU-virt-capable
-  ARM64 kernel, UDM initramfs/rootfs, a lab initramfs, and project-owned
-  userspace hardware mocks. The current UTM profile uses Shared/NAT as the
-  SFP+ WAN role and Host networking as the 2.5G LAN role; direct guest HTTPS
-  works, while native UTM localhost forwarding still needs verification.
-- The UDM Pro SE C mock is split into modules under
-  `lab/gateway-profiles/udm-pro-se/mock/ldpreload/`, and the VM/rootfs payloads
-  injected by the lab initramfs live under
-  `lab/gateway-profiles/udm-pro-se-vm/initramfs/`.
-- The UDM Pro SE Docker webportal path is documented as a partial UniFi OS
-  setup surface. Its project-owned CommonJS helpers are split under
-  `lab/gateway-profiles/udm-pro-se/network-app/` and
-  `lab/gateway-profiles/udm-pro-se/systemd-dbus/`.
-- The QEMU/UTM profile can stage a shared ignored kernel deployment payload
-  under `lab/gateway-profiles/udm-pro-se-vm/artifacts/deploy/kernel/`; UTM uses
-  it for boot inputs and the Docker firmware profile mounts it read-only for
-  comparison.
-- The UDM Pro SE VM is a firmware reference for understanding native behavior;
-  it is not the Go stub and it is not a supported UniFi OS replacement.
+- This core repository contains the Go product, packaging, deterministic tests,
+  and the project-owned Docker controller gate under `lab/stub`.
+- Firmware research containers, QEMU/VM runtimes, physical-infrastructure
+  tests, and other Tier 3 assets are maintained in the companion project
+  `unifi-stubd-labs`. They are not build, package, Main CI, or Tier 2
+  dependencies of this repository.
+- Built-in gateway profiles remain synthetic identity and payload stubs. They
+  do not run vendor firmware and are not UniFi gateway replacements.
 
 Not goals:
 
@@ -181,10 +176,12 @@ sudo pkg update -r unifi-stubd
 sudo pkg install unifi-stubd
 ```
 
-Packages install neutral defaults only. Copy the host-specific config to
-`/etc/unifi-stubd/config.yaml` on Linux or
-`/usr/local/etc/unifi-stubd/config.yaml` on FreeBSD/OPNsense before starting the
-service.
+Packages install a non-observing starter config that explicitly selects `US8`.
+On Linux, set the host-specific bridge and real metric source in
+`/etc/unifi-stubd/config.yaml` before starting the supported product slice.
+On FreeBSD/OPNsense, review
+`/usr/local/etc/unifi-stubd/config.yaml`; that path remains experimental and
+stub-only rather than part of the accepted Linux/US8 metric slice.
 
 ## Installation
 
@@ -230,7 +227,7 @@ go run ./cmd/unifi-stubd -validate -config packaging/linux/etc/unifi-stubd/confi
 ### Run A Dry Test
 
 ```sh
-go run ./cmd/unifi-stubd -dry-run
+go run ./cmd/unifi-stubd -profile us8 -dry-run
 ```
 
 The `ugw3` profile reports a legacy UniFi Security Gateway identity with three
@@ -248,6 +245,12 @@ the original gateway-style layout: WAN1 on 1G RJ45, LAN on 1G RJ45, WAN2 on
 status-payload stub only. Use `uplink_port` and `port_overrides` when a lab
 uses the SFP+ port as the active WAN.
 
+Gateway profiles do not invent firmware WAN-health or successful speed-test
+telemetry from static hints or pings. Only the exact built-in `uxgpro` /
+`UXGPRO` / `5.0.16.30689` DT-001 binding retains the captured all-idle
+`speedtest-status` block and empty `speedtest-status-udapi`; other gateway
+bindings omit those blocks.
+
 The `ucg-fiber` profile reports a UniFi Cloud Gateway Fiber identity with four
 2.5G RJ45 LAN ports, one 10G RJ45 WAN2 port, one 10G SFP+ WAN port, and one
 10G SFP+ LAN port. It uses the Cloud Gateway `udm` device type and is
@@ -255,13 +258,13 @@ stub-only; it does not run UniFi OS or any controller applications.
 
 Profiles describe hardware. Use YAML `port_overrides` to map lab assignments
 such as WAN, LAN, or backup WAN onto those profile ports via `role`,
-`network_group`, and optional WAN health hints.
+`network_group`, and optional local WAN diagnostic hints.
 
 ### Send Discovery Traffic
 
 ```sh
 go run ./cmd/unifi-stubd \
-  -profile us16p150 \
+  -profile us8 \
   -mac auto \
   -ip 192.0.2.50 \
   -hostname auto
@@ -271,7 +274,7 @@ go run ./cmd/unifi-stubd \
 
 ```sh
 go run ./cmd/unifi-stubd \
-  -profile us16p150 \
+  -profile us8 \
   -mac auto \
   -ip 192.0.2.50 \
   -hostname auto \
@@ -290,15 +293,15 @@ mutate host networking, services, packages, firewall rules, routes, or users.
 
 `unifi-stubd` is not a UniFi gateway replacement and does not reproduce full
 UniFi DPI, firewall, routing, DHCP, speed-test, or provider-detection behavior.
-Gateway WAN health is limited to optional read-only telemetry such as static
-WAN hints or local ping samples.
+Static WAN hints and local ping samples are local diagnostics; they are not
+reported as firmware WAN-health or speed-test measurements.
 
 ## Configuration
 
 The packaged Linux config source is
-`packaging/linux/etc/unifi-stubd/config.yaml`. Lab switch identities and
-commands live in `lab/`, and installed Linux paths are documented in
-`packaging/installed-files.md`.
+`packaging/linux/etc/unifi-stubd/config.yaml`. Controller Docker fixtures and
+sanitized host examples live under `lab/stub/`, and installed Linux paths are
+documented in `packaging/installed-files.md`.
 
 Runtime layout:
 
@@ -314,9 +317,10 @@ Runtime layout:
 ```
 
 Without arguments, `unifi-stubd` tries to read
-`/etc/unifi-stubd/config.yaml`. If that file is absent, it uses safe lab
-defaults. If `-config <path>` is set explicitly, a missing file is an error.
-CLI flags override YAML values.
+`/etc/unifi-stubd/config.yaml`. If that file is absent, it uses safe
+non-device runtime defaults, but refuses to start until a concrete profile is
+selected with `-profile`. If `-config <path>` is set explicitly, a missing
+file is an error. CLI flags override YAML values.
 
 YAML is the canonical runtime format. JSON is also accepted because JSON is a
 valid YAML subset, but packaged examples use block-style YAML for readability.
@@ -324,12 +328,18 @@ Only the local operator-edited YAML file is trusted for runtime choices:
 controller `setparam` data can update local adoption state, but it is not
 applied to host networking.
 
-`interval_seconds` is the local base heartbeat. Positive controller interval
-hints are accepted only between `controller_interval_min_seconds` and
-`controller_interval_max_seconds`. Inform transport failures use exponential
+`interval_seconds` is the local base heartbeat. A positive controller interval
+hint is used only when the selected built-in profile, model, and firmware
+version have an exact reviewed timing binding. It is then clamped from the
+stricter of the firmware and operator minimums to the lower of the operator
+maximum and 300 seconds. Without that exact binding the hint is ignored and the
+local base heartbeat remains active. Inform heartbeat failures use exponential
 backoff up to `inform_backoff_max_seconds` with the locally configured
-`inform_backoff_jitter_percent`; a completed HTTP exchange resets that failure
-sequence. These settings alter only discovery/inform timing.
+`inform_backoff_jitter_percent`. Transport, response-decode, JSON, dispatcher,
+and non-200 results advance that bounded failure sequence. Only an empty HTTP
+200 or a 200 carrying an accepted controller object resets it. Each heartbeat
+uses exactly one locally selected CBC or GCM request. These settings alter only
+discovery/inform timing.
 
 Live daemon starts use `instance_guard: fail` by default. A second live process
 on the same host is rejected before SSH, discovery, or inform traffic starts.
@@ -367,7 +377,7 @@ Gateway YAML has three separate concepts that should not be mixed:
 - `port_overrides` describes local lab assignment and telemetry for one
   physical profile port: `role`, `network_group`, optional assignment IDs,
   optional VLAN display metadata, optional host `interface`, optional IPv4/IPv6
-  addresses, and optional WAN health hints.
+  addresses, and optional local WAN diagnostic hints.
 - `source_interface` is diagnostic metadata copied from the host interface
   named by `port_overrides[].interface`. Host names such as `ixl0`, `vtnet0`,
   or `eth0` from the local OS must stay in `source_interface`; gateway `ifname`
@@ -433,17 +443,15 @@ generation, validation, and service restart, see the
 merge rules, endpoints, and troubleshooting are documented in the
 [OPNsense API Generator Reference](docs/en/opnsense-generator-reference.md).
 
-WAN health is also explicit YAML. `source: off` reports no active probe,
+WAN diagnostics are also explicit YAML. `source: off` runs no active probe,
 `source: static` uses the `wan_*` hints from `port_overrides`, and
 `source: ping` runs the local OS `ping` command against configured targets.
 Ping targets must point at ports explicitly marked `role: wan` or `role: wan2`
 in `port_overrides`; profile defaults alone do not enable active probes. Ping
-results update only controller telemetry fields such as connected state,
-latency, downtime, uptime percentage, `internet_health`, and the
-`speedtest-status` latency/status block. They do not perform a UniFi speed test
-and do not discover ISP/provider names. The probe follows the host's normal
-routing table; it is not bound to a port source interface and it does not
-rewrite WAN/LAN assignments.
+results update only local status. They do not claim firmware availability,
+downtime, or speed-test results and do not discover ISP/provider names. The
+probe follows the host's normal routing table; it is not bound to a port source
+interface and it does not rewrite WAN/LAN assignments.
 
 Local health/status output:
 
@@ -475,25 +483,21 @@ Optional passive sources are configured with `lldp_source`, `log_source`,
 `proc_source`, and `dbus_enabled`. They feed payload/status metadata only and
 do not apply controller provisioning or host-network changes.
 
-The Docker controller gate bootstraps or reuses the pinned lab controller,
-checks `bridge-observe`, `port-map`, and gateway payloads, captures and forwards
-discovery plus inform traffic, triggers switch and gateway adoption through the
-controller API, and verifies `setparam`, persisted auth state, AES-GCM, and a
-stable connected state. For the gateway fixture it also proves one safe,
-memory-only `wg-genkeypair` response and no duplicate task after a stability
-window, plus the controller's bounded heartbeat hint with no active backoff,
-before cleaning the temporary devices:
+The current product qualification dynamically resolves the latest published
+Stable and latest published Release Candidate, builds the Stub once, and runs
+those exact product bytes through adoption, connected-state, and controller-
+visible metrics checks in both disposable lanes:
 
 ```sh
-make integration-docker
+BUILD_RUNNER_DIR=/path/to/build-runner make integration-nonunifi-metrics
 ```
 
-FreeBSD/OPNsense support is documented in
+The experimental FreeBSD/OPNsense package baseline is documented in
 [English](docs/en/freebsd.md) and [Deutsch](docs/de/freebsd.md). It is
 currently conservative: discovery, inform, optional adoption SSH, profiles,
 port overrides, uplink overrides, configured uplink neighbors, explicit
 `port-map` interface reads, syslog status metadata, and `lldpd` LLDP reads are
-supported.
+implemented but are not part of the accepted product slice.
 Full `bridge-observe` parity and macvlan lifecycle work are not implemented
 there.
 

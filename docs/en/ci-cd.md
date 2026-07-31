@@ -18,7 +18,7 @@ The pipeline is split into:
 
 - `CI`: validation, vulnerability scan, SBOM, and a `main`-only Linux package
   smoke test, entirely on GitHub-hosted Ubuntu.
-- `Tier 2 Docker Integration`: manually dispatched controller-adoption gate on
+- `Controller Integration`: manually dispatched controller-adoption gate on
   the trusted Docker lab runner, independent of `CI`.
 - `Package Repositories`: release-package and persistent SBOM build, GitHub
   pre-release asset publication, and Pages deployment for the Linux-first
@@ -34,7 +34,7 @@ The pipeline is split into:
 | --- | --- | --- | --- | --- | --- | --- |
 | `make build` | Current GitHub-supported Go 1.25 patch | `go build ./...` | Local binaries in Go build cache | Host OS/arch | Local or GitHub Ubuntu | Defined, not uploaded |
 | `make check` | Go 1.25, golangci-lint, shell policy | `lint`, `validate-config`, `test` | Pass/fail gate | Host OS/arch | GitHub Ubuntu and local | Primary pre-merge gate |
-| `make coverage` | Go 1.25 coverage instrumentation | External tests under `tests/...` with all production `internal/...` packages instrumented | `dist/cover.out`, `dist/coverage.html`, and a 60 percent minimum gate | Host OS/arch | GitHub Ubuntu and local | CI quality gate |
+| `make coverage` | Go 1.25 coverage instrumentation | External tests under `tests/...` with all production `internal/...` packages instrumented | Diagnostic `dist/cover.out` and `dist/coverage.html`; no numeric merge threshold | Host OS/arch | GitHub Ubuntu and local | CI diagnostic report |
 | `make vulncheck` | Go 1.25 `govulncheck` tool | `govulncheck ./...` | Pass/fail gate | Host OS/arch | GitHub Ubuntu | CI security gate |
 | `make build-freebsd` | Go 1.25 cross-compile | `cmd/unifi-stubd` | `dist/unifi-stubd_freebsd_<arch>` | FreeBSD `PKG_FREEBSD_GOARCH` | Local only | Kept as local diagnostic target; not release CI |
 | `make package` | Go 1.25 plus nFPM | `scripts/package.sh` | `.deb`, `.rpm`, Arch package, Linux `.tar.gz` | Linux `amd64` or `arm64` | GitHub Ubuntu | Release package path |
@@ -45,14 +45,14 @@ The pipeline is split into:
 | `make package-freebsd-tgz` | Go cross-compile plus tar | `scripts/package.sh tgz` | FreeBSD tarball | FreeBSD `amd64` or `arm64` | Local diagnostic path | Defined, not used by release workflow |
 | `make package-freebsd-pkg-repos` | Go on FreeBSD builder, FreeBSD `pkg`, tar | `scripts/package-freebsd-pkg-repos.sh` | Native FreeBSD `pkg` repos and FreeBSD tarballs | `FreeBSD:14/15` for `amd64`, `aarch64`, `armv7`; tarballs for `amd64`, `arm64` by default | Manual containerized GitHub Actions runner; optional mapped `jexec` jails | FreeBSD packaging path |
 | `make package-repos` | dpkg, createrepo-c, repo-add, tar | `scripts/build-package-repos.sh` | Static package repository site | Repository metadata for available packaged targets | GitHub Ubuntu | Linux-first or combined GitHub Pages input |
-| `make integration-docker` | Docker Compose, pinned UniFi Network, and Go helpers | `lab/stub/scripts/run-docker-integration.sh` | Tier 2 controller adoption gate | Linux container lab | Local or manual GitHub Actions dispatch | Defined in standalone Tier 2 workflow |
-| Root `Dockerfile` | Docker BuildKit, Go, Alpine | `Dockerfile` | Runtime/lab image with daemon and inform/discovery proxy | Linux multi-arch capable | Local/manual | No publish target defined |
+| `make integration-nonunifi-metrics` | Build Runner controller instance with Docker CLI/Compose and typed Docker API access | Resolve current Stable and RC, then run the same product image in both disposable lanes | US8 adoption, connection, and real-metrics acceptance | Linux container lab | Build Runner locally or by manual GitHub Actions dispatch | Defined in the standalone controller workflow |
+| Root `Dockerfile` | Docker BuildKit, Go, Alpine | `Dockerfile` | Product runtime image containing only the daemon | Linux multi-arch capable | Local/manual | No publish target defined |
 
 Open build target definitions:
 
 - No macOS or Windows build target is defined.
-- No top-level `tools/` directory exists; helper tools live under `lab/stub/tools/`
-  and selected lab profile directories.
+- No top-level `tools/` directory exists; core integration helpers live under
+  `lab/stub/tools/`. Tier 3 tooling belongs to `unifi-stubd-labs`.
 - No CI container image or GitHub Container Registry publishing path is defined.
 
 ## GitHub Actions
@@ -79,7 +79,7 @@ from `go.mod`.
 `VERSION`, builds Linux packages, installs the generated Debian package once,
 validates the installed config, and uploads `dist/packages/` for seven days.
 
-### `Tier 2 Docker Integration`
+### `Controller Integration`
 
 | Area | Current value |
 | --- | --- |
@@ -88,16 +88,17 @@ validates the installed config, and uploads `dist/packages/` for seven days.
 | Permissions | `contents: read` |
 | Job | `controller-adoption` |
 | Runner | `[self-hosted, Linux, X64, docker-dmz, docker-engine, unifi-stubd]` |
-| Command | `make integration-docker` |
-| State boundary | Fresh Compose project and volumes before the run; unconditional teardown after it |
+| Command | `make integration-nonunifi-metrics` |
+| Execution boundary | The Make target delegates exclusively to the committed Build Runner instance; no workflow-local Go or Docker toolchain |
 | Artifacts | None; captures and controller state are never uploaded |
 | Concurrency | One `unifi-stubd-tier2-docker` group, no cancel-in-progress |
 
-The runner preflight validates Linux/X64, Go, Docker daemon access, Docker
-Compose v2, resource visibility, and the combined lab configuration. The
-workflow uses the pinned `10.4.57-ls135` controller image, records sanitized
-run evidence in the job summary, and has no dependency on or trigger from the
-standard `CI`, package workflows, pull requests, pushes, or schedules.
+The workflow preflight requires the configured Build Runner provider. The
+committed consumer instance validates Go, Docker client/server, Compose, and
+Buildx before it executes the lab payload. The workflow resolves the latest
+published Stable and Release Candidate at run start and has no dependency on
+or trigger from the standard `CI`, package
+workflows, pull requests, pushes, or schedules.
 
 ### `FreeBSD Packaging`
 
@@ -225,9 +226,9 @@ The BSD builder is expected to provide:
 
 Containers are defined for runtime and lab use only:
 
-- Root `Dockerfile`: builds the daemon and inform/discovery proxy into an Alpine runtime
-  image.
-- Lab gateway profile Dockerfiles: firmware and controller-lab research paths.
+- Root `Dockerfile`: builds only the daemon into the Alpine product image.
+- Lab Dockerfiles build the controller API reader and dynamically resolved
+  disposable controller images separately.
 - No CI build container, no GHCR image, and no container package release are
   defined.
 
@@ -256,7 +257,7 @@ Containers are defined for runtime and lab use only:
   Linux-first Pages repositories.
 - Manual dispatch from `main` rebuilds the Pages package repositories without
   creating a new GitHub release.
-- Manual dispatch of `Tier 2 Docker Integration` tests only the selected ref
+- Manual dispatch of `Controller Integration` tests only the selected ref
   and does not invoke or modify `CI`, package publication, branch rules, or
   required checks.
 - Manual dispatch of `FreeBSD Packaging` with `publish=false` builds

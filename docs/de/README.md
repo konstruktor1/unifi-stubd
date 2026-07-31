@@ -9,8 +9,8 @@
 - [Entwicklungsworkflow](development.md)
 - [CI/CD-, Build-, Packaging- und Deployment-Katalog](ci-cd.md)
 - [Projektstand](project-status.md)
+- [Produktanforderungen](requirements.md)
 - [Priorisierter Backlog](backlog.md)
-- [Lab-Projektstand](lab-project-status.md)
 - [Protocol Notes](protocol-notes.md)
 - [Architecture](architecture.md)
 - [Betriebsmodi](operation-modes.md)
@@ -21,9 +21,6 @@
 - [Roadmap](roadmap.md)
 - [Docker-Controller-Lab](docker-lab.md)
 - [Lab Plan](lab-plan.md)
-- [Gateway-Firmware-Profile](../../lab/gateway-profiles/README.md)
-- [UDM Pro SE Docker-Profil](../../lab/gateway-profiles/udm-pro-se/README.md)
-- [UDM Pro SE QEMU/UTM-Profil](../../lab/gateway-profiles/udm-pro-se-vm/README.md)
 - [Release-Checkliste](release.md)
 - [Security Notes](security.md)
 - [Konfigurationsschema](../schema/config.schema.json)
@@ -31,3 +28,7 @@
 - [Quellen, Credits und Lizenzierung](sources.md)
 - [AI-Agent-Instruktionen](../../AGENTS.md)
 - [LLM-Index](../../llms.txt)
+
+Firmware-Research, QEMU-/VM-Runtimes und weitere Tier-3-Assets werden im
+Companion-Projekt `unifi-stubd-labs` gepflegt. Sie sind keine Abhaengigkeiten
+von Core-Build, Packaging, Main CI oder Tier 2.

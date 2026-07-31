@@ -1,450 +1,142 @@
 #!/bin/sh
 set -eu
 
-script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
-repo_root="$(CDPATH= cd -- "$script_dir/../../.." && pwd)"
+script_dir="$(CDPATH='' cd -- "$(dirname -- "$0")" && pwd)"
+repo_root="$(CDPATH='' cd -- "$script_dir/../../.." && pwd)"
 if [ "$repo_root" != /workspace ]; then
-    echo "run the Docker lab through Build Runner (make integration-docker)" >&2
-    exit 2
+  echo "run the Docker lab through Build Runner (make integration-nonunifi-metrics)" >&2
+  exit 2
 fi
-captures_dir="$repo_root/lab/stub/captures"
-payload_dir="${TMPDIR:-/tmp}/unifi-stubd-docker-integration.$$"
+
 resources_cleaned=0
-go_cmd="${GO:-go}"
 COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-unifi-stubd-controller-gate}"
 export COMPOSE_PROJECT_NAME
-default_unifi_network_image="lscr.io/linuxserver/unifi-network-application:10.4.57-ls135"
-default_gateway_command_expectation="absent"
 
-if [ -z "${UNIFI_NETWORK_IMAGE:-}" ]; then
-    export UNIFI_NETWORK_IMAGE="$default_unifi_network_image"
-    export UNIFI_STUB_LAB_EXPECTED_NETWORK_VERSION="${UNIFI_STUB_LAB_EXPECTED_NETWORK_VERSION:-10.4.57}"
-else
-    export UNIFI_NETWORK_IMAGE
-fi
-export UNIFI_STUB_INFORM_PROXY_TARGET="${UNIFI_STUB_INFORM_PROXY_TARGET:-http://unifi-controller:8080}"
-export UNIFI_STUB_DISCOVERY_PROXY_TARGET="${UNIFI_STUB_DISCOVERY_PROXY_TARGET:-unifi-controller:10001}"
-gateway_command_expectation="${UNIFI_STUB_DOCKER_GATEWAY_COMMAND_EXPECTATION:-$default_gateway_command_expectation}"
-
+: "${UNIFI_NETWORK_IMAGE:?the channel matrix must supply a resolved controller image}"
+: "${UNIFI_STUB_LAB_EXPECTED_NETWORK_VERSION:?the channel matrix must supply the resolved controller version}"
+: "${UNIFI_STUB_DOCKER_EXPECTED_PRODUCT_IMAGE_ID:?the channel matrix must supply the product image ID}"
+export UNIFI_NETWORK_IMAGE UNIFI_STUB_LAB_EXPECTED_NETWORK_VERSION
 compose() {
-    docker compose \
-        -f "$repo_root/lab/stub/compose.yaml" \
-        -f "$repo_root/lab/stub/compose.tests.yaml" \
-        "$@"
+  docker compose \
+    -f "$repo_root/lab/stub/compose.yaml" \
+    -f "$repo_root/lab/stub/compose.tests.yaml" \
+    -f "$repo_root/lab/stub/compose.controller-channel.yaml" \
+    "$@"
 }
 
-stub_run() {
-    compose run --rm --no-deps --volume /var/lib/unifi-stubd "$@"
-}
-
-format_lab_mac() {
-    value="$1"
-    octet4=$((value / 65536 % 256))
-    octet5=$((value / 256 % 256))
-    octet6=$((value % 256))
-    printf '02:15:6d:%02x:%02x:%02x' "$octet4" "$octet5" "$octet6"
-}
-
-cleanup_runtime_resources() {
-    if [ "${resources_cleaned:-0}" = "1" ]; then
-        return
-    fi
-    if compose ps --status running --services 2>/dev/null | grep -qx unifi; then
-        for mac in "${UNIFI_STUB_BRIDGE_MAC:-}" "${UNIFI_STUB_PORTMAP_MAC:-}" "${UNIFI_STUB_GATEWAY_MAC:-}"; do
-            if [ -n "$mac" ]; then
-                controller_api forget --mac "$mac" >/dev/null 2>&1 || true
-                controller_api wait-clean --mac "$mac" --timeout "${UNIFI_STUB_DOCKER_CLEANUP_TIMEOUT:-30}" >/dev/null 2>&1 || true
-            fi
-        done
-    fi
-    if ! compose down --volumes --remove-orphans; then
-        echo "docker integration: failed to remove disposable Compose project=$COMPOSE_PROJECT_NAME" >&2
-        return 2
-    fi
-    resources_cleaned=1
-}
-
-cleanup() {
-    status=$?
-    set +e
-    cleanup_runtime_resources
-    cleanup_status=$?
-    rm -rf "$payload_dir"
-    if [ "$status" -ne 0 ]; then
-        return "$status"
-    fi
-    return "$cleanup_status"
-}
-
-event_line_count() {
-    events_path="$captures_dir/events.jsonl"
-    if [ ! -f "$events_path" ]; then
-        printf '0\n'
-        return
-    fi
-    wc -l < "$events_path" | tr -d ' '
-}
-
-wait_for_events() {
-    start_line="$1"
-    shift
-    deadline=$(($(date +%s) + ${UNIFI_STUB_DOCKER_EVENT_TIMEOUT:-60}))
-    while [ "$(date +%s)" -le "$deadline" ]; do
-        if assert_events "$captures_dir/events.jsonl" "$start_line" "$@" >/dev/null 2>&1; then
-            assert_events "$captures_dir/events.jsonl" "$start_line" "$@"
-            return 0
-        fi
-        sleep 2
-    done
-    assert_events "$captures_dir/events.jsonl" "$start_line" "$@"
-}
-
-wait_for_event_kind() {
-    start_line="$1"
-    kind="$2"
-    shift 2
-    deadline=$(($(date +%s) + ${UNIFI_STUB_DOCKER_EVENT_TIMEOUT:-90}))
-    while [ "$(date +%s)" -le "$deadline" ]; do
-        if assert_events "$captures_dir/events.jsonl" "$start_line" --kind "$kind" "$@" >/dev/null 2>&1; then
-            assert_events "$captures_dir/events.jsonl" "$start_line" --kind "$kind" "$@"
-            return 0
-        fi
-        sleep 2
-    done
-    assert_events "$captures_dir/events.jsonl" "$start_line" --kind "$kind" "$@"
-}
-
-wait_for_event_count() {
-    start_line="$1"
-    kind="$2"
-    min_count="$3"
-    shift 3
-    deadline=$(($(date +%s) + ${UNIFI_STUB_DOCKER_EVENT_TIMEOUT:-90}))
-    while [ "$(date +%s)" -le "$deadline" ]; do
-        if assert_events "$captures_dir/events.jsonl" "$start_line" --kind "$kind" --min-count "$min_count" "$@" >/dev/null 2>&1; then
-            assert_events "$captures_dir/events.jsonl" "$start_line" --kind "$kind" --min-count "$min_count" "$@"
-            return 0
-        fi
-        sleep 2
-    done
-    assert_events "$captures_dir/events.jsonl" "$start_line" --kind "$kind" --min-count "$min_count" "$@"
-}
-
-wait_for_inform_proxy() {
-    deadline=$(($(date +%s) + ${UNIFI_STUB_DOCKER_MITM_TIMEOUT:-90}))
-    while [ "$(date +%s)" -le "$deadline" ]; do
-        if stub_run --entrypoint /bin/sh stub-port-map -ec 'nc -z -w 1 unifi 8080' >/dev/null 2>&1; then
-            return 0
-        fi
-        sleep 2
-    done
-    echo "inform proxy did not become reachable on unifi:8080" >&2
+verify_product_image() {
+  container_id="$(compose ps -q stub-bridge-observe)"
+  [ -n "$container_id" ] || {
+    echo "docker integration: product container is missing" >&2
     return 1
-}
-
-wait_for_controller_version() {
-    deadline=$(($(date +%s) + ${UNIFI_STUB_DOCKER_CONTROLLER_TIMEOUT:-240}))
-    last_error=""
-    while [ "$(date +%s)" -le "$deadline" ]; do
-        if [ -n "${UNIFI_STUB_LAB_EXPECTED_NETWORK_VERSION:-}" ]; then
-            if output="$(controller_api version --expected-version "$UNIFI_STUB_LAB_EXPECTED_NETWORK_VERSION" 2>&1)"; then
-                printf '%s\n' "$output"
-                return 0
-            fi
-        else
-            if output="$(controller_api version 2>&1)"; then
-                printf '%s\n' "$output"
-                return 0
-            fi
-        fi
-        last_error="$output"
-        sleep 3
-    done
-    if [ -n "$last_error" ]; then
-        printf '%s\n' "$last_error" >&2
-    fi
+  }
+  actual="$(docker container inspect --format '{{.Image}}' "$container_id")"
+  if [ "$actual" != "$UNIFI_STUB_DOCKER_EXPECTED_PRODUCT_IMAGE_ID" ]; then
+    echo "docker integration: product image mismatch" >&2
     return 1
-}
-
-send_one_shot_until_event() {
-    service="$1"
-    mac="$2"
-    start_line="$3"
-    attempts="${UNIFI_STUB_DOCKER_INFORM_ATTEMPTS:-5}"
-    attempt=1
-    while [ "$attempt" -le "$attempts" ]; do
-        stub_run "$service" -once || true
-        if assert_events "$captures_dir/events.jsonl" "$start_line" "$mac" >/dev/null 2>&1; then
-            assert_events "$captures_dir/events.jsonl" "$start_line" "$mac"
-            return 0
-        fi
-        attempt=$((attempt + 1))
-        sleep 2
-    done
-    assert_events "$captures_dir/events.jsonl" "$start_line" "$mac"
-}
-
-go_tool() {
-    tool="$1"
-    shift
-    (cd "$repo_root" && "$go_cmd" run "./lab/stub/tools/$tool" "$@")
-}
-
-assert_events() {
-    go_tool assert-events "$@"
-}
-
-assert_payload() {
-    go_tool assert-payload "$@"
-}
-
-assert_status() {
-    go_tool assert-status "$@"
+  fi
+  echo "docker integration: product image verified id=$actual"
 }
 
 controller_api() {
-    go_tool controller-adoption "$@"
+  compose run --rm --no-deps controller-adoption "$@"
 }
 
-reset_controller_fixtures() {
-    timeout="${UNIFI_STUB_DOCKER_ADOPTION_TIMEOUT:-90}"
-    if output="$(controller_api reset-fixtures --timeout "$timeout" 2>&1)"; then
-        printf '%s\n' "$output"
-        case "$output" in
-            *adopted_removed=0)
-                ;;
-            *)
-                echo "docker integration: restarting disposable controller to clear removed gateway state"
-                compose restart unifi
-                wait_for_controller_version
-                ;;
-        esac
-        return 0
+cleanup_runtime_resources() {
+  if [ "${resources_cleaned:-0}" = "1" ]; then
+    return
+  fi
+  if ! compose down --volumes --remove-orphans; then
+    echo "docker integration: failed to remove disposable Compose project=$COMPOSE_PROJECT_NAME" >&2
+    return 2
+  fi
+  resources_cleaned=1
+}
+
+cleanup() {
+  status=$?
+  set +e
+  [ "$status" -eq 0 ] || compose logs --no-color --tail 200 unifi-db unifi stub-bridge-observe
+  cleanup_runtime_resources
+  cleanup_status=$?
+  if [ "$status" -ne 0 ]; then
+    return "$status"
+  fi
+  return "$cleanup_status"
+}
+
+wait_for_controller_version() {
+  deadline=$(($(date +%s) + ${UNIFI_STUB_DOCKER_CONTROLLER_TIMEOUT:-240}))
+  last_error=""
+  while [ "$(date +%s)" -le "$deadline" ]; do
+    if output="$(controller_api version --expected-version "$UNIFI_STUB_LAB_EXPECTED_NETWORK_VERSION" 2>&1)"; then
+      printf '%s\n' "$output"
+      return 0
     fi
-    case "$output" in
-        *api.err.DeviceBusy*)
-            echo "docker integration: restarting disposable controller to release busy test fixtures"
-            compose restart unifi
-            wait_for_controller_version
-            controller_api reset-fixtures --timeout "$timeout"
-            ;;
-        *)
-            printf '%s\n' "$output" >&2
-            return 1
-            ;;
-    esac
+    last_error="$output"
+    sleep 3
+  done
+  [ -z "$last_error" ] || printf '%s\n' "$last_error" >&2
+  return 1
 }
 
-wait_for_stub_adoption_state() {
-    service="$1"
-    deadline=$(($(date +%s) + ${UNIFI_STUB_DOCKER_ADOPTION_TIMEOUT:-90}))
-    while [ "$(date +%s)" -le "$deadline" ]; do
-        if compose exec -T "$service" sh -ec '
-            state=/var/lib/unifi-stubd/adoption.env
-            status=/var/lib/unifi-stubd/status.json
-            test -f "$state"
-            test -f "$status"
-            grep -q "^STATE=connected$" "$state"
-            grep -Eq "^AUTHKEY=.+$" "$state"
-            grep -Eq "^CFGVERSION=.+$" "$state"
-            grep -q "^USE_AES_GCM=true$" "$state"
-            grep -q "\"status_code\": 200" "$status"
-            grep -q "\"controller_state\": \"connected\"" "$status"
-            grep -q "\"used_aes_gcm\": true" "$status"
-        ' >/dev/null 2>&1; then
-            echo "stub adoption evidence: service=$service state=connected authkey_set=true cfgversion_set=true use_aes_gcm=true"
-            return 0
-        fi
-        sleep 2
-    done
-    echo "stub adoption state did not become connected with AES-GCM evidence: service=$service" >&2
-    compose exec -T "$service" sh -ec 'sed -E "s/^(AUTHKEY=).*/\\1<redacted>/" /var/lib/unifi-stubd/adoption.env 2>/dev/null || true; cat /var/lib/unifi-stubd/status.json 2>/dev/null || true' >&2 || true
+run_switch_traffic_gate() {
+  echo "docker integration: generating bounded bidirectional switch uplink traffic"
+  expected_speed="$(compose exec -T stub-bridge-observe cat /sys/class/net/uplink0/speed | tr -d '\r')"
+  case "$expected_speed" in '' | *[!0-9]*)
+    echo "uplink0 did not expose a positive observed speed" >&2
     return 1
+    ;;
+  esac
+  [ "$expected_speed" -gt 0 ] || {
+    echo "uplink0 did not expose a positive observed speed" >&2
+    return 1
+  }
+  # shellcheck disable=SC2016
+  compose exec -T stub-bridge-observe sh -ec '
+        ping -I "$1" -c 360 -i 0.2 -s 1200 -W 1 "$3" >/dev/null 2>&1 &
+        ingress_pid=$!
+        ping -I "$2" -c 360 -i 0.2 -s 800 -W 1 "$4" >/dev/null 2>&1 &
+        egress_pid=$!
+        wait "$ingress_pid" || true
+        wait "$egress_pid" || true
+    ' sh 198.51.100.2 198.51.100.1 203.0.113.1 203.0.113.2 &
+  traffic_pid=$!
+
+  if ! controller_api wait-switch-telemetry \
+    --mac "$UNIFI_STUB_BRIDGE_MAC" \
+    --expected-uplink-speed "$expected_speed" \
+    --timeout 65; then
+    wait "$traffic_pid" || true
+    return 1
+  fi
+  wait "$traffic_pid"
 }
 
-gateway_status_json() {
-    compose exec -T stub-gateway-smoke \
-        /usr/local/bin/unifi-stubd \
-        -status-json \
-        -config /usr/local/share/unifi-stubd-lab/configs/hosts/stub-gateway-smoke/config.yaml
+run_adoption_gate() {
+  echo "docker integration: controller US8 adoption gate"
+  compose up -d stub-bridge-observe
+  verify_product_image
+  controller_api wait-visible --mac "$UNIFI_STUB_BRIDGE_MAC" --timeout 90
+  controller_api adopt --mac "$UNIFI_STUB_BRIDGE_MAC"
 }
 
-wait_for_gateway_command_lifecycle() {
-    case "$gateway_command_expectation" in
-        required)
-            assertion="wg-genkeypair-complete"
-            deadline=$(($(date +%s) + ${UNIFI_STUB_DOCKER_COMMAND_TIMEOUT:-90}))
-            while [ "$(date +%s)" -le "$deadline" ]; do
-                if gateway_status_json | assert_status "$assertion" >/dev/null 2>&1; then
-                    break
-                fi
-                sleep 2
-            done
-            ;;
-        absent)
-            assertion="no-command-stable"
-            ;;
-    esac
-    gateway_status_json | assert_status "$assertion"
-    sleep "${UNIFI_STUB_DOCKER_COMMAND_STABILITY_SECONDS:-75}"
-    gateway_status_json | assert_status "$assertion"
-}
-
-run_controller_adoption_gate() {
-    label="$1"
-    service="$2"
-    mac="$3"
-
-    echo "docker integration: controller $label adoption gate"
-    controller_api forget --mac "$mac" >/dev/null 2>&1 || true
-    controller_api wait-clean --mac "$mac" --timeout "${UNIFI_STUB_DOCKER_ADOPTION_TIMEOUT:-90}"
-    adoption_start_line="$(event_line_count)"
-    compose up -d "$service"
-    wait_for_event_kind "$adoption_start_line" discovery "$mac"
-    controller_api wait-pending --mac "$mac" --timeout "${UNIFI_STUB_DOCKER_ADOPTION_TIMEOUT:-90}"
-    controller_api adopt --mac "$mac"
-    wait_for_event_kind "$adoption_start_line" setparam "$mac"
-    wait_for_stub_adoption_state "$service"
-    wait_for_event_kind "$adoption_start_line" gcm "$mac"
-    wait_for_event_count "$adoption_start_line" gcm 2 "$mac"
-    controller_api wait-connected \
-        --mac "$mac" \
-        --timeout "${UNIFI_STUB_DOCKER_ADOPTION_TIMEOUT:-90}" \
-        --stable-samples "${UNIFI_STUB_DOCKER_STABLE_SAMPLES:-3}" \
-        --poll-interval "${UNIFI_STUB_DOCKER_STABLE_POLL_SECONDS:-3}"
-    if [ "$label" = "gateway" ]; then
-        wait_for_gateway_command_lifecycle
-    fi
-}
-
-if ! command -v docker >/dev/null 2>&1; then
-    echo "docker is required" >&2
-    exit 2
-fi
-if ! docker compose version >/dev/null 2>&1; then
-    echo "docker compose is required" >&2
-    exit 2
-fi
-if ! command -v "$go_cmd" >/dev/null 2>&1; then
-    echo "go is required" >&2
-    exit 2
-fi
-case "$gateway_command_expectation" in
-    required|absent)
-        ;;
-    *)
-        echo "UNIFI_STUB_DOCKER_GATEWAY_COMMAND_EXPECTATION must be required or absent" >&2
-        exit 2
-        ;;
-esac
-
-mkdir -p "$captures_dir" "$payload_dir"
 trap cleanup EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
-run_seed="$(date +%s)"
-export UNIFI_STUB_BRIDGE_MAC="${UNIFI_STUB_BRIDGE_MAC:-$(format_lab_mac "$run_seed")}"
-export UNIFI_STUB_PORTMAP_MAC="${UNIFI_STUB_PORTMAP_MAC:-$(format_lab_mac "$((run_seed + 1))")}"
-export UNIFI_STUB_GATEWAY_MAC="${UNIFI_STUB_GATEWAY_MAC:-$(format_lab_mac "$((run_seed + 2))")}"
-export UNIFI_STUB_BRIDGE_IP="${UNIFI_STUB_BRIDGE_IP:-172.31.242.$((80 + run_seed % 60))}"
-export UNIFI_STUB_PORTMAP_IP="${UNIFI_STUB_PORTMAP_IP:-172.31.242.$((150 + run_seed % 60))}"
-export UNIFI_STUB_GATEWAY_IP="${UNIFI_STUB_GATEWAY_IP:-172.31.242.$((30 + run_seed % 40))}"
-echo "docker integration: test identities bridge=$UNIFI_STUB_BRIDGE_MAC/$UNIFI_STUB_BRIDGE_IP port-map=$UNIFI_STUB_PORTMAP_MAC/$UNIFI_STUB_PORTMAP_IP gateway=$UNIFI_STUB_GATEWAY_MAC/$UNIFI_STUB_GATEWAY_IP"
-echo "docker integration: gateway command expectation=$gateway_command_expectation"
-
+echo "docker integration: test identity US8=$UNIFI_STUB_BRIDGE_MAC/$UNIFI_STUB_BRIDGE_IP"
 echo "docker integration: resetting disposable Compose project=$COMPOSE_PROJECT_NAME"
 compose down --volumes --remove-orphans
 
-echo "docker integration: validating compose configuration"
-compose config >/dev/null
-
-if [ "${UNIFI_STUB_DOCKER_SKIP_BUILD:-0}" = "1" ]; then
-    echo "docker integration: using prebuilt test image"
-else
-    echo "docker integration: building test image"
-    compose build stub-bridge-observe stub-port-map stub-gateway-smoke
-fi
-
-echo "docker integration: dry-run bridge-observe payload"
-stub_run stub-bridge-observe -dry-run > "$payload_dir/bridge-observe.txt"
-assert_payload bridge-observe "$payload_dir/bridge-observe.txt"
-
-echo "docker integration: dry-run management-lan preexisting-interface payload"
-stub_run stub-bridge-observe \
-    -dry-run \
-    -management-lan-enabled \
-    -management-lan-vlan 42 \
-    -management-lan-mode preexisting-interface \
-    -management-lan-interface eth0 \
-    -management-lan-ip "$UNIFI_STUB_BRIDGE_IP" \
-    > "$payload_dir/management-lan.txt"
-assert_payload management-lan "$payload_dir/management-lan.txt"
-
-echo "docker integration: dry-run port-map payload"
-stub_run stub-port-map -dry-run > "$payload_dir/port-map.txt"
-assert_payload port-map "$payload_dir/port-map.txt"
-
-echo "docker integration: dry-run gateway payload"
-stub_run stub-gateway-smoke -dry-run > "$payload_dir/gateway-smoke.txt"
-assert_payload gateway-smoke "$payload_dir/gateway-smoke.txt"
-
-echo "docker integration: starting pinned controller image=$UNIFI_NETWORK_IMAGE"
-compose up -d unifi inform-mitm
+echo "docker integration: starting controller image=$UNIFI_NETWORK_IMAGE"
+compose up -d unifi
 wait_for_controller_version
 controller_api bootstrap
-reset_controller_fixtures
-echo "docker integration: starting inform/discovery proxy target=$UNIFI_STUB_INFORM_PROXY_TARGET discovery_target=$UNIFI_STUB_DISCOVERY_PROXY_TARGET"
-wait_for_inform_proxy
 
-for mac in "$UNIFI_STUB_BRIDGE_MAC" "$UNIFI_STUB_PORTMAP_MAC" "$UNIFI_STUB_GATEWAY_MAC"; do
-    controller_api forget --mac "$mac" >/dev/null 2>&1 || true
-    controller_api wait-clean --mac "$mac" --timeout "${UNIFI_STUB_DOCKER_ADOPTION_TIMEOUT:-90}"
-done
+run_adoption_gate
+run_switch_traffic_gate
 
-start_line="$(event_line_count)"
-
-echo "docker integration: one-shot bridge-observe inform"
-send_one_shot_until_event \
-    stub-bridge-observe \
-    "$UNIFI_STUB_BRIDGE_MAC" \
-    "$start_line"
-
-echo "docker integration: one-shot port-map inform"
-send_one_shot_until_event \
-    stub-port-map \
-    "$UNIFI_STUB_PORTMAP_MAC" \
-    "$start_line"
-
-echo "docker integration: one-shot gateway inform"
-send_one_shot_until_event \
-    stub-gateway-smoke \
-    "$UNIFI_STUB_GATEWAY_MAC" \
-    "$start_line"
-
-echo "docker integration: checking inform proxy events"
-wait_for_events "$start_line" \
-    "$UNIFI_STUB_BRIDGE_MAC" \
-    "$UNIFI_STUB_PORTMAP_MAC" \
-    "$UNIFI_STUB_GATEWAY_MAC"
-
-echo "docker integration: checking discovery proxy events"
-wait_for_event_kind "$start_line" discovery \
-    "$UNIFI_STUB_BRIDGE_MAC" \
-    "$UNIFI_STUB_PORTMAP_MAC" \
-    "$UNIFI_STUB_GATEWAY_MAC"
-
-run_controller_adoption_gate \
-    switch \
-    stub-bridge-observe \
-    "$UNIFI_STUB_BRIDGE_MAC"
-
-run_controller_adoption_gate \
-    gateway \
-    stub-gateway-smoke \
-    "$UNIFI_STUB_GATEWAY_MAC"
-
-echo "docker integration: cleaning temporary test resources"
+echo "docker integration: cleaning product fixture"
 cleanup_runtime_resources
-
 echo "docker integration: ok"

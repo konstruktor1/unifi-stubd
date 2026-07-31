@@ -127,7 +127,7 @@ func markBridgePortDisconnected(port *device.Port) {
 	port.Up = false
 	port.Speed = 0
 	port.MACs = nil
-	port.CountersSet = true
+	port.CountersSet = false
 	for _, field := range interfaceStatsFields {
 		field.setPort(port, 0)
 	}

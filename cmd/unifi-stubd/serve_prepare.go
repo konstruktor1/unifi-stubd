@@ -10,8 +10,10 @@ import (
 )
 
 type serveRuntime struct {
-	profile  device.Profile
-	platform platform.Platform
+	profile              device.Profile
+	platform             platform.Platform
+	informSchedulePolicy device.InformSchedulePolicy
+	reportingPolicy      device.ControllerReportingPolicy
 }
 
 func parseServeFlags() (runtimeFlags, map[string]bool) {
@@ -69,19 +71,21 @@ func prepareServeRuntime(flags *runtimeFlags, changed map[string]bool) (serveRun
 
 	profile, ok := registry.LookupProfile(flags.profileName)
 	if !ok {
-		err := fmt.Errorf("unknown profile %q; known profiles: %s", flags.profileName, registry.ProfileNames())
+		err := fmt.Errorf("required device profile %q is not known; use -list-profiles to show: %s", flags.profileName, registry.ProfileNames())
 		if flags.validate {
 			return serveRuntime{}, false, withExitCode(1, err)
 		}
 		return serveRuntime{}, false, err
 	}
 	applyProfile(profile, flags)
+	informSchedulePolicy := device.ResolveInformSchedulePolicy(profile, flags.model, flags.version)
+	reportingPolicy := device.ResolveControllerReportingPolicy(profile, flags.model, flags.version)
 	plt := runtimePlatform(*flags)
-	if err := validateServeRuntime(*flags, profile); err != nil {
+	if err := validateServeRuntime(*flags, profile, informSchedulePolicy); err != nil {
 		return serveRuntime{}, false, err
 	}
 	if flags.validate {
-		return serveRuntime{profile: profile, platform: plt}, true, validateRuntime(*flags, profile)
+		return serveRuntime{profile: profile, platform: plt, informSchedulePolicy: informSchedulePolicy, reportingPolicy: reportingPolicy}, true, validateRuntime(*flags, profile)
 	}
 	if err := validateLiveServeSources(*flags, profile); err != nil {
 		return serveRuntime{}, false, err
@@ -93,11 +97,11 @@ func prepareServeRuntime(flags *runtimeFlags, changed map[string]bool) (serveRun
 	if err := validateWANHealthTargets(*flags, profile); err != nil {
 		return serveRuntime{}, false, err
 	}
-	return serveRuntime{profile: profile, platform: plt}, false, nil
+	return serveRuntime{profile: profile, platform: plt, informSchedulePolicy: informSchedulePolicy, reportingPolicy: reportingPolicy}, false, nil
 }
 
-func validateServeRuntime(flags runtimeFlags, profile device.Profile) error {
-	if err := validateInformSchedule(flags); err != nil {
+func validateServeRuntime(flags runtimeFlags, profile device.Profile, informSchedulePolicy device.InformSchedulePolicy) error {
+	if err := validateInformSchedule(flags, informSchedulePolicy); err != nil {
 		if flags.validate {
 			return withExitCode(1, err)
 		}

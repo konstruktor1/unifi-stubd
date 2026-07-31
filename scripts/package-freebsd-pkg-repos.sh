@@ -101,21 +101,21 @@ freebsd_pkg_version() {
 
 pkg_arch() {
   case "$1" in
-    FreeBSD:*:amd64)
-      major="$(printf '%s' "$1" | awk -F: '{print $2}')"
-      printf 'freebsd:%s:x86:64' "$major"
-      ;;
-    FreeBSD:*:aarch64)
-      major="$(printf '%s' "$1" | awk -F: '{print $2}')"
-      printf 'freebsd:%s:aarch64' "$major"
-      ;;
-    FreeBSD:*:armv7)
-      major="$(printf '%s' "$1" | awk -F: '{print $2}')"
-      printf 'freebsd:%s:armv7' "$major"
-      ;;
-    *)
-      fail "unsupported FreeBSD ABI: $1"
-      ;;
+  FreeBSD:*:amd64)
+    major="$(printf '%s' "$1" | awk -F: '{print $2}')"
+    printf 'freebsd:%s:x86:64' "$major"
+    ;;
+  FreeBSD:*:aarch64)
+    major="$(printf '%s' "$1" | awk -F: '{print $2}')"
+    printf 'freebsd:%s:aarch64' "$major"
+    ;;
+  FreeBSD:*:armv7)
+    major="$(printf '%s' "$1" | awk -F: '{print $2}')"
+    printf 'freebsd:%s:armv7' "$major"
+    ;;
+  *)
+    fail "unsupported FreeBSD ABI: $1"
+    ;;
   esac
 }
 
@@ -125,18 +125,18 @@ binary_name_for_abi() {
 
 tarball_arch_for_abi() {
   case "$1" in
-    FreeBSD:*:amd64)
-      printf 'amd64'
-      ;;
-    FreeBSD:*:aarch64)
-      printf 'arm64'
-      ;;
-    FreeBSD:*:armv7)
-      printf 'armv7'
-      ;;
-    *)
-      fail "unsupported FreeBSD ABI: $1"
-      ;;
+  FreeBSD:*:amd64)
+    printf 'amd64'
+    ;;
+  FreeBSD:*:aarch64)
+    printf 'arm64'
+    ;;
+  FreeBSD:*:armv7)
+    printf 'armv7'
+    ;;
+  *)
+    fail "unsupported FreeBSD ABI: $1"
+    ;;
   esac
 }
 
@@ -516,31 +516,30 @@ need_cmd scp
 need_cmd tar
 
 case "$PKG_VERSION" in
-  '' | *[!A-Za-z0-9._+-]*)
-    fail "invalid package version: use only letters, numbers, dot, underscore, plus, and hyphen"
-    ;;
+'' | *[!A-Za-z0-9._+-]*)
+  fail "invalid package version: use only letters, numbers, dot, underscore, plus, and hyphen"
+  ;;
 esac
 case "$PKG_RELEASE" in
-  '' | 0 | *[!0-9]*)
-    fail "invalid package release: expected a positive integer"
-    ;;
+'' | 0 | *[!0-9]*)
+  fail "invalid package release: expected a positive integer"
+  ;;
 esac
 case "$FREEBSD_PKG_REMOTE" in
-  '' | -* | *[!A-Za-z0-9._@-]*)
-    fail "invalid FreeBSD builder SSH alias"
-    ;;
+'' | -* | *[!A-Za-z0-9._@-]*)
+  fail "invalid FreeBSD builder SSH alias"
+  ;;
 esac
 case "$FREEBSD_PKG_REMOTE_DIR" in
-  /*)
-    ;;
-  *)
-    fail "FreeBSD builder work directory must be an absolute path"
-    ;;
+/*) ;;
+*)
+  fail "FreeBSD builder work directory must be an absolute path"
+  ;;
 esac
 case "$FREEBSD_PKG_REMOTE_DIR" in
-  / | *[!A-Za-z0-9._/-]* | */../* | */..)
-    fail "invalid FreeBSD builder work directory"
-    ;;
+/ | *[!A-Za-z0-9._/-]* | */../* | */..)
+  fail "invalid FreeBSD builder work directory"
+  ;;
 esac
 
 rm -rf "$WORK_DIR" "$OUT_DIR"
@@ -552,16 +551,15 @@ write_build_env
 remote_base_quoted="$(shell_quote "$FREEBSD_PKG_REMOTE_DIR")"
 remote_dir="$(ssh_remote "set -eu; umask 077; base=$remote_base_quoted; mkdir -p \"\$base\"; mktemp -d \"\$base/run.XXXXXXXXXX\"")"
 case "$remote_dir" in
-  "$FREEBSD_PKG_REMOTE_DIR"/run.*)
-    ;;
-  *)
-    fail "FreeBSD builder returned an unexpected temporary directory"
-    ;;
+"$FREEBSD_PKG_REMOTE_DIR"/run.*) ;;
+*)
+  fail "FreeBSD builder returned an unexpected temporary directory"
+  ;;
 esac
 case "$remote_dir" in
-  *[!A-Za-z0-9._/-]*)
-    fail "FreeBSD builder returned an unsafe temporary directory"
-    ;;
+*[!A-Za-z0-9._/-]*)
+  fail "FreeBSD builder returned an unsafe temporary directory"
+  ;;
 esac
 remote_dir_quoted="$(shell_quote "$remote_dir")"
 cleanup_remote() {

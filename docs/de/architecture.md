@@ -71,17 +71,19 @@ flowchart LR
    genau einmal in `device.Profile` decodiert. Dadurch bleiben
    absichtliche Zero-Value-Overrides wie `recommended: false`,
    `payload.has_dpi: false` oder `port_names: []` korrekt.
-6. Operation-Mode-Validierung prueft aufgeloestes Profil, Portanzahl,
+6. Jede Runtime-Instanz muss genau ein konkretes Profil per YAML oder
+   `-profile` auswaehlen; eine leere oder unbekannte Auswahl wird verworfen.
+7. Operation-Mode-Validierung prueft aufgeloestes Profil, Portanzahl,
    Management-LAN-Absicht, Bridge-/Port-Map-Einstellungen und Dry-Run-Faehigkeit.
-7. Die Plattform-Fassade liest optionale Host-Fakten nur, wenn der gewaehlte
+8. Die Plattform-Fassade liest optionale Host-Fakten nur, wenn der gewaehlte
    Modus oder der Statuspfad sie braucht.
-8. Profilports, konfigurierte Overrides, passive Observations, Management-LAN-
+9. Profilports, konfigurierte Overrides, passive Observations, Management-LAN-
    Metadaten und Neighbor-Hints werden in `[]device.Port` gemergt.
-9. `internal/device/payload` rendert daraus mit Profil und Identity den
+10. `internal/device/payload` rendert daraus mit Profil und Identity den
    controller-seitigen JSON-Payload.
-10. `internal/discovery` und `internal/inform` senden Discovery-/Inform-Traffic,
+11. `internal/discovery` und `internal/inform` senden Discovery-/Inform-Traffic,
     ausser Validierung oder Dry-Run stoppen vor Netzwerk-I/O.
-11. Controller-Antworten aktualisieren nur lokalen Adoption-Store und Status.
+12. Controller-Antworten aktualisieren nur lokalen Adoption-Store und Status.
 
 `-validate` nutzt dieselben Config-/Profil-/Operation-Pruefungen, sendet aber
 keine Pakete, startet keine Listener und schreibt keine normalisierten Configs.
@@ -102,6 +104,85 @@ Profil besitzt:
 - Payload-Defaults wie Management-Interface-Name, Gateway-Interface-Prefix,
   erforderliche Controller-Version und sichere Feature-Flags.
 
+Getrennt davon besitzt das Device-Paket eine evidenzgebundene
+`ProtocolProfile`-Registry fuer exakt analysierte Builds. Ihr unveraenderlicher
+Schluessel enthaelt Familie, Plattform/Komponentenrolle, Version/Buildmarker,
+Firmware-SHA-256, Komponenten-/App-SHA-256 und Digest-Art. Ein exakter Build
+waehlt nur eine versionsunabhaengige `ProtocolBehaviorID`; ein getrennter
+`ProtocolBehaviorProfile`-Katalog komponiert die sechs typisierten
+Metadatenachsen: Wire, Discovery, Feldgruppen, Commands, positive Capabilities
+und Presence. Der Lookup faellt nie auf Versionspraefix, Familienaehnlichkeit
+oder einen benachbarten Digest zurueck. Eine unbekannte Build- oder
+Verhaltens-ID waehlt die Komposition, deren sechs Achsen alle `unsupported`
+sind.
+
+Exakte Evidenzidentitaet und implementiertes Verhalten sind absichtlich zwei
+verschiedene Ebenen. Eine Evidenzzeile erzeugt keinen vollstaendigen
+firmwarespezifischen Verhaltenstyp. Sie waehlt stattdessen eine Komposition aus
+kleinen wiederverwendbaren Vertraegen wie TNBU-Codec, Discovery-Dialekt,
+gemeinsamen Identitaetsfeldern, Switch- oder Gateway-Feldgruppen,
+Command-Namensraum, Plattform-Capabilities und Presence-Regeln. Builds mit
+derselben belegten Semantik teilen diese Bausteine. Eine neue Firmwareversion
+erzeugt erst dann einen neuen Verhaltensbaustein, wenn ein geprueftes
+Differential eine relevante semantische Aenderung belegt.
+
+Registry-Metadaten behalten Evidenzidentitaet und gewonnenes Prinzip fuer den
+Review. Ausfuehrbarer Nachweis ist nur noetig, wenn Verhalten in ein benanntes
+Produktrequirement uebernommen wird; reine Research-Selektoren erzeugen keine
+eigenen Produkttests.
+
+Protokollplattformen stammen nur aus der Architekturspalte von
+`device-types.tsv`: `aarch64-little-endian`, `arm32-little-endian-eabi5`,
+`mips32r2-little-endian`, `mips32r2-big-endian`, `mips32-big-endian`,
+`arm-cortex-m-thumb-little-endian`, `xtensa-esp32-little-endian` und der
+explizite Artefakt-only-Wert `unknown`. Exakter Subplattformtext bleibt im
+Evidenz-Buildmarker, in Familie oder Komponentenrolle; daraus entsteht keine
+neue Plattformklasse. Jeder Wert ausserhalb dieser Evidenztaxonomie faellt
+geschlossen aus.
+
+Verhaltensbausteine werden nach ihrem Vertrag oder ihrer Protokollgeneration
+benannt, nicht nach jedem Produkt und Release. Produkt-/Buildnamen bleiben in
+der Evidenzbindung. Plattformunterschiede werden als schmale Capabilities oder
+Presence-Overlays modelliert; Mainline-BCM und -MSCC teilen zum Beispiel
+dieselbe Switch-Basis und behalten trotzdem getrennte Plattform- und
+Tabellen-Gates. Fehlende Capability-Flags behaupten nicht, dass physische
+Hardware fehlt. Sie verhindern nur die Auswahl unbelegter Vokabeln oder
+Verhalten. Ebenso ist der gemeinsame zlib-Wire-Baustein der kleinste sichere
+controllerseitige Vertrag und aktiviert den beobachteten BCM-Snappy-Zweig
+nicht. Mainline und Switch-WAN behalten wegen ihrer unterschiedlichen
+Alternate-Builder getrennte Discovery-Bausteine. So entstehen weder unsichere
+Naechstes-Profil-Fallbacks noch eine 1:1-Kopie der Firmwarematrix im
+Produktcode.
+
+Diese Registry ist der Selektorvertrag fuer spaetere Wire-, Discovery-,
+Command- und Payload-Implementierungen. GOV-003 bindet die Forschungseintraege
+nicht an die bestehenden benutzersichtbaren Formprofile und veraendert fuer
+sich allein keinen aktuellen Runtime-Traffic.
+
+Der Core ist ein Kompatibilitaetsstub, kein Firmware-Emulator und kein Vorhaben
+fuer eine 1:1-Geraetesimulation. Er implementiert nur die kleinsten sicheren
+controllerseitigen Vertraege, die fuer die ausgewaehlten Produktfaelle noetig
+sind. Optionale synthetische Szenarien duerfen Adoption-State, Link-State,
+Counter oder Command-Resultate fuer Tests deterministisch veraendern. Sie
+bilden jedoch keine Vendorprozesse, internes IPC, Hardwarewirkungen,
+zufaelliges Timing oder jedes beobachtete Payload nach. Reverse-Engineering-
+Evidenz begrenzt diese Vertraege; sie ist keine zu kopierende
+Implementierungsvorlage.
+
+### Evidenz- und Produkt-Traceability
+
+Reverse-Engineering-Evidenz ist Researchinput, kein automatischer
+Produktvertrag. Verhalten, das in ein benanntes Requirement uebernommen wird,
+behaelt die kleinste pruefbare Kette vom Requirement ueber das gewonnene
+Prinzip zum Produktbaustein und ausfuehrbaren Produktnachweis. Zurueckgestellte,
+abgelehnte oder ersetzte Lab-Erkenntnisse duerfen im Companion-
+Researchprotokoll bleiben, ohne Produktcode oder Regressionstest zu verlangen.
+
+Cleanup darf isolierte Patchfunktionen, Fixtures und Tests loeschen, wenn sie
+kein angenommenes Produktverhalten schuetzen. Oeffentliches Produktergebnis und
+Sicherheitsgrenze bleiben erhalten. Die Produktarchitektur entscheidet, was
+implementiert wird, nicht die Groesse des Researchinventars.
+
 Das Device-Paket ist die einzige Quelle fuer Profil- und Portdaten. Renderer-
 spezifische Views werden aus `device.Profile` und `device.Port` abgeleitet; sie
 sind keine eigenen Profil- oder Portmodelle.
@@ -115,7 +196,9 @@ explizit opt-in setzen.
 Der Payload-Renderer darf nicht anhand von Modellnamen wie `UXG`, `UXGPRO` oder
 `US48P500` Verhalten waehlen. Renderer-Verhalten wird durch Profilfelder
 gesteuert: `payload.kind`, Port-Rollen, Port-Medien, Management-Interface und
-explizite Overrides.
+explizite Overrides. Protokollspezifisches Rendering wird aus gemeinsamen
+Feldgruppen, Capabilities und Presence-Regeln zusammengesetzt, nicht aus einem
+vollstaendigen Schema pro Firmwarebuild.
 
 ## Operation-Modi
 
@@ -200,6 +283,10 @@ Zuweisungsmetadaten wie `portconf_id`, `networkconf_id`,
 Gateway-Porttabellen gespiegelt werden. Dadurch bleiben Speed, Medium, MAC, IP,
 Source-Interface, WAN-/LAN-Rolle, Network-Group, Counter,
 MAC-Table-Eintraege und Management-LAN-Metadaten synchron.
+Bei Switches werden die Counter und explizit gemessenen Raten des ausgewaehlten
+physischen Uplinks zusaetzlich auf die vom Top-Level-`uplink` benannte
+Management-`if_table`-Zeile projiziert; die lokale Source-Interface-Identity
+bleibt in der physischen Portansicht.
 
 Management-LAN ist Payload-Metadatum oder Bindung an ein bereits bestehendes
 lokales Interface. `planned-host-vlan` bleibt nur Dry-Run-Plan. Der Daemon legt
@@ -215,11 +302,39 @@ Das controller-seitige Protokoll hat drei getrennte Pfade:
 - der optionale SSH-Shim akzeptiert nur die minimalen Kommandos fuer Advanced-
   Adoption-Kompatibilitaet.
 
-Adoption-Antworten duerfen lokale Werte wie `STATE`, `AUTHKEY`, `CFGVERSION`,
-`USE_AES_GCM`, `VERSION` und `INFORM_URL` aktualisieren. Forget,
-delete/remove und restore-default werden als lokaler Stub-Reset interpretiert.
-Sie loeschen Adoption-State und lassen den naechsten Inform wieder wie
-Factory-Default aussehen.
+Die Payload-Grenze besitzt die exakten typisierten Inform-States `0 Unknown`,
+`1 Default`, `2 Managed`, `3 Selfrun` und `4 Upgrade`. Der aktive Adoption-
+Lifecycle ist der beobachtete UXG-Pro-Pfad `1 -> 0 -> 2`: Der akzeptierte Key-/
+Cipher-Wechsel laesst den unmittelbar folgenden Inform State `0` verwenden;
+das im Capture folgende `noop` fuehrt zu State `2`. Statische
+Firmwareanalyse zeigt, dass erfolgreiche `noop`- und `setparam`-Antworten
+Managed setzen, bevor ein `setparam` mit Authkey oder eine geaenderte Inform-URL
+den Reporter wieder auf Unknown fuehrt. Die frueheren synthetischen Restart-
+Ketten sind damit nicht belegt. States `3` und `4` sind im Stub nur
+Statusvokabular und erlauben keine Host-Aktion.
+
+Akzeptierte Controller-Adoption-Konfiguration darf die Allowlist-Felder
+`AUTHKEY`, `CFGVERSION`, `USE_AES_GCM` und `INFORM_URL` aktualisieren; das
+Produkt leitet `STATE` aus diesen akzeptierten Uebergaengen ab. Persistiertes
+`VERSION` ist ein Legacy-Feld, dessen Herkunft in aelteren Releases
+controllergelernt sein kann. Es wird aus Kompatibilitaetsgruenden gelesen;
+fehlt es, gilt die ueber Profil/Flag gewaehlte Betreiber-Version. Eine
+Controller-Antwort `_type: upgrade` wird nur als
+ignorierter Status festgehalten; sie schreibt weder die advertisierte
+Betreiber-Version noch Lifecycle-State, Firmware, Services oder Host um.
+
+Der Stub darf seinen eigenen lokalen Adoption-State loeschen, bildet eine
+Controller-Reset-Anfrage aber nie auf Vendor-Factory-Reset, Host-Restart,
+Netzwerk-, Dienst- oder Uhraenderung ab. Das ist eine lokale Sicherheitsgrenze
+und kein rekonstruierter Firmware-Lifecycle.
+
+Blockauswahl und Controller-Zeit sind prozesslokale Reporting-Eingaben. Jedes
+akzeptierte `noop` ersetzt die vorherige Blockauswahl vollstaendig; jeder
+Payload-Producer prueft nur seine eigenen exakten Include-/Exclude-Bezeichner.
+Ein String `server_time_in_utc` auf `noop` setzt einen Controller-minus-Device-
+Offset ausschliesslich fuer die spaeter gemeldete Payload-Zeit. Weder
+Blockdeskriptoren noch Controller-Zeit koennen Kommandos ausfuehren oder den
+Host veraendern.
 
 Provisioning-Kommandos, die den Host betreffen wuerden, werden nur als
 ignorierte Metadaten zusammengefasst. Beliebige Controller-Shell-Kommandos
@@ -228,15 +343,39 @@ argumentfreies `wg-genkeypair` mit Request-ID: Der Daemon erzeugt prozessintern
 ein X25519-Keypaar und haengt das korrelierte Ergebnis an den naechsten Inform.
 Keys und Request-ID bleiben nur im Speicher; Logs und Status enthalten nur den
 festen Kommandonamen und bereinigte Lifecycle-Zaehler.
+Bereinigter Adoption- und Last-Inform-Status zeigen sowohl den numerischen
+Wire-State als auch dessen festen Namen, niemals jedoch den individuellen
+Adoption-Key.
 
 Der Presence-Loop verwendet statt eines festen Tickers einen ruecksetzbaren
 Timer. `interval_seconds` des Betreibers ist der Starttakt. Positive Controller-
-Hinweise aus `noop.interval` werden auf das konfigurierte Minimum und Maximum
-begrenzt. Transport- oder Response-Decoding-Fehler verdoppeln den effektiven
-Takt bis zum konfigurierten Backoff-Maximum und ergaenzen begrenzten
-symmetrischen Jitter. Ein abgeschlossener HTTP-Austausch setzt den Fehlerzaehler
-zurueck; effektiver Takt, naechste Wartezeit, Fehlerzaehler und Backoff-State
-werden bereinigt im Status erfasst.
+Hinweise aus `noop.interval` sind nur aktiv, wenn Built-in-Quelle, Profil,
+Modell, Version und Boardidentitaet eine exakte LIFE-010-Firmwareminimum-Bindung
+waehlen. Der aktuelle Kandidat aktiviert sechs exakte Tupel und laesst die
+anderen sechs Built-ins, externe Profile, benachbarte Identitaeten sowie Modell-
+oder Versions-Overrides fuer Intervallhinweise geschlossen. Die exakte Liste
+steht in den Protocol Notes.
+
+Bei einem aktivierten Tupel ist die Untergrenze
+`max(Firmwareminimum, Betreiberminimum)` und die Obergrenze
+`min(Betreibermaximum, 300 Sekunden)`. Ohne Bindung wird ein positiver Hinweis
+ignoriert und die Betreiberbasis bleibt aktiv. Die Konfiguration scheitert an
+der Validierung, wenn die effektive Obergrenze unter der effektiven Untergrenze
+liegt. Dry-Run-Plan und bereinigter Status zeigen, ob Hinweise unterstuetzt
+sind, die Evidence-ID, Firmware- und effektives Minimum oder den festen
+Ablehnungsgrund. `noop.immediate=true`
+fordert genau einen begrenzten, von null verschiedenen, nahezu unmittelbaren
+Folge-Inform an, ohne den beibehaltenen effektiven Takt zu veraendern.
+Transport-, Response-Decode-, JSON-, Dispatcher- und Nicht-200-Fehler
+verdoppeln den effektiven Takt bis zum konfigurierten Backoff-Maximum und
+ergaenzen begrenzten symmetrischen Jitter. Nur ein leeres HTTP 200 oder ein 200
+mit akzeptiertem Controllerobjekt setzt den Fehlerzaehler zurueck; effektiver
+Takt, naechste Wartezeit, Fehlerzaehler und Backoff-State werden bereinigt im
+Status erfasst.
+
+Die exakten Intervallbindungen bleiben Kandidatenverhalten, bis der
+ausgewaehlte Produktkandidat in seiner vorgesehenen Controllerumgebung
+abgenommen ist.
 
 ## Persistenz und Status
 

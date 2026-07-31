@@ -9,7 +9,7 @@ import (
 
 // printRuntimePlan describes the non-mutating runtime plan, including actions
 // that are intentionally dry-run-only for host-networking safety.
-func printRuntimePlan(flags runtimeFlags, profile device.Profile, macText, ipText, hostname string) {
+func printRuntimePlan(flags runtimeFlags, profile device.Profile, informSchedulePolicy device.InformSchedulePolicy, reportingPolicy device.ControllerReportingPolicy, macText, ipText, hostname string) {
 	mode := normalizeMode(flags.operationMode)
 	fmt.Printf("operation_mode: %s\n", mode)
 	fmt.Printf("profile: %s (%s)\n", profile.Name, profile.Model)
@@ -20,6 +20,32 @@ func printRuntimePlan(flags runtimeFlags, profile device.Profile, macText, ipTex
 	fmt.Printf("interval: %s\n", flags.interval)
 	fmt.Printf("controller_interval_min: %s\n", flags.controllerIntervalMin)
 	fmt.Printf("controller_interval_max: %s\n", flags.controllerIntervalMax)
+	policyStatus := controllerIntervalPolicyStatus(flags, informSchedulePolicy)
+	fmt.Printf("controller_interval_hints_supported: %t\n", policyStatus.Supported)
+	if policyStatus.EvidenceID != "" {
+		fmt.Printf("controller_interval_evidence: %s\n", policyStatus.EvidenceID)
+	}
+	if policyStatus.FirmwareMinimum != "" {
+		fmt.Printf("controller_interval_firmware_minimum: %s\n", policyStatus.FirmwareMinimum)
+	}
+	if policyStatus.EffectiveMinimum != "" {
+		fmt.Printf("controller_interval_effective_minimum: %s\n", policyStatus.EffectiveMinimum)
+	}
+	if policyStatus.Reason != "" {
+		fmt.Printf("controller_interval_policy_reason: %s\n", policyStatus.Reason)
+	}
+	reportingStatus := controllerReportingPolicyStatus(reportingPolicy)
+	if reportingStatus.EvidenceID != "" {
+		fmt.Printf("controller_reporting_evidence: %s\n", reportingStatus.EvidenceID)
+	}
+	if reportingStatus.BehaviorID != "" {
+		fmt.Printf("controller_reporting_behavior: %s\n", reportingStatus.BehaviorID)
+	}
+	fmt.Printf("controller_block_selection_supported: %t\n", reportingStatus.BlockSelection)
+	fmt.Printf("controller_clock_supported: %t\n", reportingStatus.ControllerClock)
+	if reportingStatus.Reason != "" {
+		fmt.Printf("controller_reporting_policy_reason: %s\n", reportingStatus.Reason)
+	}
 	fmt.Printf("inform_backoff_max: %s\n", flags.informBackoffMax)
 	fmt.Printf("inform_backoff_jitter_percent: %d\n", flags.informBackoffJitterPercent)
 	fmt.Printf("uplink_port: %d\n", effectiveUplinkPort(profile, flags))

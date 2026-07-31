@@ -3,12 +3,18 @@ package main
 import (
 	"fmt"
 	"net"
-	"strings"
 
 	"github.com/konstruktor1/unifi-stubd/internal/adoption"
 	"github.com/konstruktor1/unifi-stubd/internal/device"
 	"github.com/konstruktor1/unifi-stubd/internal/device/payload"
 )
+
+// controllerPayloadState contains only process-local reporting decisions
+// learned from accepted controller responses. It cannot mutate host state.
+type controllerPayloadState struct {
+	TimeOffsetSeconds int64
+	Blocks            adoption.BlockSelection
+}
 
 // payloadForIdentity converts resolved runtime flags and adoption state into
 // the stable device identity model consumed by the payload renderer.
@@ -22,21 +28,29 @@ func payloadForIdentity(
 	profile device.Profile,
 	ports []device.Port,
 	uptimeSeconds int,
+	controllerState controllerPayloadState,
 ) ([]byte, error) {
 	return buildPayload(device.Identity{
-		MAC:            mac.String(),
-		IP:             ip.String(),
-		Hostname:       hostname,
-		Model:          flags.model,
-		ModelDisplay:   flags.modelDisplay,
-		DeviceType:     profile.DeviceType,
-		Version:        flags.version,
-		Serial:         serialFromMAC(mac),
-		InformURL:      informURL,
-		InformIP:       resolveInformIP(informURL),
-		ManagementVLAN: effectiveManagementVLAN(flags),
-		UptimeSeconds:  uptimeSeconds,
-	}, profile, store, refreshPortFreshness(ports, uptimeSeconds))
+		MAC:                         mac.String(),
+		IP:                          ip.String(),
+		Hostname:                    hostname,
+		Model:                       flags.model,
+		ModelDisplay:                flags.modelDisplay,
+		DeviceType:                  profile.DeviceType,
+		Version:                     flags.version,
+		Serial:                      serialFromMAC(mac),
+		InformURL:                   informURL,
+		InformIP:                    resolveInformIP(informURL),
+		ManagementVLAN:              effectiveManagementVLAN(flags),
+		UptimeSeconds:               uptimeSeconds,
+		ControllerTimeOffsetSeconds: controllerState.TimeOffsetSeconds,
+		IPv4ActiveLeasesRequested:   controllerState.Blocks.Includes("ipv4_active_leases"),
+		GatewayMACIPv6Requested:     controllerState.Blocks.Includes("port_table.mac_table_ipv6"),
+		GWCapabilitiesRequested:     controllerState.Blocks.Includes("gw_caps"),
+		UDAPIVersionExcluded:        controllerState.Blocks.Excludes("udapi_version"),
+		DPIStatsExcluded:            controllerState.Blocks.Excludes("dpi_stats"),
+		FingerprintsExcluded:        controllerState.Blocks.Excludes("fingerprints"),
+	}, profile, store, refreshPortUptimes(ports, uptimeSeconds))
 }
 
 // buildPayload overlays adoption-derived controller state onto the identity
@@ -44,6 +58,8 @@ func payloadForIdentity(
 func buildPayload(id device.Identity, profile device.Profile, store adoption.Store, ports []device.Port) ([]byte, error) {
 	id.CFGVersion = store.CFGVersion
 	id.Adopted = store.AuthKey != ""
+	id.InformState = controllerInformState(store)
+	id.InformStateSet = true
 	if store.Version != "" {
 		id.Version = store.Version
 	}
@@ -54,9 +70,23 @@ func buildPayload(id device.Identity, profile device.Profile, store adoption.Sto
 	return payload, nil
 }
 
-// refreshPortFreshness increments synthetic connected-port counters and learned
-// MAC uptimes so repeated informs do not look like a frozen first-boot payload.
-func refreshPortFreshness(ports []device.Port, uptimeSeconds int) []device.Port {
+// controllerInformState maps the persisted adoption phase to the observed
+// wire lifecycle. A keyed phase remains at 0 until a controller noop has
+// confirmed it as connected; only then may the Stub report managed state 2.
+func controllerInformState(store adoption.Store) device.InformState {
+	if store.AuthKey == "" {
+		return device.InformStateDefault
+	}
+	if store.State == adoption.StateConnected {
+		return device.InformStateManaged
+	}
+	return device.InformStateUnknown
+}
+
+// refreshPortUptimes advances only the age of locally known MAC and neighbor
+// observations. Runtime counters and rates remain absent until a named local
+// source supplies them.
+func refreshPortUptimes(ports []device.Port, uptimeSeconds int) []device.Port {
 	if uptimeSeconds < 1 || len(ports) == 0 {
 		return ports
 	}
@@ -64,12 +94,6 @@ func refreshPortFreshness(ports []device.Port, uptimeSeconds int) []device.Port 
 	copy(out, ports)
 	for index := range out {
 		port := &out[index]
-		if port.Up && strings.TrimSpace(port.Interface) == "" {
-			port.RXBytes += int64((uptimeSeconds * 64) + port.Index)
-			port.TXBytes += int64((uptimeSeconds * 48) + port.Index)
-			port.RXPackets += int64(uptimeSeconds)
-			port.TXPackets += int64(uptimeSeconds)
-		}
 		for macIndex := range port.MACs {
 			if port.MACs[macIndex].Uptime < uptimeSeconds {
 				port.MACs[macIndex].Uptime = uptimeSeconds

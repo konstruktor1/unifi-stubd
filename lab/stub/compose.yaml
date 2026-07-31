@@ -1,22 +1,8 @@
-# Local unifi-stubd stub lab with controller and Go inform proxy services.
-
-x-stub-common: &stub-common
-  init: true
-  depends_on:
-    inform-mitm:
-      condition: service_started
-  extra_hosts:
-    - "unifi:${UNIFI_STUB_LAB_MITM_IP:-172.31.242.12}"
-  cap_drop:
-    - ALL
-  cap_add:
-    - NET_BIND_SERVICE
-  security_opt:
-    - no-new-privileges:true
+# Disposable controller and provisioning services for the US8 product gate.
 
 services:
   unifi:
-    image: ${UNIFI_NETWORK_IMAGE:-lscr.io/linuxserver/unifi-network-application:10.4.57-ls135}
+    image: ${UNIFI_NETWORK_IMAGE:?set the dynamically resolved controller image}
     depends_on:
       unifi-db:
         condition: service_healthy
@@ -37,9 +23,6 @@ services:
         aliases:
           - unifi-controller
         ipv4_address: ${UNIFI_STUB_LAB_CONTROLLER_IP:-172.31.242.10}
-      ui: {}
-    ports:
-      - "127.0.0.1:${UNIFI_HTTPS_PORT:-8443}:8443"
     volumes:
       - unifi_config:/config
 
@@ -70,79 +53,12 @@ services:
       retries: 30
       start_period: 30s
 
-  inform-mitm:
-    build:
-      context: ../..
-      dockerfile: Dockerfile
-      args:
-        VERSION: ${UNIFI_STUBD_VERSION:-lab}
-    image: ${UNIFI_STUB_IMAGE:-unifi-stubd:lab}
-    depends_on:
-      unifi:
-        condition: service_started
-    networks:
-      lab:
-        aliases:
-          - unifi-inform-mitm
-        ipv4_address: ${UNIFI_STUB_LAB_MITM_IP:-172.31.242.12}
-    volumes:
-      - type: bind
-        source: ${UNIFI_STUB_DOCKER_HOST_LAB_DIR:-.}/captures
-        target: /captures
-    entrypoint:
-      - /usr/local/bin/unifi-stubd-inform-proxy
-    command:
-      - -listen
-      - 0.0.0.0:8080
-      - -target
-      - ${UNIFI_STUB_INFORM_PROXY_TARGET:-http://unifi-controller:8080}
-      - -capture-dir
-      - /captures
-      - -discovery-listen
-      - 0.0.0.0:10001
-      - -discovery-target
-      - ${UNIFI_STUB_DISCOVERY_PROXY_TARGET:-unifi-controller:10001}
-
-  stub:
-    <<: *stub-common
-    build:
-      context: ../..
-      dockerfile: Dockerfile
-      args:
-        VERSION: ${UNIFI_STUBD_VERSION:-lab}
-    image: ${UNIFI_STUB_IMAGE:-unifi-stubd:lab}
-    hostname: stub
-    networks:
-      lab:
-        ipv4_address: ${UNIFI_STUB_IP:-172.31.242.24}
-    volumes:
-      - stub_state:/var/lib/unifi-stubd
-      - type: bind
-        source: ${UNIFI_STUB_DOCKER_HOST_LAB_DIR:-.}/configs
-        target: /usr/local/share/unifi-stubd-lab/configs
-        read_only: true
-    command:
-      - -config
-      - ${UNIFI_STUB_CONFIG:-/usr/local/share/unifi-stubd-lab/configs/hosts/stub/config.yaml}
-      - -profile
-      - ${UNIFI_STUB_PROFILE:-us8}
-      - -mac
-      - ${UNIFI_STUB_MAC:-02:15:6d:00:08:01}
-      - -ip
-      - ${UNIFI_STUB_IP:-172.31.242.24}
-      - -hostname
-      - ${UNIFI_STUB_HOSTNAME:-stub}
-
 networks:
   lab:
     driver: bridge
     ipam:
       config:
         - subnet: ${UNIFI_STUB_LAB_SUBNET:-172.31.242.0/24}
-  ui:
-    driver: bridge
-
 volumes:
   mongo_data:
   unifi_config:
-  stub_state:

@@ -7,8 +7,9 @@ expliziten Package-Workflow-Lauf veroeffentlicht.
 
 Das Modell passt zur vorhandenen Repository-Infrastruktur:
 
-- GitHub Actions `CI` fuehrt `make check`, `make coverage`, `make vulncheck`
-  und die SBOM-Erzeugung vollstaendig auf GitHub-gehosteten Linux-Runnern aus.
+- GitHub Actions `CI` fuehrt `make check`, den diagnostischen Report
+  `make coverage`, `make vulncheck` und die SBOM-Erzeugung vollstaendig auf
+  GitHub-gehosteten Linux-Runnern aus.
 - Bei Pushes auf `main` baut `CI` zusaetzlich Pakete und installiert das
   erzeugte Debian-Paket einmal im Ubuntu-Runner als neutralen Smoke-Test.
 - `Package Repositories` baut Linux-Pakete und die Release-SBOM auf Ubuntu,
@@ -150,8 +151,8 @@ Legacy-Tags ohne den FreeBSD-Packaging-Workflow oder mit FreeBSD-Eintraegen in
 
 | Aenderungstyp | Erforderlicher lokaler Gate | Zusaetzlicher Gate |
 | --- | --- | --- |
-| Go-Code, Config-Schema, Profildaten | `make check`, `make coverage`, `git diff --check` | Gezieltes `go test ./tests/...`, wenn sinnvoll |
-| Inform, Adoption, Controller-Payload, Profil-Rendering | `make check` | Standardisierter Docker-Gate mit `make integration-docker` vor `dev` nach `main` |
+| Go-Code, Config-Schema, Profildaten | `make check`, `git diff --check` | Diagnostisches `make coverage`; gezieltes `go test ./tests/...`, wenn sinnvoll |
+| US8-Inform, -Adoption oder controller-sichtbare Metriken | `make check` | Aktueller Stable-/RC-Produktgate mit `make integration-nonunifi-metrics` vor `dev` nach `main` |
 | Paketierte Config, Service-Dateien, Paket-Metadaten | `make check`, `make package` | GitHub-`main`-Package-Install-Smoke |
 | FreeBSD- oder OPNsense-Runtime-Verhalten | `make check` | Manueller `FreeBSD Packaging`-Build plus Tier-3-FreeBSD-/OPNsense-Runtime-Smoke mit temporaerem State, wenn Verhalten geaendert wurde |
 | Release Notes, Paketveroeffentlichung | `make check` | Linux-first `Package Repositories`; optionale manuelle `FreeBSD Packaging`-Veroeffentlichung erst nach vorhandenem passenden Pre-Release |

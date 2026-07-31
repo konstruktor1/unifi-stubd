@@ -47,10 +47,23 @@ type CommandLifecycle struct {
 }
 
 func parseControllerCommand(response *ControllerResponse, raw map[string]json.RawMessage) {
-	name := jsonString(raw["cmd"])
+	name := jsonExactString(raw["cmd"])
 	if name != commandWireGuardGenerateKeyPair {
 		response.Ignored = true
-		response.IgnoredReason = "controller command ignored by safety policy"
+		switch {
+		case isRejectOnlyControllerCommand(name):
+			response.CommandName = name
+			response.IgnoredReason = "controller command rejected by safety policy"
+		case name == "wg-genpsk" || name == "wg-pubkey":
+			response.CommandName = name
+			response.IgnoredReason = "controller command has no in-process implementation"
+		case name == "get-udapi-blocks":
+			response.CommandName = name
+			response.CommandRequestIDSet = jsonExactString(raw["request_id"]) != ""
+			response.IgnoredReason = "get-udapi-blocks unavailable without a trusted local provider"
+		default:
+			response.IgnoredReason = "unsupported controller command ignored by safety policy"
+		}
 		return
 	}
 	response.CommandName = commandWireGuardGenerateKeyPair
@@ -168,6 +181,15 @@ func (lifecycle *CommandLifecycle) MarkResultSent() {
 // Summary returns a secret-free snapshot of command lifecycle counters.
 func (lifecycle *CommandLifecycle) Summary() CommandLifecycleSummary {
 	return lifecycle.summary
+}
+
+// Reset discards all memory-only command correlation, result, and summary
+// state after a controller-requested local reset.
+func (lifecycle *CommandLifecycle) Reset() {
+	if lifecycle == nil {
+		return
+	}
+	*lifecycle = CommandLifecycle{}
 }
 
 func newWireGuardKeyPairResult(command controllerCommand) (commandResult, error) {

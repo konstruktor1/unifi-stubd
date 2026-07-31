@@ -3,12 +3,11 @@ package payload
 import (
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/konstruktor1/unifi-stubd/internal/device"
 )
 
-func gatewayPortTable(ports []PortView, uptime int) []gatewayPortRow {
+func gatewayPortTable(ports []PortView, macTableIPv6Requested bool) []gatewayPortRow {
 	out := make([]gatewayPortRow, 0, len(ports))
 	for _, view := range ports {
 		iface := view.GatewayInterface
@@ -38,20 +37,17 @@ func gatewayPortTable(ports []PortView, uptime int) []gatewayPortRow {
 			POEClass:                "Class 0",
 			POEPower:                "0.00",
 			MACTable:                portMACTable(view),
-			RXBroadcast:             0,
-			RXMulticast:             0,
-			RXDropped:               0,
-			TXBroadcast:             0,
-			TXMulticast:             0,
-			TXDropped:               0,
 			gatewayAssignmentFields: assignmentFields(view),
 			gatewayPortLinkFields:   gatewayPortLinkFieldsFor(view.Speed, view.Media),
 			counterFields:           portCounterFields(view.Port),
 			optionalRateFields:      explicitPortRateFields(view.Port),
 			gatewayRateFields:       gatewayPortRateFields(view.Port),
-			gatewayWANInlineHealth:  inlineWANHealth(view, uptime),
 			SourceInterface:         view.SourceInterface,
 			connectionFields:        physicalConnectionFields(view),
+		}
+		if macTableIPv6Requested {
+			empty := []device.MacTableEntry{}
+			row.MACTableIPv6 = &empty
 		}
 		out = append(out, row)
 	}
@@ -96,12 +92,6 @@ func gatewayPortStatsTable(ports []PortView) []gatewayPortStatsRow {
 			POEClass:           "Class 0",
 			POEPower:           "0.00",
 			MACTable:           portMACTable(view),
-			RXBroadcast:        0,
-			RXMulticast:        0,
-			RXDropped:          0,
-			TXBroadcast:        0,
-			TXMulticast:        0,
-			TXDropped:          0,
 			counterFields:      portCounterFields(view.Port),
 			optionalRateFields: explicitPortRateFields(view.Port),
 			gatewayRateFields:  gatewayPortRateFields(view.Port),
@@ -129,7 +119,7 @@ func gatewayEthernetTable(ports []PortView) []gatewayEthernetTableRow {
 	return out
 }
 
-func gatewayConfigPortTable(ports []PortView, uptime int) []gatewayConfigPortRow {
+func gatewayConfigPortTable(ports []PortView) []gatewayConfigPortRow {
 	out := make([]gatewayConfigPortRow, 0, len(ports))
 	for _, view := range ports {
 		ifname := physicalIfName(view)
@@ -144,7 +134,6 @@ func gatewayConfigPortTable(ports []PortView, uptime int) []gatewayConfigPortRow
 			IsUplink:                view.Uplink,
 			gatewayAssignmentFields: assignmentFields(view),
 			linkFields:              portLinkFields(view.Speed, view.Media),
-			gatewayWANInlineHealth:  inlineWANHealth(view, uptime),
 			SourceInterface:         view.SourceInterface,
 			connectionFields:        physicalConnectionFields(view),
 		})
@@ -152,7 +141,7 @@ func gatewayConfigPortTable(ports []PortView, uptime int) []gatewayConfigPortRow
 	return out
 }
 
-func gatewayEthernetOverrides(ports []PortView, uptime int) []gatewayEthernetOverrideRow {
+func gatewayEthernetOverrides(ports []PortView) []gatewayEthernetOverrideRow {
 	out := make([]gatewayEthernetOverrideRow, 0, len(ports))
 	complete := needsAllEthernetOverrides(ports)
 	for _, view := range ports {
@@ -185,7 +174,6 @@ func gatewayEthernetOverrides(ports []PortView, uptime int) []gatewayEthernetOve
 			Enable:                  view.Enabled,
 			gatewayAssignmentFields: assignmentFields(view),
 			linkFields:              portLinkFields(view.Speed, view.Media),
-			gatewayWANInlineHealth:  inlineWANHealth(view, uptime),
 			SourceInterface:         view.SourceInterface,
 			connectionFields:        physicalConnectionFields(view),
 		})
@@ -268,7 +256,7 @@ func uplinkPortIndex(ports []PortView) int {
 	return 1
 }
 
-func gatewayIfTable(_ device.Profile, id device.Identity, ports []PortView, now time.Time, uptime int) []gatewayIfRow {
+func gatewayIfTable(id device.Identity, ports []PortView) []gatewayIfRow {
 	ports = logicalInterfacePorts(ports)
 	out := make([]gatewayIfRow, 0, len(ports))
 	uplinkIndex := uplinkPortIndex(ports)
@@ -293,18 +281,12 @@ func gatewayIfTable(_ device.Profile, id device.Identity, ports []PortView, now 
 			counterFields:      portCounterFields(view.Port),
 			optionalRateFields: explicitPortRateFields(view.Port),
 			gatewayRateFields:  gatewayPortRateFields(view.Port),
-			gatewayWANInlineHealth: inlineWANHealth(
-				view,
-				uptime,
-			),
-			SourceInterface:  view.SourceInterface,
-			connectionFields: gatewayConnectionFields(view),
+			SourceInterface:    view.SourceInterface,
+			connectionFields:   gatewayConnectionFields(view),
 		}
 		if view.Index == uplinkIndex {
-			health := wanHealth(view, uptime)
 			row.VLAN = id.ManagementVLAN
 			row.ManagementVLAN = id.ManagementVLAN
-			row.wanUplinkHealthFields = uplinkHealthFields(health, now, uptime)
 		}
 		out = append(out, row)
 	}
@@ -371,7 +353,7 @@ func gatewayInterfaceViewScore(view PortView) int {
 }
 
 // gatewayNetworkTable renders the routed network view for each gateway port.
-func gatewayNetworkTable(_ device.Profile, _ device.Identity, ports []PortView, uptime int) []gatewayNetworkRow {
+func gatewayNetworkTable(ports []PortView) []gatewayNetworkRow {
 	ports = logicalInterfacePorts(ports)
 	out := make([]gatewayNetworkRow, 0, len(ports))
 	for _, view := range ports {
@@ -400,10 +382,6 @@ func gatewayNetworkTable(_ device.Profile, _ device.Identity, ports []PortView, 
 				optionalRateFields: explicitPortRateFields(view.Port),
 				gatewayRateFields:  gatewayPortRateFields(view.Port),
 			},
-			gatewayWANInlineHealth: inlineWANHealth(
-				view,
-				uptime,
-			),
 			SourceInterface:  view.SourceInterface,
 			connectionFields: connectionFields{Connected: view.Up},
 		}
@@ -429,7 +407,7 @@ func gatewayNetworkInterfaceName(view PortView) string {
 
 // gatewayReportedNetworks renders a read-only network summary per gateway
 // port. It mirrors network_table values without inventing host configuration.
-func gatewayReportedNetworks(ports []PortView, uptime int) []gatewayReportedNetworkRow {
+func gatewayReportedNetworks(ports []PortView) []gatewayReportedNetworkRow {
 	ports = logicalInterfacePorts(ports)
 	out := make([]gatewayReportedNetworkRow, 0, len(ports))
 	for _, view := range ports {
@@ -448,14 +426,6 @@ func gatewayReportedNetworks(ports []PortView, uptime int) []gatewayReportedNetw
 			Up:               view.Up,
 			SourceInterface:  view.SourceInterface,
 			connectionFields: connectionFields{Connected: view.Up},
-		}
-		if gatewayPortRole(view.Port) == gatewayPortRoleWAN || gatewayPortRole(view.Port) == gatewayPortRoleWAN2 {
-			health := wanHealth(view, uptime)
-			row.Availability = health.uptimePercent
-			row.Latency = health.latencyMS
-			row.Downtime = health.downtime
-			row.IsWANUp = health.up
-			row.IsWANConnected = health.connected
 		}
 		out = append(out, row)
 	}

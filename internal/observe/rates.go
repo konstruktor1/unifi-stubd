@@ -9,6 +9,7 @@ import (
 type InterfaceRates struct {
 	RXBytesRate int64
 	TXBytesRate int64
+	Set         bool
 }
 
 // TrafficRateTracker computes interface rates from successive counter samples.
@@ -54,6 +55,7 @@ func (t *TrafficRateTracker) Rates(now time.Time, key string, stats InterfaceSta
 	return InterfaceRates{
 		RXBytesRate: int64(float64(stats.RXBytes-previous.rxBytes) / elapsed),
 		TXBytesRate: int64(float64(stats.TXBytes-previous.txBytes) / elapsed),
+		Set:         true,
 	}
 }
 

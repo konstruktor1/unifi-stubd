@@ -6,8 +6,8 @@ published only from tags, GitHub releases, or an explicit package workflow run.
 
 The model fits the existing repository infrastructure:
 
-- GitHub Actions `CI` runs `make check`, `make coverage`, `make vulncheck`, and
-  SBOM generation entirely on GitHub-hosted Linux runners.
+- GitHub Actions `CI` runs `make check`, the diagnostic `make coverage` report,
+  `make vulncheck`, and SBOM generation entirely on GitHub-hosted Linux runners.
 - On `main` pushes, `CI` also builds packages and installs the generated Debian
   package once in the Ubuntu runner as a neutral smoke test.
 - `Package Repositories` builds Linux packages and the release SBOM on Ubuntu,
@@ -142,8 +142,8 @@ already includes FreeBSD artifacts, are not eligible for this split extension.
 
 | Change type | Required local gate | Extra gate |
 | --- | --- | --- |
-| Go code, config schema, profile data | `make check`, `make coverage`, `git diff --check` | Targeted `go test ./tests/...` when useful |
-| Inform, adoption, controller payload, profile rendering | `make check` | Standardized Docker gate with `make integration-docker` before `dev` to `main` |
+| Go code, config schema, profile data | `make check`, `git diff --check` | Diagnostic `make coverage`; targeted `go test ./tests/...` when useful |
+| US8 inform, adoption, or controller-visible metrics | `make check` | Current Stable/RC product gate with `make integration-nonunifi-metrics` before `dev` to `main` |
 | Packaged config, service files, package metadata | `make check`, `make package` | GitHub `main` package install smoke |
 | FreeBSD or OPNsense runtime behavior | `make check` | Manual `FreeBSD Packaging` build plus a Tier 3 FreeBSD/OPNsense runtime smoke with temporary state when behavior changed |
 | Release notes, package publication | `make check` | Linux-first `Package Repositories`; optional manual `FreeBSD Packaging` publication only after the matching pre-release exists |

@@ -1,53 +1,28 @@
-# Priorisierter Backlog
+# Produkt-Backlog
 
-Zuletzt aktualisiert: 2026-07-11.
+Stand: 2026-07-29.
 
-Dieser Backlog enthaelt die naechsten konkreten Produktarbeiten fuer
-`unifi-stubd`. Die Roadmap bleibt die langfristige Feature-Liste. Die Eintraege
-sind nach Umsetzungsprioritaet geordnet und muessen die zentrale
-Sicherheitsgrenze erhalten: Controller-Daten duerfen Host-Netzwerk, Dienste,
-Benutzer, Pakete, Routen oder Firewall nicht veraendern.
+Der Backlog ist nach nutzbarem Produktergebnis geordnet. Bereitstellungs- und
+Validierungsmechanik ist keine eigene Produktarbeit.
 
-Der Aufwand ist relativ angegeben: `S` fuer eine fokussierte Aenderung, `M`
-fuer eine moduluebergreifende Aenderung und `L` fuer Arbeiten mit
-Controller-Integration und Fixtures.
+| Reihenfolge | Ergebnis | Status | Fertig wenn |
+| ---: | --- | --- | --- |
+| 1 | Den Nicht-UniFi-`US8`-Datenpfad mit echten Metriken belegen. | Verifiziert | Die aktuelle Kompatibilitaetsevidence zeigt denselben Kandidaten auf aktuellem Stable und RC sichtbar, adoptiert, verbunden und mit steigenden echten Metrikwerten. |
+| 2 | Belegen, dass ein Betreiber diese Metriken in UniFi Network sieht. | Als Naechstes | Die US8-Geraeteseite auf aktuellem Stable und RC zeigt sichtbar Link, beobachteten Speed und bidirektionale Trafficwerte der echten Quelle. API-Readback allein reicht nicht. |
+| 3 | Die Host-Sicherheitsgrenze erhalten. | Implementiert; Evidence offen | Fokussierte Tests decken begrenzten Stub-eigenen Adoption-State und verworfene Shell-, Netzwerk-, Restart-, Upgrade- und Provisioning-Aktionen ab. Ein aufbewahrter Lauf muss diese Pruefungen an die exakt qualifizierte Kandidatensource binden. |
+| 4 | Ein installierbares Linux-Paket fuer den unterstuetzten Schnitt liefern. | In Validierung | Das Paket enthaelt das fuer den Datenpfad qualifizierte Binary. Seine Startkonfiguration waehlt `US8` explizit; eine unterstuetzte Bridge-Konfiguration mit benannter echter Metrikquelle muss aber noch auf einem Linux-Host installiert und erfolgreich gestartet werden. |
+| 5 | Den unterstuetzten Betreiberpfad nutzbar machen. | Nach 2 und 4 | Der Quick Start fuehrt von Installation und lokaler Metrikquelle ueber Adoption und sichtbare Controllermetriken bis zu Grenzen und Recovery ohne Lab-Interna. |
+| 6 | Eine weitere Repraesentation nur fuer einen konkreten Produktbedarf ergaenzen. | Spaeter | Vor der Umsetzung bestehen benanntes Nutzerergebnis, lokale read-only Datenquelle, Sicherheitsgrenze und eigene Stable-/RC-Abnahme. |
 
-| ID | Prioritaet | Massnahme | Abnahmekriterium | Aufwand |
-| --- | --- | --- | --- | --- |
-| B01 | P0 | **Abgeschlossen 2026-07-10:** Adoption-SSH-Logs bereinigen | Adoption-SSH-Logs verwenden feste Kommandobezeichnungen. Ein echter SSH-Regressionstest belegt, dass Keys und Passwoerter nicht in Logs, Antworten oder Authentifizierungsfehler gelangen, waehrend der Key persistiert bleibt; der bestehende Status-Regressionstest bleibt gruen. | S |
-| B02 | P0 | **Abgeschlossen 2026-07-10:** Go-Build-Linie aktualisieren | GitHub- und Docker-Builds verwenden den aktuellen Go-1.25-Patch ohne festgeschriebene Patchversion oder `toolchain`-Direktive. `make check`, Race Detector, `make vulncheck` und ein Paket-Build laufen mit dem aktuellen Go-1.25-Release erfolgreich. | S |
-| B03 | P1 | **Abgeschlossen 2026-07-10:** Interface-Observation korrekt aktualisieren | Jeder Runtime-Port-Build startet mit unveraenderter Betreiberkonfiguration und liest einen frischen Snapshot fuer MAC, IPv4, IPv6, Link-State, Speed, Medium und Counter. Explizite Werte behalten Vorrang; vollstaendige Null-Counter-Resets erreichen den Payload. | M |
-| B04 | P1 | **Abgeschlossen 2026-07-10:** Persistenz und Prozessende haerten | `SIGTERM` und `SIGINT` stoppen den Daemon sauber und geben Runtime-Ressourcen frei. Adoption und Status verwenden temporaere Dateien im selben Verzeichnis, Datei- und Verzeichnissynchronisation sowie atomisches Umbenennen. Regressionstests fuer unterbrochene Schreibvorgaenge bestehen. | M |
-| B05 | P1 | **Abgeschlossen 2026-07-10:** Echten Controller-Integrationstest wiederherstellen | Der gepinnte Docker-Controller-Gate bootstrapt leere Volumes und prueft Discovery, Pending Adoption, bereinigtes `setparam`, persistierten Auth-State, mindestens zwei AES-GCM-Informs und drei stabile Connected-Samples fuer Switch- und Gateway-Fixtures. | L |
-| B06 | P1 | **Abgeschlossen 2026-07-10:** Sicheren Controller-Command-Lifecycle vervollstaendigen | Nur ein argumentfreies `wg-genkeypair` mit Request-ID wird verarbeitet. X25519-Keypaar und Request-ID bleiben im Speicher, das korrelierte Ergebnis wird bis zu einem erfolgreichen Inform erneut gesendet und Logs/Status enthalten nur bereinigte Zaehler. Der gepinnte Controller-Gate belegt genau ein verarbeitetes Kommando, ein ausgeliefertes Ergebnis, kein Duplikat, kein ausstehendes Ergebnis und nach einem Stabilitaetsfenster keine wiederkehrende Task-Schleife. | M/L |
-| B07 | P2 | **Abgeschlossen 2026-07-10:** Heartbeat- und Fehlerstrategie einfuehren | Positive Controller-Intervallhinweise steuern nach Begrenzung auf betreiberseitig konfigurierte Werte den dynamischen Timer. Transportfehler verdoppeln den effektiven Takt mit begrenztem symmetrischem Jitter; ein abgeschlossener HTTP-Austausch setzt die Fehlerfolge zurueck. Unit- und Live-Daemon-Tests decken Begrenzung, Cap, Jitter, Reset, Status und ungueltige Konfiguration ab. Der gepinnte Controller-Gate belegt, dass sein positiver Rueckgabewert zum begrenzten effektiven und naechsten Takt wird, ohne ausstehende Fehler oder Backoff. | M |
-| B08 | P2 | **Abgeschlossen 2026-07-10:** Coverage-Target reparieren | `make coverage` instrumentiert alle produktiven `internal/...`-Pakete ueber die externen `tests/...`-Suites, meldet den aggregierten Wert und erzwingt lokal sowie in CI anfangs mindestens 60 Prozent. | S |
-| B09 | P2 | **Abgeschlossen 2026-07-11:** Profilreife evidenzbasiert ausweisen | Experimentelle Gateway-Profile melden `experimental`. `tested` erfordert mindestens einen konkreten Eintrag in `validated_controller_versions`; `us8` und `uxg-lite` dokumentieren ihre Controller-Evidenz fuer 10.3.58 und 10.4.57, ohne das Gateway-Profil hochzustufen. | S |
-| B10 | P2 | **Abgeschlossen 2026-07-11:** Release-Hygiene wiederherstellen | `VERSION`, Changelog und Installationsdoku stimmen auf 0.2.4-alpha ueberein. Tag-Builds haengen Pakete, Checksummen und eine persistente SPDX-SBOM an den GitHub-Pre-Release. Die Release-Checkliste deckt Signierung und Repository-Metadaten ab. | M |
+## Naechster Schritt
 
-## Umsetzungsreihenfolge
-
-1. Die Sicherheitsblocker B01 und B02 wurden am 2026-07-10 abgeschlossen.
-2. Laufzeitkorrektheit: B03 und B04 wurden am 2026-07-10 abgeschlossen.
-3. Controller-Kompatibilitaet: B05, B06 und B07 wurden am 2026-07-10 abgeschlossen.
-4. Qualitaets- und Release-Gates: B08, B09 und B10 sind abgeschlossen.
-
-## Alpha-Release-Gate
-
-Keinen weiteren Alpha-Tag erstellen, bevor B01 bis B06 abgeschlossen sind und
-diese Befehle auf dem Release-Kandidaten erfolgreich laufen:
-
-```sh
-make check
-go test -race ./...
-make vulncheck
-make integration-docker
-make package
-```
-
-## Beta-Einstiegskriterien
-
-- Das Controller-Gate besteht gegen mindestens zwei gepinnte UniFi-Network-Versionen.
-- Linux- und FreeBSD-Paket-Smoke-Tests einschliesslich Upgrade und Rollback bestehen.
-- Kein Controller-Kommando verbleibt in einer wiederkehrenden Task-Schleife.
-- Dynamische Interface-Aenderungen werden ohne Daemon-Neustart dargestellt.
+Eintraege 2, 3 und 4 abschliessen. Zuerst die unterstuetzte US8-Bridge-
+Konfiguration mit ihrer benannten echten lokalen Metrikquelle
+vervollstaendigen; die explizite paketierte US8-Identitaet allein ist nicht
+diese Konfiguration. Das laufgebundene Paket auf einem unterstuetzten
+Linux-Host installieren, mit der unterstuetzten Konfiguration starten und in
+beiden aktuellen Controllerkanaelen bestaetigen, dass ein Betreiber die echten
+Metriken sieht. Ein fokussiertes Safety-Ergebnis an genau diese
+Kandidatensource binden und aufbewahren. Genau dieser Pfad wird der Quick Start.
+Keine neue Metrikfamilie, kein Gateway-Verhalten und kein weiteres Profil kommt
+vor diesem nutzbaren Release.

@@ -3,9 +3,10 @@
 The package builder stages files below `dist/stage/pkgroot/`. Source files that
 represent installed Linux config live under `packaging/linux/`. Source files
 that represent installed FreeBSD/OPNsense config live under `packaging/freebsd/`.
-These packaged configs are neutral defaults. Keep real host-specific configs in
-a private location outside this repository, then copy the selected config to the
-installed service path after package installation.
+These packaged configs explicitly select the small `US8` starter profile but
+remain non-observing until a local source is configured. Keep real host-specific
+configs in a private location outside this repository, then copy the selected
+config to the installed service path after package installation.
 
 ## Linux Packaged Files
 
@@ -50,14 +51,13 @@ still a manual release-checklist step.
 | `/usr/local/share/doc/unifi-stubd/NOTICE.md` | `NOTICE.md` | Third-party notices |
 | `/usr/local/share/doc/unifi-stubd/CREDITS.md` | `CREDITS.md` | Research and attribution |
 
-## Lab Switch Identities
+## Integration And Deployment Examples
 
-Lab switch identities live under `lab/`. They are not installed by packages
-automatically; copy one over `/etc/unifi-stubd/config.yaml` when it matches the
-Linux lab you are building, or over
-`/usr/local/etc/unifi-stubd/config.yaml` on FreeBSD.
+Sanitized Tier 2 integration and host examples live under `lab/stub/`. They
+are test inputs and are not installed by packages. Start deployment-specific
+configs from the packaged example for the target operating system.
 
 Real controller URLs, site IP addresses, MAC addresses, client names, adoption
-state paths, and private topology mappings must not be committed. Use sanitized
-examples in `lab/` for shareable documentation and keep live host configs in a
-private deployment directory.
+state paths, and private topology mappings must not be committed. Keep live
+host configs in a private deployment directory. Firmware, VM, and other Tier 3
+assets belong to the companion project `unifi-stubd-labs`.

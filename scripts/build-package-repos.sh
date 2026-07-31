@@ -193,8 +193,8 @@ write_index() {
           <td>Historical fake switch and gateway-emulation project context.</td>
         </tr>
         <tr>
-          <td><a href="https://github.com/openwrt/openwrt/tree/main/package/network/config/swconfig">OpenWrt swconfig</a>, <a href="https://docs.docker.com/engine/network/drivers/macvlan/">Docker macvlan docs</a>, and <a href="https://kernel.org/doc/html/next/networking/bridge.html">Linux bridge docs</a></td>
-          <td>Lab simulation, bridge observation, and future network-mode planning references.</td>
+          <td><a href="https://docs.docker.com/engine/network/drivers/macvlan/">Docker macvlan docs</a> and <a href="https://kernel.org/doc/html/next/networking/bridge.html">Linux bridge docs</a></td>
+          <td>Bridge observation and future network-mode planning references.</td>
         </tr>
       </tbody>
     </table>
@@ -560,11 +560,10 @@ if [ ! -d "$PACKAGE_DIR" ]; then
   fail "package directory not found: $PACKAGE_DIR"
 fi
 case "$REQUIRE_FREEBSD_ARTIFACTS" in
-  0 | 1)
-    ;;
-  *)
-    fail "REQUIRE_FREEBSD_ARTIFACTS must be 0 or 1"
-    ;;
+0 | 1) ;;
+*)
+  fail "REQUIRE_FREEBSD_ARTIFACTS must be 0 or 1"
+  ;;
 esac
 
 rm -rf "$SITE_DIR"

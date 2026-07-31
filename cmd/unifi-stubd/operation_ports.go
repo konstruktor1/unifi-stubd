@@ -64,9 +64,7 @@ func portsForRuntime(flags runtimeFlags, profile device.Profile, portBuildOption
 	// Bridge observation is read-only input. Operator overrides are applied
 	// after the passive snapshot so a config file can correct or mask host facts
 	// without the controller mutating the host.
-	if flags.trafficRatesEnabled {
-		observedPorts = markRateUplink(observedPorts, bridgeObserve.UplinkInterface)
-	}
+	observedPorts = markObservedUplinkSource(observedPorts, bridgeObserve.UplinkInterface)
 	ports = device.ApplyPortOverrides(observedPorts, flags.portOverrides)
 	ports = applyWANHealth(ports, flags, profile)
 	ports = applyLLDPNeighbors(ports, flags, plt)
@@ -114,9 +112,9 @@ func uplinkPortIndex(ports []device.Port) int {
 	return 1
 }
 
-// markRateUplink preserves the bridge-observe uplink interface
-// name so rate tracking has a stable key on later heartbeats.
-func markRateUplink(ports []device.Port, iface string) []device.Port {
+// markObservedUplinkSource preserves the bridge-observe uplink interface name
+// for both cumulative counters and optional rate tracking.
+func markObservedUplinkSource(ports []device.Port, iface string) []device.Port {
 	iface = strings.TrimSpace(iface)
 	if iface == "" || len(ports) == 0 {
 		return ports

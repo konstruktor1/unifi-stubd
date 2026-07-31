@@ -25,7 +25,7 @@ go run ./cmd/unifi-stubd -validate -config packaging/linux/etc/unifi-stubd/confi
 Then inspect the payload without network side effects:
 
 ```sh
-go run ./cmd/unifi-stubd -dry-run -no-discovery
+go run ./cmd/unifi-stubd -profile us8 -dry-run -no-discovery
 ```
 
 ## Operation-Mode Selection
@@ -49,23 +49,19 @@ Minimum shape:
 
 ```yaml
 operation_mode: bridge-observe
-profile: us48p500
+profile: us8
 mac: auto
 bridge_observe:
   bridge: vmbr0
   uplink_interface: eno1
-uplink_port: 49
-uplink_neighbor:
-  mac: 02:00:5e:00:53:01
-  vlan: 1
-  type: usw
 ```
 
 Rules:
 
 - map VM/container members as access ports;
 - map the physical upstream interface as the uplink;
-- set `uplink_port` explicitly when the real link is SFP/SFP+;
+- select a larger profile and its `uplink_port` explicitly only when that
+  represented device shape is intentional;
 - prefer a synthetic locally administered stub MAC for representation tests;
 - use a physical host MAC only when testing how the controller handles that
   real MAC on an upstream switch.
@@ -75,6 +71,7 @@ Rules:
 Use `port-map` when each represented port has a deliberate source:
 
 ```yaml
+profile: us8
 operation_mode: port-map
 port_mappings:
   - port: 1

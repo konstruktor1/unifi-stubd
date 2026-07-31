@@ -29,7 +29,10 @@ func maintainControllerPresence(cfg controllerPresence) error {
 	}
 	var rateTracker *observe.TrafficRateTracker
 	var commands adoption.CommandLifecycle
-	schedule, err := inform.NewSchedule(informScheduleConfig(cfg.flags))
+	var blocks adoption.BlockSelection
+	var controllerClock inform.ControllerClock
+	informSession := newInformSessionStatus()
+	schedule, err := inform.NewSchedule(informScheduleConfig(cfg.flags, cfg.informSchedulePolicy))
 	if err != nil {
 		return fmt.Errorf("create inform schedule: %w", err)
 	}
@@ -39,7 +42,10 @@ func maintainControllerPresence(cfg controllerPresence) error {
 
 	for {
 		uptimeSeconds := runtimeUptime(startedAt)
-		store := loadAdoptionState(cfg.flags.sshState)
+		store, loadErr := loadAdoptionState(cfg.flags.sshState)
+		if loadErr != nil {
+			return loadErr
+		}
 		informURL := effectiveInformURL(cfg.flags.controller, store)
 		ann.Default = store.AuthKey == ""
 		ann.Uptime = uint32(uptimeSeconds)
@@ -53,13 +59,31 @@ func maintainControllerPresence(cfg controllerPresence) error {
 		if flags.trafficRatesEnabled {
 			ports = applyTrafficRates(ports, rateTracker, time.Now())
 		}
-		payload, err := payloadForIdentity(cfg.mac, cfg.ip, cfg.hostname, informURL, store, cfg.flags, cfg.profile, ports, uptimeSeconds)
+		controllerState := controllerPayloadState{}
+		if cfg.reportingPolicy.ControllerClock {
+			controllerState.TimeOffsetSeconds = controllerClock.OffsetSeconds()
+		}
+		if cfg.reportingPolicy.BlockSelection {
+			controllerState.Blocks = blocks
+		}
+		payload, err := payloadForIdentity(
+			cfg.mac,
+			cfg.ip,
+			cfg.hostname,
+			informURL,
+			store,
+			cfg.flags,
+			cfg.profile,
+			ports,
+			uptimeSeconds,
+			controllerState,
+		)
 		if err != nil {
 			return err
 		}
 
 		sendDiscovery(packet, cfg.hostname, cfg.mac, cfg.discoverySkipped, cfg.discoveryInterface, cfg.discoveryTargets)
-		decision := sendInformHeartbeat(
+		decision, heartbeatErr := sendInformHeartbeat(
 			cfg.mac,
 			informURL,
 			cfg.flags.sshState,
@@ -68,8 +92,15 @@ func maintainControllerPresence(cfg controllerPresence) error {
 			payload,
 			informSourceIP(cfg.flags, cfg.ip),
 			&commands,
+			&blocks,
 			schedule,
+			&controllerClock,
+			&informSession,
+			cfg.reportingPolicy,
 		)
+		if heartbeatErr != nil {
+			return heartbeatErr
+		}
 
 		if cfg.flags.once {
 			return nil

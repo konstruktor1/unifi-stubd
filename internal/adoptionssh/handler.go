@@ -9,18 +9,18 @@ import (
 	"strings"
 )
 
-// Execute runs one or more shell-like adoption commands.
+// Execute runs one or more shell-like adoption commands and stops at the first
+// failed state transition so a later command cannot mask persistence failure.
 func (h *Handler) Execute(command string) (string, int) {
 	var out strings.Builder
-	status := 0
 	for _, part := range splitCommands(command) {
 		text, code := h.executeOne(part)
 		out.WriteString(text)
 		if code != 0 {
-			status = code
+			return out.String(), code
 		}
 	}
-	return out.String(), status
+	return out.String(), 0
 }
 
 // Shell serves a minimal interactive CLI over rw.
@@ -77,12 +77,16 @@ func (h *Handler) executeOne(command string) (string, int) {
 	case "mca-cli":
 		return h.handleMCA(args)
 	case "ubntbox":
-		h.saveState("", "")
+		if err := h.saveState("", ""); err != nil {
+			return stateCommandFailure()
+		}
 		return okOutput, 0
 	case commandReset, commandRestore:
 		// Factory-reset commands clear only the stub adoption file. They must not
 		// reset the host, services, users, interfaces, or firewall.
-		h.resetState()
+		if err := h.resetState(); err != nil {
+			return stateCommandFailure()
+		}
 		return "Factory reset accepted\n", 0
 	case "hostname":
 		return h.config.Identity.Hostname + "\n", 0
@@ -96,12 +100,16 @@ func (h *Handler) executeOne(command string) (string, int) {
 		return "", 0
 	default:
 		if url := findInformURL(args); url != "" {
-			h.saveState(url, "")
+			if err := h.saveState(url, ""); err != nil {
+				return stateCommandFailure()
+			}
 			return fmt.Sprintf("Adoption request accepted: %s\n", url), 0
 		}
 		// Unsupported commands are acknowledged for compatibility but are not
 		// executed or persisted.
-		h.saveState("", "")
+		if err := h.saveState("", ""); err != nil {
+			return stateCommandFailure()
+		}
 		return okOutput, 0
 	}
 }

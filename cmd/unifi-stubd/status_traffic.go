@@ -18,6 +18,15 @@ func payloadTraffic(payload []byte) *lastInformTrafficStatus {
 	status := lastInformTrafficStatus{
 		Root: trafficRatesFromMap(doc),
 	}
+	if uplink, ok := doc["uplink"].(map[string]any); ok {
+		if row, ok := trafficRowFromMap("uplink", uplink); ok {
+			status.Rows = append(status.Rows, row)
+		}
+	} else if stringFromAny(doc["type"]) == "usw" {
+		if row, ok := trafficRowForSelectedSwitchUplink(doc["port_table"]); ok {
+			status.Rows = append(status.Rows, row)
+		}
+	}
 	for _, table := range []string{"if_table", "network_table", "uplink_table", "port_table", "port_stats"} {
 		status.Rows = append(status.Rows, trafficRowsFromTable(table, doc[table])...)
 	}
@@ -25,6 +34,26 @@ func payloadTraffic(payload []byte) *lastInformTrafficStatus {
 		return nil
 	}
 	return &status
+}
+
+func trafficRowForSelectedSwitchUplink(value any) (lastInformTrafficRow, bool) {
+	rows, ok := value.([]any)
+	if !ok {
+		return lastInformTrafficRow{}, false
+	}
+	for _, value := range rows {
+		row, ok := value.(map[string]any)
+		if !ok || !boolFromAny(row["is_uplink"]) {
+			continue
+		}
+		return trafficRowFromMap("uplink", row)
+	}
+	return lastInformTrafficRow{}, false
+}
+
+func boolFromAny(value any) bool {
+	valueBool, _ := value.(bool)
+	return valueBool
 }
 
 func trafficRowsFromTable(table string, value any) []lastInformTrafficRow {
@@ -38,25 +67,35 @@ func trafficRowsFromTable(table string, value any) []lastInformTrafficRow {
 		if !ok {
 			continue
 		}
-		rates := trafficRatesFromMap(row)
-		if stats, ok := row["stats"].(map[string]any); ok {
-			rates = trafficRatesFromMap(stats)
+		if parsed, ok := trafficRowFromMap(table, row); ok {
+			out = append(out, parsed)
 		}
-		if !rates.hasAny() {
-			continue
-		}
-		out = append(out, lastInformTrafficRow{
-			Table:           table,
-			PortIdx:         intFromAny(row["port_idx"]),
-			IfName:          stringFromAny(row["ifname"]),
-			SourceInterface: stringFromAny(row["source_interface"]),
-			Role:            stringFromAny(row["role"]),
-			NetworkGroup:    stringFromAny(row["networkgroup"]),
-			Up:              boolRefFromAny(row["up"]),
-			Rates:           rates,
-		})
 	}
 	return out
+}
+
+func trafficRowFromMap(table string, row map[string]any) (lastInformTrafficRow, bool) {
+	rates := trafficRatesFromMap(row)
+	if stats, ok := row["stats"].(map[string]any); ok {
+		rates = trafficRatesFromMap(stats)
+	}
+	if !rates.hasAny() {
+		return lastInformTrafficRow{}, false
+	}
+	ifName := stringFromAny(row["ifname"])
+	if ifName == "" {
+		ifName = stringFromAny(row["name"])
+	}
+	return lastInformTrafficRow{
+		Table:           table,
+		PortIdx:         intFromAny(row["port_idx"]),
+		IfName:          ifName,
+		SourceInterface: stringFromAny(row["source_interface"]),
+		Role:            stringFromAny(row["role"]),
+		NetworkGroup:    stringFromAny(row["networkgroup"]),
+		Up:              boolRefFromAny(row["up"]),
+		Rates:           rates,
+	}, true
 }
 
 func trafficRatesFromMap(row map[string]any) lastInformTrafficRates {

@@ -2,6 +2,7 @@ package inform
 
 import (
 	"crypto/md5"
+	"crypto/subtle"
 	"encoding/binary"
 	"net"
 )
@@ -9,6 +10,8 @@ import (
 // TNBU constants describe the inform framing version and feature flags used on
 // the wire.
 const (
+	informHeaderBytes = 40
+
 	// Magic is the inform packet magic marker.
 	Magic = "TNBU"
 	// PacketVersion is the supported inform packet header version.
@@ -24,9 +27,24 @@ const (
 	FlagSnappy uint16 = 0x04
 	// FlagEncryptedGCM marks an AES-GCM encrypted inform payload.
 	FlagEncryptedGCM uint16 = 0x08
+
+	// GCMNonceSize is the protocol-specific AES-GCM nonce size in bytes.
+	// TNBU inform packets do not use the conventional 12-byte GCM nonce.
+	GCMNonceSize = 16
+	// GCMTagSize is the authentication tag size appended to GCM ciphertext.
+	GCMTagSize = 16
+
+	// MaxDecodedPayloadBytes bounds encoder plaintext input and zlib expansion.
+	MaxDecodedPayloadBytes = 16 * 1024 * 1024
+	// MaxEncodedPayloadBytes bounds a declared TNBU ciphertext before the
+	// decoder copies it. The allowance covers zlib framing/DEFLATE expansion,
+	// CBC padding, or a GCM tag for a maximum-size plaintext.
+	MaxEncodedPayloadBytes = MaxDecodedPayloadBytes + 64*1024
 )
 
-// Options controls inform packet encoding features.
+// Options carries an already-resolved inform wire policy into packet encoding.
+// The zero value selects raw AES-CBC; callers must explicitly select zlib or
+// AES-GCM after applying any build/profile policy.
 type Options struct {
 	// Zlib enables zlib compression before encryption.
 	Zlib bool
@@ -52,9 +70,16 @@ func DefaultAuthKey() []byte {
 	return sum[:]
 }
 
+// IsDefaultAuthKey reports whether key is the public pending-adoption key.
+// The comparison is constant-time so callers can also use it while validating
+// an otherwise secret individual adoption key.
+func IsDefaultAuthKey(key []byte) bool {
+	return len(key) == md5.Size && subtle.ConstantTimeCompare(key, DefaultAuthKey()) == 1
+}
+
 // makeHeader builds the fixed TNBU packet header shared by CBC and GCM paths.
 func makeHeader(mac net.HardwareAddr, flags uint16, iv []byte, payloadLen uint32) []byte {
-	header := make([]byte, 40)
+	header := make([]byte, informHeaderBytes)
 	copy(header[0:4], Magic)
 	binary.BigEndian.PutUint32(header[4:8], PacketVersion)
 	copy(header[8:14], mac)

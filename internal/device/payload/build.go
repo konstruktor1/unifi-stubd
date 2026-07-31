@@ -7,6 +7,7 @@ package payload
 import (
 	"encoding/json"
 	"fmt"
+	"math"
 	"time"
 
 	"github.com/konstruktor1/unifi-stubd/internal/device"
@@ -18,8 +19,15 @@ const defaultRequiredVersion = "5.0.0"
 
 // Build returns a JSON inform payload using profile-driven renderer metadata.
 func Build(profile device.Profile, id device.Identity, ports []device.Port) ([]byte, error) {
+	return BuildAt(profile, id, ports, time.Now())
+}
+
+// BuildAt builds an inform payload using an injected local wall clock. The
+// controller offset affects reported payload timestamps only; uptime remains
+// the separate monotonic value supplied on Identity.
+func BuildAt(profile device.Profile, id device.Identity, ports []device.Port, localNow time.Time) ([]byte, error) {
 	profile = normalizePayloadProfile(profile, id)
-	now := time.Now()
+	now := reportedWallClock(localNow, id.ControllerTimeOffsetSeconds)
 	uptime := identityUptime(id.UptimeSeconds)
 	numPorts := len(ports)
 	informURL := id.InformURL
@@ -31,6 +39,10 @@ func Build(profile device.Profile, id device.Identity, ports []device.Port) ([]b
 		cfgVersion = "?"
 	}
 	deviceType := deviceTypeOrDefault(id.DeviceType)
+	wireState, err := informState(id)
+	if err != nil {
+		return nil, err
+	}
 
 	base := basePayload{
 		MAC:               id.MAC,
@@ -42,23 +54,17 @@ func Build(profile device.Profile, id device.Identity, ports []device.Port) ([]b
 		Version:           id.Version,
 		Serial:            id.Serial,
 		NumPort:           numPorts,
-		State:             informState(id.Adopted),
+		State:             int(wireState),
 		Adopted:           id.Adopted,
-		Default:           !id.Adopted,
+		Default:           wireState == device.InformStateDefault,
 		DiscoveryResponse: true,
 		RequiredVersion:   profile.Payload.RequiredVersion,
 		CFGVersion:        cfgVersion,
 		Uptime:            uptime,
 		Time:              now.Unix(),
 		InformURL:         informURL,
-		SysStats:          sysStats(uptime),
-		SystemStats: systemStatsPayload{
-			CPU:    1.0,
-			Memory: 10.0,
-			Uptime: uptime,
-		},
-		ManagementVLAN: id.ManagementVLAN,
-		InformIP:       id.InformIP,
+		ManagementVLAN:    id.ManagementVLAN,
+		InformIP:          id.InformIP,
 	}
 	topology, topologyErr := device.ResolveTopology(ports)
 	if topologyErr != nil {
@@ -66,7 +72,6 @@ func Build(profile device.Profile, id device.Identity, ports []device.Port) ([]b
 	}
 	portViews := BuildPortViews(profile, id, ports, topology)
 	var data []byte
-	var err error
 	if profile.Payload.Kind == payloadKindGateway {
 		data, err = json.MarshalIndent(buildGatewayPayload(base, profile, id, portViews, now, uptime), "", "  ")
 	} else {
@@ -76,4 +81,17 @@ func Build(profile device.Profile, id device.Identity, ports []device.Port) ([]b
 		return nil, fmt.Errorf("marshal switch payload: %w", err)
 	}
 	return data, nil
+}
+
+func reportedWallClock(local time.Time, offsetSeconds int64) time.Time {
+	seconds := local.Unix()
+	switch {
+	case offsetSeconds > 0 && seconds > math.MaxInt64-offsetSeconds:
+		seconds = math.MaxInt64
+	case offsetSeconds < 0 && seconds < math.MinInt64-offsetSeconds:
+		seconds = math.MinInt64
+	default:
+		seconds += offsetSeconds
+	}
+	return time.Unix(seconds, int64(local.Nanosecond())).In(local.Location())
 }

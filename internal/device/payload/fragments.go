@@ -37,12 +37,12 @@ type linkFields struct {
 }
 
 type counterFields struct {
-	RXBytes   int64 `json:"rx_bytes"`
-	TXBytes   int64 `json:"tx_bytes"`
-	RXPackets int64 `json:"rx_packets"`
-	TXPackets int64 `json:"tx_packets"`
-	RXErrors  int64 `json:"rx_errors"`
-	TXErrors  int64 `json:"tx_errors"`
+	RXBytes   *int64 `json:"rx_bytes,omitempty"`
+	TXBytes   *int64 `json:"tx_bytes,omitempty"`
+	RXPackets *int64 `json:"rx_packets,omitempty"`
+	TXPackets *int64 `json:"tx_packets,omitempty"`
+	RXErrors  *int64 `json:"rx_errors,omitempty"`
+	TXErrors  *int64 `json:"tx_errors,omitempty"`
 }
 
 type optionalRateFields struct {
@@ -88,66 +88,52 @@ func gatewaySpeedCapsCode(speed int, media string) int {
 	}
 }
 
-// portCounterFields renders raw counters plus packet fallbacks shared by switch
-// and gateway payload rows.
+// portCounterFields renders a complete local observation, including real zero
+// values. A port without a source-backed sample contributes no counters.
 func portCounterFields(port device.Port) counterFields {
-	// Packet counters stay non-zero for synthetic connected ports because some
-	// controller views treat all-zero rows as stale. Complete observed samples
-	// preserve zero values after an interface reset.
+	if !port.CountersSet {
+		return counterFields{}
+	}
 	return counterFields{
-		RXBytes:   port.RXBytes,
-		TXBytes:   port.TXBytes,
-		RXPackets: packetCounter(port.RXPackets, port.CountersSet),
-		TXPackets: packetCounter(port.TXPackets, port.CountersSet),
-		RXErrors:  port.RXErrors,
-		TXErrors:  port.TXErrors,
+		RXBytes:   int64Ref(port.RXBytes),
+		TXBytes:   int64Ref(port.TXBytes),
+		RXPackets: int64Ref(port.RXPackets),
+		TXPackets: int64Ref(port.TXPackets),
+		RXErrors:  int64Ref(port.RXErrors),
+		TXErrors:  int64Ref(port.TXErrors),
 	}
 }
 
-func packetCounter(value int64, countersSet bool) int64 {
-	if countersSet {
-		return value
-	}
-	return firstNonZeroInt64(value, 1)
-}
-
-// portRateFields returns explicit observed rates when available, otherwise a
-// synthetic low heartbeat for connected synthetic ports.
+// portRateFields returns only a complete observed rate sample.
 func portRateFields(port device.Port) (int64, int64) {
-	if port.TrafficRatesSet || port.TrafficRatesEnabled {
-		return port.RXBytesRate, port.TXBytesRate
+	if !port.TrafficRatesSet || !port.Up {
+		return 0, 0
 	}
-	rxRate := int64(0)
-	txRate := int64(0)
-	if port.Up && effectivePortSpeed(port) > 0 {
-		// Synthetic rates provide a small heartbeat when no real traffic source
-		// is enabled. Observed or explicitly configured rates bypass this path.
-		rxRate = 64 + int64(port.Index)
-		txRate = 48 + int64(port.Index)
-	}
-	return rxRate, txRate
+	return port.RXBytesRate, port.TXBytesRate
 }
 
 // explicitPortRateFields returns rate fields only when observation or operator
 // input made rates explicit.
 func explicitPortRateFields(port device.Port) optionalRateFields {
-	if !port.TrafficRatesSet && !port.TrafficRatesEnabled {
+	if !port.TrafficRatesSet {
 		return optionalRateFields{}
 	}
+	rxRate, txRate := portRateFields(port)
 	return optionalRateFields{
-		BytesRate:   int64Ref(port.RXBytesRate + port.TXBytesRate),
-		RXBytesRate: int64Ref(port.RXBytesRate),
-		TXBytesRate: int64Ref(port.TXBytesRate),
+		BytesRate:   int64Ref(rxRate + txRate),
+		RXBytesRate: int64Ref(rxRate),
+		TXBytesRate: int64Ref(txRate),
 	}
 }
 
 func gatewayPortRateFields(port device.Port) gatewayRateFields {
-	if !port.TrafficRatesSet && !port.TrafficRatesEnabled {
+	if !port.TrafficRatesSet {
 		return gatewayRateFields{}
 	}
+	rxRate, txRate := portRateFields(port)
 	return gatewayRateFields{
-		RXRate: int64Ref(bitsPerSecond(port.RXBytesRate)),
-		TXRate: int64Ref(bitsPerSecond(port.TXBytesRate)),
+		RXRate: int64Ref(bitsPerSecond(rxRate)),
+		TXRate: int64Ref(bitsPerSecond(txRate)),
 	}
 }
 
@@ -161,11 +147,6 @@ func intRef(value int) *int {
 }
 
 func int64Ref(value int64) *int64 {
-	out := value
-	return &out
-}
-
-func float64Ref(value float64) *float64 {
 	out := value
 	return &out
 }

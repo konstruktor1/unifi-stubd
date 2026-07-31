@@ -44,16 +44,18 @@ Supported and active:
 
 - switch-style discovery and inform payloads;
 - advanced-adoption SSH shim with limited command handling;
-- adoption-state persistence and restore-default/forget reset behavior;
+- adoption-state persistence, an exact and host-safe controller `setdefault`
+  lifecycle reset in the current black-box-verified product candidate, and
+  constrained local SSH reset commands;
 - data-driven built-in and external profiles;
 - `bridge-observe` for Proxmox/Linux bridge representation;
 - `port-map` for explicit port-to-interface mapping;
 - Linux platform facade for sysfs, procfs, journalctl, D-Bus probe, and lldpd;
-- conservative FreeBSD/OPNsense support;
 - Docker controller integration smoke tests.
 
 Experimental:
 
+- conservative, stub-only FreeBSD/OPNsense packaging;
 - gateway identity profiles;
 - full topology representation;
 - management LAN modeling beyond metadata and preexisting interface binding;

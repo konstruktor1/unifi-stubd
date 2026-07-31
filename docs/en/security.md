@@ -26,8 +26,9 @@ The controller must not blindly mutate host configuration. For the MVP:
 - Record only sanitized metadata for gateway `system_cfg`, such as byte length
   and top-level keys.
 - Handle only an argument-free `wg-genkeypair` with a request ID. Generate its
-  X25519 keys in memory, retry the correlated result only until successful
-  delivery, and never persist or log its keys or request ID.
+  X25519 keys in memory and never persist or log its keys or request ID. The
+  current core retries until its HTTP-200 delivery point; the formal
+  every-HTTP-200 command-slot rule remains open.
 - Mark restart/upgrade/provisioning commands as ignored by policy.
 - Do not execute shell commands from the controller.
 

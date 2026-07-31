@@ -10,14 +10,10 @@ concurrency:
   group: unifi-stubd-tier2-docker
   cancel-in-progress: false
 
-env:
-  UNIFI_NETWORK_IMAGE: lscr.io/linuxserver/unifi-network-application:10.4.57-ls135
-  UNIFI_STUB_LAB_EXPECTED_NETWORK_VERSION: "10.4.57"
-
 jobs:
   controller-adoption:
     runs-on: [self-hosted, Linux, X64, docker-dmz, docker-engine, unifi-stubd]
-    timeout-minutes: 30
+    timeout-minutes: 90
     steps:
       - uses: actions/checkout@v6
 
@@ -27,8 +23,8 @@ jobs:
           : "${BUILD_RUNNER_DIR:?configure BUILD_RUNNER_DIR on the self-hosted runner}"
           test -x "$BUILD_RUNNER_DIR/build-runner"
 
-      - name: Run controller adoption gate
-        run: make integration-docker
+      - name: Run Stable and RC product acceptance
+        run: make integration-nonunifi-metrics
 
       - name: Record controller evidence
         if: always()
@@ -39,7 +35,6 @@ jobs:
             printf '## Controller Integration\n\n'
             printf -- '- Commit: %s\n' "$GITHUB_SHA"
             printf -- '- Runner: %s\n' "$RUNNER_NAME"
-            printf -- '- Controller image: %s\n' "$UNIFI_NETWORK_IMAGE"
-            printf -- '- Expected controller version: %s\n' "$UNIFI_STUB_LAB_EXPECTED_NETWORK_VERSION"
+            printf -- '- Controller channels: latest published Stable and RC resolved at run start\n'
             printf -- '- Job status: %s\n' "$JOB_STATUS"
           } >> "$GITHUB_STEP_SUMMARY"

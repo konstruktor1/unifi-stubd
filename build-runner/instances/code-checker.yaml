@@ -1,0 +1,31 @@
+version: 1
+runner:
+  name: unifi-stubd-code-checker
+  id: "${RUNNER_ID}"
+  lifecycle: ephemeral
+base:
+  tier: 1
+  service: go
+backend: overlay-image
+resources: {}
+image_setup:
+  script: build-runner/toolsets/code-checker/image-setup.sh
+  inputs: []
+prepare: []
+validation:
+  - go version
+  - python3 --version
+  - shfmt --version
+  - shellcheck --version
+  - uname -srm
+mounts:
+  workspace:
+    transport: bind
+  artifacts:
+    - name: code-checker-source
+      direction: input
+      transport: bind
+      path:
+        host_ref: CODE_CHECKER_SOURCE
+      reason: Run the exact read-only Code Checker tool checkout against this consumer.
+runtime_requirements: []

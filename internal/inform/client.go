@@ -22,6 +22,9 @@ type Client struct {
 	// MAC is the device MAC address placed in the packet header.
 	MAC net.HardwareAddr
 	// Key is the 16-byte inform encryption key.
+	//
+	// Callers must select it explicitly. An empty key is rejected because only
+	// lifecycle-aware code can establish that public default-key use is safe.
 	Key []byte
 	// HTTPClient overrides the default HTTP client when set.
 	HTTPClient *http.Client
@@ -51,17 +54,8 @@ func (c Client) Send(payload []byte) (*Response, error) {
 		return nil, fmt.Errorf("inform URL is required")
 	}
 	key := c.Key
-	if len(key) == 0 {
-		key = DefaultAuthKey()
-	}
-	opts := c.Options
-	if !opts.Zlib && !opts.GCM {
-		// Legacy UniFi devices commonly send zlib-compressed AES-CBC inform
-		// bodies. Use that shape unless the caller selected AES-GCM explicitly.
-		opts.Zlib = true
-	}
 
-	body, err := EncodeJSON(c.MAC, key, payload, opts)
+	body, err := EncodeJSON(c.MAC, key, payload, c.Options)
 	if err != nil {
 		return nil, fmt.Errorf("encode inform request: %w", err)
 	}
@@ -78,6 +72,7 @@ func (c Client) Send(payload []byte) (*Response, error) {
 	if client == nil {
 		client = defaultHTTPClient(c.LocalAddr)
 	}
+	client = withoutInformRedirects(client)
 	httpResp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("send inform request: %w", err)
@@ -104,13 +99,26 @@ func (c Client) Send(payload []byte) (*Response, error) {
 		return resp, nil
 	}
 
-	packet, decoded, err := Decode(raw, key)
+	// The response cipher is not negotiated from its untrusted header. It must
+	// match the already-resolved request mode.
+	packet, decoded, err := DecodeControllerResponse(raw, key, c.Options.GCM)
+	resp.Packet = packet
 	if err != nil {
 		return resp, fmt.Errorf("decode inform response: %w", err)
 	}
-	resp.Packet = packet
 	resp.JSONBody = decoded
 	return resp, nil
+}
+
+// withoutInformRedirects keeps the first HTTP response without mutating a
+// caller-owned client. Redirect targets are outside the configured Inform URL
+// trust boundary and must never be contacted or adopted implicitly.
+func withoutInformRedirects(client *http.Client) *http.Client {
+	clientCopy := *client
+	clientCopy.CheckRedirect = func(_ *http.Request, _ []*http.Request) error {
+		return http.ErrUseLastResponse
+	}
+	return &clientCopy
 }
 
 // defaultHTTPClient optionally binds inform TCP connections to a chosen local

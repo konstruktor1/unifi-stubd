@@ -17,6 +17,9 @@ func EncodeJSON(mac net.HardwareAddr, key []byte, payload []byte, opts Options) 
 	if len(key) != 16 {
 		return nil, fmt.Errorf("authkey must be 16 bytes")
 	}
+	if len(payload) > MaxDecodedPayloadBytes {
+		return nil, fmt.Errorf("inform plaintext exceeds %d bytes", MaxDecodedPayloadBytes)
+	}
 
 	body := append([]byte{}, payload...)
 	flags := FlagEncrypted
@@ -29,10 +32,19 @@ func EncodeJSON(mac net.HardwareAddr, key []byte, payload []byte, opts Options) 
 		}
 		flags |= FlagZlib
 	}
+	// CBC padding and the GCM tag can each add at most one AES block. Keep the
+	// encoder and decoder limits coupled even if compression changes later.
+	if len(body) > MaxEncodedPayloadBytes-aes.BlockSize {
+		return nil, fmt.Errorf("encoded inform payload exceeds %d bytes", MaxEncodedPayloadBytes)
+	}
 
-	iv := make([]byte, 16)
+	ivSize := aes.BlockSize
+	if opts.GCM {
+		ivSize = GCMNonceSize
+	}
+	iv := make([]byte, ivSize)
 	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
-		return nil, fmt.Errorf("generate inform IV: %w", err)
+		return nil, fmt.Errorf("generate inform IV/nonce: %w", err)
 	}
 
 	block, err := aes.NewCipher(key)
@@ -42,14 +54,13 @@ func EncodeJSON(mac net.HardwareAddr, key []byte, payload []byte, opts Options) 
 
 	if opts.GCM {
 		flags |= FlagEncryptedGCM
-		aead, err := cipher.NewGCMWithNonceSize(block, len(iv))
+		aead, err := newInformGCM(block, iv)
 		if err != nil {
-			return nil, fmt.Errorf("create AES-GCM cipher: %w", err)
+			return nil, err
 		}
-		// Newer UniFi inform responses authenticate the fixed 40-byte TNBU
-		// header as associated data, so the payload length must include the GCM
-		// tag before Seal runs.
-		header := makeHeader(mac, flags, iv, uint32(len(body)+aead.Overhead()))
+		// The complete fixed TNBU header is additional authenticated data. Its
+		// payload length therefore includes the tag before Seal authenticates it.
+		header := makeHeader(mac, flags, iv, uint32(len(body)+GCMTagSize))
 		body = aead.Seal(nil, iv, body, header)
 		return append(header, body...), nil
 	}

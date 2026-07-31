@@ -1,8 +1,12 @@
 package adoptionssh
 
-import (
-	"fmt"
-)
+import "fmt"
+
+const stateCommandFailureOutput = "Adoption state update failed\n"
+
+func stateCommandFailure() (string, int) {
+	return stateCommandFailureOutput, 1
+}
 
 // handleSyswrapper emulates the syswrapper subcommands used by advanced
 // adoption while keeping reset and adopt effects inside the stub state file.
@@ -20,7 +24,9 @@ func (h *Handler) handleSyswrapper(args []string) (string, int) {
 		if len(args) > 3 {
 			authKey = args[3]
 		}
-		h.saveState(url, authKey)
+		if err := h.saveState(url, authKey); err != nil {
+			return stateCommandFailure()
+		}
 		if url == "" {
 			return "Adoption command accepted\n", 0
 		}
@@ -30,10 +36,14 @@ func (h *Handler) handleSyswrapper(args []string) (string, int) {
 	case commandInfo, "status", "get-info":
 		return h.info(), 0
 	case commandRestore, commandReset:
-		h.resetState()
+		if err := h.resetState(); err != nil {
+			return stateCommandFailure()
+		}
 		return "Factory reset accepted\n", 0
 	default:
-		h.saveState("", "")
+		if err := h.saveState("", ""); err != nil {
+			return stateCommandFailure()
+		}
 		return okOutput, 0
 	}
 }
@@ -53,7 +63,9 @@ func (h *Handler) handleMCA(args []string) (string, int) {
 	case commandInfo, "status":
 		return h.info(), 0
 	default:
-		h.saveState("", "")
+		if err := h.saveState("", ""); err != nil {
+			return stateCommandFailure()
+		}
 		return okOutput, 0
 	}
 }
@@ -62,7 +74,9 @@ func (h *Handler) handleMCA(args []string) (string, int) {
 // state, not as a command to run on the host.
 func (h *Handler) handleSetInform(args []string) (string, int) {
 	url := findInformURL(args)
-	h.saveState(url, "")
+	if err := h.saveState(url, ""); err != nil {
+		return stateCommandFailure()
+	}
 	if url == "" {
 		return "Inform command accepted\n", 0
 	}
@@ -89,9 +103,6 @@ func (h *Handler) handleCat(args []string) (string, int) {
 // adoption checks.
 func (h *Handler) info() string {
 	id := h.config.Identity
-	if id.Model == "" {
-		id.Model = "US8"
-	}
 	if id.Version == "" {
 		id.Version = "6.6.0"
 	}

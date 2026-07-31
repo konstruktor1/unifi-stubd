@@ -25,6 +25,16 @@ func printHumanStatus(status localStatus) {
 	fmt.Printf("interval: %s\n", status.Config.Interval)
 	fmt.Printf("controller_interval_min: %s\n", status.Config.ControllerIntervalMin)
 	fmt.Printf("controller_interval_max: %s\n", status.Config.ControllerIntervalMax)
+	fmt.Printf("controller_interval_hints_supported: %t\n", status.Config.ControllerIntervalPolicy.Supported)
+	fmt.Printf("controller_interval_evidence: %s\n", valueOrDash(status.Config.ControllerIntervalPolicy.EvidenceID))
+	fmt.Printf("controller_interval_firmware_minimum: %s\n", valueOrDash(status.Config.ControllerIntervalPolicy.FirmwareMinimum))
+	fmt.Printf("controller_interval_effective_minimum: %s\n", valueOrDash(status.Config.ControllerIntervalPolicy.EffectiveMinimum))
+	fmt.Printf("controller_interval_policy_reason: %s\n", valueOrDash(status.Config.ControllerIntervalPolicy.Reason))
+	fmt.Printf("controller_reporting_evidence: %s\n", valueOrDash(status.Config.ControllerReportingPolicy.EvidenceID))
+	fmt.Printf("controller_reporting_behavior: %s\n", valueOrDash(status.Config.ControllerReportingPolicy.BehaviorID))
+	fmt.Printf("controller_block_selection_supported: %t\n", status.Config.ControllerReportingPolicy.BlockSelection)
+	fmt.Printf("controller_clock_supported: %t\n", status.Config.ControllerReportingPolicy.ControllerClock)
+	fmt.Printf("controller_reporting_policy_reason: %s\n", valueOrDash(status.Config.ControllerReportingPolicy.Reason))
 	fmt.Printf("inform_backoff_max: %s\n", status.Config.InformBackoffMax)
 	fmt.Printf("inform_backoff_jitter_percent: %d\n", status.Config.InformBackoffJitterPercent)
 	fmt.Printf("no_discovery: %t\n", status.Config.NoDiscovery)
@@ -39,6 +49,8 @@ func printHumanStatus(status localStatus) {
 	fmt.Printf("instance_guard: %s\n", status.Config.InstanceGuard)
 	fmt.Printf("instance_guard_path: %s\n", valueOrDash(status.Config.InstanceGuardPath))
 	fmt.Printf("adoption_state: %s\n", status.Adoption.State)
+	fmt.Printf("adoption_wire_state: %d\n", status.Adoption.WireState)
+	fmt.Printf("adoption_wire_state_name: %s\n", status.Adoption.WireStateName)
 	fmt.Printf("adopted: %t\n", status.Adoption.Adopted)
 	fmt.Printf("authkey_set: %t\n", status.Adoption.AuthKeySet)
 	fmt.Printf("cfgversion: %s\n", valueOrDash(status.Adoption.CFGVersion))
@@ -47,6 +59,7 @@ func printHumanStatus(status localStatus) {
 	printObservationStatus(status.Observe)
 	printPlatformStatus(status.Platform)
 	printLastInform(status.Runtime.LastInform)
+	printInformSession(status.Runtime.InformSession)
 	for _, warning := range status.Warnings {
 		fmt.Printf("warning: %s\n", warning)
 	}
@@ -177,11 +190,24 @@ func printLastInform(last lastInformStatus) {
 	fmt.Printf("last_inform_status: %d\n", last.StatusCode)
 	fmt.Printf("last_inform_type: %s\n", valueOrDash(last.ResponseType))
 	fmt.Printf("last_inform_state: %s\n", valueOrDash(last.ControllerState))
+	if last.WireState == nil {
+		fmt.Println("last_inform_wire_state: -")
+		fmt.Println("last_inform_wire_state_name: -")
+	} else {
+		fmt.Printf("last_inform_wire_state: %d\n", *last.WireState)
+		fmt.Printf("last_inform_wire_state_name: %s\n", last.WireStateName)
+	}
 	fmt.Printf("last_inform_cfgversion: %s\n", valueOrDash(last.CFGVersion))
 	fmt.Printf("last_inform_version: %s\n", valueOrDash(last.Version))
 	fmt.Printf("last_inform_attempted_aes_gcm: %t\n", last.AttemptedAESGCM)
 	fmt.Printf("last_inform_used_aes_gcm: %t\n", last.UsedAESGCM)
 	fmt.Printf("last_inform_fallback_to_cbc: %t\n", last.FallbackToCBC)
+	fmt.Printf("last_inform_request_flags: %d\n", last.RequestFlags)
+	fmt.Printf("last_inform_key_source: %s\n", valueOrDash(last.KeySource))
+	fmt.Printf("last_inform_response_body_present: %t\n", last.ResponseBodyPresent)
+	fmt.Printf("last_inform_response_packet_decoded: %t\n", last.ResponsePacketDecoded)
+	fmt.Printf("last_inform_response_json_parsed: %t\n", last.ResponseJSONParsed)
+	fmt.Printf("last_inform_response_flags: %d\n", last.ResponseFlags)
 	fmt.Printf("last_inform_raw_bytes: %d\n", last.RawBytes)
 	fmt.Printf("last_inform_json_bytes: %d\n", last.JSONBytes)
 	printLastInformTraffic(last.Traffic)
@@ -195,14 +221,41 @@ func printLastInform(last lastInformStatus) {
 		fmt.Printf("last_inform_consecutive_failures: %d\n", last.Schedule.ConsecutiveFailures)
 		fmt.Printf("last_inform_backoff: %t\n", last.Schedule.Backoff)
 		fmt.Printf("last_inform_controller_hint_applied: %t\n", last.Schedule.ControllerHintApplied)
+		fmt.Printf("last_inform_controller_hint_ignored: %t\n", last.Schedule.ControllerHintIgnored)
+		fmt.Printf("last_inform_controller_hints_supported: %t\n", last.Schedule.ControllerHints)
 	}
 	for _, block := range last.IncludeBlocks {
 		fmt.Printf("last_inform_include_block: %s\n", block)
+	}
+	for _, block := range last.ExcludeBlocks {
+		fmt.Printf("last_inform_exclude_block: %s\n", block)
+	}
+	for _, block := range last.UDAPIBlocks {
+		fmt.Printf("last_inform_udapi_block: %s\n", block)
+	}
+	if last.BlockSelectionLimited {
+		fmt.Println("last_inform_block_selection_limited: true")
+	}
+	if last.Immediate {
+		fmt.Println("last_inform_immediate: true")
+	}
+	if last.Schedule.ImmediateApplied {
+		fmt.Println("last_inform_immediate_applied: true")
+	}
+	if last.Schedule.ImmediateSuppressed {
+		fmt.Println("last_inform_immediate_suppressed: true")
+	}
+	if last.ServerTimeSet {
+		fmt.Printf("last_inform_server_time_utc: %d\n", last.ServerTimeUTC)
+	}
+	if last.ControllerTimeSet {
+		fmt.Printf("last_inform_controller_time_offset_seconds: %d\n", last.ControllerTimeOffset)
 	}
 	if last.ResetRequested {
 		fmt.Println("last_inform_reset_requested: true")
 		fmt.Printf("last_inform_reset_applied: %t\n", last.ResetApplied)
 		fmt.Printf("last_inform_reset_reason: %s\n", valueOrDash(last.ResetReason))
+		fmt.Printf("last_inform_reset_disposition: %s\n", valueOrDash(last.ResetDisposition))
 	}
 	if last.CommandName != "" {
 		fmt.Printf("last_inform_command: %s\n", last.CommandName)
@@ -234,6 +287,43 @@ func printLastInform(last lastInformStatus) {
 	}
 	if last.Error != "" {
 		fmt.Printf("last_inform_error: %s\n", last.Error)
+	}
+}
+
+// printInformSession renders only bounded protocol metadata. It is suitable for
+// external controller gates because it contains no key, packet body, or raw
+// controller provisioning value.
+func printInformSession(session informSessionStatus) {
+	if session.StartedAt == "" {
+		return
+	}
+	fmt.Printf("inform_session_started_at: %s\n", session.StartedAt)
+	fmt.Printf("inform_session_attempts: %d\n", session.Attempts)
+	fmt.Printf("inform_session_http_200: %d\n", session.HTTP200)
+	fmt.Printf("inform_session_decoded_responses: %d\n", session.DecodedResponses)
+	fmt.Printf("inform_session_parsed_responses: %d\n", session.ParsedResponses)
+	fmt.Printf("inform_session_cbc_requests: %d\n", session.CBCRequests)
+	fmt.Printf("inform_session_gcm_requests: %d\n", session.GCMRequests)
+	fmt.Printf("inform_session_cbc_fallbacks: %d\n", session.CBCFallbacks)
+	fmt.Printf("inform_session_setparam_responses: %d\n", session.SetParamResponses)
+	fmt.Printf("inform_session_noop_responses: %d\n", session.NoopResponses)
+	for _, event := range session.Events {
+		fmt.Printf(
+			"inform_session_event: sequence=%d request_flags=%d key_source=%s status=%d response_body_present=%t response_decoded=%t response_json_parsed=%t response_flags=%d response_type=%s has_mgmt_cfg=%t used_aes_gcm=%t fallback_to_cbc=%t failed=%t\n",
+			event.Sequence,
+			event.RequestFlags,
+			valueOrDash(event.KeySource),
+			event.StatusCode,
+			event.ResponseBodyPresent,
+			event.ResponsePacketDecoded,
+			event.ResponseJSONParsed,
+			event.ResponseFlags,
+			valueOrDash(event.ResponseType),
+			event.HasMgmtCFG,
+			event.UsedAESGCM,
+			event.FallbackToCBC,
+			event.Failed,
+		)
 	}
 }
 

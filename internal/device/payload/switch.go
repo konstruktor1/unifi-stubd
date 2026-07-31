@@ -21,6 +21,9 @@ type switchInterfaceRow struct {
 	FullDuplex     bool   `json:"full_duplex"`
 	VLAN           int    `json:"vlan,omitempty"`
 	ManagementVLAN int    `json:"management_vlan,omitempty"`
+	counterFields
+	optionalRateFields
+	gatewayRateFields
 }
 
 type switchEthernetRow struct {
@@ -44,8 +47,6 @@ type switchPortRow struct {
 	PortPOE        bool                   `json:"port_poe"`
 	POEEnable      bool                   `json:"poe_enable"`
 	POECaps        int                    `json:"poe_caps"`
-	RXDropped      int                    `json:"rx_dropped"`
-	TXDropped      int                    `json:"tx_dropped"`
 	Satisfaction   int                    `json:"satisfaction"`
 	STPState       string                 `json:"stp_state"`
 	STPPathcost    int                    `json:"stp_pathcost"`
@@ -53,10 +54,9 @@ type switchPortRow struct {
 	LastConnection *switchLastConnection  `json:"last_connection"`
 	linkFields
 	counterFields
-	BytesRate       int64  `json:"bytes-r"`
-	RXBytesRate     int64  `json:"rx_bytes-r"`
-	TXBytesRate     int64  `json:"tx_bytes-r"`
-	SourceInterface string `json:"source_interface"`
+	optionalRateFields
+	gatewayRateFields
+	SourceInterface string `json:"source_interface,omitempty"`
 }
 
 type switchLastConnection struct {
@@ -67,26 +67,6 @@ type switchLastConnection struct {
 	Type      string `json:"type,omitempty"`
 }
 
-type switchUplinkRow struct {
-	Name             string `json:"name"`
-	IP               string `json:"ip"`
-	MAC              string `json:"mac"`
-	NumPort          int    `json:"num_port"`
-	Type             string `json:"type"`
-	PortIdx          int    `json:"port_idx"`
-	Up               bool   `json:"up"`
-	FullDuplex       bool   `json:"full_duplex"`
-	UplinkMAC        string `json:"uplink_mac"`
-	UplinkDeviceName string `json:"uplink_device_name,omitempty"`
-	UplinkRemotePort int    `json:"uplink_remote_port,omitempty"`
-	UplinkSource     string `json:"uplink_source,omitempty"`
-	linkFields
-	counterFields
-	BytesRate   int64 `json:"bytes-r"`
-	RXBytesRate int64 `json:"rx_bytes-r"`
-	TXBytesRate int64 `json:"tx_bytes-r"`
-}
-
 type switchLastUplinkRow struct {
 	PortIdx          int    `json:"port_idx"`
 	UplinkMAC        string `json:"uplink_mac"`
@@ -94,12 +74,27 @@ type switchLastUplinkRow struct {
 	Type             string `json:"type"`
 }
 
+// switchTrafficSummary is optional because switch root traffic is meaningful
+// only when the selected uplink has explicit rate reporting enabled. Pointers
+// preserve explicit zero samples while omitting the entire summary otherwise.
+type switchTrafficSummary struct {
+	Bytes       *int64 `json:"bytes,omitempty"`
+	RXBytes     *int64 `json:"rx_bytes,omitempty"`
+	TXBytes     *int64 `json:"tx_bytes,omitempty"`
+	BytesRate   *int64 `json:"bytes-r,omitempty"`
+	RXBytesRate *int64 `json:"rx_bytes-r,omitempty"`
+	TXBytesRate *int64 `json:"tx_bytes-r,omitempty"`
+	RXRate      *int64 `json:"rx_rate,omitempty"`
+	TXRate      *int64 `json:"tx_rate,omitempty"`
+}
+
 type switchPayload struct {
 	basePayload
+	switchTrafficSummary
 	IfTable       []switchInterfaceRow `json:"if_table"`
 	EthernetTable []switchEthernetRow  `json:"ethernet_table"`
 	PortTable     []switchPortRow      `json:"port_table"`
-	Uplink        *switchUplinkRow     `json:"uplink,omitempty"`
+	Uplink        string               `json:"uplink"`
 	LastUplink    *switchLastUplinkRow `json:"last_uplink,omitempty"`
 	LLDPTable     []lldpRow            `json:"lldp_table"`
 }
@@ -107,21 +102,15 @@ type switchPayload struct {
 // buildSwitchPayload fills the tables expected by UniFi switch devices.
 func buildSwitchPayload(base basePayload, profile device.Profile, id device.Identity, ports []PortView, numPorts int, ifSpeed int) switchPayload {
 	ifaceName := profile.Payload.ManagementInterface
-	iface := switchInterfaceRow{
-		Name:           ifaceName,
-		MAC:            id.MAC,
-		IP:             id.IP,
-		NumPort:        numPorts,
-		Up:             true,
-		Speed:          ifSpeed,
-		FullDuplex:     true,
-		VLAN:           id.ManagementVLAN,
-		ManagementVLAN: id.ManagementVLAN,
+	if strings.TrimSpace(ifaceName) == "" {
+		ifaceName = "eth0"
 	}
-	uplink, lastUplink := switchUplinkRows(profile, id, ports, numPorts)
+	iface := switchManagementInterfaceRow(ifaceName, id, ports, numPorts, ifSpeed)
+	lastUplink := switchLastUplinkRowFor(ports)
 	return switchPayload{
-		basePayload: base,
-		IfTable:     []switchInterfaceRow{iface},
+		basePayload:          base,
+		switchTrafficSummary: switchTrafficSummaryFor(ports),
+		IfTable:              []switchInterfaceRow{iface},
 		EthernetTable: []switchEthernetRow{
 			{
 				Name:    ifaceName,
@@ -137,55 +126,121 @@ func buildSwitchPayload(base basePayload, profile device.Profile, id device.Iden
 			},
 		},
 		PortTable:  portTable(ports),
-		Uplink:     uplink,
+		Uplink:     ifaceName,
 		LastUplink: lastUplink,
 		LLDPTable:  lldpTable(ports),
 	}
 }
 
-func switchUplinkRows(profile device.Profile, id device.Identity, ports []PortView, numPorts int) (*switchUplinkRow, *switchLastUplinkRow) {
+func switchManagementInterfaceRow(ifaceName string, id device.Identity, ports []PortView, numPorts int, ifSpeed int) switchInterfaceRow {
+	byteRates, bitRates := switchInterfaceRatesFor(ports)
+	return switchInterfaceRow{
+		Name:               ifaceName,
+		MAC:                id.MAC,
+		IP:                 id.IP,
+		NumPort:            numPorts,
+		Up:                 true,
+		Speed:              ifSpeed,
+		FullDuplex:         true,
+		VLAN:               id.ManagementVLAN,
+		ManagementVLAN:     id.ManagementVLAN,
+		counterFields:      switchInterfaceCountersFor(ports),
+		optionalRateFields: byteRates,
+		gatewayRateFields:  bitRates,
+	}
+}
+
+// switchInterfaceCountersFor mirrors the selected physical uplink counters
+// into the management interface named by the wire-level uplink selector. This
+// matches real switch if_table payloads: physical direction and cumulative
+// byte, packet, and error counters, without port-local rate extensions.
+func switchInterfaceCountersFor(ports []PortView) counterFields {
+	for _, view := range ports {
+		if view.Uplink {
+			return portCounterFields(view.Port)
+		}
+	}
+	return counterFields{}
+}
+
+// switchInterfaceRatesFor projects explicit selected-uplink rates onto the
+// interface named by uplink. Network 10.5 reads its normalized live uplink
+// rate from that interface path. The cumulative counter shape remains the
+// native switch contract; these rate fields are an additive compatibility
+// projection and are never synthesized.
+func switchInterfaceRatesFor(ports []PortView) (optionalRateFields, gatewayRateFields) {
+	for _, view := range ports {
+		if !view.Uplink {
+			continue
+		}
+		port := view.Port
+		if !port.TrafficRatesSet {
+			return optionalRateFields{}, gatewayRateFields{}
+		}
+		rxByteRate, txByteRate := portRateFields(port)
+		return optionalRateFields{
+				BytesRate:   int64Ref(rxByteRate + txByteRate),
+				RXBytesRate: int64Ref(rxByteRate),
+				TXBytesRate: int64Ref(txByteRate),
+			}, gatewayRateFields{
+				RXRate: int64Ref(bitsPerSecond(rxByteRate)),
+				TXRate: int64Ref(bitsPerSecond(txByteRate)),
+			}
+	}
+	return optionalRateFields{}, gatewayRateFields{}
+}
+
+func switchLastUplinkRowFor(ports []PortView) *switchLastUplinkRow {
 	for _, port := range ports {
 		if port.TopologyNeighbor == nil || port.TopologyDirection != device.DirectionUpstream {
 			continue
 		}
 		neighbor := *port.TopologyNeighbor
-		rxRate, txRate := portRateFields(port.Port)
-		name := strings.TrimSpace(profile.Payload.ManagementInterface)
-		if name == "" {
-			name = "eth0"
-		}
-		source := ""
-		if neighbor.Source == device.NeighborSourceLLDP {
-			source = "lldp_uplink"
-		}
-		uplink := &switchUplinkRow{
-			Name:             name,
-			IP:               id.IP,
-			MAC:              strings.ToLower(strings.TrimSpace(id.MAC)),
-			NumPort:          numPorts,
-			Type:             payloadTypeWire,
+		return &switchLastUplinkRow{
 			PortIdx:          port.Index,
-			Up:               port.Up,
-			FullDuplex:       true,
 			UplinkMAC:        strings.ToLower(strings.TrimSpace(neighbor.MAC)),
-			UplinkDeviceName: strings.TrimSpace(neighbor.Hostname),
-			UplinkRemotePort: neighbor.RemotePort,
-			UplinkSource:     source,
-			linkFields:       portLinkFields(port.Speed, port.Media),
-			counterFields:    portCounterFields(port.Port),
-			BytesRate:        rxRate + txRate,
-			RXBytesRate:      rxRate,
-			TXBytesRate:      txRate,
-		}
-		last := &switchLastUplinkRow{
-			PortIdx:          port.Index,
-			UplinkMAC:        uplink.UplinkMAC,
 			UplinkRemotePort: neighbor.RemotePort,
 			Type:             payloadTypeWire,
 		}
-		return uplink, last
 	}
-	return nil, nil
+	return nil
+}
+
+// switchTrafficSummaryFor reports only the selected uplink. Per-port rows use
+// interface-local RX/TX direction, while the controller root convention is
+// device-facing: physical uplink RX is Download/root TX and physical uplink TX
+// is Upload/root RX. No synthetic heartbeat rates are used at root level.
+func switchTrafficSummaryFor(ports []PortView) switchTrafficSummary {
+	for _, view := range ports {
+		if !view.Uplink {
+			continue
+		}
+		port := view.Port
+		if !port.CountersSet && !port.TrafficRatesSet {
+			return switchTrafficSummary{}
+		}
+		out := switchTrafficSummary{}
+		if port.CountersSet {
+			out.Bytes = int64Ref(port.RXBytes + port.TXBytes)
+			out.RXBytes = int64Ref(port.TXBytes)
+			out.TXBytes = int64Ref(port.RXBytes)
+		}
+		if port.TrafficRatesSet {
+			rxByteRate := int64(0)
+			txByteRate := int64(0)
+			if view.Up {
+				rxByteRate = port.TXBytesRate
+				txByteRate = port.RXBytesRate
+			}
+			out.BytesRate = int64Ref(rxByteRate + txByteRate)
+			out.RXBytesRate = int64Ref(rxByteRate)
+			out.TXBytesRate = int64Ref(txByteRate)
+			out.RXRate = int64Ref(bitsPerSecond(rxByteRate))
+			out.TXRate = int64Ref(bitsPerSecond(txByteRate))
+		}
+		return out
+	}
+	return switchTrafficSummary{}
 }
 
 // incrementMAC derives the secondary switch interface MAC from the device MAC.
@@ -203,39 +258,51 @@ func incrementMAC(macText string) string {
 func portTable(ports []PortView) []switchPortRow {
 	out := make([]switchPortRow, 0, len(ports))
 	for _, p := range ports {
-		rxRate, txRate := portRateFields(p.Port)
+		byteRates := explicitPortRateFields(p.Port)
+		bitRates := gatewayRateFields{}
+		if p.Uplink && p.Port.TrafficRatesSet {
+			rxRate, txRate := portRateFields(p.Port)
+			bitRates = gatewayRateFields{
+				RXRate: int64Ref(bitsPerSecond(rxRate)),
+				TXRate: int64Ref(bitsPerSecond(txRate)),
+			}
+		}
 		macTable := downstreamMACTable(p)
 		// Every switch row is rendered from PortView so switch and gateway
 		// payloads agree on observed counters, source interface, link state, and
 		// MAC-table metadata.
+		link := portLinkFields(p.Speed, p.Media)
+		if p.Uplink && p.Port.Speed <= 0 {
+			// The controller normalizes its current uplink from the selected
+			// port_table row. Preserve an unknown negotiated speed there instead
+			// of leaking the generic active-port fallback into uplink.speed.
+			link = portLinkFields(0, effectivePortMedia(p.Port, 0))
+		}
 		row := switchPortRow{
-			PortIdx:         p.Index,
-			IfName:          p.SwitchInterfaceName,
-			Name:            p.Name,
-			Enable:          p.Enabled,
-			Up:              p.Up,
-			IsUplink:        p.Uplink,
-			OpMode:          payloadModeSwitch,
-			FullDuplex:      true,
-			Autoneg:         true,
-			FlowctrlRX:      false,
-			FlowctrlTX:      false,
-			PortPOE:         false,
-			POEEnable:       false,
-			POECaps:         0,
-			RXDropped:       0,
-			TXDropped:       0,
-			Satisfaction:    100,
-			STPState:        "forwarding",
-			STPPathcost:     20000,
-			MACTable:        macTable,
-			LastConnection:  switchLastConnectionFor(macTable),
-			linkFields:      portLinkFields(p.Speed, p.Media),
-			counterFields:   portCounterFields(p.Port),
-			BytesRate:       rxRate + txRate,
-			RXBytesRate:     rxRate,
-			TXBytesRate:     txRate,
-			SourceInterface: p.SourceInterface,
+			PortIdx:            p.Index,
+			IfName:             p.SwitchInterfaceName,
+			Name:               p.Name,
+			Enable:             p.Enabled,
+			Up:                 p.Up,
+			IsUplink:           p.Uplink,
+			OpMode:             payloadModeSwitch,
+			FullDuplex:         true,
+			Autoneg:            true,
+			FlowctrlRX:         false,
+			FlowctrlTX:         false,
+			PortPOE:            false,
+			POEEnable:          false,
+			POECaps:            0,
+			Satisfaction:       100,
+			STPState:           "forwarding",
+			STPPathcost:        20000,
+			MACTable:           macTable,
+			LastConnection:     switchLastConnectionFor(macTable),
+			linkFields:         link,
+			counterFields:      portCounterFields(p.Port),
+			optionalRateFields: byteRates,
+			gatewayRateFields:  bitRates,
+			SourceInterface:    p.SourceInterface,
 		}
 		out = append(out, row)
 	}
@@ -298,16 +365,6 @@ func speedCaps(speed int, media string) []int {
 	default:
 		return []int{10, 100, 1000}
 	}
-}
-
-// firstNonZeroInt64 returns the first non-zero value from a fallback list.
-func firstNonZeroInt64(values ...int64) int64 {
-	for _, value := range values {
-		if value != 0 {
-			return value
-		}
-	}
-	return 0
 }
 
 // firstNonZero returns the first non-zero value from a fallback list.

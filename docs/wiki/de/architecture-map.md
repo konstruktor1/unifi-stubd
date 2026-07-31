@@ -122,7 +122,9 @@ Die wichtigsten Safety-Gates sind:
 - Operation-Mode-Validierung in `cmd/unifi-stubd/operation.go`;
 - read-only Plattform-Fassade;
 - Adoption-Parser statt Shell-Ausfuehrung;
-- lokaler Reset fuer Controller Forget/Restore-Default;
+- Host-sicherer Kandidaten-Lifecycle-Reset nur fuer exaktes Controller-
+  `_type: setdefault`; ein akzeptierter vollstaendiger Realprozess-Nachweis
+  fehlt und die formalen Produktabnahme-Gates bleiben offen;
 - Status-Sanitisierung vor JSON-/Human-Output.
 
 ## Wenn ein Feature dazukommt

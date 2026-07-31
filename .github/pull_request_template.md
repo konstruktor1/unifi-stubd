@@ -12,7 +12,7 @@
 
 - [ ] `make check`
 - [ ] `make package` when packaging or install layout changed
-- [ ] `make integration-docker` when inform, adoption, payloads, or controller compatibility changed
+- [ ] `make integration-nonunifi-metrics` when adoption, metrics, or controller compatibility changed
 
 ## Safety
 

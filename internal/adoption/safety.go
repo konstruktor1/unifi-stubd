@@ -1,82 +1,60 @@
 package adoption
 
-import (
-	"encoding/json"
-	"strings"
-)
+// knownControllerResponseType reports whether the response discriminator has
+// an evidence-bound top-level branch. Every other value is a dispatcher error;
+// it must not become a successful no-op or trigger a local reset.
+func knownControllerResponseType(value string) bool {
+	switch value {
+	case "noop", "setparam", "setdefault", "reboot", "upgrade", "cmd", "geo_ip_update":
+		return true
+	default:
+		return false
+	}
+}
 
-// isUnsafeControllerCommand identifies response types that may imply restart,
-// firmware, shell, or host changes and must stay metadata-only.
+// isUnsafeControllerCommand identifies known response types that imply host or
+// firmware changes and must remain metadata-only in the stub.
 func isUnsafeControllerCommand(responseType string) bool {
-	switch strings.TrimSpace(responseType) {
-	case "cmd", "exec", "restart", "reboot", "restore-default", "shell", "syswrapper", "upgrade":
+	switch responseType {
+	case "reboot", "upgrade", "geo_ip_update":
 		return true
 	default:
 		return false
 	}
 }
 
-// isResetControllerCommand recognizes controller removal commands that should
-// reset only local adoption state.
-func isResetControllerCommand(responseType string) bool {
-	switch strings.TrimSpace(responseType) {
-	case "delete", "forget", "remove", "restore-default", "setdefault":
+// isRejectOnlyControllerCommand binds the 73 Linux-agent command names whose
+// recovered vendor effects are not authorized in the Stub. The fixed list is
+// metadata for safe audit; it is never an execution allowlist.
+func isRejectOnlyControllerCommand(value string) bool {
+	switch value {
+	case "authorize-guest", "block-sta", "build-ssh-session",
+		"clear-all-counters", "clear-all-dpi-counters", "clear-counters",
+		"clear-crash-log", "clear-crashlog", "close-ssh-session",
+		"dhclient-renew-dhcprange", "dhclient-renew-subnet", "dhcpv6detect-start",
+		"dhcpv6detect-stop", "dnsresolve-start", "dnsresolve-stop",
+		"dynamic-accept-mac", "dynamic-psk", "execute-idsips-command",
+		"execute-wanmagic-command", "force-update-neighbors", "fwupdate",
+		"get-ssl-inspector-domain-category-file", "get-ssl-inspector-sandbox-report", "get-support-file",
+		"hide-lcm-tracker", "lcm-sync", "locate",
+		"pcap-start", "pcap-stop", "ping-test-start",
+		"ping-test-stop", "port-block", "port-recovery",
+		"port-unblock", "power-cycle", "probe-dhcpv6",
+		"probe-slaac", "rate-update", "relayctl",
+		"rps-port-recovery", "run", "scan_band",
+		"send-crash-log", "send-crashlog", "set-etherlight-device-type",
+		"set-etherlight-mode", "set-locate", "set-port-locate",
+		"set-vbms", "shadow-mode-adopt", "shadow-mode-failover",
+		"show-lcm-tracker", "slaacdetect-start", "slaacdetect-stop",
+		"soft-restart", "speed-test", "speed-test-udapi-start",
+		"speed-test-udapi-stop", "ssh-sdp-answer", "teleport-connect",
+		"teleport-disconnect", "traceroute-start", "traceroute-stop",
+		"unauthorize-guest", "unblock-sta", "unset-locate",
+		"unset-port-locate", "vpn-remote-disconnect", "wan_diag_dhcp_log",
+		"wan_diag_ipv6_log", "wan_diag_port_log", "wan_diag_ppp_log",
+		"wol-test":
 		return true
 	default:
 		return false
 	}
-}
-
-// responseHasResetCommand scans non-type fields for reset-like command text
-// seen in controller response variants.
-func responseHasResetCommand(raw map[string]json.RawMessage) bool {
-	for key, value := range raw {
-		if key == "_type" {
-			continue
-		}
-		if jsonRawContainsResetCommand(value) {
-			return true
-		}
-	}
-	return false
-}
-
-// jsonRawContainsResetCommand searches strings and string lists without
-// executing or interpreting arbitrary controller command payloads.
-func jsonRawContainsResetCommand(raw json.RawMessage) bool {
-	if len(raw) == 0 {
-		return false
-	}
-	var text string
-	if err := json.Unmarshal(raw, &text); err == nil {
-		return textContainsResetCommand(text)
-	}
-	var values []string
-	if err := json.Unmarshal(raw, &values); err == nil {
-		for _, value := range values {
-			if textContainsResetCommand(value) {
-				return true
-			}
-		}
-	}
-	return textContainsResetCommand(string(raw))
-}
-
-// textContainsResetCommand matches reset command fragments used by UniFi shell
-// wrappers while keeping the action local to the adoption store.
-func textContainsResetCommand(value string) bool {
-	value = strings.ToLower(value)
-	return strings.Contains(value, "restore-default") ||
-		strings.Contains(value, "reset2defaults") ||
-		strings.Contains(value, "setdefault")
-}
-
-// resetReason turns a reset-like controller response into a status-safe audit
-// message.
-func resetReason(responseType string) string {
-	responseType = strings.TrimSpace(responseType)
-	if responseType == "" {
-		return "controller reset command"
-	}
-	return "controller " + responseType + " command"
 }

@@ -1,0 +1,12 @@
+# Controller override for the dynamically resolved Stable/RC product matrix.
+
+services:
+  unifi:
+    build:
+      context: ../..
+      dockerfile: lab/stub/Dockerfile.controller-channel
+      args:
+        CONTROLLER_RUNTIME_BASE_DIGEST: ${UNIFI_STUB_CONTROLLER_RUNTIME_BASE_DIGEST:?set controller runtime base digest}
+        CONTROLLER_ZIP_URL: ${UNIFI_STUB_CONTROLLER_ZIP_URL:?set official controller ZIP URL}
+        CONTROLLER_ZIP_SHA256: ${UNIFI_STUB_CONTROLLER_ZIP_SHA256:?set official controller ZIP SHA-256}
+    image: ${UNIFI_STUB_CONTROLLER_IMAGE:?set controller image}

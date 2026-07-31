@@ -13,7 +13,9 @@
       "type": "string"
     },
     "profile": {
-      "type": "string"
+      "type": "string",
+      "pattern": "\\S",
+      "description": "Explicit device profile selection. Every runtime instance must select a concrete profile through this field or the CLI; there is no implicit engine profile."
     },
     "profile_file": {
       "type": "string"
@@ -152,17 +154,19 @@
     "controller_interval_min_seconds": {
       "type": "integer",
       "minimum": 1,
+      "maximum": 300,
       "description": "Lower bound applied to positive controller heartbeat interval hints."
     },
     "controller_interval_max_seconds": {
       "type": "integer",
       "minimum": 1,
-      "description": "Upper bound applied to positive controller heartbeat interval hints. Must not be below controller_interval_min_seconds."
+      "maximum": 300,
+      "description": "Upper bound applied to positive controller heartbeat interval hints. Must not be below controller_interval_min_seconds; controller hints are never accepted above 300 seconds."
     },
     "inform_backoff_max_seconds": {
       "type": "integer",
       "minimum": 1,
-      "description": "Maximum transport-failure retry delay. The effective interval remains a lower bound so backoff never accelerates informs."
+      "description": "Maximum failed-heartbeat retry delay. The effective interval remains a lower bound so backoff never accelerates informs."
     },
     "inform_backoff_jitter_percent": {
       "type": "integer",
@@ -349,7 +353,7 @@
           "type": "string",
           "enum": ["off", "static", "ping"],
           "default": "off",
-          "description": "Read-only gateway WAN health source. off disables active probing, static uses port_overrides wan_* hints, ping runs the local OS ping command and updates WAN telemetry only."
+          "description": "Read-only local gateway WAN diagnostic source. off disables probing, static exposes port_overrides wan_* hints only in local status, and ping runs the local OS ping command and updates local status only; none of these modes claims firmware WAN-health or speed-test telemetry."
         },
         "interval_seconds": {
           "type": "integer",
@@ -363,7 +367,7 @@
         },
         "targets": {
           "type": "array",
-          "description": "Ping targets mapped to effective gateway WAN or WAN2 ports. The port selects the telemetry row; the ICMP packet follows normal host routing.",
+          "description": "Ping targets mapped to effective gateway WAN or WAN2 ports. The port selects the local diagnostic entry; the ICMP packet follows normal host routing.",
           "items": {
             "$ref": "#/$defs/wan_health_target"
           }
@@ -458,21 +462,21 @@
           "type": "number",
           "minimum": 0,
           "maximum": 100,
-          "description": "Static WAN telemetry hint used when wan_health is off or static, or overwritten by ping results when wan_health.source is ping."
+          "description": "Static local WAN availability hint. It affects local diagnostic status only and never creates controller WAN-SLA or speed-test fields."
         },
         "wan_latency_ms": {
           "type": "integer",
           "minimum": 0,
-          "description": "Static WAN latency telemetry hint in milliseconds."
+          "description": "Static local WAN latency hint in milliseconds. It affects local diagnostic status only."
         },
         "wan_downtime_seconds": {
           "type": "integer",
           "minimum": 0,
-          "description": "Static WAN downtime telemetry hint in seconds."
+          "description": "Static local WAN downtime hint in seconds. It affects local diagnostic status only."
         },
         "wan_connected": {
           "type": "boolean",
-          "description": "Static WAN connected-state telemetry hint."
+          "description": "Static local WAN connected-state hint. It affects local diagnostic status only."
         },
         "speed": {
           "type": "integer",

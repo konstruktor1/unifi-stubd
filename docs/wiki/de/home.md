@@ -46,16 +46,18 @@ Unterstuetzt und aktiv:
 
 - Switch-artige Discovery- und Inform-Payloads;
 - Advanced-Adoption-SSH-Shim mit begrenzter Kommandoverarbeitung;
-- Adoption-State-Persistenz und Restore-Default-/Forget-Reset-Verhalten;
+- Adoption-State-Persistenz, exakter und Host-sicherer Controller-`setdefault`-
+  Lifecycle-Reset im aktuellen Black-Box-verifizierten Produktkandidaten und
+  eingeschraenkte lokale SSH-Reset-Kommandos;
 - datengetriebene Built-in- und externe Profile;
 - `bridge-observe` fuer Proxmox-/Linux-Bridge-Darstellung;
 - `port-map` fuer explizites Port-zu-Interface-Mapping;
 - Linux-Plattform-Fassade fuer sysfs, procfs, journalctl, D-Bus-Probe und lldpd;
-- konservative FreeBSD-/OPNsense-Unterstuetzung;
 - Docker-Controller-Integrationstests.
 
 Experimentell:
 
+- konservatives, reines Stub-Packaging fuer FreeBSD/OPNsense;
 - Gateway-Identitaetsprofile;
 - vollstaendige Topologie-Darstellung;
 - Management-LAN-Modellierung jenseits von Metadaten und preexisting interface;

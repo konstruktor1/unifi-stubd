@@ -1,176 +1,70 @@
-# Roadmap
+# Product Roadmap
 
-## Phase 0: Pin the Lab
+Last updated: 2026-07-29.
 
-- [x] Validate a controller-known 10G profile: `USAGGPRO` online/adopted.
-- [x] Document operation modes and the current live lab state.
-- [x] Start a UniFi Network compatibility matrix.
-- [x] Run the controller in an isolated lab.
-- [ ] Capture a real UniFi switch inform sequence if hardware is available.
-- [ ] Capture real UXG/Cloud Gateway inform baselines when hardware access is
-  available.
-- [ ] Enable debug logs for `inform`, `discover`, `devmgr`.
-- [ ] Add an anonymized capture review checklist for payload diffs before any
-  fixture is committed.
+The roadmap describes the Stub product. Labs, runners, packages, and tests
+support delivery; they are not product phases.
 
-## Phase 1: Discovery
+## 1. US8 with visible real metrics — current
 
-- [x] Discovery TLV builder.
-- [x] Broadcast/multicast sender.
-- [x] Controller validation: Docker lab confirms a fake device appears as Pending Adoption.
-- [x] Explicit `discovery_targets` for routed or FreeBSD/OPNsense labs.
-- [x] Optional `discovery_interface` source binding.
-- [ ] Document TLV diff against a real switch.
-- [ ] Validate discovery through routed management networks without all-ones
-  broadcast.
-- [ ] Decide whether STUN metadata is needed for any supported stub profile.
+Deliver a non-UniFi Linux bridge that an operator can add to UniFi Network as
+an `US8`.
 
-## Phase 2: Inform Without Adoption
+Product outcome:
 
-- [x] `TNBU` header encoder/decoder.
-- [x] AES-CBC + zlib foundation.
-- [x] AES-GCM foundation.
-- [x] Minimal inform client with default key.
-- [x] Validate default-key inform path against the Docker controller lab.
-- [x] Decode and log controller responses.
-- [x] Record safe metadata for ignored provisioning responses.
-- [ ] Add fixture coverage for `include_blocks` responses such as `gw_caps`,
-  `dns_shield_servers`, active leases, and WAN status blocks.
-- [x] Add bounded interval-hint and retry/backoff policy tests for controller
-  inform failures.
-- [ ] Add bounded status history for recent inform response types without
-  leaking authkeys or controller secrets.
+- it is discovered and can be adopted;
+- it remains connected;
+- it reports real link state, speed, counters, and rates from the named local
+  source;
+- controller input cannot provision the host.
 
-## Phase 3: Adoption
+The current [compatibility evidence](compatibility.md) verifies discovery,
+adoption, connection, and the real metric data path on dynamically resolved
+Stable and Release Candidate. Focused tests cover the host safety boundary, but
+a retained result has not yet bound them to the exact qualified source. Direct
+evidence that an operator sees those values on both controller device pages is
+also missing, so this product phase is not accepted yet.
 
-- [x] Parse `_type: setparam`.
-- [x] Split `mgmt_cfg` into key/value data.
-- [x] Persist `authkey`, `cfgversion`, `use_aes_gcm`, `inform_url`.
-- [x] Verify post-adoption connected state in the Docker controller lab.
-- [x] Reach connected state with `USAGGPRO`.
-- [x] Treat forget/delete/remove/restore-default responses as local stub reset.
-- [x] Built-in SSH adoption compatibility for constrained `set-adopt` and
-  `set-inform` command shapes.
-- [ ] Add adoption failure diagnostics that distinguish bad key, stale model,
-  stale MAC, unreachable controller, and controller-side rejection.
-- [ ] Add migration tests for adoption state when moving from `/tmp` runs to
-  package-managed services.
+## 2. Usable Linux release — next
 
-## Phase 4: Fake Switch Payload
+Turn this behavior into a package and operator path that work on a
+supported Linux host.
 
-- [x] Minimal switch payload.
-- [x] Extend `port_table` with stable defaults.
-- [x] Add read-only `bridge-observe` mode for Linux bridge/sysfs data.
-- [x] Keep `observe` as a migration alias for `bridge-observe`.
-- [x] Add read-only `port-map` mode for explicit interface/disabled/unmapped port sources.
-- [x] Fill `mac_table` from Linux bridge FDB when configured.
-- [x] Read port counters from sysfs when configured.
-- [x] Optional `/proc/net/dev` counter source through `proc_source: procfs`.
-- [x] Model several virtual ports for `vmbr0`, `tap*`, `veth*`.
-- [x] Classify bridge members as bridge/uplink/access before mapping.
-- [x] Filter remote MACs learned on the physical uplink out of local access
-  port MAC tables.
-- [x] Report unused bridge-observe ports as disconnected instead of synthetic-up.
-- [x] Support explicit SFP/SFP+ uplink placement through `uplink_port` for
-  bridge-observe profiles whose physical link is not the GE fallback.
-- [x] Enrich learned MAC entries with local ARP IPv4 metadata when available.
-- [x] Support configured `port_neighbors` with deterministic hostname and IP
-  metadata.
-- [x] Preserve disconnected unused ports instead of controller-visible fake
-  traffic on empty ports.
-- [x] Add explicit `uplink_neighbor.remote_port` metadata and feed it into the
-  switch payload when known.
-- [x] Add automatic directed-neighbor derivation from passive LLDP, with manual
-  configuration as a deterministic override.
-- [ ] Add LLDP/CDP/FDP neighbor normalization for local interface, chassis,
-  remote port, VLAN, and system name fields.
-- [x] Add topology regression tests that keep real identity/port MACs separate
-  from direct-neighbor direction and FDB reachability.
-- [ ] Add profile coverage for additional common UniFi switch models used in
-  homelabs.
+Exit:
 
-## Phase 5: Operations
+- the package contains the data-path-qualified product binary;
+- the supported package configuration selects US8 bridge observation and a
+  real local metric source;
+- installation and packaged service startup pass on a supported Linux host;
+- the quick start leads an operator from local metric source to adoption and
+  controller readback;
+- limitations state that the supported slice is US8 on a Linux bridge.
 
-- [x] OpenRC service.
-- [x] systemd unit.
-- [x] YAML configuration wired into the daemon.
-- [x] Package builders for Debian, RPM, Arch Linux, and tgz.
-- [x] Stub-only FreeBSD/OPNsense tgz and rc.d artifact.
-- [x] GitHub pre-release with neutral package artifacts and checksums.
-- [x] GitHub Pages alpha repositories for APT, RPM, Arch Linux, and
-  FreeBSD/OPNsense tarballs.
-- [x] External private host-configuration layout for real lab configs and
-  install protocols.
-- [ ] Rotating debug log.
-- [x] Healthcheck/status command.
-- [x] Platform capability status for LLDP, logs, procfs, D-Bus, and traffic sources.
-- [x] README and operation-mode docs for bridge-observe/port-map lab use.
-- [x] Docker controller integration smoke test.
-- [ ] Project release GPG key and signed APT/RPM/Arch package metadata.
-- [ ] FreeBSD `pkg` package and repository once real FreeBSD package artifacts
-  replace the current tarball-only path.
-- [ ] Separate `alpha`, `testing`, and `stable` package channels.
-- [ ] Package-manager install smoke tests in CI for APT, RPM, and Pacman repos.
-- [ ] Pages repository freshness check in CI for APT `Packages.gz`, RPM
-  `repomd.xml`, Arch `unifi-stubd.db`, FreeBSD tarballs, and checksums.
-- [x] Publish a persistent SPDX release SBOM alongside package checksums.
-- [ ] Add package upgrade, downgrade, uninstall, and purge tests with explicit
-  adoption-state retention behavior.
-- [ ] Add package rollback runbook that maps package-managed services back to a
-  captured temporary command.
-- [ ] GitHub Actions update for the Node 24 runner transition.
-- [ ] Encrypted backup or rotation policy for the external private host-config
-  store.
-- [ ] Live controller post-install gate: no duplicate devices and no
-  `ADOPT_FAILED` loop after package rollout.
-- [ ] Operator runbook for collecting safe `status-json`, service logs, and
-  package versions without leaking private controller data.
+The binary-bound package set exists. Its starter config now explicitly selects
+`US8`, but it still uses non-observing `stub` mode without a named real metric
+source and is therefore not the supported acceptance configuration.
+Host-specific bridge configuration, installed-service, and operator-path
+acceptance remain open.
 
-## Phase 6: Later Research
+## 3. Further representations — only on demand
 
-- [x] Built-in SSH adoption for `syswrapper.sh set-adopt` and `mca-cli-op set-inform`.
-- [ ] Active macvlan/ipvlan lifecycle after the dry-run plan is proven.
-- [ ] Review a narrow local-only adapter for `planned-host-vlan`; keep it
-  separate from controller provisioning.
-- [x] Passive LLDP import from `lldpd`.
-- [ ] LLDP VLAN/MED details, CDP/FDP, and event subscriptions.
-- [ ] Document and test topology direction when a stub uses a physical host MAC
-  that is also visible to a real upstream UniFi switch.
-- [ ] Add a supported deployment pattern for synthetic stub MACs on Proxmox
-  bridge representations.
-- [x] Experimental gateway identity profiles `UGW3`, `UXG-Lite`, `UXGPRO`, and
-  `UCGF`.
-- [x] Gateway WAN/LAN port reporting for UXG-shaped lab stubs.
-- [x] Config-gated traffic-rate reporting from read-only interface counters.
-- [ ] Full gateway status payload for `UGW3`/`UXG`.
-- [ ] Gateway UI validation for Settings > Internet, Devices, and Ports views
-  across pinned UniFi Network versions.
-- [x] Config-driven WAN uptime, latency, downtime, and connected-state hints.
-- [ ] WAN peak utilization and ISP label where the controller accepts read-only
-  values.
-- [ ] Active lease and host-table shaping for gateway client visibility without
-  inventing per-client traffic counters.
-- [ ] UniFi UI verification for switch and gateway traffic activity after
-  package-based deployment.
-- [ ] Broader WAN activity and link-state compatibility tests across UniFi
-  Network versions.
-- [ ] Implement `traffic_source` adapters only after the counter-based path is
-  stable; candidates are NetFlow/IPFIX, OPNsense telemetry, and ntopng.
-- [ ] Synthesize DPI fields from NetFlow/OPNsense/ntopng.
-- [ ] FreeBSD `SIOCGIFMEDIA` interface media and speed reader.
-- [ ] FreeBSD interface counter parity for `port-map` and future
-  `bridge-observe`.
-- [ ] Full FreeBSD `bridge-observe` parity once native counter/media readers are
-  available.
-- [ ] Move large firmware research labs to a companion repo or clearly separate research package.
-- [ ] UXG-Lite and UCG-Fiber ARM64 firmware wrapper debugging with `strace` or
-  a broader LD_PRELOAD shim.
-- [ ] UDM Pro SE deterministic netdev and switch-driver mock surface for the
-  firmware reference lab.
-- [ ] UGW3 legacy board identity and EEPROM mock layer for the firmware runner.
-- [ ] GPL/source-bundle handling process before any external firmware-derived
-  source or structured data is copied into project-owned code.
-- [x] Compatibility matrix per UniFi Network version.
-- [x] JSON Schema for YAML configuration.
-- [ ] Generate config reference docs from the JSON Schema to keep README,
-  packaged examples, and schema aligned.
+Add another profile or platform only when it has a concrete operator outcome,
+a named local read-only source, an explicit safety decision, and its own
+Stable/RC acceptance. Evidence from a neighboring model does not expand the
+product automatically.
+
+## Immediate sequence
+
+1. Complete the supported US8 bridge configuration with a named real local
+   metric source; the explicit packaged US8 identity alone is not acceptance
+   evidence.
+2. Install the run-bound package on a supported Linux host and start it with
+   that configuration.
+3. On current Stable and Release Candidate, adopt it and directly confirm that
+   an operator sees the real link, speed, and traffic values.
+4. Retain the focused host-safety result for that exact candidate source.
+5. Make that exact installation, adoption, metric-source, limitation, and
+   recovery path the operator quick start before publishing the package.
+
+New gateway telemetry, WAN-health semantics, and additional profiles remain
+later options; they do not precede the usable release path.

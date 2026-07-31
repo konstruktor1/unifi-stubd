@@ -1,4 +1,0 @@
-overrideConsoleFeatures:
-  waitForUFN: false
-postgres:
-  password: "@POSTGRES_PASSWORD@"

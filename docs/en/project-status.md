@@ -1,167 +1,66 @@
 # Project Status
 
-Last updated: 2026-05-20.
+Last updated: 2026-07-29.
 
-This page describes the `unifi-stubd` product line: the Go daemon, its public
-configuration surface, payload model, safety boundaries, packaging, and
-validation status. Firmware wrappers and UDM Pro SE VM experiments are tracked
-separately in [Lab Project Status](lab-project-status.md).
+## Product outcome
 
-## Product Definition
+`unifi-stubd` is intended to let an operator add a non-UniFi Linux host or
+bridge to UniFi Network as a small switch and see real read-only link and
+traffic metrics from a named local interface.
 
-`unifi-stubd` is a lab-focused UniFi device stub. It makes a Linux or FreeBSD
-host, VM, container, or bridge appear to a UniFi Network Controller as a
-minimal UniFi device for controlled experiments.
+The first supported slice is deliberately narrow: one `US8` representation on
+a local Linux bridge. Gateway identities, other switch models, FreeBSD, and
+other physical topologies are implemented or researched in places, but they
+are not accepted product scope without a separate decision and evidence.
 
-The product is not a gateway replacement and does not apply controller
-provisioning to the host. It owns only the stub identity, payload generation,
-adoption-state persistence, read-only host observation, packaging, and local
-test harnesses.
+## Evidence status
 
-## Current Capabilities
+| Product condition | Status | Evidence or gap |
+| --- | --- | --- |
+| Visible before adoption, adoptable, and connected | Verified | The same candidate passed current Stable and Release Candidate. |
+| Real link, observed speed, counters, and rates reach the controller | Verified | Controller data reads showed the named source, positive rates, and advancing counters in both channels. |
+| Operator sees those values on the US8 device page | Open | No direct UI observation has yet been retained. API readback does not prove presentation. |
+| Adoption cannot provision or execute actions on the host | Evidence open | Focused tests cover bounded persistence and rejected shell, networking, restart, upgrade, and provisioning actions, but the current product evidence does not bind a safety run to the exact qualified source. |
+| Linux package contains the qualified binary | Verified | The run-bound package set is built from the exported candidate rather than a second compile. |
+| Installed package starts in the supported US8/bridge/metric configuration | Open | The packaged starter now selects `US8` explicitly, but remains in non-observing `stub` mode without a named real metric source. |
+| Operator quick start reaches the visible-metric outcome | Open | Installation, supported configuration, UI confirmation, limits, and recovery still need one coherent path. |
 
-The daemon currently provides:
+Exact run IDs, controller versions, and binary identity belong in the
+[compatibility evidence](compatibility.md), not in this status summary.
 
-- Discovery and inform framing for synthetic UniFi device identities.
-- Built-in data-driven switch profiles and experimental gateway identity
-  profiles.
-- External YAML profile loading, validation, export, and templates.
-- YAML service configuration plus CLI overrides and a `-validate` path.
-- `stub`, `bridge-observe`, and `port-map` operation modes.
-- Read-only Linux observation through sysfs/procfs, bridge FDB data,
-  journalctl checks, optional D-Bus availability checks, and passive LLDP
-  through `lldpd`.
-- Read-only FreeBSD observation through ifconfig/netstat/syslog-oriented
-  adapters.
-- Adoption-state persistence for controller inform responses.
-- A constrained adoption SSH shim for advanced adoption compatibility.
-- Docker controller integration tests against the project-owned UniFi Network
-  Application lab.
-- Linux and FreeBSD package/build targets.
+## Product boundary
 
-## Operation Modes
+The supported behavior must remain read-only toward the represented host.
+Controller input may establish the Stub's bounded adoption state, but it must
+not execute arbitrary shell commands or change host networking, services,
+firmware, routes, firewall, users, or time.
 
-`stub` is fully synthetic. It uses the selected profile and local configuration
-to render a deterministic controller-facing device.
+The Stub exposes only values observed from the configured local source.
+Missing observations stay missing rather than becoming synthetic success
+values. Discovery and inform traffic remain opt-in and suitable only for an
+isolated lab or management network.
 
-`bridge-observe` represents a bridge-like host setup, for example a Proxmox
-bridge. The bridge is the observation boundary; learned participant MACs are
-projected into the virtual port table without mutating host networking.
-Bridge members are classified before projection: the bridge device is treated
-as backplane metadata, VM/container member interfaces become access ports, and
-the configured physical uplink is kept separate from local participants. MACs
-learned on the physical uplink are treated as remote behind the real upstream
-switch and are filtered out of local access-port MAC tables.
+## Next product work
 
-`port-map` maps UniFi profile ports to explicit OS interfaces, or declares them
-as `disabled` or `unmapped`. Mapped ports inherit read-only physical state such
-as MAC address, link state, speed/media where available, addresses, counters,
-and LLDP neighbors.
+1. Complete the supported US8 bridge configuration with a named real local
+   metric source; the explicit packaged US8 identity alone is not acceptance
+   evidence.
+2. Install the run-bound package on one supported Linux host and start it with
+   that configuration.
+3. Adopt the same candidate on the dynamically resolved Stable and Release
+   Candidate and directly confirm that an operator sees real link, speed, and
+   bidirectional traffic values.
+4. Retain the focused host-safety result for that exact candidate source.
+5. Turn that exact installation, configuration, adoption, limitation, and
+   recovery path into the quick start.
 
-For Proxmox-style bridge representation, direct infrastructure is resolved
-separately from FDB clients. The active represented uplink determines upstream
-direction, configured neighbors override LLDP, and real host/bridge MACs remain
-valid identities. Switch payloads expose upstream state through `uplink` and
-`last_uplink` instead of presenting the gateway as an attached client.
+Only after this path is accepted is the first usable release complete. New
+metric families, gateway behavior, and additional profiles remain later
+product decisions.
 
-## Configuration Surface
+## Evidence hygiene
 
-Configuration is intentionally explicit:
-
-- Device identity comes from profile data plus CLI/config overrides.
-- Hardware shape comes from built-in or external YAML profiles.
-- Lab-specific port assignments come from `port_overrides`, observation mode
-  configuration, and `port_mappings`.
-- Switch management LAN intent is modeled through `management_lan`.
-- Legacy public `management_vlan` configuration has been removed. Controller-
-  facing payload fields still use UniFi-compatible names where required.
-
-`-validate` checks the full runtime configuration without starting the daemon.
-`-profile-validate` checks profile files or directories in isolation.
-
-## Safety Boundary
-
-The safety boundary remains the core product rule:
-
-- Controller-triggered restart, upgrade, shell, firewall, route, user, and host
-  network changes are not blindly executed.
-- Controller provisioning data may be parsed and summarized, but it stays
-  metadata unless a future reviewed local adapter explicitly implements a
-  narrow action.
-- The SSH shim recognizes only the small command shape needed for adoption and
-  local stub reset behavior.
-- Discovery and inform traffic remain opt-in and belong only in isolated lab or
-  management networks.
-
-## Validation Status
-
-Current automated validation includes:
-
-- `go test ./...`
-- `make check`
-- package build targets through `make package`
-- configuration/profile validation for packaged Linux and FreeBSD configs
-- Docker integration tests for dry-run payloads, inform MITM capture,
-  controller pending state, controller-triggered adoption, and persisted local
-  adoption state
-
-The Docker integration path also covers `bridge-observe`, `port-map`, gateway
-payload rendering, and the current `management_lan.mode:
-preexisting-interface` switch path.
-
-Manual real-host validation on 2026-05-20 additionally confirmed that:
-
-- a Linux bridge can be represented as a 48-port switch profile with VM/container
-  participants on normal access ports and the physical uplink on a dedicated
-  SFP+ profile port via `uplink_port`;
-- unused bridge ports should be reported disconnected rather than synthetic-up;
-- explicit `uplink_neighbor` metadata is enough for UniFi Network to calculate a
-  topology edge when it does not conflict with the controller's real switch view;
-- using the host's physical bridge/NIC MAC can reverse the displayed topology
-  direction when the real upstream switch already reports that MAC.
-
-## Packaging Status
-
-The repository contains package definitions for:
-
-- Linux service packaging with systemd/OpenRC-oriented configuration.
-- FreeBSD/OPNsense-oriented configuration and tarball output.
-- Non-root Linux service execution with documented capability handling for the
-  adoption SSH compatibility port.
-
-Packaged defaults are lab-oriented and must still be reviewed before use in any
-shared management network.
-
-## Known Product Limits
-
-- Gateway profiles are identity and payload stubs, not full gateway behavior.
-- External profiles are data-driven but still require validation against a
-  concrete UniFi Network version.
-- LLDP support is passive and currently depends on `lldpd` output.
-- LLDP is not required for adoption or manual topology hints, but without it
-  `uplink_neighbor` remains manual and topology direction is still subject to
-  UniFi Network's own device/MAC heuristics.
-- Linux `/proc` supplements sysfs and bridge data; it is not a complete
-  replacement for OS-specific interface APIs.
-- FreeBSD support is intentionally conservative and still lacks richer media
-  detail compared with future native ioctl/netlink-style adapters.
-- Multi-device simulation under one process is not the default design yet.
-
-## Next Product Work
-
-Near-term product work should focus on:
-
-- Adding more pinned UniFi Network versions to the Docker compatibility matrix.
-- More profile fixtures for custom switch and gateway payloads.
-- More structured status for passive LLDP, log readers, and platform
-  capabilities.
-- First-class topology metadata for uplink neighbor remote-port reporting,
-  including an explicit configured remote port and LLDP-derived fallback.
-- Better guidance and tooling for choosing synthetic versus physical stub MACs
-  in bridge-observe deployments.
-- Better FreeBSD interface media/counter detail.
-- CI coverage for package artifacts, SBOM, and dependency scanning.
-- Release signing once package CI is stable.
-
-Keep firmware images, captures, adoption keys, controller tokens, private
-controller URLs, SSH host keys, MAC tables, and client data out of Git.
+Firmware images, captures, adoption keys, controller tokens, private
+controller URLs, SSH host keys, MAC tables, and client data stay out of Git.
+Labs, runners, packages, and tests support delivery; they are not separate
+product features or roadmap phases.

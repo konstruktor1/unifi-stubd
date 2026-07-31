@@ -13,7 +13,8 @@ const (
 	StateFactory State = "factory"
 	// StateDiscovered means the controller has seen the stub.
 	StateDiscovered State = "discovered"
-	// StateAdopting means the controller is attempting adoption.
+	// StateAdopting means an accepted individual-key or management-URL switch
+	// must be reported as wire state Unknown before Managed.
 	StateAdopting State = "adopting"
 	// StateProvisioning means controller settings are being applied.
 	StateProvisioning State = "provisioning"
@@ -33,7 +34,8 @@ type Store struct {
 	CFGVersion string `json:"cfgversion"`
 	// UseAESGCM reports whether inform traffic should use AES-GCM.
 	UseAESGCM bool `json:"use_aes_gcm"`
-	// Version is a controller-requested firmware version.
+	// Version is a legacy persisted override retained for file compatibility.
+	// Its provenance is ambiguous, so a lifecycle reset clears it.
 	Version string `json:"version"`
 	// State is the current local adoption lifecycle state.
 	State State `json:"state"`
@@ -59,12 +61,29 @@ type ControllerResponse struct {
 	IntervalSeconds int `json:"interval_seconds,omitempty"`
 	// IncludeBlocks lists controller-requested status blocks when present.
 	IncludeBlocks []string `json:"include_blocks,omitempty"`
+	// ExcludeBlocks lists controller-suppressed status blocks when present.
+	ExcludeBlocks []string `json:"exclude_blocks,omitempty"`
+	// UDAPIBlocks lists bounded descriptor IDs as non-executable metadata.
+	UDAPIBlocks []string `json:"udapi_blocks,omitempty"`
+	// BlockSelectionSet reports that this noop replaces all block-selection maps.
+	BlockSelectionSet bool `json:"block_selection_set,omitempty"`
+	// BlockSelectionLimited reports that at least one replacement map exceeded
+	// local count or identifier-length bounds and was cleared.
+	BlockSelectionLimited bool `json:"block_selection_limited,omitempty"`
+	// Immediate requests one bounded near-immediate follow-up inform.
+	Immediate bool `json:"immediate,omitempty"`
+	// ServerTimeUTC is parsed controller milliseconds and never changes the host clock.
+	ServerTimeUTC int64 `json:"server_time_in_utc,omitempty"`
+	// ServerTimeSet distinguishes parsed string metadata from an ignored field.
+	ServerTimeSet bool `json:"server_time_set,omitempty"`
 	// ResetRequested reports that the controller asked the device to forget or factory-reset.
 	ResetRequested bool `json:"reset_requested,omitempty"`
 	// ResetApplied reports that only the local stub adoption state was reset.
 	ResetApplied bool `json:"reset_applied,omitempty"`
 	// ResetReason explains the controller reset command that was handled.
 	ResetReason string `json:"reset_reason,omitempty"`
+	// ResetDisposition reports applied, already_factory, or failed local reset handling.
+	ResetDisposition string `json:"reset_disposition,omitempty"`
 	// CommandName is the fixed safe label of a recognized controller command.
 	CommandName string `json:"command_name,omitempty"`
 	// CommandRequestIDSet reports that the command supplied its correlation ID.

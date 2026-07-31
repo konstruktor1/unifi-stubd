@@ -4,8 +4,9 @@
 # Replace 192.0.2.10 and 192.0.2.50 with addresses from an isolated lab.
 operation_mode: stub
 controller_url: http://192.0.2.10:8080/inform
-profile: us16p150
-# Optional external lab profiles. Built-in profiles remain the tested defaults.
+profile: us8
+# Every instance selects a concrete profile. This starter config chooses US8;
+# profile_file and profile_dir can add reviewed external lab profiles.
 profile_file: ""
 profile_dir: ""
 mac: auto
@@ -58,14 +59,14 @@ port_overrides: []
 
 # Optional read-only gateway WAN health. Default is off; static uses the
 # port_overrides wan_* fields above. ping runs the local OS ping command and
-# only writes WAN telemetry fields into the inform payload.
+# updates local status only; it does not claim firmware WAN or speed-test data.
 # source:
 #   off    - no active measurement
 #   static - rely on configured port_overrides wan_* values only
 #   ping   - probe targets with local ping; target ports must have an explicit
 #            port_overrides role wan/wan2
-# Ping updates latency/connectivity/status fields only. It does not run UniFi
-# speed tests, detect ISP/provider names, change routes, or touch VLANs.
+# Ping diagnostics do not run UniFi speed tests, detect ISP/provider names,
+# change routes, touch VLANs, or populate firmware WAN-health Inform fields.
 # wan_health:
 #   source: ping
 #   interval_seconds: 10

@@ -1,51 +1,26 @@
-# Prioritized Backlog
+# Product Backlog
 
-Last updated: 2026-07-11.
+Last updated: 2026-07-29.
 
-This backlog contains the next concrete product work for `unifi-stubd`. The
-roadmap remains the long-term feature list. Items here are ordered by delivery
-priority and should preserve the core safety boundary: controller input must
-not mutate host networking, services, users, packages, routes, or firewalls.
+The backlog is ordered by usable product outcome. Provisioning and validation
+mechanics are not separate product work.
 
-Effort uses relative sizes: `S` for a focused change, `M` for a multi-module
-change, and `L` for work that includes controller integration and fixtures.
+| Order | Outcome | Status | Done when |
+| ---: | --- | --- | --- |
+| 1 | Prove the non-UniFi `US8` data path with real metrics. | Verified | The current compatibility evidence shows the same candidate visible, adopted, connected, and supplying advancing real metric values on current Stable and RC. |
+| 2 | Prove that an operator sees those metrics in UniFi Network. | Next | The US8 device page on current Stable and RC visibly shows link, observed speed, and bidirectional traffic values from the real source. API readback alone is insufficient. |
+| 3 | Preserve the host safety boundary. | Implemented; evidence open | Focused tests cover bounded Stub-owned adoption state and rejected shell, networking, restart, upgrade, and provisioning actions. A retained run must bind those checks to the exact qualified candidate source. |
+| 4 | Deliver an installable Linux package for the supported slice. | In validation | The package contains the data-path-qualified binary. Its starter config selects `US8` explicitly, but a supported bridge configuration with a named real metric source must still be installed and started successfully on one Linux host. |
+| 5 | Make the supported operator path usable. | After 2 and 4 | The quick start leads from installation and local metric source through adoption, visible controller metrics, limitations, and recovery without lab internals. |
+| 6 | Add another representation only for a concrete product need. | Future | A named user outcome, local read-only data source, safety boundary, and separate Stable/RC acceptance exist before implementation. |
 
-| ID | Priority | Work item | Acceptance criteria | Effort |
-| --- | --- | --- | --- | --- |
-| B01 | P0 | **Completed 2026-07-10:** redact adoption SSH logs | Adoption SSH logs use fixed command labels. A real SSH regression test proves keys and passwords stay out of logs, responses, and authentication errors while the key remains persisted; the existing status regression remains green. | S |
-| B02 | P0 | **Completed 2026-07-10:** update the Go build line | GitHub and Docker builds use the current Go 1.25 patch without a committed patch or `toolchain` pin. `make check`, the race detector, `make vulncheck`, and a package build pass on the current Go 1.25 release. | S |
-| B03 | P1 | **Completed 2026-07-10:** refresh interface observations correctly | Every runtime port build starts from unchanged operator configuration and reads a fresh MAC, IPv4, IPv6, link-state, speed, media, and counter snapshot. Explicit values retain priority, and complete zero-counter resets reach the payload. | M |
-| B04 | P1 | **Completed 2026-07-10:** harden persistence and process shutdown | `SIGTERM` and `SIGINT` stop the daemon cleanly and release runtime resources. Adoption and status files use same-directory temporary files, file and directory sync, and atomic rename. Interrupted-write regressions pass. | M |
-| B05 | P1 | **Completed 2026-07-10:** restore a real controller integration gate | The pinned Docker controller gate bootstraps empty volumes and verifies discovery, Pending Adoption, sanitized `setparam`, persisted auth state, at least two AES-GCM informs, and three stable connected samples for switch and gateway fixtures. | L |
-| B06 | P1 | **Completed 2026-07-10:** complete the safe controller-command lifecycle | Only an argument-free `wg-genkeypair` with a request ID is handled. The X25519 key pair and request ID remain in memory, the correlated result is retried until one successful inform, and logs/status expose only sanitized counters. The pinned controller gate proves exactly one handled command, one delivered result, no duplicate, no pending result, and no repeating task loop after a stability window. | M/L |
-| B07 | P2 | **Completed 2026-07-10:** add heartbeat and failure policy | Positive controller interval hints drive the dynamic timer after clamping to operator-configured bounds. Transport failures double the effective delay with bounded symmetric jitter; a completed HTTP exchange resets the failure sequence. Unit and live-daemon tests cover clamping, cap, jitter, reset, status, and invalid configuration. The pinned controller gate proves its returned positive hint becomes the bounded effective and next interval with zero pending failures or backoff. | M |
-| B08 | P2 | **Completed 2026-07-10:** repair the coverage target | `make coverage` instruments all production `internal/...` packages from the external `tests/...` suites, reports the aggregate result, and enforces an initial 60 percent minimum locally and in CI. | S |
-| B09 | P2 | **Completed 2026-07-11:** make profile maturity evidence-based | Experimental gateway profiles report `experimental`. `tested` requires at least one concrete entry in `validated_controller_versions`; `us8` and `uxg-lite` record their 10.3.58 and 10.4.57 controller evidence without promoting the gateway profile. | S |
-| B10 | P2 | **Completed 2026-07-11:** restore release hygiene | `VERSION`, changelog, and install docs agree on 0.2.4-alpha. Tag builds attach packages, checksums, and a persistent SPDX SBOM to the GitHub pre-release. The release checklist covers signing and repository metadata. | M |
+## Next step
 
-## Delivery Order
-
-1. Security blockers B01 and B02 were completed on 2026-07-10.
-2. Runtime correctness: B03 and B04 were completed on 2026-07-10.
-3. Controller compatibility: B05, B06, and B07 were completed on 2026-07-10.
-4. Quality and release gates: B08, B09, and B10 are complete.
-
-## Alpha Release Gate
-
-Do not create another alpha tag until B01 through B06 are complete and these
-commands pass on the release candidate:
-
-```sh
-make check
-go test -race ./...
-make vulncheck
-make integration-docker
-make package
-```
-
-## Beta Entry Criteria
-
-- The controller gate passes against at least two pinned UniFi Network versions.
-- Linux and FreeBSD package smoke tests pass, including upgrade and rollback.
-- No controller command remains in a repeating task loop.
-- Dynamic interface changes are reflected without restarting the daemon.
+Finish items 2, 3, and 4. First complete the supported US8 bridge configuration
+with its named real local metric source; the explicit packaged US8 identity
+alone is not that configuration. Install the run-bound package on one supported
+Linux host, start it with the supported configuration, and confirm in both
+current controller channels that an operator sees the real metrics. Retain a
+focused safety result bound to that exact candidate source. Turn that exact
+path into the quick start. No new metric family, gateway behavior, or profile
+precedes this usable release.

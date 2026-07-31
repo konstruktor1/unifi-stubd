@@ -13,23 +13,18 @@ RUN --mount=type=cache,target=/go/pkg/mod go mod download
 
 COPY cmd ./cmd
 COPY internal ./internal
-COPY lab/stub/tools/inform-proxy ./lab/stub/tools/inform-proxy
 
 RUN --mount=type=cache,target=/root/.cache/go-build \
     CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
     go build -trimpath -ldflags="-s -w -X main.version=${VERSION}" \
-    -o /out/unifi-stubd ./cmd/unifi-stubd \
-    && CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH \
-    go build -trimpath -ldflags="-s -w" \
-    -o /out/unifi-stubd-inform-proxy ./lab/stub/tools/inform-proxy
+    -o /out/unifi-stubd ./cmd/unifi-stubd
 
-FROM alpine:3.22
+FROM alpine:3.22 AS runtime
 
 RUN apk add --no-cache ca-certificates iproute2 tzdata \
     && mkdir -p /etc/unifi-stubd /var/lib/unifi-stubd
 
 COPY --from=build /out/unifi-stubd /usr/local/bin/unifi-stubd
-COPY --from=build /out/unifi-stubd-inform-proxy /usr/local/bin/unifi-stubd-inform-proxy
 
 VOLUME ["/var/lib/unifi-stubd"]
 

@@ -57,17 +57,6 @@ var storeFields = []storeField{
 	},
 }
 
-// storeHasStateUpdate reports whether parsing found any durable adoption field
-// worth persisting.
-func storeHasStateUpdate(store Store) bool {
-	for _, field := range storeFields {
-		if field.get(store) != "" {
-			return true
-		}
-	}
-	return false
-}
-
 // storeFieldByEnvKey resolves persisted environment keys through the same field
 // table used for saving adoption state.
 func storeFieldByEnvKey(key string) (storeField, bool) {

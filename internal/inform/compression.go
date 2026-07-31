@@ -31,9 +31,12 @@ func decompressPayload(body []byte) ([]byte, error) {
 	defer func() {
 		_ = zr.Close()
 	}()
-	out, err := io.ReadAll(zr)
+	out, err := io.ReadAll(io.LimitReader(zr, MaxDecodedPayloadBytes+1))
 	if err != nil {
 		return nil, fmt.Errorf("read zlib payload: %w", err)
+	}
+	if len(out) > MaxDecodedPayloadBytes {
+		return nil, fmt.Errorf("decompressed inform payload exceeds %d bytes", MaxDecodedPayloadBytes)
 	}
 	return out, nil
 }

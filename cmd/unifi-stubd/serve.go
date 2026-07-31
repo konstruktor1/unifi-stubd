@@ -31,11 +31,11 @@ func serveSwitchEmulation() error {
 	}
 
 	if flags.dryRunPlan {
-		printRuntimePlan(flags, prepared.profile, identity.mac.String(), identity.ip.String(), identity.hostname)
+		printRuntimePlan(flags, prepared.profile, prepared.informSchedulePolicy, prepared.reportingPolicy, identity.mac.String(), identity.ip.String(), identity.hostname)
 		return nil
 	}
 	if flags.status || flags.statusJSON {
-		return printLocalStatus(flags, prepared.profile, identity.mac, identity.ip, identity.hostname, identity.portBuildOptions, prepared.platform)
+		return printLocalStatus(flags, prepared.profile, prepared.informSchedulePolicy, prepared.reportingPolicy, identity.mac, identity.ip, identity.hostname, identity.portBuildOptions, prepared.platform)
 	}
 
 	ann := discovery.Announcement{
@@ -58,7 +58,7 @@ func serveSwitchEmulation() error {
 	if flags.trafficRatesEnabled {
 		ports = applyTrafficRates(ports, observe.NewTrafficRateTracker(), time.Now())
 	}
-	payload, err := payloadForIdentity(identity.mac, identity.ip, identity.hostname, flags.controller, adoption.Store{}, flags, prepared.profile, ports, 1)
+	payload, err := payloadForIdentity(identity.mac, identity.ip, identity.hostname, flags.controller, adoption.Store{}, flags, prepared.profile, ports, 1, controllerPayloadState{})
 	if err != nil {
 		return err
 	}
@@ -89,17 +89,19 @@ func serveSwitchEmulation() error {
 	}()
 
 	return maintainControllerPresence(controllerPresence{
-		flags:              flags,
-		profile:            prepared.profile,
-		mac:                identity.mac,
-		ip:                 identity.ip,
-		hostname:           identity.hostname,
-		portBuildOptions:   identity.portBuildOptions,
-		announcement:       ann,
-		discoveryPacket:    packet,
-		discoverySkipped:   flags.noDiscovery,
-		discoveryInterface: effectiveDiscoveryInterface(flags),
-		discoveryTargets:   flags.discoveryTargets,
-		startedAt:          time.Now(),
+		flags:                flags,
+		profile:              prepared.profile,
+		informSchedulePolicy: prepared.informSchedulePolicy,
+		reportingPolicy:      prepared.reportingPolicy,
+		mac:                  identity.mac,
+		ip:                   identity.ip,
+		hostname:             identity.hostname,
+		portBuildOptions:     identity.portBuildOptions,
+		announcement:         ann,
+		discoveryPacket:      packet,
+		discoverySkipped:     flags.noDiscovery,
+		discoveryInterface:   effectiveDiscoveryInterface(flags),
+		discoveryTargets:     flags.discoveryTargets,
+		startedAt:            time.Now(),
 	})
 }

@@ -95,10 +95,6 @@ func generatedPort(index, speed int, media string, uplink, profileUplink bool, n
 		ProfileUplink: profileUplink,
 		Up:            true,
 		Speed:         speed,
-		RXBytes:       int64(1000 * index),
-		TXBytes:       int64(900 * index),
-		RXPackets:     1,
-		TXPackets:     1,
 	}
 	return port
 }

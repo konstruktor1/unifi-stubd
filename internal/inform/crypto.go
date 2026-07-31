@@ -30,9 +30,15 @@ func decryptPayload(packet *Packet, body []byte, key []byte, header []byte) ([]b
 // decryptGCMPayload authenticates the TNBU header as associated data, matching
 // the AES-GCM inform response shape used by newer controllers.
 func decryptGCMPayload(block cipher.Block, nonce []byte, body []byte, header []byte) ([]byte, error) {
-	aead, err := cipher.NewGCMWithNonceSize(block, len(nonce))
+	if len(header) != informHeaderBytes {
+		return nil, fmt.Errorf("AES-GCM additional data must be the complete %d-byte TNBU header", informHeaderBytes)
+	}
+	if len(body) < GCMTagSize {
+		return nil, fmt.Errorf("AES-GCM payload is shorter than its %d-byte authentication tag", GCMTagSize)
+	}
+	aead, err := newInformGCM(block, nonce)
 	if err != nil {
-		return nil, fmt.Errorf("create AES-GCM cipher: %w", err)
+		return nil, err
 	}
 	out, err := aead.Open(nil, nonce, body, header)
 	if err != nil {
@@ -41,10 +47,32 @@ func decryptGCMPayload(block cipher.Block, nonce []byte, body []byte, header []b
 	return out, nil
 }
 
+// newInformGCM binds both codec directions to the exact TNBU GCM envelope
+// instead of inheriting the conventional library nonce size.
+func newInformGCM(block cipher.Block, nonce []byte) (cipher.AEAD, error) {
+	if len(nonce) != GCMNonceSize {
+		return nil, fmt.Errorf("AES-GCM nonce must be exactly %d bytes", GCMNonceSize)
+	}
+	aead, err := cipher.NewGCMWithNonceSize(block, GCMNonceSize)
+	if err != nil {
+		return nil, fmt.Errorf("create AES-GCM cipher: %w", err)
+	}
+	if aead.NonceSize() != GCMNonceSize || aead.Overhead() != GCMTagSize {
+		return nil, fmt.Errorf(
+			"AES-GCM parameters are nonce=%d tag=%d; want nonce=%d tag=%d",
+			aead.NonceSize(),
+			aead.Overhead(),
+			GCMNonceSize,
+			GCMTagSize,
+		)
+	}
+	return aead, nil
+}
+
 // decryptCBCPayload handles the legacy AES-CBC inform body format.
 func decryptCBCPayload(block cipher.Block, iv []byte, body []byte) ([]byte, error) {
-	if len(body)%aes.BlockSize != 0 {
-		return nil, fmt.Errorf("CBC payload is not block aligned")
+	if len(body) == 0 || len(body)%aes.BlockSize != 0 {
+		return nil, fmt.Errorf("AES-CBC payload is empty or not block aligned")
 	}
 	cipher.NewCBCDecrypter(block, iv).CryptBlocks(body, body)
 	out, err := pkcs7Unpad(body, aes.BlockSize)

@@ -18,7 +18,7 @@ Die Pipeline ist getrennt in:
 
 - `CI`: Validierung, Vulnerability Scan, SBOM und ein `main`-only Linux-
   Package-Smoke, vollstaendig auf GitHub-hosted Ubuntu.
-- `Tier 2 Docker Integration`: manuell gestarteter Controller-Adoption-Gate auf
+- `Controller Integration`: manuell gestarteter Controller-Adoption-Gate auf
   dem vertrauenswuerdigen Docker-Lab-Runner, unabhaengig von `CI`.
 - `Package Repositories`: Release-Paket- und persistenter SBOM-Build,
   GitHub-Pre-Release-Artefakte sowie Pages-Deployment fuer die Linux-first
@@ -35,7 +35,7 @@ Die Pipeline ist getrennt in:
 | --- | --- | --- | --- | --- | --- | --- |
 | `make build` | Aktueller von GitHub unterstuetzter Go-1.25-Patch | `go build ./...` | Lokale Binaries im Go-Buildcache | Host OS/Arch | Lokal oder GitHub Ubuntu | Definiert, kein Upload |
 | `make check` | Go 1.25, golangci-lint, Shell-Policy | `lint`, `validate-config`, `test` | Pass/fail Gate | Host OS/Arch | GitHub Ubuntu und lokal | Primaerer Pre-Merge-Gate |
-| `make coverage` | Go-1.25-Coverage-Instrumentierung | Externe Tests unter `tests/...` mit allen produktiven `internal/...`-Paketen | `dist/cover.out`, `dist/coverage.html` und ein Mindest-Gate von 60 Prozent | Host OS/Arch | GitHub Ubuntu und lokal | CI-Qualitaets-Gate |
+| `make coverage` | Go-1.25-Coverage-Instrumentierung | Externe Tests unter `tests/...` mit allen produktiven `internal/...`-Paketen | Diagnostische Dateien `dist/cover.out` und `dist/coverage.html`; keine numerische Merge-Schwelle | Host OS/Arch | GitHub Ubuntu und lokal | Diagnostischer CI-Report |
 | `make vulncheck` | Go 1.25 `govulncheck` | `govulncheck ./...` | Pass/fail Gate | Host OS/Arch | GitHub Ubuntu | CI-Security-Gate |
 | `make build-freebsd` | Go 1.25 Cross-Compile | `cmd/unifi-stubd` | `dist/unifi-stubd_freebsd_<arch>` | FreeBSD `PKG_FREEBSD_GOARCH` | Lokal | Lokales Diagnoseziel, kein Release-CI |
 | `make package` | Go 1.25 plus nFPM | `scripts/package.sh` | `.deb`, `.rpm`, Arch-Paket, Linux-`.tar.gz` | Linux `amd64` oder `arm64` | GitHub Ubuntu | Release-Paketpfad |
@@ -46,14 +46,14 @@ Die Pipeline ist getrennt in:
 | `make package-freebsd-tgz` | Go Cross-Compile plus tar | `scripts/package.sh tgz` | FreeBSD-Tarball | FreeBSD `amd64` oder `arm64` | Lokal | Definiert, nicht Release-Workflow |
 | `make package-freebsd-pkg-repos` | Go auf FreeBSD-Builder, FreeBSD `pkg`, tar | `scripts/package-freebsd-pkg-repos.sh` | Native FreeBSD-`pkg`-Repos und FreeBSD-Tarballs | `FreeBSD:14/15` fuer `amd64`, `aarch64`, `armv7`; Tarballs default `amd64`, `arm64` | Manueller containerisierter GitHub-Actions-Runner; optional gemappte `jexec`-Jails | FreeBSD-Packaging-Pfad |
 | `make package-repos` | dpkg, createrepo-c, repo-add, tar | `scripts/build-package-repos.sh` | Statische Paketquellen-Seite | Paketmetadaten fuer vorhandene Ziele | GitHub Ubuntu | Linux-first oder kombinierter GitHub-Pages-Input |
-| `make integration-docker` | Docker Compose, gepinntes UniFi Network und Go-Helfer | `lab/stub/scripts/run-docker-integration.sh` | Tier-2-Controller-Adoption-Gate | Linux-Container-Lab | Lokal oder manueller GitHub-Actions-Dispatch | Im eigenstaendigen Tier-2-Workflow definiert |
-| Root `Dockerfile` | Docker BuildKit, Go, Alpine | `Dockerfile` | Runtime-/Lab-Image mit Daemon und Inform-/Discovery-Proxy | Linux multi-arch-faehig | Lokal/manuell | Kein Publish-Ziel definiert |
+| `make integration-nonunifi-metrics` | Build-Runner-Controller-Instanz mit Docker CLI/Compose und typisiertem Docker-API-Zugriff | Aktuelles Stable und RC aufloesen und dasselbe Produktimage in beiden wegwerfbaren Spuren pruefen | US8-Adoption, Verbindung und echte Metriken | Linux-Container-Lab | Build Runner lokal oder per manuellem GitHub-Actions-Dispatch | Im eigenstaendigen Controller-Workflow definiert |
+| Root `Dockerfile` | Docker BuildKit, Go, Alpine | `Dockerfile` | Produkt-Runtime-Image nur mit dem Daemon | Linux multi-arch-faehig | Lokal/manuell | Kein Publish-Ziel definiert |
 
 Offene Build-Zieldefinitionen:
 
 - Keine macOS- oder Windows-Buildziele sind definiert.
-- Kein Top-Level-`tools/`-Verzeichnis existiert; Helfer liegen unter
-  `lab/stub/tools/` und in Lab-Profilen.
+- Kein Top-Level-`tools/`-Verzeichnis existiert; Core-Integrationshelfer liegen
+  unter `lab/stub/tools/`. Tier-3-Tooling gehoert zu `unifi-stubd-labs`.
 - Kein CI-Buildcontainer und kein GitHub-Container-Registry-Publishpfad sind
   definiert.
 
@@ -82,7 +82,7 @@ Der Job liest den zentralen Wert aus `VERSION`, baut Linux-Pakete, installiert
 das Debian-Paket einmal, validiert die installierte Config und laedt
 `dist/packages/` fuer sieben Tage hoch.
 
-### `Tier 2 Docker Integration`
+### `Controller Integration`
 
 | Bereich | Aktueller Wert |
 | --- | --- |
@@ -91,17 +91,18 @@ das Debian-Paket einmal, validiert die installierte Config und laedt
 | Rechte | `contents: read` |
 | Job | `controller-adoption` |
 | Runner | `[self-hosted, Linux, X64, docker-dmz, docker-engine, unifi-stubd]` |
-| Befehl | `make integration-docker` |
-| State-Grenze | Frisches Compose-Projekt und Volumes vor dem Lauf; bedingungsloser Teardown danach |
+| Befehl | `make integration-nonunifi-metrics` |
+| Ausfuehrungsgrenze | Das Make-Ziel delegiert ausschliesslich an die eingecheckte Build-Runner-Instanz; keine Workflow-lokale Go- oder Docker-Toolchain |
 | Artefakte | Keine; Captures und Controller-State werden nie hochgeladen |
 | Concurrency | Eine Gruppe `unifi-stubd-tier2-docker`, kein Cancel-in-progress |
 
-Der Runner-Preflight prueft Linux/X64, Go, Docker-Daemon-Zugriff, Docker Compose
-v2, sichtbare Ressourcen und die kombinierte Lab-Konfiguration. Der Workflow
-verwendet das gepinnte Controller-Image `10.4.57-ls135`, schreibt bereinigte
-Laufevidenz in die Job-Zusammenfassung und hat keine Abhaengigkeit von oder
-Trigger durch den normalen `CI`-Workflow, Package-Workflows, Pull Requests,
-Pushes oder Zeitplaene.
+Der Workflow-Preflight verlangt den konfigurierten Build-Runner-Provider. Die
+eingecheckte Consumer-Instanz validiert Go, Docker-Client/-Server, Compose und
+Buildx, bevor sie die Lab-Nutzlast ausfuehrt. Der Workflow loest zu Laufbeginn
+das neueste veroeffentlichte Stable und den neuesten veroeffentlichten Release
+Candidate auf und hat keine Abhaengigkeit von oder Trigger durch den
+normalen `CI`-Workflow, Package-Workflows, Pull Requests, Pushes oder
+Zeitplaene.
 
 ### `FreeBSD Packaging`
 
@@ -235,8 +236,9 @@ Der BSD-Builder muss bereitstellen:
 
 Container sind nur fuer Runtime und Lab definiert:
 
-- Root-`Dockerfile`: Daemon und Inform-/Discovery-Proxy im Alpine-Runtime-Image.
-- Lab-Gateway-Profil-Dockerfiles: Firmware- und Controller-Lab-Research-Pfade.
+- Root-`Dockerfile`: nur der Daemon im Alpine-Produktimage.
+- Lab-Dockerfiles bauen Controller-API-Leser und dynamisch aufgeloeste
+  wegwerfbare Controllerimages getrennt.
 - Kein CI-Buildcontainer, kein GHCR-Image, kein Container-Release definiert.
 
 ## Packaging und Bereitstellung
@@ -264,7 +266,7 @@ Container sind nur fuer Runtime und Lab definiert:
   deployen die Linux-first Pages-Paketquellen.
 - Manueller Dispatch von `main` baut die Pages-Paketquellen neu, ohne einen
   neuen GitHub-Release zu erstellen.
-- Ein manueller Dispatch von `Tier 2 Docker Integration` prueft nur den
+- Ein manueller Dispatch von `Controller Integration` prueft nur den
   ausgewaehlten Ref und startet oder veraendert weder `CI` noch Package-
   Veroeffentlichung, Branch-Regeln oder Required Checks.
 - Ein manueller Dispatch von `FreeBSD Packaging` mit `publish=false`

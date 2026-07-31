@@ -26,7 +26,7 @@ go run ./cmd/unifi-stubd -validate -config packaging/linux/etc/unifi-stubd/confi
 Danach Payload ohne Netzwerk-Nebenwirkungen inspizieren:
 
 ```sh
-go run ./cmd/unifi-stubd -dry-run -no-discovery
+go run ./cmd/unifi-stubd -profile us8 -dry-run -no-discovery
 ```
 
 ## Operation-Mode-Auswahl
@@ -50,23 +50,19 @@ Minimalform:
 
 ```yaml
 operation_mode: bridge-observe
-profile: us48p500
+profile: us8
 mac: auto
 bridge_observe:
   bridge: vmbr0
   uplink_interface: eno1
-uplink_port: 49
-uplink_neighbor:
-  mac: 02:00:5e:00:53:01
-  vlan: 1
-  type: usw
 ```
 
 Regeln:
 
 - VM-/Container-Member als Access-Ports mappen;
 - physisches Upstream-Interface als Uplink mappen;
-- `uplink_port` explizit setzen, wenn der echte Link SFP/SFP+ ist;
+- ein groesseres Profil und dessen `uplink_port` nur dann explizit waehlen,
+  wenn diese dargestellte Geraeteform beabsichtigt ist;
 - fuer Darstellungs-Tests synthetische lokal administrierte Stub-MAC bevorzugen;
 - physische Host-MAC nur nutzen, wenn das Controller-Verhalten mit dieser
   echten MAC getestet wird.
@@ -76,6 +72,7 @@ Regeln:
 `port-map` nutzen, wenn jeder dargestellte Port eine bewusste Quelle hat:
 
 ```yaml
+profile: us8
 operation_mode: port-map
 port_mappings:
   - port: 1

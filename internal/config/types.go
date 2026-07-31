@@ -6,7 +6,7 @@ type Config struct {
 	OperationMode string `yaml:"operation_mode"`
 	// ControllerURL is the UniFi inform endpoint.
 	ControllerURL string `yaml:"controller_url"`
-	// Profile selects the device profile to emulate.
+	// Profile explicitly selects the device profile to emulate.
 	Profile string `yaml:"profile"`
 	// ProfileFile loads one external device profile YAML file.
 	ProfileFile string `yaml:"profile_file"`
@@ -74,7 +74,7 @@ type Config struct {
 	ControllerIntervalMinSeconds int `yaml:"controller_interval_min_seconds"`
 	// ControllerIntervalMaxSeconds bounds controller heartbeat hints from above.
 	ControllerIntervalMaxSeconds int `yaml:"controller_interval_max_seconds"`
-	// InformBackoffMaxSeconds caps transport-failure retry delays.
+	// InformBackoffMaxSeconds caps failed-heartbeat retry delays.
 	InformBackoffMaxSeconds int `yaml:"inform_backoff_max_seconds"`
 	// InformBackoffJitterPercent randomizes retry delays to avoid synchronized retries.
 	InformBackoffJitterPercent int `yaml:"inform_backoff_jitter_percent"`

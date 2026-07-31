@@ -87,43 +87,6 @@ func gatewayLANConfigPort(ports []PortView) (PortView, bool) {
 	return PortView{}, false
 }
 
-// gatewayWANStatus renders live WAN-like state from the same resolved port
-// view used by the gateway interface tables.
-func gatewayWANStatus(ports []PortView, role string, uptime int) *gatewayWANStatusRow {
-	for _, view := range gatewayRoleCandidates(ports, role) {
-		if gatewayPortRole(view.Port) != role {
-			continue
-		}
-		iface := view.GatewayInterface
-		health := wanHealth(view, uptime)
-		row := gatewayWANStatusRow{
-			Type:               payloadTypeDHCP,
-			Name:               iface.NetworkGroup,
-			IfName:             iface.IfName,
-			PortIdx:            view.Index,
-			NetworkGroup:       iface.NetworkGroup,
-			Role:               view.Role,
-			MAC:                iface.MAC,
-			IP:                 iface.IP,
-			Netmask:            iface.Netmask,
-			IPv6:               cloneIPv6(iface.IPv6),
-			Address:            iface.Address,
-			Up:                 view.Up,
-			Enable:             view.Enabled,
-			Uptime:             uptime,
-			Latency:            health.latencyMS,
-			UplinkIfName:       iface.IfName,
-			linkFields:         portLinkFields(view.Speed, view.Media),
-			counterFields:      portCounterFields(view.Port),
-			optionalRateFields: explicitPortRateFields(view.Port),
-			gatewayRateFields:  gatewayPortRateFields(view.Port),
-			SourceInterface:    view.SourceInterface,
-		}
-		return &row
-	}
-	return nil
-}
-
 func gatewayTrafficSummaryFor(ports []PortView, role string) gatewayTrafficSummary {
 	for _, view := range gatewayRoleCandidates(ports, role) {
 		if gatewayPortRole(view.Port) != role {
@@ -133,14 +96,19 @@ func gatewayTrafficSummaryFor(ports []PortView, role string) gatewayTrafficSumma
 		// Gateway root counters follow the controller summary convention.
 		// Per-port rows keep interface-local RX/TX direction; the root summary
 		// is WAN-facing and therefore uses the opposite direction.
-		out := gatewayTrafficSummary{
-			Bytes:   port.RXBytes + port.TXBytes,
-			RXBytes: port.TXBytes,
-			TXBytes: port.RXBytes,
+		out := gatewayTrafficSummary{}
+		if port.CountersSet {
+			out.Bytes = int64Ref(port.RXBytes + port.TXBytes)
+			out.RXBytes = int64Ref(port.TXBytes)
+			out.TXBytes = int64Ref(port.RXBytes)
 		}
-		if port.TrafficRatesSet || port.TrafficRatesEnabled {
-			rxByteRate := port.TXBytesRate
-			txByteRate := port.RXBytesRate
+		if port.TrafficRatesSet {
+			rxByteRate := int64(0)
+			txByteRate := int64(0)
+			if view.Up {
+				rxByteRate = port.TXBytesRate
+				txByteRate = port.RXBytesRate
+			}
 			out.BytesRate = int64Ref(rxByteRate + txByteRate)
 			out.RXBytesRate = int64Ref(rxByteRate)
 			out.TXBytesRate = int64Ref(txByteRate)

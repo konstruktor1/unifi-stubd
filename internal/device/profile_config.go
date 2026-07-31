@@ -14,6 +14,8 @@ const (
 	stabilityTested        = "tested"
 	stabilityExternal      = "external"
 	defaultRequiredVersion = "5.0.0"
+	defaultSwitchVersion   = "7.4.1.16850"
+	defaultGatewayVersion  = "5.0.16.30689"
 	defaultMgmtInterface   = "eth0"
 	defaultGatewayPrefix   = "eth"
 )

@@ -14,8 +14,8 @@ import (
 
 // printLocalStatus renders the sanitized status document in either machine JSON
 // or the line-oriented human format used by lab scripts.
-func printLocalStatus(flags runtimeFlags, profile device.Profile, mac net.HardwareAddr, ip net.IP, hostname string, portBuildOptions device.PortBuildOptions, plt platform.Platform) error {
-	status := buildLocalStatus(flags, profile, mac, ip, hostname, portBuildOptions, plt)
+func printLocalStatus(flags runtimeFlags, profile device.Profile, informSchedulePolicy device.InformSchedulePolicy, reportingPolicy device.ControllerReportingPolicy, mac net.HardwareAddr, ip net.IP, hostname string, portBuildOptions device.PortBuildOptions, plt platform.Platform) error {
+	status := buildLocalStatus(flags, profile, informSchedulePolicy, reportingPolicy, mac, ip, hostname, portBuildOptions, plt)
 	if flags.statusJSON {
 		data, err := json.MarshalIndent(status, "", "  ")
 		if err != nil {

@@ -16,7 +16,7 @@ func buildGatewayPayload(base basePayload, profile device.Profile, id device.Ide
 	configWAN, _ := gatewayConfigNetwork(ports, gatewayPortRoleWAN)
 	configWAN2, hasWAN2 := gatewayConfigNetwork(ports, gatewayPortRoleWAN2)
 	configLAN, hasLAN := gatewayConfigLAN(ports)
-	telemetry := newGatewayTelemetry(id, now, uptime, base.CFGVersion)
+	telemetry := newGatewayTelemetry(profile, id, now, uptime, base.CFGVersion)
 	telemetry.LLDPTable = lldpTable(ports)
 	payload := gatewayPayload{
 		basePayload:      base,
@@ -25,29 +25,23 @@ func buildGatewayPayload(base basePayload, profile device.Profile, id device.Ide
 			ports,
 			gatewayPortRoleWAN,
 		),
-		IfTable:           gatewayIfTable(profile, id, ports, now, uptime),
-		NetworkTable:      gatewayNetworkTable(profile, id, ports, uptime),
-		ConfigPortTable:   gatewayConfigPortTable(ports, uptime),
+		IfTable:           gatewayIfTable(id, ports),
+		NetworkTable:      gatewayNetworkTable(ports),
+		ConfigPortTable:   gatewayConfigPortTable(ports),
 		EthernetTable:     gatewayEthernetTable(ports),
-		EthernetOverrides: gatewayEthernetOverrides(ports, uptime),
-		PortTable:         gatewayPortTable(ports, uptime),
+		EthernetOverrides: gatewayEthernetOverrides(ports),
+		PortTable:         gatewayPortTable(ports, id.GatewayMACIPv6Requested),
 		PortStats:         gatewayPortStatsTable(ports),
-		ReportedNetworks:  gatewayReportedNetworks(ports, uptime),
+		ReportedNetworks:  gatewayReportedNetworks(ports),
 		Wans:              gatewayWans(ports),
 		Uplink:            gatewayUplinkInterfaceName(profile, ports),
-		UplinkTable:       gatewayUplinkTable(profile, id, ports, now, uptime),
-		UptimeStats:       wanUptimeStats(ports, uptime),
-		InternetHealth:    gatewayInternetHealth(ports, uptime),
-		LastWANStatus:     gatewayLastWANStatus(ports, uptime),
+		UplinkTable:       gatewayUplinkTable(id, ports),
 		LastWANIP:         gatewayLastWANIP(ports),
 		LANIP:             gatewayLANIP(configLAN, hasLAN),
 		HasEth1:           gatewayHasEth1(ports),
 		HasDPI:            profile.Payload.HasDPI,
 		ConfigNetworkWAN:  configWAN,
-		WAN1:              gatewayWANStatus(ports, gatewayPortRoleWAN, uptime),
-		WAN2:              gatewayWANStatus(ports, gatewayPortRoleWAN2, uptime),
 	}
-	payload.SpeedtestStatus = gatewaySpeedtestStatusFor(ports, now, uptime)
 	if hasLAN {
 		payload.ConfigNetworkLAN = &configLAN
 	}

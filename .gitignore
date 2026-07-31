@@ -1,7 +1,6 @@
-# Project-local build output, captures, and firmware research artifacts.
+# Project-local build and Tier 2 test output.
 
 .DS_Store
-.utm-build/
 bin/
 dist/
 __pycache__/
@@ -11,27 +10,11 @@ coverage.out
 *.log
 /unifi-stubd
 
-# Firmware research inputs and extracted vendor artifacts are large and may be
-# proprietary. Keep only notes, manifests, and own helper source in Git.
-research/firmware/**/artifacts/
-research/firmware/**/*.bin
-research/firmware/**/*.img
-research/firmware/**/*.sqfs
-research/firmware/**/*.squashfs
-research/firmware/**/rootfs/
-research/firmware/**/.env
-research/firmware/**/*.env
-research/firmware/**/controller-data/
-research/firmware/**/captures/
-lab/captures/
-lab/gateway-profiles/**/artifacts/
-lab/gateway-profiles/**/rootfs/
-lab/gateway-profiles/**/captures/
-lab/gateway-profiles/**/controller-data/
-lab/gateway-profiles/**/.env
-lab/gateway-profiles/**/*.env
-!lab/gateway-profiles/udm-pro-se-vm/utm/defaults.env
+# The core repository keeps only the disposable Tier 2 Docker lab. Firmware,
+# VM, and other Tier 3 data belongs to the companion project unifi-stubd-labs.
+lab/stub/captures/
 
 # Generated checkout-local Build Runner release acknowledgement.
 /build-runner/provider-ack.json
 /build-runner/runtime/
+/code-checker/provider-ack.json

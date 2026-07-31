@@ -21,7 +21,7 @@ func networkRuntimeSettings() []runtimeSetting {
 			func(flags *runtimeFlags) *time.Duration { return &flags.controllerIntervalMax },
 			func(cfg *appconfig.Config) *int { return &cfg.ControllerIntervalMaxSeconds },
 		),
-		secondsDurationSetting("inform-backoff-max", "maximum inform transport-failure retry delay",
+		secondsDurationSetting("inform-backoff-max", "maximum failed-heartbeat retry delay",
 			func(flags *runtimeFlags) *time.Duration { return &flags.informBackoffMax },
 			func(cfg *appconfig.Config) *int { return &cfg.InformBackoffMaxSeconds },
 		),

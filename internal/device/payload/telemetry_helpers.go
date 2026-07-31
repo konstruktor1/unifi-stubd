@@ -3,8 +3,9 @@ package payload
 import (
 	"fmt"
 	"net"
-	"time"
 )
+
+const gatewayIdleSpeedtestEvidenceID = "DT-001"
 
 // formatUptime mirrors compact firmware-style uptime text for gateway status
 // blocks.
@@ -53,29 +54,6 @@ func gatewaySpeedtestStatus() speedtestStatusPayload {
 		XputDownload:   0.0,
 		XputUpload:     0.0,
 	}
-}
-
-func gatewaySpeedtestStatusFor(ports []PortView, now time.Time, uptime int) speedtestStatusPayload {
-	status := gatewaySpeedtestStatus()
-	for _, view := range gatewayRoleCandidates(ports, gatewayPortRoleWAN) {
-		if gatewayPortRole(view.Port) != gatewayPortRoleWAN {
-			continue
-		}
-		health := wanHealth(view, uptime)
-		if !health.connected {
-			return status
-		}
-		status.Latency = health.latencyMS
-		status.RunDate = int(now.Unix())
-		status.Runtime = 1
-		status.SourceIf = view.GatewayInterface.IfName
-		status.StatusDownload = 2
-		status.StatusPing = 2
-		status.StatusSummary = 2
-		status.StatusUpload = 2
-		return status
-	}
-	return status
 }
 
 // gatewaySysID derives a stable numeric system ID from the device MAC.

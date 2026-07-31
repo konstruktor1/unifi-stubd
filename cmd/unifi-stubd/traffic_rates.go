@@ -20,7 +20,7 @@ func applyTrafficRates(ports []device.Port, tracker *observe.TrafficRateTracker,
 		port := &out[index]
 		port.TrafficRatesEnabled = true
 		key := trafficRateKey(*port)
-		if key == "" {
+		if key == "" || !port.CountersSet {
 			continue
 		}
 		rates := tracker.Rates(now, key, observe.InterfaceStats{
@@ -31,6 +31,9 @@ func applyTrafficRates(ports []device.Port, tracker *observe.TrafficRateTracker,
 			RXErrors:  port.RXErrors,
 			TXErrors:  port.TXErrors,
 		}, port.Up)
+		if !rates.Set {
+			continue
+		}
 		port.RXBytesRate = rates.RXBytesRate
 		port.TXBytesRate = rates.TXBytesRate
 		port.TrafficRatesSet = true

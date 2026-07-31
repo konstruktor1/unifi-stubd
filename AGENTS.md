@@ -51,8 +51,8 @@ PROJECT_NAME=unifi-stubd
 "$BUILD_RUNNER_DIR/build-runner" --project-name "$PROJECT_NAME" run --tier 1 --service go -- make package
 ```
 
-The Docker-lab Make target is a runner-aware consumer entry point. On the
-host, `make integration-docker` delegates to the committed Build Runner
+The product gate has one runner-aware consumer entry point. On the host,
+`make integration-nonunifi-metrics` delegates to the committed Build Runner
 instance manifest; inside the canonical runner workspace it executes the lab
 payload. Do not invoke
 `lab/stub/scripts/run-docker-integration.sh` directly on the host. The payload
@@ -76,10 +76,34 @@ are acknowledged, reread the current contract immediately before every runner
 invocation and warn the user that the provider identity is pending. Treat the
 provider checkout as read-only from this consumer project.
 
-The approved provider identity for this checkout is Build Runner `6.5.0` at
-commit `bebaccba4797c9e1e51fd0101253b6eb5b47947e`. Read the regular checked-out
+The adopted provider identity for this checkout is Build Runner `6.9.1` at
+commit `0e52df6641a073a93fd225b23c6164cc75050a33`. Release adoption is automatic;
+the old acknowledgement file is not provider identity. Read the regular checked-out
 provider contract; the former 6.1.3 Git-object reading exception is revoked.
 Do not modify the provider checkout.
+
+Build Runner and Code Checker are independent providers of equal standing for
+this consumer. Build Runner supplies execution environments; Code Checker
+supplies code checking and Anti-Bloat. An unqualified request to check the
+provider means checking both provider relationships independently. Bind Code
+Checker explicitly with `CODE_CHECKER_DIR`, follow its own usage instructions,
+and keep its configuration and results consumer-owned. Neither provider adopts,
+discovers, or replaces the other.
+Passing the read-only Code Checker checkout into a Build Runner artifact with
+`BUILD_RUNNER_HOST_PATH_CODE_CHECKER_SOURCE="$CODE_CHECKER_DIR"` is transport
+only; it does not merge provider identity, authority, or ownership.
+
+The adopted Code Checker provider identity is `0.7.4` at commit
+`601024cdbd80f844270e28b375f920ca4fc71058`; its release selection is automatic.
+Its function IDs are `code-checker-check` and `code-checker-antibloat`.
+Before use, run its project-bound release status and read the contract,
+operational guide, and named release note from the exact reported Git object.
+`code-checker.toml` subscribes this consumer to Anti-Bloat. `make code-checker`
+runs the Go- and Bash-aware gate through the Build Runner environment;
+`make anti-bloat-changed` and `make anti-bloat-full` request the canonical
+scope instruction. A plan alone is not cleanup or quality evidence: the agent
+must resolve the consumer-owned scope, apply the policy, and run executable
+product gates.
 
 The direct QEMU manager in the `unifi-stubd-labs` companion repository remains
 an external-machine compatibility path for test/lab lifecycle. Its wrapper
@@ -116,6 +140,27 @@ The repository uses:
 - `packaging/nfpm.yaml`: Debian, RPM, and Arch Linux package metadata.
 - `scripts/`: policy and packaging scripts.
 - `docs/en/` and `docs/de/`: user-facing docs in English and German.
+- `lab/stub/`: the only lab runtime kept in this core repository; firmware
+  research, QEMU/VM runtimes, and other Tier 3 assets belong to the companion
+  project `unifi-stubd-labs`.
+
+## Companion Data And Tier 3 Test Machines
+
+- On this workstation, the project-owned companion data root is
+  `/Volumes/ssd/unifi-stubd-data/`. Treat it as part of the overall
+  `unifi-stubd` project context even though its contents stay outside this core
+  repository. The volume name is only a filesystem path; do not use "SSD" as
+  project terminology.
+- `/Volumes/ssd/unifi-stubd-data/tier3/machines/` contains the binding test
+  machines for controller-backed product tests. Use these test hosts when a
+  test requires a controller; do not substitute a core `lab/stub` fixture, a
+  generic runner host, or a production controller.
+- `/Volumes/ssd/unifi-stubd-data/tier3/artifacts/` and
+  `/Volumes/ssd/unifi-stubd-data/tier3/migration/` contain machine artifacts
+  and migrations. They are not the authoritative test-machine inventory.
+- Before Tier 3 work, read the companion runner documentation and the machine
+  definitions under `tier3/machines/`; do not reconstruct their roles from
+  memory.
 
 ## Coding Rules
 
@@ -124,6 +169,9 @@ The repository uses:
 - Keep user-facing docs in English and German when the change affects users.
 - Keep tests under `tests/`, grouped by package behavior.
 - Keep generated artifacts under `dist/` out of commits.
+- Keep firmware images, VM disks, extracted firmware trees, and Tier 3 runtime
+  state out of this core repository. They belong to `unifi-stubd-labs` and its
+  separately managed data storage.
 - Do not commit PCAPs, adoption keys, controller API tokens, private controller
   URLs, real lab addresses, SSH host keys, MAC tables, or client data.
 - Use documentation example addresses such as `192.0.2.0/24` instead of real

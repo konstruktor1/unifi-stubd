@@ -1,25 +1,23 @@
 # Betriebsmodi
 
 `unifi-stubd` zielt zuerst auf Linux-Lab-Hosts, also Proxmox, Alpine und
-UTM-Linux-VMs. FreeBSD/OPNsense wird konservativ ueber Stub-Modus,
-explizites `port-map`, Bridge-FDB-Parsing und read-only Syslog-Metadaten
-unterstuetzt.
+UTM-Linux-VMs. Der abgenommene Produktscope ist ein `US8` auf einer
+Linux-Bridge. FreeBSD/OPNsense und jedes andere Profil bleiben experimentelle
+Pfade, die eine eigene Produktentscheidung und Evidence brauchen.
 
-## Aktuell validierter Stand
+## Aktueller Produktschnitt
 
-Das validierte Live-Lab-Geraet ist:
+Der aktuelle controller-datenpfadqualifizierte Weg ist:
 
-- Host: `192.0.2.151`
-- Profil: `usaggpro`
-- Controller-Modell: `USAGGPRO` / `USW Pro Aggregation`
-- MAC: `02:00:5e:00:53:51`
-- Controller-State: online und adopted
-- Ports: 28 10G-SFP+-Ports und vier 25G-SFP28-Ports
-- Uplink: Port 1 durch Live-Override `uplink_port`; Profil-Default ist Port 29
+- Profil `us8`;
+- `operation_mode: bridge-observe` auf Linux;
+- eine explizit benannte Bridge und echte lokale Metrikquelle;
+- vor Adoption sichtbar, adoptierbar, verbunden und mit echten Link-, Speed-,
+  Counter- und Ratenwerten auf aktuellem Stable und Release Candidate.
 
-`USAGGPRO` ist aktuell das validierte grosse 10G-Profil. `USWProXG48` bleibt
-experimentell, weil der aktuelle Lab-Controller es nicht als bekanntes Pending-
-Adoption-Modell angenommen hat.
+Direkte UI-Beobachtung, installierter Dienst und Betreiberpfad bleiben offen.
+Die Profile unten beschreiben implementierte experimentelle Identitaeten; sie
+erweitern den abgenommenen Produktscope nicht.
 
 `UGW3` ist als experimentelles Gateway-Identitaetsprofil verfuegbar. Es meldet
 das Legacy-UniFi-Security-Gateway-Modell und drei 1G-Ports, bleibt aber
@@ -66,7 +64,7 @@ Host-Netzwerk verstanden werden.
 
 Default-Modus. Der Dienst sendet Discovery- und Inform-Payloads nur aus den
 Profildaten. Er liest keinen Host-Bridge-State und aendert kein Host-Netzwerk.
-Das ist der unterstuetzte FreeBSD-/OPNsense-Modus.
+Das ist die verfuegbare FreeBSD-/OPNsense-Basis, kein abgenommener Produktschnitt.
 
 ### `bridge-observe`
 
@@ -102,6 +100,7 @@ physischen oder Uplink-Port dargestellt werden.
 `bridge_observe.uplink_interface` und `bridge_observe.bridge` gelesen.
 
 ```yaml
+profile: us8
 operation_mode: bridge-observe
 bridge_observe:
   bridge: vmbr0
@@ -227,9 +226,10 @@ veraendern. Hostnamen werden nicht per DNS geraten; fuer deterministische Labels
 
 Gateway-Modelle melden beobachtete WAN-/LAN-Link-Fakten ueber `if_table`,
 `network_table`, eine read-only physische `port_table`, `config_port_table`,
-`ethernet_overrides`, `reported_networks`, `uplink`, `uplink_table` und `wan1`.
-WAN-aehnliche Ports melden zusaetzlich `uptime_stats`-Zeilen. Explizite
-Assignment-IDs, Netzwerknamen und VLAN-Metadaten aus
+`ethernet_overrides`, `reported_networks`, `uplink`, `uplink_table` und `wans`.
+Firmware-WAN-Health-Wrapper wie `wan1` und `uptime_stats` bleiben ohne ihre
+exakten device-originated Provider weg. Explizite Assignment-IDs,
+Netzwerknamen und VLAN-Metadaten aus
 `port_overrides` werden bei Konfiguration in den Gateway-Porttabellen
 gespiegelt. Client-Nachbarn werden ueber `network_table[].host_table` mit
 `hostname` und `ip` gemeldet, wenn diese konfiguriert sind; Upstream-Switch-
@@ -265,7 +265,7 @@ Stub kann ein Management- oder Transportnetz nutzen, um den Controller ueber
 Top-Level-Felder wie `ip`, `controller_url`, `discovery_interface` und
 `discovery_targets` zu erreichen. Daraus wird aber keine LAN- oder WAN-Adresse
 eines Gateway-Ports. Gateway-WAN/LAN-Zuordnung kommt aus Profilports plus
-`port_overrides`; eine Controller-Management-Adresse soll nicht in `wan1`,
+`port_overrides`; eine Controller-Management-Adresse soll nicht in
 `config_network_wan`, `config_network_lan`, `network_table` oder `port_table`
 auftauchen, ausser es ist explizit als Adresse dieses Gateway-Ports
 konfiguriert.
@@ -276,18 +276,17 @@ Ports ohne explizite Gateway-Rolle sind nur physische Inventur und erben keine
 LAN-IP. So entstehen keine zusaetzlichen LAN-/Gateway-Hinweise in Controller-Web
 oder Mobile-App.
 
-Fuer Gateway-Lab-Anzeigen sind `port_overrides[].wan_uptime_percent`,
-`wan_latency_ms`, `wan_downtime_seconds` und `wan_connected` nur deterministische
-Status-Hinweise. Damit kann der Controller ein konfiguriertes WAN/WAN2 als
-online, degradiert oder down sehen, ohne Routen anzulegen, Interfaces zu
-aendern oder Provisioning vom Controller anzunehmen.
+`port_overrides[].wan_uptime_percent`, `wan_latency_ms`,
+`wan_downtime_seconds` und `wan_connected` sind nur lokale Diagnose-Hinweise.
+Sie bleiben im lokalen Status sichtbar, werden dem Controller aber nicht als
+Firmware-WAN-Verfuegbarkeit, -Latenz, -Downtime oder -Konnektivitaet gemeldet.
 
 `wan_health` kann diese statischen WAN-Hinweise optional durch aktive,
 read-only Ping-Samples ersetzen, nachdem Profil-Ports, Beobachtungsdaten und
 `port_overrides` zusammengefuehrt wurden. Das gilt fuer Gateway-Profile in
-`stub`, `bridge-observe` und `port-map`; Switch-Profile rendern keine
-WAN-Health-Payload-Felder. Standard ist `off`, es laeuft also keine
-Netzwerkmessung ohne explizites Opt-in:
+`stub`, `bridge-observe` und `port-map`. Die Samples sind lokale Diagnosen und
+werden nicht auf Firmware-WAN-Health-Felder im Inform abgebildet. Standard ist
+`off`, es laeuft also keine Netzwerkmessung ohne explizites Opt-in:
 
 ```yaml
 wan_health:
@@ -299,29 +298,33 @@ wan_health:
       host: 192.0.2.1
 ```
 
-Ping-Ergebnisse setzen nur WAN-Telemetrie wie Connected-State, Latenz, Downtime
-und Uptime-Prozent. Der Dienst aendert weiterhin keine Host-Interfaces, Routen,
-VLANs, Firewall-Regeln oder Controller-Provisioning-Daten. Wenn ICMP blockiert
-ist oder das lokale `ping`-Binary fehlt, zeigen `-status` und `-status-json` den
-letzten Probe-Fehler statt automatisch etwas zu reparieren.
+Ping-Ergebnisse aktualisieren nur den lokalen WAN-Diagnosestatus. Der Dienst
+leitet aus einem einzelnen Ping weder Firmware-Verfuegbarkeit und -Downtime
+noch Speedtest-Ergebnisse ab und aendert weiterhin keine Host-Interfaces,
+Routen, VLANs, Firewall-Regeln oder Controller-Provisioning-Daten. Wenn ICMP
+blockiert ist oder das lokale `ping`-Binary fehlt, zeigen `-status` und
+`-status-json` den letzten Probe-Fehler statt automatisch etwas zu reparieren.
 Der Probe nutzt die normale Routing-Tabelle des Hosts. `targets[].port` waehlt
 nur den Gateway-Port, dessen Telemetrie aktualisiert wird; das ICMP-Paket wird
 nicht an `port_overrides[].interface` gebunden.
 
 `wan_health.source` kennt diese Werte:
 
-- `off`: WAN-Health bleibt inaktiv. Der Payload nutzt Link-State und explizite
-  `wan_*`-Hints, die bereits am Port konfiguriert sind.
+- `off`: WAN-Diagnose bleibt inaktiv.
 - `static`: dokumentiert, dass nur statische `port_overrides[].wan_*`-Werte
-  genutzt werden sollen. Es wird kein Kommando ausgefuehrt.
-- `ping`: fuehrt lokale read-only Pings fuer `targets[]` aus und ueberschreibt
-  danach nur WAN-Health-Felder am bereits aufgeloesten Port. Ziel-Ports muessen
-  nach `port_overrides` effektiv `wan` oder `wan2` sein.
+  fuer den lokalen Status genutzt werden sollen. Es wird kein Kommando
+  ausgefuehrt.
+- `ping`: fuehrt lokale read-only Pings fuer `targets[]` aus und aktualisiert
+  den lokalen Status des aufgeloesten Ports. Ziel-Ports muessen nach
+  `port_overrides` effektiv `wan` oder `wan2` sein.
 
-Provider- und ISP-Namen werden nicht geraten. Der Gateway-Payload kann
-`speedtest-status.latency` und erfolgsartige Statuswerte aus WAN-Health melden,
-fuehrt aber keinen UniFi-Speedtest-Dienst aus und befuellt weder
-`speedtest-status.server.provider` noch `isp_name` oder `isp_info`.
+Provider- und ISP-Namen werden nicht geraten, und WAN-Diagnosen werden nie zu
+einem erfolgreichen Speedtest umgedeutet. Nur das exakt gebundene eingebaute
+Profil `uxgpro` / `UXGPRO` / `5.0.16.30689` behaelt die in Device-Captures
+beobachteten leeren/idle
+`speedtest-status`- und `speedtest-status-udapi`-Bloecke. Andere Gateway-Profile
+lassen diese Bloecke weg, bis exakte Device-Belege und ein typisierter lokaler
+Provider vorhanden sind.
 
 Bei `UXGPRO` ist die Gateway-`port_table` physische Inventur plus optional
 explizit konfigurierte Zuweisungsmetadaten. Der Dienst legt weiterhin keine
@@ -368,6 +371,7 @@ Interface-Adressen, Linux-sysfs-Zaehlern/-Speed/-State, optionalen
 `/proc/net/dev`-Zaehlern und Best-Effort-Ausgaben von `ifconfig` und `netstat`.
 
 ```yaml
+profile: us8
 operation_mode: port-map
 port_mappings:
   - port: 1
@@ -434,11 +438,46 @@ ist per Default aus, damit bestehende Labs ihre bisherige Controller-Darstellung
 behalten. Quelle ist derselbe Interface-Counter-Pfad wie bei
 `port_overrides[].interface`, `port-map` und Bridge-Observation; Packet Capture,
 NetFlow/IPFIX, DPI oder Paket-/Error-Rate-Felder werden dadurch nicht aktiviert.
-Gateway-native `rx_rate`- und `tx_rate`-Felder werden als Bit/s-Durchsatz
-gerendert; `rx_bytes-r`, `tx_bytes-r` und `bytes-r` bleiben Byte/s-Zaehler.
+Gateway- und gemessene ausgewaehlte Switch-Uplink-Felder `rx_rate` und
+`tx_rate` werden als Bit/s-Durchsatz gerendert; `rx_bytes-r`, `tx_bytes-r` und
+`bytes-r` bleiben Byte/s-Raten.
 Die Runtime-Statusdatei schreibt die letzten bereinigten Inform-Traffic-Felder
 mit expliziten Byte/s- und Bit/s-Namen, damit Controller-Graphen gegen die
 Host-Interface-Zaehler verglichen werden koennen.
+
+Bei einem Switch beschreiben diese Controller-Spalten unterschiedliche Daten
+und duerfen nicht wie dieselbe Messung verglichen werden:
+
+- **Experience** ist der normalisierte Link-Speed des ausgewaehlten aktuellen
+  Uplinks (offline des letzten Uplinks), zum Beispiel `10 GbE`. Der Wert ist
+  weder momentaner Durchsatz noch ein Satisfaction-Score.
+- **Download** und **Upload** sind momentane Geraeteraten, die nur aus dem
+  ausgewaehlten Uplink kommen; dadurch werden Downstream-Ports nicht doppelt
+  gezaehlt. Der aktuelle Uplink behaelt die physische Richtung: RX ist Download
+  und TX ist Upload. Die Inform-Root-Summary nutzt dieselbe Quelle in
+  Controller-Summary-Richtung: Physisches RX ist Root-TX, physisches TX ist
+  Root-RX.
+- **24h Usage** ist das kumulative Abrechnungsfenster des Controllers, nicht
+  die aktuelle Transferrate.
+
+Die `*-r`-Felder verwenden Byte/s (`B/s`), `rx_rate` und `tx_rate` verwenden
+Bit/s. Die erste Counter-Probe, ein ruhender oder getrennter Link und ein
+Counter-Reset melden null, statt eine fruehere Rate stehen zu lassen. Traffic,
+der innerhalb
+einer Software-Bridge bleibt und das ausgewaehlte Uplink-Interface nicht
+durchlaeuft, kann nicht als Uplink-Traffic gemessen werden.
+
+Bei einem gemessenen Switch-Uplink werden kumulative Counter in das vom
+Top-Level-`uplink` ausgewaehlte Management-Interface gespiegelt. Gemessene
+Byte/s- und Bit/s-Raten stehen sowohl dort als auch am ausgewaehlten physischen
+Port. Dieser Pfad ist fuer die offizielle Latest-Statistics-Ausgabe von Network
+10.5 erforderlich; bei deaktivierter Messung werden keine Ratenfelder ergaenzt.
+
+Die controller-seitige Releaseabnahme loest das neueste veroeffentlichte Stable
+und den neuesten veroeffentlichten Release Candidate dynamisch auf und prueft
+dasselbe Produktimage in beiden wegwerfbaren Docker-Controller-Spuren. Der
+feste `10.4.57`-Pfad ist eine historische fokussierte Regression, kein
+Produkt-Pin. Keiner der Pfade veraendert die Main CI.
 
 `dbus_enabled: true` prueft nur optionale System- oder Session-D-Bus-
 Konnektivitaet. D-Bus ist fuer den normalen Stub-Betrieb nicht erforderlich.

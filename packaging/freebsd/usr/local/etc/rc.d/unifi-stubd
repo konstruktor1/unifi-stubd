@@ -1,4 +1,5 @@
 #!/bin/sh
+# shellcheck disable=SC1091,SC2034
 #
 # PROVIDE: unifi_stubd
 # REQUIRE: NETWORKING
@@ -28,11 +29,10 @@ command="/usr/sbin/daemon"
 command_args="-p ${pidfile} -o ${unifi_stubd_logfile} -t unifi-stubd ${procname} -config ${unifi_stubd_config}"
 start_precmd="unifi_stubd_prestart"
 
-unifi_stubd_prestart()
-{
-	install -d -m 0755 /usr/local/etc/unifi-stubd /var/db/unifi-stubd
-	touch "${unifi_stubd_logfile}"
-	chmod 0644 "${unifi_stubd_logfile}"
+unifi_stubd_prestart() {
+  install -d -m 0755 /usr/local/etc/unifi-stubd /var/db/unifi-stubd
+  touch "${unifi_stubd_logfile}"
+  chmod 0644 "${unifi_stubd_logfile}"
 }
 
 run_rc_command "$1"

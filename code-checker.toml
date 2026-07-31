@@ -1,0 +1,16 @@
+# Consumer-owned Code Checker configuration.
+schema_version = 1
+profile = "mandatory"
+languages = ["auto"]
+paradigms = []
+architectures = ["auto"]
+missing_tools = "fail"
+tool_resolution = "project-first"
+
+exclude = [
+  "build-runner/runtime/**",
+]
+
+[maintenance.anti_bloat]
+enabled = true
+cadence_days = 30

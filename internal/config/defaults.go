@@ -4,7 +4,6 @@ package config
 func Default() Config {
 	return Config{
 		OperationMode: "stub",
-		Profile:       "us16p150",
 		MAC:           automaticValue,
 		IP:            "192.168.1.50",
 		Hostname:      automaticValue,

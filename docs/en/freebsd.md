@@ -1,11 +1,11 @@
 # FreeBSD and OPNsense
 
-FreeBSD support is still conservative. The daemon can be cross-built and
-packaged with FreeBSD paths. Stub mode is the supported baseline; initial
-read-only observation helpers are present for bridge FDB parsing and explicit
-port-map interface metadata.
+FreeBSD support is an experimental, conservative package baseline outside the
+accepted product slice. The daemon can be cross-built and packaged with
+FreeBSD paths. Stub mode is implemented; initial read-only observation helpers
+are present for bridge FDB parsing and explicit port-map interface metadata.
 
-Supported in the FreeBSD package:
+Implemented in the experimental FreeBSD package:
 
 - `operation_mode: stub`
 - UniFi discovery and inform traffic
@@ -13,7 +13,7 @@ Supported in the FreeBSD package:
 - Static profile payloads, port overrides, uplink port override, and configured
   uplink neighbor entries
 - Optional `wan_health.source: ping` for gateway profiles. It runs local
-  read-only pings and reports only WAN telemetry.
+  read-only pings and reports only local WAN diagnostic status.
 - `operation_mode: port-map` for explicit read-only port states. Interface
   metadata is copied from existing OS interfaces when available.
 - FreeBSD bridge FDB parsing for `ifconfig <bridge> addr`
@@ -143,8 +143,8 @@ sha256 unifi-stubd_0.2.5-alpha-1_freebsd_${ARCH}.tar.gz
 tar -tzf unifi-stubd_0.2.5-alpha-1_freebsd_${ARCH}.tar.gz
 ```
 
-The `sha256` output should match the checksum entry. The tarball contains
-neutral defaults only. Review or replace
+The `sha256` output should match the checksum entry. The tarball contains a
+non-observing starter config that explicitly selects `US8`. Review or replace
 `/usr/local/etc/unifi-stubd/config.yaml` after extraction and before enabling
 the service.
 
@@ -245,11 +245,11 @@ wan_health:
 ```
 
 With `uxgpro`, physical port 3 is controller `ifname: eth2`; `ixl0` is only
-reported as `source_interface`. The ping source updates connectivity and
-latency telemetry, but it does not run a UniFi speed test, detect the ISP, or
+reported as `source_interface`. The ping source updates local connectivity and
+latency diagnostics, but it does not run a UniFi speed test, detect the ISP, or
 change OPNsense interfaces, routes, firewall rules, or VLANs. The ping follows
-the OPNsense host routing table; `targets[].port` selects which WAN telemetry
-row is updated, not which source interface the ICMP packet uses. The target port
+the OPNsense host routing table; `targets[].port` selects which local WAN
+diagnostic entry is updated, not which source interface the ICMP packet uses. The target port
 must be explicitly marked `role: wan` or `role: wan2` in `port_overrides`;
 profile defaults alone do not enable active probes.
 
@@ -283,10 +283,10 @@ unifi-stubd -status-json
 ```
 
 For the SFP WAN example above, the controller payload should show WAN on port 3
-with `ifname: eth2`, `source_interface: ixl0`, `uplink: eth2`, and WAN health
-latency/connectivity when ping succeeds. Host names such as `ixl0`, `igb0`, or
-`vtnet0` must not appear in controller `ifname` fields. Provider and ISP fields
-remain unset because automatic provider detection is not implemented.
+with `ifname: eth2`, `source_interface: ixl0`, and `uplink: eth2`. Successful
+ping diagnostics remain in local status and are not reported as firmware WAN
+latency/connectivity. Host names such as `ixl0`, `igb0`, or `vtnet0` must not
+appear in controller `ifname` fields. Provider and ISP fields remain unset.
 
 ## OPNsense API Source Generator
 

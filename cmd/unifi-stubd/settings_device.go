@@ -8,7 +8,7 @@ func deviceRuntimeSettings() []runtimeSetting {
 			func(flags *runtimeFlags) *string { return &flags.operationMode },
 			func(cfg *appconfig.Config) *string { return &cfg.OperationMode },
 		),
-		stringSetting("profile", "device profile to emulate; use -list-profiles to show options",
+		stringSetting("profile", "required device profile to emulate; use -list-profiles to show options",
 			func(flags *runtimeFlags) *string { return &flags.profileName },
 			func(cfg *appconfig.Config) *string { return &cfg.Profile },
 		),

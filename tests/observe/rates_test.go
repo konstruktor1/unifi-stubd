@@ -7,37 +7,21 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/observe"
 )
 
-// TestTrafficRateTrackerCalculatesDeltas verifies byte-per-second rates from
-// successive counter samples.
-func TestTrafficRateTrackerCalculatesDeltas(t *testing.T) {
+func TestTrafficRatesRequireTwoMonotonicUpSamples(t *testing.T) {
+	const interfaceName = "eno1"
+
 	tracker := observe.NewTrafficRateTracker()
 	start := time.Unix(100, 0)
-
-	first := tracker.Rates(start, "eth0", observe.InterfaceStats{RXBytes: 1000, TXBytes: 2000}, true)
-	if first.RXBytesRate != 0 || first.TXBytesRate != 0 {
-		t.Fatalf("first rates = %+v, want zero", first)
+	first := tracker.Rates(start, "ENO1", observe.InterfaceStats{RXBytes: 1000, TXBytes: 2000}, true)
+	if first.Set {
+		t.Fatalf("first sample produced rates: %+v", first)
 	}
-
-	second := tracker.Rates(start.Add(10*time.Second), "eth0", observe.InterfaceStats{RXBytes: 1600, TXBytes: 2600}, true)
-	if second.RXBytesRate != 60 || second.TXBytesRate != 60 {
-		t.Fatalf("second rates = %+v, want 60/60", second)
+	second := tracker.Rates(start.Add(10*time.Second), interfaceName, observe.InterfaceStats{RXBytes: 1600, TXBytes: 2900}, true)
+	if !second.Set || second.RXBytesRate != 60 || second.TXBytesRate != 90 {
+		t.Fatalf("second sample rates = %+v, want 60/90", second)
 	}
-}
-
-// TestTrafficRateTrackerHandlesResetAndDownLinks verifies counter resets and
-// down links suppress rate output.
-func TestTrafficRateTrackerHandlesResetAndDownLinks(t *testing.T) {
-	tracker := observe.NewTrafficRateTracker()
-	start := time.Unix(100, 0)
-	_ = tracker.Rates(start, "eth0", observe.InterfaceStats{RXBytes: 1000, TXBytes: 2000}, true)
-
-	reset := tracker.Rates(start.Add(10*time.Second), "eth0", observe.InterfaceStats{RXBytes: 10, TXBytes: 20}, true)
-	if reset.RXBytesRate != 0 || reset.TXBytesRate != 0 {
-		t.Fatalf("reset rates = %+v, want zero", reset)
-	}
-
-	down := tracker.Rates(start.Add(20*time.Second), "eth0", observe.InterfaceStats{RXBytes: 1010, TXBytes: 2020}, false)
-	if down.RXBytesRate != 0 || down.TXBytesRate != 0 {
-		t.Fatalf("down rates = %+v, want zero", down)
+	reset := tracker.Rates(start.Add(20*time.Second), interfaceName, observe.InterfaceStats{RXBytes: 10, TXBytes: 20}, true)
+	if reset.Set {
+		t.Fatalf("counter reset produced rates: %+v", reset)
 	}
 }

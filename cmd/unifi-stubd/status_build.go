@@ -14,9 +14,10 @@ import (
 
 // buildLocalStatus assembles status from config, adoption state, optional
 // platform capabilities, and passive observations without exposing secrets.
-func buildLocalStatus(flags runtimeFlags, profile device.Profile, mac net.HardwareAddr, ip net.IP, hostname string, portBuildOptions device.PortBuildOptions, plt platform.Platform) localStatus {
+func buildLocalStatus(flags runtimeFlags, profile device.Profile, informSchedulePolicy device.InformSchedulePolicy, reportingPolicy device.ControllerReportingPolicy, mac net.HardwareAddr, ip net.IP, hostname string, portBuildOptions device.PortBuildOptions, plt platform.Platform) localStatus {
 	store, adoptionWarnings := loadAdoptionStateForStatus(flags.sshState)
 	informURL := effectiveInformURL(flags.controller, store)
+	wireState := controllerInformState(store)
 	ports := device.BuildPorts(profile, portBuildOptions)
 	status := localStatus{
 		ConfigPath: flags.configPath,
@@ -39,6 +40,8 @@ func buildLocalStatus(flags runtimeFlags, profile device.Profile, mac net.Hardwa
 			Interval:                   flags.interval.String(),
 			ControllerIntervalMin:      flags.controllerIntervalMin.String(),
 			ControllerIntervalMax:      flags.controllerIntervalMax.String(),
+			ControllerIntervalPolicy:   controllerIntervalPolicyStatus(flags, informSchedulePolicy),
+			ControllerReportingPolicy:  controllerReportingPolicyStatus(reportingPolicy),
 			InformBackoffMax:           flags.informBackoffMax.String(),
 			InformBackoffJitterPercent: flags.informBackoffJitterPercent,
 			NoDiscovery:                flags.noDiscovery,
@@ -66,12 +69,14 @@ func buildLocalStatus(flags runtimeFlags, profile device.Profile, mac net.Hardwa
 			InstanceGuardPath:          flags.instanceGuardPath,
 		},
 		Adoption: statusAdoption{
-			State:      adoptionStateText(store),
-			Adopted:    store.AuthKey != "",
-			AuthKeySet: store.AuthKey != "",
-			CFGVersion: store.CFGVersion,
-			UseAESGCM:  store.UseAESGCM,
-			Version:    store.Version,
+			State:         adoptionStateText(store),
+			WireState:     int(wireState),
+			WireStateName: wireState.String(),
+			Adopted:       store.AuthKey != "",
+			AuthKeySet:    store.AuthKey != "",
+			CFGVersion:    store.CFGVersion,
+			UseAESGCM:     store.UseAESGCM,
+			Version:       store.Version,
 		},
 	}
 	status.Warnings = append(status.Warnings, adoptionWarnings...)

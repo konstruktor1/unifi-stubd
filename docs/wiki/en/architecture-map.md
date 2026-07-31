@@ -122,7 +122,9 @@ The most important safety gates are:
 - operation-mode validation in `cmd/unifi-stubd/operation.go`;
 - read-only platform facade;
 - adoption parser instead of shell execution;
-- local reset for controller forget/restore-default;
+- candidate host-safe lifecycle reset only for exact controller
+  `_type: setdefault`; no accepted complete real-process proof exists and the
+  formal product-acceptance gates remain open;
 - status sanitization before JSON/human output.
 
 ## When Adding A Feature
