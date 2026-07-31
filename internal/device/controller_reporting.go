@@ -11,7 +11,7 @@ const (
 // remain inert.
 type ControllerReportingPolicy struct {
 	EvidenceID      string
-	BehaviorID      ProtocolBehaviorID
+	BehaviorID      string
 	BlockSelection  bool
 	ControllerClock bool
 	Reason          string
@@ -20,24 +20,23 @@ type ControllerReportingPolicy struct {
 // ResolveControllerReportingPolicy resolves reporting controls without a
 // family, model-prefix, version-prefix, or external-profile fallback.
 func ResolveControllerReportingPolicy(profile Profile, effectiveModel, effectiveVersion string) ControllerReportingPolicy {
-	protocolProfile, _, ok := resolveUserProfileProtocol(profile, effectiveModel, effectiveVersion)
+	binding, ok := resolveUserProfileProtocol(profile, effectiveModel, effectiveVersion)
 	if !ok {
 		return ControllerReportingPolicy{
-			BehaviorID: ProtocolBehaviorUnsupported,
+			BehaviorID: protocolBehaviorUnsupported,
 			Reason:     profileProtocolNoBinding,
 		}
 	}
 	policy := ControllerReportingPolicy{
-		EvidenceID: protocolProfile.EvidenceID,
-		BehaviorID: protocolProfile.BehaviorID,
+		EvidenceID: binding.evidenceID,
+		BehaviorID: binding.behavior.id(),
 	}
-	if !protocolProfile.IsSupported() {
+	if !binding.behavior.supported() {
 		policy.Reason = controllerReportingUnsupported
 		return policy
 	}
-	capabilities := protocolProfile.Policies().Capabilities
-	policy.BlockSelection = capabilities.Has(CapabilityGatewayProducerTelemetry)
-	policy.ControllerClock = capabilities.Has(CapabilityControllerClock)
+	policy.BlockSelection = binding.blockSelection
+	policy.ControllerClock = binding.controllerClock
 	if !policy.BlockSelection && !policy.ControllerClock {
 		policy.Reason = controllerReportingNoControls
 	}

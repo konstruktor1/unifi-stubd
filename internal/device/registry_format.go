@@ -6,11 +6,6 @@ import (
 )
 
 // ProfileNames returns the known profile names as a comma-separated list.
-func ProfileNames() string {
-	return NewProfileRegistry().ProfileNames()
-}
-
-// ProfileNames returns the known profile names as a comma-separated list.
 func (r ProfileRegistry) ProfileNames() string {
 	profiles := r.Profiles()
 	names := make([]string, 0, len(profiles))
@@ -18,11 +13,6 @@ func (r ProfileRegistry) ProfileNames() string {
 		names = append(names, profile.Name)
 	}
 	return strings.Join(names, ", ")
-}
-
-// FormatProfiles returns a human-readable table of built-in profiles.
-func FormatProfiles() string {
-	return NewProfileRegistry().FormatProfiles()
 }
 
 // FormatProfiles returns a human-readable table of profiles.

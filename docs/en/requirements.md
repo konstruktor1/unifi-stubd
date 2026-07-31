@@ -1,6 +1,6 @@
 # Product Requirements
 
-Last updated: 2026-07-29.
+Last updated: 2026-07-31.
 
 ## Product goal
 
@@ -61,18 +61,3 @@ Four results have distinct meanings:
 None substitutes for the others. In particular, package creation does not
 prove that the installed service and operator instructions work on a supported
 host.
-
-## Current status
-
-The current candidate satisfies visibility, adoption, connection, and the real
-metric data path; the exact run, versions, and identity are recorded in the
-[compatibility evidence](compatibility.md). Focused tests cover bounded
-adoption persistence and rejected controller actions, but no retained
-candidate-bound safety run currently proves those conditions for the qualified
-source. Operator-visible UI evidence is also missing, so the full product
-requirement is not yet accepted. A run-bound Linux package set contains the
-data-path-qualified binary. Its starter config selects `US8` explicitly, but
-does not name a bridge or real metric source and is therefore not the supported
-US8/bridge/real-metric configuration. Candidate-bound safety evidence, UI
-observation, the supported package configuration, installed-service
-validation, and the operator path remain open.

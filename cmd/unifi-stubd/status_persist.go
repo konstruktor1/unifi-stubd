@@ -124,7 +124,7 @@ func (session *informSessionStatus) observe(last lastInformStatus, attempts []in
 
 // newLastInformStatus starts a sanitized status record before the controller
 // response is decoded.
-func newLastInformStatus(url string, store adoption.Store, payload []byte) lastInformStatus {
+func newLastInformStatus(url string, store adoption.Store) lastInformStatus {
 	wireState := controllerInformState(store)
 	wireStateValue := int(wireState)
 	return lastInformStatus{
@@ -135,7 +135,5 @@ func newLastInformStatus(url string, store adoption.Store, payload []byte) lastI
 		WireStateName:   wireState.String(),
 		CFGVersion:      store.CFGVersion,
 		Version:         store.Version,
-		Traffic:         payloadTraffic(payload),
-		Topology:        payloadTopology(payload),
 	}
 }

@@ -26,11 +26,7 @@ Der Controller darf nicht ungeprueft Host-Konfigurationen veraendern. Fuer den M
 - `noop` quittieren.
 - Fuer Gateway-`system_cfg` nur bereinigte Metadaten wie Byte-Laenge und
   Top-Level-Keys erfassen.
-- Nur ein argumentfreies `wg-genkeypair` mit Request-ID verarbeiten. Die
-  X25519-Keys im Speicher erzeugen und Keys oder Request-ID niemals
-  persistieren oder loggen. Der aktuelle Core wiederholt bis zu seinem HTTP-
-  200-Delivery-Punkt; die formale Every-HTTP-200-Command-Slot-Regel bleibt
-  offen.
+- Controllerantworten mit `_type: "cmd"` ohne Ausfuehrung ignorieren.
 - Restart-/Upgrade-/Provisioning-Kommandos als per Policy ignoriert markieren.
 - Keine Shell-Kommandos vom Controller ausfuehren.
 

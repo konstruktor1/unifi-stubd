@@ -1,23 +1,25 @@
 # Betriebsmodi
 
 `unifi-stubd` zielt zuerst auf Linux-Lab-Hosts, also Proxmox, Alpine und
-UTM-Linux-VMs. Der abgenommene Produktscope ist ein `US8` auf einer
+UTM-Linux-VMs. Das definierte Produktziel ist ein `US8` auf einer
 Linux-Bridge. FreeBSD/OPNsense und jedes andere Profil bleiben experimentelle
 Pfade, die eine eigene Produktentscheidung und Evidence brauchen.
 
 ## Aktueller Produktschnitt
 
-Der aktuelle controller-datenpfadqualifizierte Weg ist:
+Der definierte Produktpfad ist:
 
 - Profil `us8`;
 - `operation_mode: bridge-observe` auf Linux;
 - eine explizit benannte Bridge und echte lokale Metrikquelle;
-- vor Adoption sichtbar, adoptierbar, verbunden und mit echten Link-, Speed-,
-  Counter- und Ratenwerten auf aktuellem Stable und Release Candidate.
+- muss vor Adoption sichtbar und adoptierbar werden, verbunden bleiben und auf
+  aktuellem Stable und Release Candidate echte Link-, Speed-, Counter- und
+  Ratenwerte liefern.
 
-Direkte UI-Beobachtung, installierter Dienst und Betreiberpfad bleiben offen.
-Die Profile unten beschreiben implementierte experimentelle Identitaeten; sie
-erweitern den abgenommenen Produktscope nicht.
+Aktuelle Abnahme und naechste Arbeit gehoeren in
+[Kompatibilitaet](compatibility.md) und [Backlog](backlog.md). Die Profile unten
+beschreiben implementierte experimentelle Identitaeten; sie erweitern den
+definierten Produktscope nicht.
 
 `UGW3` ist als experimentelles Gateway-Identitaetsprofil verfuegbar. Es meldet
 das Legacy-UniFi-Security-Gateway-Modell und drei 1G-Ports, bleibt aber
@@ -441,9 +443,9 @@ NetFlow/IPFIX, DPI oder Paket-/Error-Rate-Felder werden dadurch nicht aktiviert.
 Gateway- und gemessene ausgewaehlte Switch-Uplink-Felder `rx_rate` und
 `tx_rate` werden als Bit/s-Durchsatz gerendert; `rx_bytes-r`, `tx_bytes-r` und
 `bytes-r` bleiben Byte/s-Raten.
-Die Runtime-Statusdatei schreibt die letzten bereinigten Inform-Traffic-Felder
-mit expliziten Byte/s- und Bit/s-Namen, damit Controller-Graphen gegen die
-Host-Interface-Zaehler verglichen werden koennen.
+Die lokale Statusdatei dekodiert das eigene Inform-JSON nicht als Nachweis.
+Verglichen werden die typisierte Host-Beobachtung, ein unabhaengiges
+Controller-Readback und der sichtbare Controller-Graph.
 
 Bei einem Switch beschreiben diese Controller-Spalten unterschiedliche Daten
 und duerfen nicht wie dieselbe Messung verglichen werden:

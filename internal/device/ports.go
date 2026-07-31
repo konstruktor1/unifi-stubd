@@ -20,8 +20,3 @@ func BuildPorts(profile Profile, options PortBuildOptions) []Port {
 	}
 	return switchPortsWithLayout(count, profilePortLayout(profile, options))
 }
-
-// SwitchPorts returns count generated switch ports with profile-neutral defaults.
-func SwitchPorts(count int) []Port {
-	return BuildPorts(Profile{Ports: count}, PortBuildOptions{})
-}

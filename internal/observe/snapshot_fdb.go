@@ -25,11 +25,6 @@ func BridgeFDB(ctx context.Context, bridge string) ([]linuxbridge.FDBEntry, erro
 	return linuxbridge.ParseFDB(strings.NewReader(string(out))), nil
 }
 
-// MACEntries converts Linux bridge FDB rows into UniFi MAC table entries.
-func MACEntries(entries []linuxbridge.FDBEntry) []device.MacTableEntry {
-	return flattenDeviceMACs(MACEntriesByDevice(entries), "", "")
-}
-
 // MACEntriesByDevice converts Linux bridge FDB rows into MAC entries grouped by bridge member.
 func MACEntriesByDevice(entries []linuxbridge.FDBEntry) map[string][]device.MacTableEntry {
 	out := map[string][]device.MacTableEntry{}

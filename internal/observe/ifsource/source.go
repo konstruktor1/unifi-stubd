@@ -15,24 +15,6 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/observe"
 )
 
-// EnrichPortOverrides overlays configured ports with host interface data.
-func EnrichPortOverrides(overrides []device.PortOverride) []device.PortOverride {
-	if len(overrides) == 0 {
-		return overrides
-	}
-	out := make([]device.PortOverride, len(overrides))
-	copy(out, overrides)
-	for index := range out {
-		ifaceName := strings.TrimSpace(out[index].Interface)
-		if ifaceName == "" {
-			continue
-		}
-		out[index].Interface = ifaceName
-		EnrichPortOverride(&out[index], ifaceName)
-	}
-	return out
-}
-
 // EnrichPortOverride applies one host interface snapshot to an override.
 func EnrichPortOverride(override *device.PortOverride, ifaceName string) {
 	observation, errs := ObserveInterface(ifaceName)

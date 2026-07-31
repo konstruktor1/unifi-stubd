@@ -39,14 +39,16 @@ JSON-Strukturen des Produkts bewusst nicht in Assertion-Helfern nach.
 
 ## Evidence und Cleanup
 
-Die Stable-/RC-Matrix schreibt ignorierte Evidence unter
-`dist/controller-channel-matrix/`, darunter:
+Die Stable-/RC-Matrix behaelt nicht committete Laufartefakte unter
+`dist/controller-channel-matrix/`:
 
 - aufgeloeste Stable-/RC-Versionen und Releasemetadaten;
-- Produktimage-ID und Binary-SHA-256;
-- Controller-Readback-Logs, Gesamtergebnis und Cleanup-Ergebnis.
+- Controller-Readback-Logs fuer beide Spuren; und
+- erst nach erfolgreichen Spuren und Cleanup das akzeptierte Binary sowie
+  `accepted.env` mit Produktversion, OS, Architektur und Binary-SHA-256.
 
-Ein Claim gilt nur fuer exakt diese Bytes und diesen Lauf. Eine spaetere
+Ein fehlgeschlagener Lauf besitzt keinen Acceptance-Marker. Ein Claim gilt nur
+fuer das akzeptierte Binary in genau diesem Laufverzeichnis. Eine spaetere
 Produkt- oder Gate-Aenderung verlangt einen neuen Lauf.
 
 Jede Spur startet mit leeren Controller- und Datenbank-Volumes. Bei Erfolg und

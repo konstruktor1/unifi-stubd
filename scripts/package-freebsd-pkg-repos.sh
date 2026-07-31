@@ -54,44 +54,35 @@ shell_quote() {
   printf "'%s'" "$(printf '%s' "$1" | sed "s/'/'\\\\''/g")"
 }
 
-ssh_remote() {
-  ssh \
+secure_transport() {
+  transport="$1"
+  shift
+  "$transport" \
     -o BatchMode=yes \
     -o IdentitiesOnly=yes \
     -o StrictHostKeyChecking=yes \
     -o ForwardAgent=no \
     -o ClearAllForwardings=yes \
-    -o RequestTTY=no \
     -o ConnectTimeout=10 \
     -o ServerAliveInterval=15 \
     -o ServerAliveCountMax=3 \
-    "$FREEBSD_PKG_REMOTE" "$@"
+    "$@"
+}
+
+ssh_remote() {
+  secure_transport ssh -o RequestTTY=no "$FREEBSD_PKG_REMOTE" "$@"
+}
+
+scp_remote() {
+  secure_transport scp "$1" "$2"
 }
 
 scp_to_remote() {
-  scp \
-    -o BatchMode=yes \
-    -o IdentitiesOnly=yes \
-    -o StrictHostKeyChecking=yes \
-    -o ForwardAgent=no \
-    -o ClearAllForwardings=yes \
-    -o ConnectTimeout=10 \
-    -o ServerAliveInterval=15 \
-    -o ServerAliveCountMax=3 \
-    "$1" "$FREEBSD_PKG_REMOTE:$2"
+  scp_remote "$1" "$FREEBSD_PKG_REMOTE:$2"
 }
 
 scp_from_remote() {
-  scp \
-    -o BatchMode=yes \
-    -o IdentitiesOnly=yes \
-    -o StrictHostKeyChecking=yes \
-    -o ForwardAgent=no \
-    -o ClearAllForwardings=yes \
-    -o ConnectTimeout=10 \
-    -o ServerAliveInterval=15 \
-    -o ServerAliveCountMax=3 \
-    "$FREEBSD_PKG_REMOTE:$1" "$2"
+  scp_remote "$FREEBSD_PKG_REMOTE:$1" "$2"
 }
 
 freebsd_pkg_version() {
@@ -99,24 +90,29 @@ freebsd_pkg_version() {
   printf '%s_%s' "$version" "$PKG_RELEASE"
 }
 
-pkg_arch() {
+abi_arches() {
+  abi="$1"
+  major="${abi#FreeBSD:}"
+  major="${major%%:*}"
   case "$1" in
   FreeBSD:*:amd64)
-    major="$(printf '%s' "$1" | awk -F: '{print $2}')"
-    printf 'freebsd:%s:x86:64' "$major"
+    printf 'freebsd:%s:x86:64|amd64' "$major"
     ;;
   FreeBSD:*:aarch64)
-    major="$(printf '%s' "$1" | awk -F: '{print $2}')"
-    printf 'freebsd:%s:aarch64' "$major"
+    printf 'freebsd:%s:aarch64|arm64' "$major"
     ;;
   FreeBSD:*:armv7)
-    major="$(printf '%s' "$1" | awk -F: '{print $2}')"
-    printf 'freebsd:%s:armv7' "$major"
+    printf 'freebsd:%s:armv7|armv7' "$major"
     ;;
   *)
     fail "unsupported FreeBSD ABI: $1"
     ;;
   esac
+}
+
+pkg_arch() {
+  arches="$(abi_arches "$1")"
+  printf '%s' "${arches%%|*}"
 }
 
 binary_name_for_abi() {
@@ -124,20 +120,8 @@ binary_name_for_abi() {
 }
 
 tarball_arch_for_abi() {
-  case "$1" in
-  FreeBSD:*:amd64)
-    printf 'amd64'
-    ;;
-  FreeBSD:*:aarch64)
-    printf 'arm64'
-    ;;
-  FreeBSD:*:armv7)
-    printf 'armv7'
-    ;;
-  *)
-    fail "unsupported FreeBSD ABI: $1"
-    ;;
-  esac
+  arches="$(abi_arches "$1")"
+  printf '%s' "${arches#*|}"
 }
 
 tarball_enabled() {
@@ -285,15 +269,12 @@ write_tgz() {
   printf 'created: %s\n' "$target"
 }
 
-remote_binary_build_script() {
+remote_build_script() {
   cat <<'EOF'
 set -eu
 cd "$1"
+mode="$2"
 . ./build.env
-rm -rf src bin bin.tar.gz
-mkdir -p src bin
-tar -xzf source.tar.gz -C src
-find src -name '._*' -delete
 
 fail() {
   printf '%s\n' "$1" >&2
@@ -306,18 +287,10 @@ binary_name_for_abi() {
 
 go_target_for_abi() {
   case "$1" in
-    FreeBSD:*:amd64)
-      printf 'amd64:'
-      ;;
-    FreeBSD:*:aarch64)
-      printf 'arm64:'
-      ;;
-    FreeBSD:*:armv7)
-      printf 'arm:7'
-      ;;
-    *)
-      fail "unsupported FreeBSD ABI: $1"
-      ;;
+  FreeBSD:*:amd64) printf 'amd64:' ;;
+  FreeBSD:*:aarch64) printf 'arm64:' ;;
+  FreeBSD:*:armv7) printf 'arm:7' ;;
+  *) fail "unsupported FreeBSD ABI: $1" ;;
   esac
 }
 
@@ -327,91 +300,25 @@ jail_for_abi() {
     key="${entry%%=*}"
     value="${entry#*=}"
     if [ "$key" = "$needle" ]; then
+      [ -n "$value" ] || fail "missing FreeBSD jail mapping for $needle"
       printf '%s' "$value"
       return 0
     fi
   done
+  if [ -n "$FREEBSD_PKG_BUILD_JAILS" ] || [ "$FREEBSD_PKG_REQUIRE_JAILS" = "1" ]; then
+    fail "missing FreeBSD jail mapping for $needle"
+  fi
 }
 
-require_jail_for_abi() {
+run_for_abi() {
   abi="$1"
+  shift
   jail="$(jail_for_abi "$abi")"
-  if [ -z "$jail" ] && { [ -n "$FREEBSD_PKG_BUILD_JAILS" ] || [ "$FREEBSD_PKG_REQUIRE_JAILS" = "1" ]; }; then
-    fail "missing FreeBSD jail mapping for $abi"
-  fi
-  printf '%s' "$jail"
-}
-
-cat >build-one.sh <<'EOS'
-set -eu
-src="$1"
-out="$2"
-goarch="$3"
-goarm="$4"
-ldflags="$5"
-go_bin="$6"
-cd "$src"
-mkdir -p "$(dirname "$out")"
-if [ -n "$goarm" ]; then
-  CGO_ENABLED=0 GOOS=freebsd GOARCH="$goarch" GOARM="$goarm" \
-    "$go_bin" build -trimpath -ldflags="$ldflags" -o "$out" ./cmd/unifi-stubd
-else
-  CGO_ENABLED=0 GOOS=freebsd GOARCH="$goarch" \
-    "$go_bin" build -trimpath -ldflags="$ldflags" -o "$out" ./cmd/unifi-stubd
-fi
-EOS
-
-chmod 0755 build-one.sh
-
-go_bin="${GO_CMD:-}"
-if [ -n "$go_bin" ] && ! command -v "$go_bin" >/dev/null 2>&1; then
-  fail "configured Go command not found on FreeBSD builder: $go_bin"
-fi
-if [ -z "$go_bin" ]; then
-  for candidate in go go125 go126; do
-    if command -v "$candidate" >/dev/null 2>&1; then
-      go_bin="$candidate"
-      break
-    fi
-  done
-fi
-[ -n "$go_bin" ] || fail "missing Go command on FreeBSD builder: install go, go125, or go126"
-printf '== using Go command: %s ==\n' "$go_bin"
-
-for abi in $FREEBSD_PKG_ABIS; do
-  target="$(go_target_for_abi "$abi")"
-  goarch="${target%%:*}"
-  goarm="${target#*:}"
-  binary_name="$(binary_name_for_abi "$abi")"
-  out="$(pwd)/bin/$binary_name"
-  jail="$(require_jail_for_abi "$abi")"
-
   if [ -n "$jail" ]; then
-    printf '== build %s in jail %s ==\n' "$abi" "$jail"
-    jexec "$jail" sh "$(pwd)/build-one.sh" "$(pwd)/src" "$out" "$goarch" "$goarm" "$BUILD_LDFLAGS" "$go_bin"
+    jexec "$jail" "$@"
   else
-    printf '== build %s on FreeBSD build host ==\n' "$abi"
-    sh "$(pwd)/build-one.sh" "$(pwd)/src" "$out" "$goarch" "$goarm" "$BUILD_LDFLAGS" "$go_bin"
+    "$@"
   fi
-done
-
-tar -czf bin.tar.gz bin
-EOF
-}
-
-remote_build_script() {
-  cat <<'EOF'
-set -eu
-cd "$1"
-. ./build.env
-rm -rf stage repo repo.tar.gz
-mkdir -p stage repo
-tar -xzf stage.tar.gz -C stage
-find stage -name '._*' -delete
-
-fail() {
-  printf '%s\n' "$1" >&2
-  exit 1
 }
 
 repair_manifest() {
@@ -448,66 +355,91 @@ repair_manifest() {
   rm -rf "$repair_dir"
 }
 
-jail_for_abi() {
-  needle="$1"
-  for entry in $FREEBSD_PKG_BUILD_JAILS; do
-    key="${entry%%=*}"
-    value="${entry#*=}"
-    if [ "$key" = "$needle" ]; then
-      printf '%s' "$value"
-      return 0
+build_binaries() {
+  rm -rf src bin bin.tar.gz
+  mkdir -p src bin
+  tar -xzf source.tar.gz -C src
+  find src -name '._*' -delete
+
+  cat >build-one.sh <<'EOS'
+set -eu
+src="$1"
+out="$2"
+goarch="$3"
+goarm="$4"
+ldflags="$5"
+go_bin="$6"
+cd "$src"
+mkdir -p "$(dirname "$out")"
+if [ -n "$goarm" ]; then
+  CGO_ENABLED=0 GOOS=freebsd GOARCH="$goarch" GOARM="$goarm" \
+    "$go_bin" build -trimpath -ldflags="$ldflags" -o "$out" ./cmd/unifi-stubd
+else
+  CGO_ENABLED=0 GOOS=freebsd GOARCH="$goarch" \
+    "$go_bin" build -trimpath -ldflags="$ldflags" -o "$out" ./cmd/unifi-stubd
+fi
+EOS
+  chmod 0755 build-one.sh
+
+  go_bin="${GO_CMD:-}"
+  if [ -n "$go_bin" ] && ! command -v "$go_bin" >/dev/null 2>&1; then
+    fail "configured Go command not found on FreeBSD builder: $go_bin"
+  fi
+  if [ -z "$go_bin" ]; then
+    for candidate in go go125 go126; do
+      if command -v "$candidate" >/dev/null 2>&1; then
+        go_bin="$candidate"
+        break
+      fi
+    done
+  fi
+  [ -n "$go_bin" ] || fail "missing Go command on FreeBSD builder: install go, go125, or go126"
+  printf '== using Go command: %s ==\n' "$go_bin"
+
+  for abi in $FREEBSD_PKG_ABIS; do
+    target="$(go_target_for_abi "$abi")"
+    goarch="${target%%:*}"
+    goarm="${target#*:}"
+    binary_name="$(binary_name_for_abi "$abi")"
+    out="$(pwd)/bin/$binary_name"
+    jail="$(jail_for_abi "$abi")"
+    if [ -n "$jail" ]; then
+      printf '== build %s in jail %s ==\n' "$abi" "$jail"
+    else
+      printf '== build %s on FreeBSD build host ==\n' "$abi"
     fi
+    run_for_abi "$abi" sh "$(pwd)/build-one.sh" "$(pwd)/src" "$out" "$goarch" "$goarm" "$BUILD_LDFLAGS" "$go_bin"
   done
+  tar -czf bin.tar.gz bin
 }
 
-require_jail_for_abi() {
-  abi="$1"
-  jail="$(jail_for_abi "$abi")"
-  if [ -z "$jail" ] && { [ -n "$FREEBSD_PKG_BUILD_JAILS" ] || [ "$FREEBSD_PKG_REQUIRE_JAILS" = "1" ]; }; then
-    fail "missing FreeBSD jail mapping for $abi"
-  fi
-  printf '%s' "$jail"
+build_repositories() {
+  rm -rf stage repo repo.tar.gz
+  mkdir -p stage repo
+  tar -xzf stage.tar.gz -C stage
+  find stage -name '._*' -delete
+
+  for abi_dir in stage/*; do
+    [ -d "$abi_dir" ] || continue
+    abi="$(basename "$abi_dir")"
+    abi_abs="$(cd "$abi_dir" && pwd)"
+    repo_dir="$(pwd)/repo/$abi"
+    printf '== pkg create %s ==\n' "$abi"
+    mkdir -p "$repo_dir"
+    run_for_abi "$abi" pkg create -f txz -r "$abi_abs/pkgroot" -M "$abi_abs/manifest.ucl" -o "$repo_dir"
+    pkg_file="$(ls "$repo_dir"/unifi-stubd-*.pkg | sed -n '1p')"
+    [ -n "$pkg_file" ] || fail "missing generated package for $abi"
+    repair_manifest "$abi_dir" "$pkg_file"
+    run_for_abi "$abi" pkg repo "$repo_dir"
+  done
+  tar -czf repo.tar.gz repo
 }
 
-run_pkg_create() {
-  abi="$1"
-  abi_dir="$2"
-  abi_abs="$(cd "$abi_dir" && pwd)"
-  repo_dir="$(pwd)/repo/$abi"
-  jail="$(require_jail_for_abi "$abi")"
-  if [ -n "$jail" ]; then
-    jexec "$jail" pkg create -f txz -r "$abi_abs/pkgroot" -M "$abi_abs/manifest.ucl" -o "$repo_dir"
-  else
-    pkg create -f txz -r "$abi_abs/pkgroot" -M "$abi_abs/manifest.ucl" -o "$repo_dir"
-  fi
-}
-
-run_pkg_repo() {
-  abi="$1"
-  repo_dir="$(pwd)/repo/$abi"
-  jail="$(require_jail_for_abi "$abi")"
-  if [ -n "$jail" ]; then
-    jexec "$jail" pkg repo "$repo_dir"
-  else
-    pkg repo "$repo_dir"
-  fi
-}
-
-for abi_dir in stage/*; do
-  [ -d "$abi_dir" ] || continue
-  abi="$(basename "$abi_dir")"
-  printf '== pkg create %s ==\n' "$abi"
-  mkdir -p "repo/$abi"
-  run_pkg_create "$abi" "$abi_dir"
-  pkg_file="$(ls "repo/$abi"/unifi-stubd-*.pkg | sed -n '1p')"
-  [ -n "$pkg_file" ] || {
-    printf 'missing generated package for %s\n' "$abi" >&2
-    exit 1
-  }
-  repair_manifest "$abi_dir" "$pkg_file"
-  run_pkg_repo "$abi"
-done
-tar -czf repo.tar.gz repo
+case "$mode" in
+binaries) build_binaries ;;
+repositories) build_repositories ;;
+*) fail "unsupported remote build mode: $mode" ;;
+esac
 EOF
 }
 
@@ -547,6 +479,8 @@ mkdir -p "$WORK_DIR/bin" "$WORK_DIR/upload" "$OUT_DIR" "$PACKAGE_DIR"
 
 write_source_archive
 write_build_env
+remote_script="$WORK_DIR/upload/remote-build.sh"
+remote_build_script >"$remote_script"
 
 remote_base_quoted="$(shell_quote "$FREEBSD_PKG_REMOTE_DIR")"
 remote_dir="$(ssh_remote "set -eu; umask 077; base=$remote_base_quoted; mkdir -p \"\$base\"; mktemp -d \"\$base/run.XXXXXXXXXX\"")"
@@ -573,10 +507,8 @@ trap 'exit 143' TERM
 
 scp_to_remote "$WORK_DIR/upload/source.tar.gz" "$remote_dir/source.tar.gz"
 scp_to_remote "$WORK_DIR/upload/build.env" "$remote_dir/build.env"
-remote_binary_script="$WORK_DIR/upload/remote-build-binaries.sh"
-remote_binary_build_script >"$remote_binary_script"
-scp_to_remote "$remote_binary_script" "$remote_dir/remote-build-binaries.sh"
-ssh_remote "sh $remote_dir_quoted/remote-build-binaries.sh $remote_dir_quoted"
+scp_to_remote "$remote_script" "$remote_dir/remote-build.sh"
+ssh_remote "sh $remote_dir_quoted/remote-build.sh $remote_dir_quoted binaries"
 scp_from_remote "$remote_dir/bin.tar.gz" "$WORK_DIR/bin.tar.gz"
 tar -xzf "$WORK_DIR/bin.tar.gz" -C "$WORK_DIR"
 
@@ -588,10 +520,7 @@ done
 COPYFILE_DISABLE=1 tar -C "$WORK_DIR/stage" -czf "$WORK_DIR/upload/stage.tar.gz" .
 
 scp_to_remote "$WORK_DIR/upload/stage.tar.gz" "$remote_dir/stage.tar.gz"
-remote_script="$WORK_DIR/upload/remote-build.sh"
-remote_build_script >"$remote_script"
-scp_to_remote "$remote_script" "$remote_dir/remote-build.sh"
-ssh_remote "sh $remote_dir_quoted/remote-build.sh $remote_dir_quoted"
+ssh_remote "sh $remote_dir_quoted/remote-build.sh $remote_dir_quoted repositories"
 scp_from_remote "$remote_dir/repo.tar.gz" "$OUT_DIR/freebsd-pkg-repos.tar.gz"
 
 tar -xzf "$OUT_DIR/freebsd-pkg-repos.tar.gz" -C "$OUT_DIR"

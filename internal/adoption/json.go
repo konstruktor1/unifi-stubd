@@ -108,19 +108,6 @@ func jsonString(raw json.RawMessage) string {
 	return ""
 }
 
-// jsonExactString reads fixed controller protocol vocabulary without
-// normalizing it into a different recognized value.
-func jsonExactString(raw json.RawMessage) string {
-	if len(raw) == 0 {
-		return ""
-	}
-	var value string
-	if err := json.Unmarshal(raw, &value); err == nil {
-		return value
-	}
-	return ""
-}
-
 // jsonInt reads optional numeric controller fields without failing the whole
 // response parse.
 func jsonInt(raw json.RawMessage) int {

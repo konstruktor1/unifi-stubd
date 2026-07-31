@@ -12,8 +12,7 @@ const (
 // operator-selected base schedule from running.
 type InformSchedulePolicy struct {
 	EvidenceID      string
-	ProtocolBuild   ProtocolBuild
-	BehaviorID      ProtocolBehaviorID
+	BehaviorID      string
 	FirmwareMinimum time.Duration
 	Supported       bool
 	Reason          string
@@ -35,27 +34,26 @@ func (policy InformSchedulePolicy) EffectiveMinimum(operatorMinimum time.Duratio
 // never falls back by family, model similarity, version prefix, or a nearby
 // protocol build.
 func ResolveInformSchedulePolicy(profile Profile, effectiveModel, effectiveVersion string) InformSchedulePolicy {
-	protocolProfile, binding, ok := resolveUserProfileProtocol(profile, effectiveModel, effectiveVersion)
+	binding, ok := resolveUserProfileProtocol(profile, effectiveModel, effectiveVersion)
 	if !ok {
 		return InformSchedulePolicy{
-			BehaviorID: ProtocolBehaviorUnsupported,
+			BehaviorID: protocolBehaviorUnsupported,
 			Reason:     informScheduleNoProfileBinding,
 		}
 	}
 	policy := InformSchedulePolicy{
-		EvidenceID:    protocolProfile.EvidenceID,
-		ProtocolBuild: protocolProfile.Build,
-		BehaviorID:    protocolProfile.BehaviorID,
+		EvidenceID: binding.evidenceID,
+		BehaviorID: binding.behavior.id(),
 	}
-	if binding.minimumSeconds <= 0 {
+	if binding.firmwareMinimumSeconds <= 0 {
 		policy.Reason = informScheduleNoMinimumBinding
 		return policy
 	}
-	if !protocolProfile.IsSupported() {
+	if !binding.behavior.supported() {
 		policy.Reason = informScheduleNoProfileBinding
 		return policy
 	}
-	policy.FirmwareMinimum = time.Duration(binding.minimumSeconds) * time.Second
+	policy.FirmwareMinimum = time.Duration(binding.firmwareMinimumSeconds) * time.Second
 	policy.Supported = true
 	return policy
 }

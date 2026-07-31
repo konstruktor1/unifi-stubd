@@ -67,17 +67,11 @@ if [ -n "$ACCEPTED_RUN_ID" ]; then
   printf '%s\n' "$ACCEPTED_RUN_ID" | grep -Eq '^[a-z0-9][a-z0-9-]{0,39}$' ||
     fail 'PKG_ACCEPTED_RUN_ID is invalid'
   ACCEPTED_DIR="$DIST_DIR/controller-channel-matrix/$ACCEPTED_RUN_ID"
-  ACCEPTED_EVIDENCE="$ACCEPTED_DIR/final.env"
+  ACCEPTED_EVIDENCE="$ACCEPTED_DIR/accepted.env"
   if [ ! -d "$ACCEPTED_DIR" ] || [ -L "$ACCEPTED_DIR" ] ||
     [ ! -f "$ACCEPTED_EVIDENCE" ] || [ -L "$ACCEPTED_EVIDENCE" ]; then
     fail "accepted run evidence is unavailable: $ACCEPTED_RUN_ID"
   fi
-  if [ "$(evidence_value RESULT)" != passed ] ||
-    [ "$(evidence_value EXIT_CODE)" != 0 ] ||
-    [ "$(evidence_value CLEANUP)" != passed ]; then
-    fail "controller gate did not accept run $ACCEPTED_RUN_ID"
-  fi
-  [ "$(evidence_value RUN_ID)" = "$ACCEPTED_RUN_ID" ] || fail 'accepted run ID does not match its evidence'
   accepted_version="$(evidence_value PRODUCT_VERSION)"
   accepted_os="$(evidence_value PRODUCT_OS)"
   accepted_arch="$(evidence_value PRODUCT_ARCH)"
@@ -274,12 +268,6 @@ if [ -n "$ACCEPTED_RUN_ID" ]; then
     cd "$PACKAGE_DIR"
     sha256sum -- ./*.deb ./*.rpm ./*.pkg.tar.zst ./*.tar.gz >SHA256SUMS
   )
-  {
-    printf 'RESULT=passed\n'
-    printf 'RUN_ID=%s\n' "$ACCEPTED_RUN_ID"
-    printf 'PRODUCT_BINARY_SHA256=%s\n' "$ACCEPTED_BINARY_SHA256"
-    printf 'FORMATS=deb,rpm,archlinux,tgz\n'
-  } >"$PACKAGE_DIR/package.env"
   mkdir "$PUBLISH_LOCK" || fail 'another accepted package publication is active'
   PUBLISH_LOCK_OWNED=true
   if [ -e "$FINAL_PACKAGE_DIR" ] || [ -L "$FINAL_PACKAGE_DIR" ]; then

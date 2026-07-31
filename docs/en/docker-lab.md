@@ -37,15 +37,17 @@ not reproduce the product's own JSON structures in assertion helpers.
 
 ## Evidence and cleanup
 
-The Stable/RC matrix records ignored evidence below
-`dist/controller-channel-matrix/`, including:
+The Stable/RC matrix keeps uncommitted run artifacts below
+`dist/controller-channel-matrix/`:
 
 - resolved Stable and RC versions and release metadata;
-- product image ID and binary SHA-256;
-- controller readback logs, final result, and cleanup result.
+- controller readback logs for both lanes; and
+- only after both lanes and cleanup succeed, the accepted binary plus
+  `accepted.env` with product version, OS, architecture, and binary SHA-256.
 
-A claim applies only to those exact bytes and that run. A later product or gate
-change requires another run.
+A failed run has no acceptance marker. A claim applies only to the accepted
+binary in that exact run directory; a later product or gate change requires
+another run.
 
 Each lane starts with empty controller and database volumes. On success and
 failure, the gate removes its containers, networks, named volumes, orphans, and

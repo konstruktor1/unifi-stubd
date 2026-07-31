@@ -7,26 +7,6 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/device"
 )
 
-// flattenDeviceMACs returns a deterministic fallback MAC list when per-member
-// port assignment is unavailable.
-func flattenDeviceMACs(deviceMACs map[string][]device.MacTableEntry, iface, bridge string) []device.MacTableEntry {
-	return flattenDeviceMACsExcept(deviceMACs, iface, bridge, nil)
-}
-
-// flattenDeviceMACsExcept excludes remote upstream MACs from the fallback
-// client list.
-func flattenDeviceMACsExcept(deviceMACs map[string][]device.MacTableEntry, iface, bridge string, remoteMACs map[string]bool) []device.MacTableEntry {
-	count := 0
-	for _, macs := range deviceMACs {
-		count += len(macs)
-	}
-	out := make([]device.MacTableEntry, 0, count)
-	for _, deviceName := range sortedDeviceNames(deviceMACs, iface, bridge) {
-		out = append(out, filterRemoteMACEntries(deviceMACs[deviceName], remoteMACs)...)
-	}
-	return out
-}
-
 // flattenDeviceMACsByRole produces the fallback uplink MAC list while excluding
 // bridge metadata, ignored members, and remote upstream MACs.
 func flattenDeviceMACsByRole(deviceMACs map[string][]device.MacTableEntry, roles map[string]BridgeMemberRole, iface, bridge string, remoteMACs map[string]bool) []device.MacTableEntry {

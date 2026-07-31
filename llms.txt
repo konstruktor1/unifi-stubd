@@ -15,8 +15,8 @@ models. It is not the coding-agent instruction source. Coding agents should read
 
 ## Project Documentation
 
-- [README](README.md): Overview, quick start, configuration, service setup, packaging, and development commands.
-- [Project status](docs/en/project-status.md): Current core implementation, packaging, and validation status.
+- [README](README.md): Product overview and supported US8/Linux-bridge quick start.
+- [Project status](docs/en/project-status.md): Routes changing product facts to their canonical owners.
 - [English docs index](docs/en/README.md): Main English documentation entry point.
 - [German docs index](docs/de/README.md): Main German documentation entry point.
 - [Packaged Linux config](packaging/linux/etc/unifi-stubd/config.yaml): Default config installed as `/etc/unifi-stubd/config.yaml`.
@@ -35,7 +35,7 @@ models. It is not the coding-agent instruction source. Coding agents should read
 ## Source Layout
 
 - [Command entry point](cmd/unifi-stubd/main.go): CLI entry point.
-- [Switch emulation](cmd/unifi-stubd/switch_emulation.go): Discovery, inform, and adoption SSH service wiring.
+- [Switch emulation](cmd/unifi-stubd/serve.go): Discovery, inform, and adoption SSH service wiring.
 - [Device profiles](internal/device/): Fake switch profiles, experimental `UGW3` and `UXGPRO` gateway identity profiles, link speed, and payload model.
 - [Discovery](internal/discovery/): UniFi discovery TLV packet building.
 - [Inform](internal/inform/): Inform packet framing and client behavior.

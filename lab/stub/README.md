@@ -31,8 +31,10 @@ in assertion helpers.
 
 Every lane starts with empty controller and database volumes and removes its
 containers, networks, volumes, orphans, and owned image aliases on exit.
-Evidence below ignored `dist/controller-channel-matrix/` binds the product
-bytes, dynamically resolved controller versions, result, and cleanup.
+Uncommitted artifacts below `dist/controller-channel-matrix/` retain the
+resolved controller metadata and lane logs. Only after both lanes and cleanup
+succeed does the run publish the accepted binary and its minimal
+`accepted.env` binding; failed runs have no acceptance marker.
 
 The fixture proves container-local Linux observation, not a physical topology,
 Proxmox host, FreeBSD/OPNsense runtime, or deployed controller. Those are

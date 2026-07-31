@@ -5,11 +5,6 @@ import (
 	"strings"
 )
 
-// Profiles returns a copy of the built-in device profiles.
-func Profiles() []Profile {
-	return NewProfileRegistry().Profiles()
-}
-
 // Profiles returns a copy of all profiles in r.
 func (r ProfileRegistry) Profiles() []Profile {
 	records := cloneRecords(r.records)

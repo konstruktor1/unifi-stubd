@@ -29,25 +29,14 @@ func sendDiscovery(packet []byte, hostname string, mac net.HardwareAddr, skip bo
 // sendInformHeartbeat sends one inform packet, persists sanitized exchange
 // status, and applies only safe adoption-state updates from decoded controller
 // responses.
-func sendInformHeartbeat(mac net.HardwareAddr, informURL, statePath, statusPath string, store adoption.Store, payload []byte, sourceIP net.IP, commands *adoption.CommandLifecycle, blocks *adoption.BlockSelection, schedule *inform.Schedule, controllerClock *inform.ControllerClock, session *informSessionStatus, reportingPolicy device.ControllerReportingPolicy) (inform.ScheduleDecision, error) {
+func sendInformHeartbeat(mac net.HardwareAddr, informURL, statePath, statusPath string, store adoption.Store, payload []byte, sourceIP net.IP, blocks *adoption.BlockSelection, schedule *inform.Schedule, controllerClock *inform.ControllerClock, session *informSessionStatus, reportingPolicy device.ControllerReportingPolicy) (inform.ScheduleDecision, error) {
 	if informURL == "" {
 		return schedule.Current(), nil
-	}
-	resultAttached := false
-	if commands != nil {
-		payloadWithResult, attached, attachErr := commands.Attach(payload)
-		if attachErr != nil {
-			log.Printf("controller command result attach failed: %v", attachErr)
-		} else {
-			payload = payloadWithResult
-			resultAttached = attached
-		}
 	}
 	resp, cipher, err := sendInform(mac, informURL, store, payload, sourceIP)
 	if err != nil {
 		decision := schedule.Failure()
-		last := newLastInformStatus(informURL, store, payload)
-		applyCommandLifecycleStatus(&last, commands)
+		last := newLastInformStatus(informURL, store)
 		applyControllerClockStatus(&last, controllerClock)
 		applyInformScheduleStatus(&last, decision)
 		statusCode, rawBytes, jsonBytes := 0, 0, 0
@@ -62,8 +51,7 @@ func sendInformHeartbeat(mac net.HardwareAddr, informURL, statePath, statusPath 
 	}
 	if resp.StatusCode != http.StatusOK {
 		decision := schedule.Failure()
-		last := newLastInformStatus(informURL, store, payload)
-		applyCommandLifecycleStatus(&last, commands)
+		last := newLastInformStatus(informURL, store)
 		applyControllerClockStatus(&last, controllerClock)
 		applyInformScheduleStatus(&last, decision)
 		responseErr := fmt.Errorf("inform response status %d", resp.StatusCode)
@@ -71,12 +59,7 @@ func sendInformHeartbeat(mac net.HardwareAddr, informURL, statePath, statusPath 
 		log.Printf("inform response status=%d raw_bytes=%d cipher=%s retry_in=%s consecutive_failures=%d", resp.StatusCode, len(resp.RawBody), cipherStatusText(cipher), decision.NextDelay, decision.ConsecutiveFailures)
 		return decision, nil
 	}
-	if commands != nil && resultAttached {
-		commands.MarkResultSent()
-		log.Printf("controller command result delivered: name=wg-genkeypair host_mutation=false")
-	}
-	last := newLastInformStatus(informURL, store, payload)
-	applyCommandLifecycleStatus(&last, commands)
+	last := newLastInformStatus(informURL, store)
 	applyControllerClockStatus(&last, controllerClock)
 	last.StatusCode = resp.StatusCode
 	last.AttemptedAESGCM = cipher.AttemptedAESGCM
@@ -100,13 +83,6 @@ func sendInformHeartbeat(mac net.HardwareAddr, informURL, statePath, statusPath 
 		return decision, nil
 	}
 	last.ResponseJSONParsed = true
-	if dispatchErr := handleControllerCommand(&last, commands, &controllerResponse); dispatchErr != nil {
-		decision := schedule.Failure()
-		applyInformScheduleStatus(&last, decision)
-		applyResponseStatus(&last, controllerResponse)
-		recordLastInform(statusPath, last, resp.StatusCode, controllerResponse.Type, cipher, len(resp.RawBody), len(resp.JSONBody), dispatchErr, session)
-		return decision, nil
-	}
 	updatedStore, stateErr := updateAdoptionState(statePath, store, &controllerResponse, cipher.UsedAESGCM)
 	if stateErr != nil {
 		decision := schedule.Failure()
@@ -123,14 +99,10 @@ func sendInformHeartbeat(mac net.HardwareAddr, informURL, statePath, statusPath 
 	store = updatedStore
 	decision := schedule.SuccessWithOptions(
 		controllerIntervalDuration(controllerResponse.IntervalSeconds),
-		controllerResponse.Immediate || controllerResponse.CommandResultQueued,
+		controllerResponse.Immediate,
 	)
 	applyInformScheduleStatus(&last, decision)
 	if controllerResponse.ResetApplied {
-		if commands != nil {
-			commands.Reset()
-			applyCommandLifecycleStatus(&last, commands)
-		}
 		if blocks != nil {
 			*blocks = adoption.BlockSelection{}
 		}
@@ -184,26 +156,6 @@ func applyInformScheduleStatus(last *lastInformStatus, decision inform.ScheduleD
 	}
 }
 
-func handleControllerCommand(last *lastInformStatus, commands *adoption.CommandLifecycle, response *adoption.ControllerResponse) error {
-	if commands == nil {
-		return nil
-	}
-	if err := commands.Handle(response); err != nil {
-		log.Printf("controller command handling failed: %v", err)
-		applyCommandLifecycleStatus(last, commands)
-		return fmt.Errorf("dispatch controller command: %w", err)
-	}
-	applyCommandLifecycleStatus(last, commands)
-	return nil
-}
-
-func applyCommandLifecycleStatus(last *lastInformStatus, commands *adoption.CommandLifecycle) {
-	if commands == nil {
-		return
-	}
-	last.ControllerCommands = commands.Summary()
-}
-
 func applyControllerClockStatus(last *lastInformStatus, controllerClock *inform.ControllerClock) {
 	if controllerClock == nil {
 		return
@@ -228,11 +180,6 @@ func applyResponseStatus(last *lastInformStatus, response adoption.ControllerRes
 	last.ResetApplied = response.ResetApplied
 	last.ResetReason = response.ResetReason
 	last.ResetDisposition = response.ResetDisposition
-	last.CommandName = response.CommandName
-	last.CommandRequestIDSet = response.CommandRequestIDSet
-	last.CommandHandled = response.CommandHandled
-	last.CommandResultQueued = response.CommandResultQueued
-	last.CommandDuplicate = response.CommandDuplicate
 	last.HasMgmtCFG = response.HasMgmtCFG
 	last.HasSystemCFG = response.HasSystemCFG
 	last.SystemCFGBytes = response.SystemCFGBytes

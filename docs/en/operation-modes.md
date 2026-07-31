@@ -1,23 +1,25 @@
 # Operation Modes
 
 `unifi-stubd` currently targets Linux lab hosts first, including Proxmox,
-Alpine, and UTM Linux VMs. The accepted product scope is one `US8` on a Linux
+Alpine, and UTM Linux VMs. The defined product target is one `US8` on a Linux
 bridge. FreeBSD/OPNsense and every other profile remain experimental paths that
 need their own product decision and evidence.
 
 ## Current Product Slice
 
-The current controller-data-qualified path is:
+The defined product path is:
 
 - profile `us8`;
 - `operation_mode: bridge-observe` on Linux;
 - one explicitly named bridge and real local metric source;
-- visible before adoption, adoptable, connected, and returning real link,
-  speed, counters, and rates on current Stable and Release Candidate.
+- required to become visible before adoption, adoptable, connected, and to
+  return real link, speed, counters, and rates on current Stable and Release
+  Candidate.
 
-Direct UI observation, installed-service validation, and the operator path are
-still open. The profiles below describe implemented experimental identities;
-they do not expand the accepted product scope.
+Current acceptance and next work belong to the [compatibility
+record](compatibility.md) and [backlog](backlog.md). The profiles below describe
+implemented experimental identities; they do not expand the defined product
+scope.
 
 `UGW3` is available as an experimental gateway identity profile. It reports the
 legacy UniFi Security Gateway model and three 1G ports, but remains stub-only
@@ -423,9 +425,9 @@ enable packet capture, NetFlow/IPFIX, DPI, or packet/error rate fields.
 Gateway and measured selected-switch-uplink `rx_rate` and `tx_rate` fields are
 rendered as bit/s throughput; `rx_bytes-r`, `tx_bytes-r`, and `bytes-r` remain
 byte/s rates.
-The runtime status file records the latest sanitized inform traffic fields with
-explicit byte/s and bit/s names so controller graphs can be compared against the
-host interface counters.
+The local status file does not decode the Stub's own Inform JSON as evidence.
+Compare the typed host observation with independent controller readback and the
+visible controller graph instead.
 
 For a switch, these controller columns describe different data and must not be
 compared as if they were the same measurement:

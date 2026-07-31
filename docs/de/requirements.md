@@ -1,6 +1,6 @@
 # Produktanforderungen
 
-Stand: 2026-07-29.
+Stand: 2026-07-31.
 
 ## Produktziel
 
@@ -64,19 +64,3 @@ Vier Ergebnisse haben verschiedene Bedeutungen:
 Keines ersetzt die anderen. Insbesondere beweist ein erzeugtes Paket noch
 nicht, dass der installierte Dienst und die Betreiberanleitung auf einem
 unterstuetzten Host funktionieren.
-
-## Aktueller Status
-
-Der aktuelle Kandidat erfuellt Sichtbarkeit, Adoption, Verbindung und den
-echten Metrikdatenpfad; exakter Lauf, Versionen und Identitaet stehen in der
-[Kompatibilitaetsevidence](compatibility.md). Fokussierte Tests decken
-begrenzte Adoption-Persistenz und verworfene Controlleraktionen ab, aber kein
-aufbewahrter kandidatgebundener Safety-Lauf belegt diese Bedingungen derzeit
-fuer die qualifizierte Source. Auch betreibersichtbare UI-Evidence fehlt; die
-volle Produktanforderung ist daher nicht abgenommen. Ein laufgebundener
-Linux-Paketsatz enthaelt das fuer den Datenpfad qualifizierte Binary. Seine
-Startkonfiguration waehlt `US8` explizit, nennt aber weder Bridge noch echte
-Metrikquelle und ist daher nicht die unterstuetzte
-US8-/Bridge-/Realmetrik-Konfiguration. Kandidatgebundene Safety-Evidence,
-UI-Beobachtung, unterstuetzte Paketkonfiguration, installierter Dienst und
-Betreiberpfad sind noch offen.

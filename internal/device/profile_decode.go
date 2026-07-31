@@ -8,24 +8,6 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// DecodeConfig decodes and validates one standalone profile YAML document.
-func DecodeConfig(data []byte) (Profile, int, error) {
-	decoded, err := decodeConfigRecord(data)
-	if err != nil {
-		return Profile{}, 0, err
-	}
-	return decoded.profile, decoded.order, nil
-}
-
-// DecodeExternalConfig decodes a profile YAML document with optional inheritance.
-func (r *ProfileRegistry) DecodeExternalConfig(data []byte) (Profile, int, error) {
-	decoded, err := r.decodeExternalConfigRecord(data)
-	if err != nil {
-		return Profile{}, 0, err
-	}
-	return decoded.profile, decoded.order, nil
-}
-
 // decodedProfile carries both the typed profile and original YAML document
 // needed for inheritance and registry storage.
 type decodedProfile struct {

@@ -28,7 +28,6 @@ func maintainControllerPresence(cfg controllerPresence) error {
 		startedAt = time.Now()
 	}
 	var rateTracker *observe.TrafficRateTracker
-	var commands adoption.CommandLifecycle
 	var blocks adoption.BlockSelection
 	var controllerClock inform.ControllerClock
 	informSession := newInformSessionStatus()
@@ -91,7 +90,6 @@ func maintainControllerPresence(cfg controllerPresence) error {
 			store,
 			payload,
 			informSourceIP(cfg.flags, cfg.ip),
-			&commands,
 			&blocks,
 			schedule,
 			&controllerClock,

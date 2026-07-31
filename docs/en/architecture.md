@@ -100,79 +100,18 @@ Profiles describe device shape. They are data, not code hooks. A profile owns:
 - payload defaults such as management interface name, gateway interface prefix,
   required controller version, and safe feature flags.
 
-Separately, the device package owns an evidence-bound `ProtocolProfile`
-registry for exact analysed builds. Its immutable key contains family,
-platform/component role, version/build marker, firmware SHA-256,
-component/app SHA-256, and digest kind. An exact build selects only a
-version-independent `ProtocolBehaviorID`; a separate
-`ProtocolBehaviorProfile` catalog composes the six typed metadata axes: wire,
-discovery, field groups, commands, positive capabilities, and presence.
-Lookup never falls back by version prefix, family similarity, or a neighboring
-digest. An unknown build or behavior ID selects the composition whose six
-axes are all `unsupported`.
+### Product Evidence Boundary
 
-Exact evidence identity and implemented behavior are deliberately different
-layers. An evidence row does not create a complete firmware-specific behavior
-type. Instead, it selects a composition of small, reusable contracts such as a
-TNBU codec, discovery dialect, common identity fields, switch or gateway field
-groups, command namespace, platform capabilities, and presence rules. Builds
-with the same evidenced semantics share those components. A new firmware
-version creates a new behavior component only when a reviewed differential
-proves a relevant semantic change.
+Reverse-engineering evidence constrains product decisions; it is not an
+executable firmware catalogue. Only behavior selected by a named product
+requirement belongs in the Core. Detailed build matrices and research
+taxonomies stay in the companion research record rather than being duplicated
+as product architecture.
 
-Registry metadata keeps the evidence identity and recovered principle for
-review. Executable proof is required only when a behavior is accepted into a
-named product requirement; research-only selectors do not create their own
-product tests.
-
-Protocol platforms come only from the architecture column of
-`device-types.tsv`: `aarch64-little-endian`, `arm32-little-endian-eabi5`,
-`mips32r2-little-endian`, `mips32r2-big-endian`, `mips32-big-endian`,
-`arm-cortex-m-thumb-little-endian`, `xtensa-esp32-little-endian`, and explicit
-artifact-only `unknown`. Exact subplatform text remains in the evidence build
-marker, family, or component role; it is not promoted into a new platform
-class. Any value outside this evidence taxonomy fails closed.
-
-Behavior components are named after their contract or protocol generation,
-not after every product and release. Product/build labels remain in the
-evidence-binding layer. Platform differences are expressed as narrow
-positive capability flags or presence overlays; for example, mainline BCM and
-MSCC share their mainline switch base while retaining distinct platform and
-table gates. Missing capability flags do not assert that physical hardware is
-absent. They only prevent unproven vocabulary or behavior from being selected.
-Likewise, the common zlib wire component is the smallest safe controller-side
-subset and does not enable BCM's observed Snappy branch. Mainline and
-Switch-WAN retain separate discovery components because their alternate
-builders differ. This prevents both unsafe nearest-profile fallback and a
-one-to-one copy of the firmware matrix into product code.
-
-This registry is the selector contract for later wire, discovery, command, and
-payload implementations. GOV-003 does not bind those research entries to the
-existing user-facing shape profiles and does not change current runtime
-traffic by itself.
-
-The Core is a compatibility stub, not a firmware emulator and not a goal of
-one-to-one device simulation. It implements only the smallest safe,
-controller-facing contracts needed for the selected product use cases.
-Optional synthetic scenarios may vary adoption state, link state, counters,
-or command results deterministically for tests, but they do not reproduce
-vendor processes, internal IPC, hardware side effects, incidental timing, or
-every observed payload. Reverse-engineering evidence constrains these
-contracts; it is not copied as an implementation blueprint.
-
-### Evidence And Product Traceability
-
-Reverse-engineering evidence is research input, not an automatic product
-contract. A behavior accepted into a named requirement keeps the smallest
-reviewable chain from requirement through recovered principle to product
-component and executable product proof. Deferred, rejected, or superseded lab
-findings may remain in the companion research record without product code or a
-regression test.
-
-Cleanup may delete isolated patch functions, fixtures, and tests that protect
-no accepted product behavior. It must preserve the public product outcome and
-safety boundary. The product architecture, not the size of the research
-inventory, decides what is implemented.
+Unknown build identities, unsupported controller values, and unrecognized
+commands fail closed. They never select a neighboring profile or gain host
+authority. The Core implements the smallest controller-facing contract needed
+for the accepted product outcome, not a one-to-one firmware simulation.
 
 The device package is the single source of truth for profile and port data.
 Renderer-specific views are derived from `device.Profile` and `device.Port`;
@@ -322,41 +261,14 @@ producer consults only the exact include/exclude identifiers it owns. A string
 later reported payload time only. Neither block descriptors nor controller time
 can execute commands or mutate the host.
 
-Provisioning commands that would affect the host are summarized as ignored
-metadata. Arbitrary controller shell commands are not executed. The sole
-command-result exception is an argument-free `wg-genkeypair` with a request ID:
-the daemon generates an X25519 key pair in process and attaches the correlated
-result to the next inform. The keys and request ID remain memory-only; logs and
-status expose only the fixed command name and sanitized lifecycle counters.
-Sanitized adoption and last-inform status expose both the numeric wire state
-and its fixed name; they never expose the individual adoption key.
+Controller commands are summarized as ignored metadata and never executed.
+Sanitized adoption status may expose fixed lifecycle vocabulary, but never the
+individual adoption key or arbitrary controller text.
 
-The presence loop uses a resettable timer rather than a fixed ticker. The
-operator's `interval_seconds` is the initial interval. Positive controller
-`noop.interval` hints are enabled only when the built-in source, profile, model,
-version, and board identity select one exact LIFE-010 firmware-minimum binding.
-The current candidate enables six exact tuples and leaves the other six
-built-ins, external profiles, adjacent identities, and model/version overrides
-fail-closed for interval hints. The exact list belongs in the protocol notes.
-
-For an enabled tuple, the lower bound is
-`max(firmware minimum, operator minimum)` and the upper bound is
-`min(operator maximum, 300 seconds)`. Without a binding, a positive hint is
-ignored and the operator base remains active. Configuration fails validation
-when the effective upper bound is below the effective lower bound. Dry-run plan
-and sanitized status show whether hints are supported, the evidence ID,
-firmware and effective minima, or the fixed rejection reason.
-`noop.immediate=true` requests one
-bounded, nonzero near-immediate follow-up without changing that retained
-effective interval. Transport, response-decode, JSON, dispatcher, and non-200
-failures double the effective delay up to the configured backoff maximum and
-add bounded symmetric jitter. Only an empty HTTP 200 or an accepted
-controller-object 200 resets the failure count; the most recent effective
-interval, next delay, failure count, and backoff state are recorded as
-sanitized status.
-
-The exact interval bindings remain candidate behavior until the selected
-product candidate is accepted against its designated controller environment.
+Controller interval hints are accepted only for an exact reviewed built-in
+identity and remain bounded by local operator policy. External, overridden, or
+unknown identities keep the operator interval. Failures use bounded local
+backoff; controller timing data grants no host authority.
 
 ## Persistence And Status
 

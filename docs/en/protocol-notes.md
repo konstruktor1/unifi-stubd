@@ -161,93 +161,17 @@ different cipher.
 The current product acceptance is defined by the named product requirements;
 it does not require an in-process controller journey.
 
-## Exact Build Policy Registry
+## Product Evidence Boundary
 
-The product contains two typed registries. `ProtocolProfile` binds complete
-static evidence, not a model label or firmware-version prefix, to a
-version-independent behavior ID. `ProtocolBehaviorProfile` separately composes
-wire, discovery, field-group, command, positive-capability, and presence
-policies:
+Firmware and reverse-engineering matrices are research input, not a product
+registry. They stay in the companion research record and do not create runtime
+behavior, tests, or compatibility claims by themselves.
 
-| Evidence | Exact build class | Wire | Discovery | Commands | Field groups / presence | Positive capabilities |
-| --- | --- | --- | --- | --- | --- | --- |
-| `DT-001` | UXG Pro 5.0.16 | shared safe zlib TNBU subset | unsupported until exact gateway frames exist | top-level 7 / direct 70 | UXG producer and request gates | gateway management plus producer telemetry |
-| `DT-002` | UDM Pro SE 5.1.19 | shared safe zlib TNBU subset | unsupported until exact gateway frames exist | top-level 7 / direct 65 | UDM saved-config/probe gates | gateway management plus saved-config/probe vocabulary |
-| `DT-008` | Mainline BCM 7.4.1 | shared safe zlib subset; Snappy disabled | shared mainline v2 builder | top-level 7 / direct 40, host mutation rejected | common mainline groups plus BCM presence | switch/mainline plus BCM table vocabulary |
-| `DT-009` | Mainline MSCC 7.4.1 | shared safe zlib subset | shared mainline v2 builder | same direct 40 policy | common mainline groups plus MSCC presence | switch/mainline plus MSCC platform contract |
-| `DT-010` | Switch-WAN 7.3.109 | shared safe zlib subset | separate WAN v2 alternate-builder contract | top-level 7 / direct 41, host mutation rejected | WAN/model/source gates | source-gated WAN/RPS vocabulary; no action authority |
-| `DT-012` | current `usmini2` 2.1.6 | raw JSON TNBU | shared current-ESP directed broadcast | proven top-level 5; direct `cmd` unsupported | common low-resource groups plus usmini2 presence | current-ESP base; no positive PSE claim |
-| `DT-013..015` | current Ultra/M25G 2.1.8 | shared zlib with raw fallback | shared current-ESP directed broadcast | same top-level 5 policy; direct `cmd` unsupported | common low-resource groups plus separate presence | shared current-ESP base; positive PSE vocabulary only for Ultra and M25G8 |
-
-The IDs describe semantic contracts and contain no artifact version. Equal
-complete compositions cannot receive duplicate behavior IDs, while individual
-policy components are reused wherever the evidence establishes the same
-semantics. Missing capability flags only disable unproven product behavior;
-they do not claim that hardware is absent. In particular, M25G5 has no positive
-PSE policy from this app analysis, but its external hardware remains unknown.
-
-Every selected component exposes its axis/selector, establishing `DT-*`
-records, and recovered principle. A component needs executable product proof
-only when a named product requirement selects its behavior. Platform selectors
-are limited to the typed architecture classes from `device-types.tsv`; any
-other value fails closed.
-
-`DT-003..007` and the M487 component `DT-011` are known evidence identities
-whose protocol semantics remain unsupported or `UNKNOWN`; their six policy
-axes are therefore all `unsupported`. The M487 and current usmini2 entries
-share a firmware container but not an agent or wire policy; likewise the BCM
-and MSCC entries share an outer firmware image but retain exact component
-identities and distinct complete behavior compositions. Blank hashes, one-byte
-hash changes, adjacent versions, and mixed components therefore fail closed
-instead of choosing a neighbor. Build markers are exact observed firmware,
-rootfs, or component markers rather than normalized product labels.
-
-The registries are metadata and a strict lookup boundary. Applying each selector
-in Inform, Discovery, command dispatch, and payload rendering belongs to the
-corresponding implementation requirements; these registries alone do not alter
-the existing user-facing shape profiles or runtime traffic.
-
-### Exact Controller Interval Policy
-
-`REQ-LIFE-010` is a separate, explicit consumer of the evidence registry. It
-enables positive controller interval hints only when the built-in source,
-profile name, model, version, and board identity form one exact tuple:
-
-| Built-in profile | Exact model | Exact version | Interval evidence ID | Positive `noop.interval` policy |
-| --- | --- | --- | --- | --- |
-| `us8` | `US8` | `7.4.1.16850` | `DT-008` | enabled; 30-second firmware minimum |
-| `us8p60` | `US8P60` | `7.4.1.16850` | `DT-008` | enabled; 30-second firmware minimum |
-| `us16p150` | `US16P150` | `7.4.1.16850` | `DT-008` | enabled; 30-second firmware minimum |
-| `us24p250` | `US24P250` | `7.4.1.16850` | `DT-008` | enabled; 30-second firmware minimum |
-| `us48p500` | `US48P500` | `7.4.1.16850` | `DT-008` | enabled; 30-second firmware minimum |
-| `uxgpro` | `UXGPRO` | `5.0.16.30689` | `DT-001` | enabled; 1-second firmware minimum |
-| `ucg-fiber` | `UCGF` | `5.0.16` | `DT-004` | fail closed; exact evidence is known but no firmware minimum is cataloged |
-| `ugw3` | `UGW3` | `4.4.57.5578372` | `DT-007` | fail closed; exact evidence is known but no firmware minimum is cataloged |
-| `uxg-lite` | `UXG` | `5.0.16.30689` | `DT-006` | fail closed; exact evidence is known but no firmware minimum is cataloged |
-| `us16xg` | `US16XG` | `7.4.1.16850` | not bound | fail closed; no exact interval-policy binding |
-| `usaggpro` | `USAGGPRO` | `7.4.1.16850` | not bound | fail closed; no exact interval-policy binding |
-| `usw-pro-xg-48` | `USWProXG48` | `7.4.1.16850` | not bound | fail closed; no exact interval-policy binding |
-
-These decisions concern interval hints only. They do not promote profile
-maturity or enable all protocol behavior associated with an evidence ID. In
-particular, the 30-second minimum belongs to each listed board/profile tuple;
-it is not a build-wide `DT-008` default. External profiles, adjacent versions,
-model or version overrides, and lookalike identities fail closed instead of
-borrowing a neighboring decision.
-
-For an enabled tuple, the effective lower bound is
-`max(firmware minimum, operator minimum)` and the effective upper bound is
-`min(operator maximum, 300 seconds)`. For every disabled tuple, a positive hint
-is recorded as ignored and the operator-selected base interval remains active.
-Configuration fails validation when that effective upper bound is below the
-effective lower bound.
-The dry-run plan and sanitized status expose whether hints are supported, the
-evidence ID, firmware and effective minima, or the fixed fail-closed reason.
-
-This LIFE-010 implementation exists only in the current dirty-worktree product
-candidate. Reviewed source-hash binding, T4 acceptance of the same bytes on the
-designated controller test machine, separate G3 reachability from `main`, and
-release evidence remain open; this is not a T4, G3, or release claim.
+Only behavior required by the product contract is implemented. Unknown build
+identities, profile overrides, unsupported controller values, and unrecognized
+commands fail closed instead of borrowing behavior from a neighboring device.
+Controller interval hints likewise apply only through an exact reviewed
+built-in identity; otherwise the operator-selected interval remains active.
 
 ## Adoption
 
@@ -296,65 +220,22 @@ missing key, and the same bytes are rejected as an individual adopted key.
 Corrupt state, adopted state without a valid individual key, and failed state
 without a key stop before any HTTP request.
 
-Evidence-aligned UXG-Pro 5.0.16 handling:
+Controller response handling stays deliberately small:
 
-| Evidence class | Phase | Request/response shape | Stub behavior |
-| --- | --- | --- | --- |
-| Dynamic DT-001 | Pre-adoption | Firmware informs use the default key and receive HTTP `404` until an admin clicks `Adopt`. | Keep `default=true`, `state=1`. |
-| Dynamic DT-001 | First accepted inform | Controller responds HTTP `200` with `_type: "setparam"` and `mgmt_cfg`. | Parse and persist `authkey`, `cfgversion`, and `use_aes_gcm=true`; enter wire state `0`. |
-| Dynamic DT-001 | Key switch | Firmware immediately sends the next inform with the adopted key and AES-GCM. | Send `default=false`, `state=0`. No restart occurred in this captured path. |
-| Dynamic DT-001 | Accepted adopted inform | Controller returns `_type: "noop"`. | Advance to `default=false`, `state=2` (`Managed`). Static analysis also permits a successful `setparam`; an authkey field or actual Inform-URL change then returns to `0`. |
-| Dynamic DT-001 CAP-05 shape plus product safety | System config | The surviving summary shows another `_type: "setparam"` with top-level `cfgversion`, a present `mgmt_cfg` whose contents were not disclosed, and `system_cfg`. | Ignore top-level `cfgversion` as an adoption-store input and retain only bounded `system_cfg` structure metadata; do not apply host users, firewall, routes, certificates, tokens, or secrets. |
-| Static vocabulary plus product safety | Upgrade status | Firmware recognizes `_type: "upgrade"`; this row is not part of DT-001. | Record the response as ignored status only. Do not change the advertised operator version, persisted lifecycle state, services, firmware, or host. |
-| Static command evidence plus product policy | WireGuard key request | Firmware recognizes `_type: "cmd"`, `cmd: "wg-genkeypair"`, and a `request_id`; this row is not part of DT-001. | Generate an X25519 key pair in memory and attach a firmware-compatible notification to the next ordinary inform: `inform_as_notif=true`, `notif_reason="cmd"`, and a `notif_payload` containing `event_string`, the correlated `request_id`, and `params.private_key`/`params.public_key`. The current core clears the slot only when an HTTP `200` also reaches its delivery point; the evidence-bound every-HTTP-200 rule remains open. Never persist or log the keys or request ID. |
-| Static firmware analysis | Steady state | Firmware accepts `_type: "noop"` with `interval`, `immediate`, block lists, and optionally a string `server_time_in_utc`; this row is not part of DT-001. | For an exact supported tuple, clamp a positive interval from the stricter firmware/operator lower bound through the smaller operator/300-second upper bound. Otherwise ignore the hint and retain the operator base. Reset heartbeat-failure backoff. `immediate=true` schedules one bounded nonzero follow-up without replacing the retained normal interval. Each `noop` replaces the complete process-local block selection. A controller-time string shifts only the time reported by later Stub payloads. |
+- accepted `setparam` data may update only bounded adoption identity, cipher,
+  configuration version, and validated Inform URL state;
+- `system_cfg` is treated as untrusted provisioning data and is never applied
+  to host users, services, firewall, routes, certificates, or networking;
+- `_type: "upgrade"`, `_type: "cmd"`, and unknown response types are ignored
+  without executing a command or changing the advertised product version; and
+- `noop` metadata may affect only bounded process-local reporting and
+  scheduling. It cannot set the host clock or gain host authority.
 
-Block selection is producer-local policy, not a command surface. Every accepted
-`noop` replaces the previous include/exclude selection, including when the new
-lists are empty. Known producers consult only their exact block identifiers;
-UDAPI descriptors remain bounded status metadata and are never executed.
-
-`server_time_in_utc` is accepted as string metadata on `noop` only. The Stub
-retains a process-local controller-minus-device offset and applies it to the
-reported payload time. It never calls a host time service, sets the system
-clock, or changes the host timezone.
-
-The first `mgmt_cfg` observed in the lab contained `capability`,
-`selfrun_guest_mode`, `cfgversion`, `led_enabled`, `stun_url`, `mgmt_url`,
-`authkey`, `use_aes_gcm=true`, and `report_crash`. It did not include a new
-`inform_url`; the firmware continued to use the existing inform URL and only
-changed the key/cipher context.
-
-GW-14 records a static parse/install/persist/next-use path for
-`mgmt_cfg.inform_url`; no retained dynamic capture exercises an Inform-URL
-change. This research observation creates no separate product-test obligation.
-The current product contract requires only bounded adoption identity and the
-host-safety boundary.
-
-Only the enabling value `use_aes_gcm=true` is evidenced. A controller-provided
-`false` does not downgrade an established Stub session; firmware-equivalent
-downgrade behavior remains explicitly deferred for missing evidence.
-
-The adopted `system_cfg` shape was a JSON string with top-level `ubntconf` and
-`udapi` keys. The `udapi` object contained interfaces, services, system users,
-firewall sets/filter chains/settings, static routes, and Radius profiles. This
-is provisioning data for a real gateway, not a safe set of host instructions
-for `unifi-stubd`.
-
-`wg-genkeypair` is the only controller command with an executable result. It
-uses Go's in-process X25519 implementation and performs no shell execution,
-file write, service action, or host-network mutation. Missing request IDs,
-arguments, parameters, malformed requests, and all other commands are ignored.
-
-Heartbeat policy remains local. Packaged defaults start at 10 seconds and
-configure operator bounds of 5 through 60 seconds; those bounds do not enable
-controller hints by themselves. An exact LIFE-010 tuple must first supply its
-firmware minimum. Failure backoff is capped at 300 seconds and uses 20 percent
-symmetric jitter. Transport, response-decode, JSON, dispatcher, and non-200
-failures double the effective delay up to the local cap. Only an empty HTTP 200
-or an accepted controller-object 200 resets the failure count. If the
-configured normal interval exceeds the backoff maximum, it remains the lower
-bound so a failure never accelerates inform traffic.
+Heartbeat policy remains local. Controller interval hints require an exact
+reviewed built-in identity and are clamped to operator bounds; every other
+identity keeps the operator-selected base interval. Transport, decode, JSON,
+dispatcher, and non-200 failures use bounded backoff. Only an empty HTTP 200 or
+an accepted controller object resets the failure count.
 
 Alternative adoption over SSH:
 
@@ -432,9 +313,8 @@ current REST `uplink` object. Network 10.4.57 retains the root cumulative
 counters but omits root rate keys from that normalized response. Network
 10.5.62 normalizes the measured interface byte/s and bit/s fields into the
 current uplink and official latest-statistics API; its root fields remain zero
-or absent. The local runtime status records root, management `if_table`,
-logical `uplink`, and selected `port_table` views. `source_interface` stays on
-the logical/port views because it is local diagnostic metadata.
+or absent. `source_interface` remains local payload metadata on the logical and
+port views; it is not a controller observation.
 
 Profiles should stay hardware-shaped. Lab assignments such as "this port is
 WAN", "this port is LAN", or "this port represents backup WAN" belong in

@@ -7,26 +7,6 @@ import (
 	"fmt"
 )
 
-type controllerResponseTypeError struct {
-	message string
-}
-
-func (responseErr *controllerResponseTypeError) Error() string {
-	return responseErr.message
-}
-
-// IsControllerResponseTypeError reports a dispatcher rejection caused by a
-// non-object response or a missing, non-string, or unknown _type. Error text is
-// fixed so an untrusted discriminator cannot reach logs or persisted status.
-func IsControllerResponseTypeError(err error) bool {
-	var responseErr *controllerResponseTypeError
-	return errors.As(err, &responseErr)
-}
-
-func newControllerResponseTypeError(message string) error {
-	return &controllerResponseTypeError{message: message}
-}
-
 // Controller response types handled specially by the adoption sanitizer.
 const (
 	responseTypeCommand    = "cmd"
@@ -35,21 +15,6 @@ const (
 	responseTypeSetParam   = "setparam"
 	responseTypeUpgrade    = "upgrade"
 )
-
-// ParseSetParamResponse extracts adoption settings from a setparam response.
-func ParseSetParamResponse(data []byte) (Store, bool, error) {
-	store, kind, ok, err := ParseControllerResponse(data)
-	return store, ok && kind == responseTypeSetParam, err
-}
-
-// ParseControllerResponse extracts adoption state from a controller response.
-func ParseControllerResponse(data []byte) (Store, string, bool, error) {
-	info, err := ParseControllerResponseInfo(data)
-	if err != nil {
-		return Store{}, "", false, err
-	}
-	return info.Store, info.Type, info.HasStateUpdate, nil
-}
 
 // ParseControllerResponseInfo returns a sanitized controller response summary.
 func ParseControllerResponseInfo(data []byte) (ControllerResponse, error) {
@@ -61,18 +26,18 @@ func ParseControllerResponseInfo(data []byte) (ControllerResponse, error) {
 		return ControllerResponse{}, fmt.Errorf("parse controller response: %w", err)
 	}
 	if !isObject {
-		return ControllerResponse{}, newControllerResponseTypeError("parse controller response: top-level value must be an object")
+		return ControllerResponse{}, errors.New("parse controller response: top-level value must be an object")
 	}
 	rawType, present := raw["_type"]
 	if !present {
-		return ControllerResponse{}, newControllerResponseTypeError("parse controller response: missing _type string")
+		return ControllerResponse{}, errors.New("parse controller response: missing _type string")
 	}
 	var responseType *string
 	if err := json.Unmarshal(rawType, &responseType); err != nil || responseType == nil {
-		return ControllerResponse{}, newControllerResponseTypeError("parse controller response: _type must be a string")
+		return ControllerResponse{}, errors.New("parse controller response: _type must be a string")
 	}
 	if !knownControllerResponseType(*responseType) {
-		return ControllerResponse{}, newControllerResponseTypeError("parse controller response: unsupported _type")
+		return ControllerResponse{}, errors.New("parse controller response: unsupported _type")
 	}
 	response := ControllerResponse{Type: *responseType}
 	// Only a narrow mgmt_cfg allowlist is persisted. Provisioning blocks,
@@ -136,7 +101,8 @@ func ParseControllerResponseInfo(data []byte) (ControllerResponse, error) {
 		response.ResetRequested = true
 		response.ResetReason = "controller setdefault command"
 	case responseTypeCommand:
-		parseControllerCommand(&response, raw)
+		response.Ignored = true
+		response.IgnoredReason = "controller command ignored by safety policy"
 	default:
 		if isUnsafeControllerCommand(response.Type) {
 			response.Ignored = true

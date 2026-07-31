@@ -102,17 +102,6 @@ func adoptionStoreAlreadyFactory(store adoption.Store) bool {
 // operators can see accepted, ignored, and reset-like actions without raw JSON.
 func logInformResponse(resp *inform.Response, response adoption.ControllerResponse, store adoption.Store, cipher informCipherStatus) {
 	if response.Type != "" {
-		if response.Type == "cmd" && response.CommandHandled {
-			log.Printf(
-				"inform response status=%d type=cmd command=%s handled=true result_queued=%t duplicate=%t host_mutation=false cipher=%s",
-				resp.StatusCode,
-				response.CommandName,
-				response.CommandResultQueued,
-				response.CommandDuplicate,
-				cipherStatusText(cipher),
-			)
-			return
-		}
 		if response.Type == "setparam" {
 			log.Printf(
 				"inform response status=%d setparam cfgversion=%q inform_url=%q use_aes_gcm=%t authkey_set=%t mgmt_cfg=%t system_cfg=%t system_cfg_bytes=%d ignored=%t cipher=%s",

@@ -1,28 +1,27 @@
 # Produkt-Backlog
 
-Stand: 2026-07-29.
+Stand: 2026-07-31.
 
-Der Backlog ist nach nutzbarem Produktergebnis geordnet. Bereitstellungs- und
-Validierungsmechanik ist keine eigene Produktarbeit.
+Der Backlog ist die einzige Quelle fuer aktuelle Prioritaet und naechste
+Arbeit. Er ist nach nutzbarem Produktergebnis geordnet; Runner, Fixtures,
+Receipts und Testkataloge sind Bereitstellung, keine Backlog-Ergebnisse.
 
-| Reihenfolge | Ergebnis | Status | Fertig wenn |
+| Reihenfolge | Produktergebnis | Status | Fertig wenn |
 | ---: | --- | --- | --- |
-| 1 | Den Nicht-UniFi-`US8`-Datenpfad mit echten Metriken belegen. | Verifiziert | Die aktuelle Kompatibilitaetsevidence zeigt denselben Kandidaten auf aktuellem Stable und RC sichtbar, adoptiert, verbunden und mit steigenden echten Metrikwerten. |
-| 2 | Belegen, dass ein Betreiber diese Metriken in UniFi Network sieht. | Als Naechstes | Die US8-Geraeteseite auf aktuellem Stable und RC zeigt sichtbar Link, beobachteten Speed und bidirektionale Trafficwerte der echten Quelle. API-Readback allein reicht nicht. |
-| 3 | Die Host-Sicherheitsgrenze erhalten. | Implementiert; Evidence offen | Fokussierte Tests decken begrenzten Stub-eigenen Adoption-State und verworfene Shell-, Netzwerk-, Restart-, Upgrade- und Provisioning-Aktionen ab. Ein aufbewahrter Lauf muss diese Pruefungen an die exakt qualifizierte Kandidatensource binden. |
-| 4 | Ein installierbares Linux-Paket fuer den unterstuetzten Schnitt liefern. | In Validierung | Das Paket enthaelt das fuer den Datenpfad qualifizierte Binary. Seine Startkonfiguration waehlt `US8` explizit; eine unterstuetzte Bridge-Konfiguration mit benannter echter Metrikquelle muss aber noch auf einem Linux-Host installiert und erfolgreich gestartet werden. |
-| 5 | Den unterstuetzten Betreiberpfad nutzbar machen. | Nach 2 und 4 | Der Quick Start fuehrt von Installation und lokaler Metrikquelle ueber Adoption und sichtbare Controllermetriken bis zu Grenzen und Recovery ohne Lab-Interna. |
-| 6 | Eine weitere Repraesentation nur fuer einen konkreten Produktbedarf ergaenzen. | Spaeter | Vor der Umsetzung bestehen benanntes Nutzerergebnis, lokale read-only Datenquelle, Sicherheitsgrenze und eigene Stable-/RC-Abnahme. |
+| 1 | Den Nicht-UniFi-`US8` mit echten Metriken abnehmen. | Offen | Derselbe Kandidat ist auf dynamisch aufgeloestem Stable und RC sichtbar, adoptierbar, verbunden und liefert steigende echte Link- und Trafficwerte. Dauerhafte Evidence bindet exakte Source und Binary. |
+| 2 | Das betreibersichtbare Ergebnis belegen. | Offen | Beide Controller-Geraeteseiten zeigen Link-State, beobachteten Speed und bidirektionalen Traffic der benannten lokalen Quelle. API-Readback allein reicht nicht. |
+| 3 | Den Host-Safety-Nachweis an den Kandidaten binden. | Offen | Fokussierte ausfuehrbare Pruefungen fuer begrenzten Adoption-State und verworfene Hostaktionen bestehen fuer die exakt abgenommene Source. |
+| 4 | Die unterstuetzte Linux-Installation liefern. | Offen | Ein Paket mit diesem Binary wird auf einem unterstuetzten Linux-Host als `US8` im Modus `bridge-observe` mit benannter echter Quelle installiert und gestartet. |
+| 5 | Den Betreiberpfad veroeffentlichen. | Nach 1–4 | Der Quick Start deckt Installation, Konfiguration, Adoption, sichtbare Metriken, Grenzen und Recovery ohne Lab-Interna ab. |
+| 6 | Eine weitere Repraesentation nur fuer einen konkreten Bedarf ergaenzen. | Spaeter | Vor der Umsetzung bestehen benanntes Betreiberergebnis, lokale read-only Quelle, Sicherheitsgrenze und eigene Stable-/RC-Abnahme. |
 
 ## Naechster Schritt
 
-Eintraege 2, 3 und 4 abschliessen. Zuerst die unterstuetzte US8-Bridge-
-Konfiguration mit ihrer benannten echten lokalen Metrikquelle
-vervollstaendigen; die explizite paketierte US8-Identitaet allein ist nicht
-diese Konfiguration. Das laufgebundene Paket auf einem unterstuetzten
-Linux-Host installieren, mit der unterstuetzten Konfiguration starten und in
-beiden aktuellen Controllerkanaelen bestaetigen, dass ein Betreiber die echten
-Metriken sieht. Ein fokussiertes Safety-Ergebnis an genau diese
-Kandidatensource binden und aufbewahren. Genau dieser Pfad wird der Quick Start.
-Keine neue Metrikfamilie, kein Gateway-Verhalten und kein weiteres Profil kommt
-vor diesem nutzbaren Release.
+Eine zusammenhaengende Kandidatenreise ausfuehren: Eine `US8`-Linux-Bridge mit
+ihrer benannten echten Uplinkquelle konfigurieren, das Produkt einmal bauen,
+genau dieses Binary ueber das Paket installieren und dieselben Bytes auf
+neuestem Stable und neuestem Release Candidate verwenden. Ausfuehrbare
+Datenpfad- und Safety-Ergebnisse aufbewahren und die sichtbaren Metriken in
+beiden Controller-UIs direkt bestaetigen. Bis diese Reise besteht, ist kein
+neues Profil, Gateway-Verhalten oder keine neue Metrikfamilie als Naechstes
+dran.

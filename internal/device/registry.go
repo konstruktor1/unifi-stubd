@@ -66,11 +66,6 @@ type ProfileRegistry struct {
 
 // NewProfileRegistry returns a registry initialized with built-in profiles.
 func NewProfileRegistry() ProfileRegistry {
-	return BuiltinRegistry()
-}
-
-// BuiltinRegistry returns a new registry initialized with built-in profiles.
-func BuiltinRegistry() ProfileRegistry {
 	return ProfileRegistry{records: cloneRecords(builtinProfileRecords())}
 }
 

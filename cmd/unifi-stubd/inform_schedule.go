@@ -44,7 +44,7 @@ func controllerIntervalPolicyStatus(flags runtimeFlags, policy device.InformSche
 func controllerReportingPolicyStatus(policy device.ControllerReportingPolicy) statusControllerReportingPolicy {
 	return statusControllerReportingPolicy{
 		EvidenceID:      policy.EvidenceID,
-		BehaviorID:      string(policy.BehaviorID),
+		BehaviorID:      policy.BehaviorID,
 		BlockSelection:  policy.BlockSelection,
 		ControllerClock: policy.ControllerClock,
 		Reason:          policy.Reason,

@@ -134,18 +134,12 @@ define run_product_gate
 	else \
 		: "$${BUILD_RUNNER_DIR:?set BUILD_RUNNER_DIR to the provider checkout}"; \
 		host_lab_dir="$$(pwd -P)/lab/stub"; \
-		provider_version="$$(sed -n 's/.*"version": "\([^"]*\)".*/\1/p' "$$BUILD_RUNNER_DIR/provider-release.json")"; \
-		provider_commit="$$(git -C "$$BUILD_RUNNER_DIR" rev-parse --verify HEAD^{commit})"; \
-		test -n "$$provider_version"; \
-		test -n "$$provider_commit"; \
 		"$$BUILD_RUNNER_DIR/build-runner" \
 			--project-name '$(BUILD_RUNNER_PROJECT_NAME)' \
 			instance run \
 			--manifest '$(BUILD_RUNNER_INTEGRATION_MANIFEST)' \
 			-- env \
 				UNIFI_STUB_DOCKER_HOST_LAB_DIR="$$host_lab_dir" \
-				UNIFI_STUB_BUILD_RUNNER_VERSION="$$provider_version" \
-				UNIFI_STUB_BUILD_RUNNER_COMMIT="$$provider_commit" \
 				$(1); \
 	fi
 endef

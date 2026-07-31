@@ -168,97 +168,18 @@ zurueck. Ein Fehler loest niemals einen zweiten Request mit anderem Cipher aus.
 Die aktuelle Produktabnahme wird durch die benannten Produktrequirements
 definiert; sie verlangt keine prozessinterne Controllerreise.
 
-## Registry fuer exakte Build-Policies
+## Grenze zwischen Evidence und Produkt
 
-Das Produkt enthaelt zwei typisierte Registries. `ProtocolProfile` bindet
-vollstaendige statische Evidenz, nicht ein Modelllabel oder Firmware-
-Versionspraefix, an eine versionsunabhaengige Verhaltens-ID.
-`ProtocolBehaviorProfile` komponiert getrennt Wire-, Discovery-, Feldgruppen-,
-Command-, positive Capability- und Presence-Policies:
+Firmware- und Reverse-Engineering-Matrizen sind Researchinput, keine
+Produktregistry. Sie bleiben im Companion-Researchprotokoll und erzeugen fuer
+sich allein weder Runtime-Verhalten, Tests noch Kompatibilitaetsclaims.
 
-| Evidenz | Exakte Buildklasse | Wire | Discovery | Commands | Feldgruppen / Presence | Positive Capabilities |
-| --- | --- | --- | --- | --- | --- | --- |
-| `DT-001` | UXG Pro 5.0.16 | gemeinsamer sicherer zlib-TNBU-Subset | unsupported bis zu exakten Gatewayframes | Top-Level 7 / direkt 70 | UXG Producer-/Request-Gates | Gateway-Management plus Producer-Telemetrie |
-| `DT-002` | UDM Pro SE 5.1.19 | gemeinsamer sicherer zlib-TNBU-Subset | unsupported bis zu exakten Gatewayframes | Top-Level 7 / direkt 65 | UDM Saved-Config-/Probe-Gates | Gateway-Management plus Saved-Config-/Probe-Vokabular |
-| `DT-008` | Mainline BCM 7.4.1 | gemeinsamer sicherer zlib-Subset; Snappy deaktiviert | gemeinsamer Mainline-v2-Builder | Top-Level 7 / direkt 40, Hostmutation abgelehnt | gemeinsame Mainline-Gruppen plus BCM-Presence | Switch/Mainline plus BCM-Tabellenvokabular |
-| `DT-009` | Mainline MSCC 7.4.1 | gemeinsamer sicherer zlib-Subset | gemeinsamer Mainline-v2-Builder | gleiche Direkt-40-Policy | gemeinsame Mainline-Gruppen plus MSCC-Presence | Switch/Mainline plus MSCC-Plattformvertrag |
-| `DT-010` | Switch-WAN 7.3.109 | gemeinsamer sicherer zlib-Subset | getrennter WAN-v2-Alternate-Builder-Vertrag | Top-Level 7 / direkt 41, Hostmutation abgelehnt | WAN-/Modell-/Source-Gates | source-gated WAN-/RPS-Vokabular; keine Aktionsautoritaet |
-| `DT-012` | aktuelles `usmini2` 2.1.6 | Raw-JSON-TNBU | gemeinsamer aktueller ESP-Directed-Broadcast | belegte Top-Level 5; direktes `cmd` unsupported | gemeinsame Low-Resource-Gruppen plus usmini2-Presence | aktuelle ESP-Basis; keine positive PSE-Aussage |
-| `DT-013..015` | aktuelle Ultra/M25G 2.1.8 | gemeinsam zlib mit Raw-Fallback | gemeinsamer aktueller ESP-Directed-Broadcast | gleiche Top-Level-5-Policy; direktes `cmd` unsupported | gemeinsame Low-Resource-Gruppen plus getrennte Presence | gemeinsame aktuelle ESP-Basis; positives PSE-Vokabular nur fuer Ultra und M25G8 |
-
-Die IDs beschreiben semantische Vertraege und enthalten keine Artefaktversion.
-Gleiche vollstaendige Kompositionen koennen keine doppelten Verhaltens-IDs
-erhalten; einzelne Policybausteine werden ueberall dort wiederverwendet, wo die
-Evidenz dieselbe Semantik belegt. Fehlende Capability-Flags deaktivieren nur
-unbelegtes Produktverhalten; sie behaupten nicht, dass Hardware fehlt. Fuer
-M25G5 liefert diese App-Analyse insbesondere keine positive PSE-Policy, die
-externe Hardware bleibt jedoch unbekannt.
-
-Jeder ausgewaehlte Baustein legt Achse/Selektor, die belegenden `DT-*`-Records
-und das gewonnene Prinzip offen. Ausfuehrbaren Produktnachweis braucht er nur,
-wenn ein benanntes Produktrequirement sein Verhalten auswaehlt.
-Plattformselektoren sind auf die typisierten Architekturklassen aus
-`device-types.tsv` begrenzt; jeder andere Wert faellt geschlossen aus.
-
-`DT-003..007` und die M487-Komponente `DT-011` sind bekannte
-Evidenzidentitaeten, deren Protokollsemantik unsupported oder `UNKNOWN` bleibt;
-ihre sechs Policyachsen stehen deshalb alle auf `unsupported`. M487 und
-aktuelles usmini2 teilen einen Firmwarecontainer, aber weder Agent noch
-Wire-Policy; ebenso teilen BCM und MSCC ein aeusseres Firmwarebild, behalten
-aber exakte Komponentenidentitaeten und getrennte vollstaendige
-Verhaltenskompositionen. Leere Hashes, Ein-Byte-Hashaenderungen, benachbarte
-Versionen und gemischte Komponenten fallen deshalb geschlossen aus, statt ein
-Nachbarprofil zu waehlen. Buildmarker sind exakt beobachtete Firmware-, Rootfs-
-oder Komponentenmarker und keine normalisierten Produktlabels.
-
-Die Registries sind Metadaten und eine strikte Lookup-Grenze. Die Anwendung jedes
-Selektors in Inform, Discovery, Command-Dispatch und Payload-Rendering gehoert
-zu den jeweiligen Implementierungsrequirements; die Registries allein veraendern
-weder die bestehenden benutzersichtbaren Formprofile noch den Runtime-Traffic.
-
-### Exakte Controller-Intervall-Policy
-
-`REQ-LIFE-010` ist ein getrennter, expliziter Consumer der Evidence-Registry.
-Positive Controller-Intervallhinweise sind nur aktiv, wenn Built-in-Quelle,
-Profilname, Modell, Version und Boardidentitaet ein exaktes Tupel bilden:
-
-| Built-in-Profil | Exaktes Modell | Exakte Version | Intervall-Evidence-ID | Policy fuer positives `noop.interval` |
-| --- | --- | --- | --- | --- |
-| `us8` | `US8` | `7.4.1.16850` | `DT-008` | aktiv; 30 Sekunden Firmwareminimum |
-| `us8p60` | `US8P60` | `7.4.1.16850` | `DT-008` | aktiv; 30 Sekunden Firmwareminimum |
-| `us16p150` | `US16P150` | `7.4.1.16850` | `DT-008` | aktiv; 30 Sekunden Firmwareminimum |
-| `us24p250` | `US24P250` | `7.4.1.16850` | `DT-008` | aktiv; 30 Sekunden Firmwareminimum |
-| `us48p500` | `US48P500` | `7.4.1.16850` | `DT-008` | aktiv; 30 Sekunden Firmwareminimum |
-| `uxgpro` | `UXGPRO` | `5.0.16.30689` | `DT-001` | aktiv; 1 Sekunde Firmwareminimum |
-| `ucg-fiber` | `UCGF` | `5.0.16` | `DT-004` | fail-closed; exakte Evidenz ist bekannt, aber kein Firmwareminimum katalogisiert |
-| `ugw3` | `UGW3` | `4.4.57.5578372` | `DT-007` | fail-closed; exakte Evidenz ist bekannt, aber kein Firmwareminimum katalogisiert |
-| `uxg-lite` | `UXG` | `5.0.16.30689` | `DT-006` | fail-closed; exakte Evidenz ist bekannt, aber kein Firmwareminimum katalogisiert |
-| `us16xg` | `US16XG` | `7.4.1.16850` | nicht gebunden | fail-closed; keine exakte Intervall-Policy-Bindung |
-| `usaggpro` | `USAGGPRO` | `7.4.1.16850` | nicht gebunden | fail-closed; keine exakte Intervall-Policy-Bindung |
-| `usw-pro-xg-48` | `USWProXG48` | `7.4.1.16850` | nicht gebunden | fail-closed; keine exakte Intervall-Policy-Bindung |
-
-Diese Entscheidungen betreffen nur Intervallhinweise. Sie stufen weder die
-Profilreife hoch noch aktivieren sie saemtliches Protokollverhalten einer
-Evidence-ID. Insbesondere gehoert das 30-Sekunden-Minimum zu jedem aufgefuehrten
-Board-/Profiltupel; es ist kein buildweiter `DT-008`-Default. Externe Profile,
-benachbarte Versionen, Modell- oder Versions-Overrides und aehnliche Identitaeten
-fallen geschlossen aus, statt eine Nachbarentscheidung zu uebernehmen.
-
-Fuer ein aktiviertes Tupel ist die effektive Untergrenze
-`max(Firmwareminimum, Betreiberminimum)` und die effektive Obergrenze
-`min(Betreibermaximum, 300 Sekunden)`. Bei jedem deaktivierten Tupel wird ein
-positiver Hinweis als ignoriert erfasst und der vom Betreiber gewaehlte
-Basistakt bleibt aktiv. Die Konfiguration scheitert an der Validierung, wenn
-diese effektive Obergrenze unter der effektiven Untergrenze liegt. Dry-Run-Plan
-und bereinigter Status zeigen, ob Hinweise
-unterstuetzt sind, die Evidence-ID, Firmware- und effektives Minimum oder den
-festen Fail-closed-Grund.
-
-Diese LIFE-010-Implementierung existiert nur im aktuellen Dirty-Worktree-
-Produktkandidaten. Reviewte Source-Hash-Bindung, T4-Abnahme derselben Bytes auf
-der vorgesehenen Controller-Testmaschine, separate G3-Erreichbarkeit aus
-`main` und Release-Evidence bleiben offen; dies ist keine T4-, G3- oder
-Release-Aussage.
+Nur vom Produktvertrag verlangtes Verhalten wird implementiert. Unbekannte
+Buildidentitaeten, Profil-Overrides, nicht unterstuetzte Controllerwerte und
+nicht erkannte Kommandos fallen geschlossen aus, statt Verhalten eines
+Nachbargeraets zu uebernehmen. Controller-Intervallhinweise gelten ebenfalls
+nur ueber eine exakt gepruefte Built-in-Identitaet; andernfalls bleibt der vom
+Betreiber gewaehlte Takt aktiv.
 
 ## Adoption
 
@@ -309,69 +230,25 @@ individueller Adopted-Key abgelehnt. Korrupter State, Adopted-State ohne
 gueltigen individuellen Key und Failed-State ohne Key stoppen vor jedem
 HTTP-Request.
 
-Evidence-abgeglichene UXG-Pro-5.0.16-Behandlung:
+Die Behandlung von Controllerantworten bleibt bewusst klein:
 
-| Evidence-Klasse | Phase | Request/Response-Form | Stub-Verhalten |
-| --- | --- | --- | --- |
-| Dynamisch DT-001 | Vor Adoption | Firmware-Informs nutzen den Default-Key und bekommen HTTP `404`, bis ein Admin `Adopt` klickt. | `default=true`, `state=1` behalten. |
-| Dynamisch DT-001 | Erster akzeptierter Inform | Controller antwortet HTTP `200` mit `_type: "setparam"` und `mgmt_cfg`. | `authkey`, `cfgversion` und `use_aes_gcm=true` parsen und persistieren; Wire-State `0` betreten. |
-| Dynamisch DT-001 | Key-Wechsel | Firmware sendet den naechsten Inform sofort mit Adopted-Key und AES-GCM. | `default=false`, `state=0` senden. In diesem Capture gab es keinen Restart. |
-| Dynamisch DT-001 | Akzeptierter Adopted-Inform | Controller antwortet mit `_type: "noop"`. | Zu `default=false`, `state=2` (`Managed`) wechseln. Die statische Analyse erlaubt auch erfolgreiches `setparam`; ein Authkey-Feld oder eine tatsaechliche Inform-URL-Aenderung fuehrt danach wieder zu `0`. |
-| Dynamische DT-001-CAP-05-Form plus Produktsicherheit | System-Konfiguration | Die erhaltene Zusammenfassung zeigt ein weiteres `_type: "setparam"` mit Top-Level-`cfgversion`, vorhandenem `mgmt_cfg` ohne offengelegten Inhalt und `system_cfg`. | Top-Level-`cfgversion` nicht als Adoption-Store-Eingabe uebernehmen und nur begrenzte `system_cfg`-Strukturmetadaten behalten; keine Host-User, Firewall, Routen, Zertifikate, Tokens oder Secrets anwenden. |
-| Statisches Vokabular plus Produktsicherheit | Upgrade-Status | Firmware kennt `_type: "upgrade"`; diese Zeile gehoert nicht zu DT-001. | Die Antwort nur als ignorierten Status erfassen. Advertisierte Betreiber-Version, persistierten Lifecycle-State, Services, Firmware und Host nicht veraendern. |
-| Statische Command-Evidence plus Produktpolicy | WireGuard-Key-Anfrage | Firmware kennt `_type: "cmd"`, `cmd: "wg-genkeypair"` und eine `request_id`; diese Zeile gehoert nicht zu DT-001. | Ein X25519-Keypaar im Speicher erzeugen und als firmwarekompatible Notification an den naechsten regulaeren Inform anhaengen: `inform_as_notif=true`, `notif_reason="cmd"` und ein `notif_payload` mit `event_string`, korrelierter `request_id` sowie `params.private_key`/`params.public_key`. Der aktuelle Core leert den Slot nur, wenn ein HTTP `200` auch seinen Delivery-Punkt erreicht; die evidenzgebundene Every-HTTP-200-Regel bleibt offen. Keys und Request-ID weder persistieren noch loggen. |
-| Statische Firmwareanalyse | Steady State | Firmware akzeptiert `_type: "noop"` mit `interval`, `immediate`, Blocklisten und optional einem String `server_time_in_utc`; diese Zeile gehoert nicht zu DT-001. | Bei einem exakt unterstuetzten Tupel ein positives Intervall von der strengeren Firmware-/Betreiberuntergrenze bis zur kleineren Betreiber-/300-Sekunden-Obergrenze begrenzen. Andernfalls den Hinweis ignorieren und die Betreiberbasis behalten. Den Heartbeat-Fehler-Backoff zuruecksetzen. `immediate=true` plant genau einen begrenzten, von null verschiedenen Folge-Inform, ohne den beibehaltenen Normaltakt zu ersetzen. Jedes `noop` ersetzt die vollstaendige prozesslokale Blockauswahl. Ein Controller-Zeitstring verschiebt nur die in spaeteren Stub-Payloads gemeldete Zeit. |
+- Akzeptierte `setparam`-Daten duerfen nur begrenzte Adoption-Identity, Cipher,
+  Konfigurationsversion und validierten Inform-URL-State aktualisieren.
+- `system_cfg` ist nicht vertrauenswuerdiges Provisioning-Material und wird nie
+  auf Host-User, Services, Firewall, Routen, Zertifikate oder Netzwerk angewandt.
+- `_type: "upgrade"`, `_type: "cmd"` und unbekannte Responsetypen werden
+  ignoriert, ohne ein Kommando auszufuehren oder die advertierte Produktversion
+  zu veraendern.
+- `noop`-Metadaten duerfen nur begrenztes prozesslokales Reporting und
+  Scheduling beeinflussen. Sie duerfen weder die Hostuhr setzen noch
+  Hostautoritaet erlangen.
 
-Die Blockauswahl ist eine producer-lokale Policy und keine Command-Oberflaeche.
-Jedes akzeptierte `noop` ersetzt die vorherige Include-/Exclude-Auswahl,
-einschliesslich leerer neuer Listen. Bekannte Producer pruefen nur ihre exakten
-Blockbezeichner; UDAPI-Deskriptoren bleiben begrenzte Statusmetadaten und werden
-niemals ausgefuehrt.
-
-`server_time_in_utc` wird nur als Stringmetadatum eines `noop` akzeptiert. Der
-Stub behaelt einen prozesslokalen Controller-minus-Device-Offset und wendet ihn
-auf die gemeldete Payload-Zeit an. Er ruft keinen Host-Zeitdienst auf, setzt
-weder Systemuhr noch Host-Zeitzone.
-
-Das erste im Lab beobachtete `mgmt_cfg` enthielt `capability`,
-`selfrun_guest_mode`, `cfgversion`, `led_enabled`, `stun_url`, `mgmt_url`,
-`authkey`, `use_aes_gcm=true` und `report_crash`. Es enthielt kein neues
-`inform_url`; die Firmware nutzte die bestehende Inform-URL weiter und wechselte
-nur Key/Cipher-Kontext.
-
-GW-14 dokumentiert einen statischen Parse-/Install-/Persist-/Next-Use-Pfad fuer
-`mgmt_cfg.inform_url`; kein erhaltener dynamischer Capture loest eine
-Inform-URL-Aenderung aus. Diese Researchbeobachtung erzeugt keine eigene
-Produkttestpflicht. Der aktuelle Produktvertrag verlangt nur begrenzte
-Adoption-Identity und die Host-Sicherheitsgrenze.
-
-Belegt ist nur der aktivierende Wert `use_aes_gcm=true`. Ein vom Controller
-geliefertes `false` stuft eine bestehende Stub-Session nicht zurueck;
-firmwaregleiche Downgrade-Semantik bleibt wegen fehlender Evidenz ausdruecklich
-zurueckgestellt.
-
-Das adoptierte `system_cfg` war ein JSON-String mit den Top-Level-Keys
-`ubntconf` und `udapi`. Das `udapi`-Objekt enthielt Interfaces, Services,
-System-User, Firewall-Sets/-Filterketten/-Settings, statische Routen und
-Radius-Profile. Das ist Provisioning-Datenmaterial fuer ein echtes Gateway,
-aber kein sicherer Satz Host-Anweisungen fuer `unifi-stubd`.
-
-`wg-genkeypair` ist das einzige Controller-Kommando mit einem ausfuehrbaren
-Ergebnis. Es nutzt die prozessinterne X25519-Implementierung von Go und fuehrt
-weder Shell-Kommandos, Dateischreibvorgaenge, Service-Aktionen noch Host-
-Netzwerkmutationen aus. Fehlende Request-IDs, Argumente, Parameter, ungueltige
-Requests und alle anderen Kommandos werden ignoriert.
-
-Die Heartbeat-Policy bleibt lokal. Paketierte Defaults starten mit 10 Sekunden
-und konfigurieren Betreibergrenzen von 5 bis 60 Sekunden; diese Grenzen
-aktivieren fuer sich allein keine Controller-Hinweise. Zuerst muss ein exaktes
-LIFE-010-Tupel sein Firmwareminimum liefern. Der Fehler-Backoff ist auf 300
-Sekunden begrenzt und verwendet 20 Prozent symmetrischen Jitter. Transport-,
-Response-Decode-, JSON-, Dispatcher- und Nicht-200-Fehler verdoppeln die
-effektive Wartezeit bis zur lokalen Obergrenze. Nur ein leeres HTTP 200 oder ein
-200 mit akzeptiertem Controllerobjekt setzt den Fehlerzaehler zurueck. Liegt der
-konfigurierte Normaltakt ueber dem Backoff-Maximum, bleibt er die Untergrenze,
-damit ein Fehler Inform-Traffic niemals beschleunigt.
+Die Heartbeat-Policy bleibt lokal. Controller-Intervallhinweise brauchen eine
+exakt gepruefte Built-in-Identitaet und werden auf Betreibergrenzen begrenzt;
+jede andere Identitaet behaelt den vom Betreiber gewaehlten Basistakt.
+Transport-, Decode-, JSON-, Dispatcher- und Nicht-200-Fehler nutzen begrenzten
+Backoff. Nur ein leeres HTTP 200 oder ein akzeptiertes Controllerobjekt setzt
+den Fehlerzaehler zurueck.
 
 Alternative Adoption ueber SSH:
 
@@ -451,10 +328,9 @@ zum aktuellen REST-`uplink`-Objekt. Network 10.4.57 behaelt darin die
 kumulativen Root-Zaehler, laesst Root-Ratenfelder in der normalisierten Antwort
 aber weg. Network 10.5.62 uebernimmt die gemessenen Interface-Raten in Byte/s
 und Bit/s in den aktuellen Uplink und die offizielle Latest-Statistics-API;
-dessen Root-Felder bleiben null oder fehlen. Der lokale Runtime-Status erfasst
-Root, Management-`if_table`, logischen `uplink` und ausgewaehlten
-`port_table`-Eintrag. `source_interface` bleibt als lokale Diagnosemetadaten in
-der logischen und der Port-Ansicht.
+dessen Root-Felder bleiben null oder fehlen. `source_interface` bleibt lokale
+Payload-Metadaten in der logischen und der Port-Ansicht; es ist keine
+Controller-Beobachtung.
 
 Profile sollen Hardware-Form behalten. Lab-Zuweisungen wie "dieser Port ist
 WAN", "dieser Port ist LAN" oder "dieser Port stellt Backup-WAN dar" gehoeren

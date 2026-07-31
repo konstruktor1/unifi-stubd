@@ -210,8 +210,6 @@ func printLastInform(last lastInformStatus) {
 	fmt.Printf("last_inform_response_flags: %d\n", last.ResponseFlags)
 	fmt.Printf("last_inform_raw_bytes: %d\n", last.RawBytes)
 	fmt.Printf("last_inform_json_bytes: %d\n", last.JSONBytes)
-	printLastInformTraffic(last.Traffic)
-	printLastInformTopology(last.Topology)
 	if last.IntervalSeconds > 0 {
 		fmt.Printf("last_inform_interval_seconds: %d\n", last.IntervalSeconds)
 	}
@@ -256,20 +254,6 @@ func printLastInform(last lastInformStatus) {
 		fmt.Printf("last_inform_reset_applied: %t\n", last.ResetApplied)
 		fmt.Printf("last_inform_reset_reason: %s\n", valueOrDash(last.ResetReason))
 		fmt.Printf("last_inform_reset_disposition: %s\n", valueOrDash(last.ResetDisposition))
-	}
-	if last.CommandName != "" {
-		fmt.Printf("last_inform_command: %s\n", last.CommandName)
-		fmt.Printf("last_inform_command_request_id_set: %t\n", last.CommandRequestIDSet)
-		fmt.Printf("last_inform_command_handled: %t\n", last.CommandHandled)
-		fmt.Printf("last_inform_command_result_queued: %t\n", last.CommandResultQueued)
-		fmt.Printf("last_inform_command_duplicate: %t\n", last.CommandDuplicate)
-	}
-	if last.ControllerCommands.LastCommand != "" {
-		fmt.Printf("controller_commands_last: %s\n", last.ControllerCommands.LastCommand)
-		fmt.Printf("controller_commands_handled: %d\n", last.ControllerCommands.HandledCount)
-		fmt.Printf("controller_command_results_sent: %d\n", last.ControllerCommands.ResultSentCount)
-		fmt.Printf("controller_command_duplicates: %d\n", last.ControllerCommands.DuplicateCount)
-		fmt.Printf("controller_command_pending: %t\n", last.ControllerCommands.Pending)
 	}
 	if last.HasMgmtCFG {
 		fmt.Println("last_inform_has_mgmt_cfg: true")
@@ -324,68 +308,6 @@ func printInformSession(session informSessionStatus) {
 			event.FallbackToCBC,
 			event.Failed,
 		)
-	}
-}
-
-func printLastInformTopology(topology *lastInformTopologyStatus) {
-	if topology == nil {
-		return
-	}
-	for _, edge := range topology.Edges {
-		fmt.Printf("last_inform_topology_edge: local_port=%d direction=%s source=%s neighbor_mac=%s neighbor_hostname=%s neighbor_type=%s remote_port=%d\n",
-			edge.LocalPort,
-			edge.Direction,
-			edge.Source,
-			edge.NeighborMAC,
-			valueOrDash(edge.NeighborHostname),
-			valueOrDash(edge.NeighborType),
-			edge.RemotePort,
-		)
-	}
-}
-
-func printLastInformTraffic(traffic *lastInformTrafficStatus) {
-	if traffic == nil {
-		return
-	}
-	printTrafficRates("last_inform_traffic_root", traffic.Root)
-	for _, row := range traffic.Rows {
-		prefix := "last_inform_traffic_row"
-		fmt.Printf("%s: table=%s port_idx=%d ifname=%s source_interface=%s\n",
-			prefix,
-			row.Table,
-			row.PortIdx,
-			valueOrDash(row.IfName),
-			valueOrDash(row.SourceInterface),
-		)
-		printTrafficRates(prefix, row.Rates)
-	}
-}
-
-func printTrafficRates(prefix string, rates lastInformTrafficRates) {
-	if rates.Bytes != nil {
-		fmt.Printf("%s_bytes: %d\n", prefix, *rates.Bytes)
-	}
-	if rates.RXBytes != nil {
-		fmt.Printf("%s_rx_bytes: %d\n", prefix, *rates.RXBytes)
-	}
-	if rates.TXBytes != nil {
-		fmt.Printf("%s_tx_bytes: %d\n", prefix, *rates.TXBytes)
-	}
-	if rates.BytesRateBytesPerSecond != nil {
-		fmt.Printf("%s_bytes_rate_bytes_per_second: %d\n", prefix, *rates.BytesRateBytesPerSecond)
-	}
-	if rates.RXBytesRateBytesPerSecond != nil {
-		fmt.Printf("%s_rx_bytes_rate_bytes_per_second: %d\n", prefix, *rates.RXBytesRateBytesPerSecond)
-	}
-	if rates.TXBytesRateBytesPerSecond != nil {
-		fmt.Printf("%s_tx_bytes_rate_bytes_per_second: %d\n", prefix, *rates.TXBytesRateBytesPerSecond)
-	}
-	if rates.RXRateBitsPerSecond != nil {
-		fmt.Printf("%s_rx_rate_bits_per_second: %d\n", prefix, *rates.RXRateBitsPerSecond)
-	}
-	if rates.TXRateBitsPerSecond != nil {
-		fmt.Printf("%s_tx_rate_bits_per_second: %d\n", prefix, *rates.TXRateBitsPerSecond)
 	}
 }
 

@@ -108,17 +108,21 @@ write_checksums() {
   ) >"$SITE_DIR/checksums.txt"
 }
 
+write_html_page() {
+  output="$1"
+  title="$2"
+  {
+    printf '%s\n' '<!doctype html>' '<html lang="en">' '<head>' \
+      '  <meta charset="utf-8">' \
+      '  <meta name="viewport" content="width=device-width, initial-scale=1">'
+    printf '  <title>%s</title>\n</head>\n<body>\n  <main>\n' "$title"
+    cat
+    printf '%s\n' '  </main>' '</body>' '</html>'
+  } >"$output"
+}
+
 write_index() {
-  cat >"$SITE_DIR/index.html" <<EOF
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>unifi-stubd alpha package repositories</title>
-</head>
-<body>
-  <main>
+  write_html_page "$SITE_DIR/index.html" 'unifi-stubd alpha package repositories' <<EOF
     <h1>unifi-stubd alpha package repositories</h1>
     <p>
       This site hosts unsigned alpha package repositories for
@@ -155,72 +159,17 @@ write_index() {
     <p><a href="checksums.txt">checksums.txt</a></p>
     <h2>Research and Attribution</h2>
     <p>
-      The implementation is original project code. Public documentation and
-      reverse-engineering projects were used as protocol references, historical
-      context, and cross-checks; no source code from unlicensed research
-      repositories is copied into unifi-stubd.
-    </p>
-    <table>
-      <thead>
-        <tr>
-          <th>Project or source</th>
-          <th>How it informed unifi-stubd</th>
-        </tr>
-      </thead>
-      <tbody>
-        <tr>
-          <td><a href="https://help.ui.com/hc/en-us/articles/218506997-UniFi-Network-Required-Ports-Reference">Ubiquiti required ports</a> and <a href="https://help.ui.com/hc/en-us/articles/204909754-Remote-Adoption-Layer-3">remote adoption docs</a></td>
-          <td>Official discovery, inform, adoption, and service-port framing.</td>
-        </tr>
-        <tr>
-          <td><a href="https://techspecs.ui.com/">Ubiquiti tech specs and datasheets</a></td>
-          <td>Controller-visible device model and port-layout sanity checks.</td>
-        </tr>
-        <tr>
-          <td><a href="https://jrjparks.github.io/unofficial-unifi-guide/">The unofficial guide to UniFi</a></td>
-          <td>Discovery, inform, adoption, encryption, and compression reference notes.</td>
-        </tr>
-        <tr>
-          <td><a href="https://github.com/jeffreykog/unifi-inform-protocol">jeffreykog/unifi-inform-protocol</a> and <a href="https://github.com/fxkr/unifi-protocol-reverse-engineering">fxkr/unifi-protocol-reverse-engineering</a></td>
-          <td>Independent UniFi discovery and inform protocol cross-checks.</td>
-        </tr>
-        <tr>
-          <td><a href="https://github.com/mcrute/ubntmfi/blob/master/inform_protocol.md">mcrute inform protocol notes</a>, <a href="https://github.com/jda/pixiedust">jda/pixiedust</a>, <a href="https://github.com/ZAP-Quebec/unifi-inform">ZAP-Quebec/unifi-inform</a>, and <a href="https://github.com/dmke/inform-inspect">dmke/inform-inspect</a></td>
-          <td>Packet framing, adoption-state, parser, and lab-comparison references.</td>
-        </tr>
-        <tr>
-          <td><a href="https://github.com/wvengen/unifi-controllable-switch">wvengen/unifi-controllable-switch</a> and <a href="https://github.com/stephanlascar/unifi-gateway">stephanlascar/unifi-gateway</a></td>
-          <td>Historical fake switch and gateway-emulation project context.</td>
-        </tr>
-        <tr>
-          <td><a href="https://docs.docker.com/engine/network/drivers/macvlan/">Docker macvlan docs</a> and <a href="https://kernel.org/doc/html/next/networking/bridge.html">Linux bridge docs</a></td>
-          <td>Bridge observation and future network-mode planning references.</td>
-        </tr>
-      </tbody>
-    </table>
-    <p>
-      See the full attribution matrix in
+      Protocol references, research sources, licensing decisions, and
+      attribution are maintained once in
       <a href="https://github.com/konstruktor1/unifi-stubd/blob/main/CREDITS.md">CREDITS.md</a>.
     </p>
-  </main>
-</body>
-</html>
 EOF
 }
 
 write_freebsd_index() {
   freebsd_dir="$SITE_DIR/freebsd"
   mkdir -p "$freebsd_dir"
-  cat >"$freebsd_dir/index.html" <<EOF
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>unifi-stubd FreeBSD and OPNsense tarballs</title>
-</head>
-<body>
-  <main>
+  write_html_page "$freebsd_dir/index.html" 'unifi-stubd FreeBSD and OPNsense tarballs' <<EOF
     <h1>unifi-stubd FreeBSD and OPNsense tarballs</h1>
     <p>
       FreeBSD and OPNsense builds are published as manual tarballs and,
@@ -235,25 +184,13 @@ write_freebsd_index() {
     </ul>
     <p><a href="../checksums.txt">checksums.txt</a></p>
     <p><a href="../">Back to package repositories</a></p>
-  </main>
-</body>
-</html>
 EOF
 }
 
 write_freebsd_unavailable_index() {
   freebsd_dir="$SITE_DIR/freebsd"
   mkdir -p "$freebsd_dir"
-  cat >"$freebsd_dir/index.html" <<EOF
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>unifi-stubd FreeBSD and OPNsense artifacts</title>
-</head>
-<body>
-  <main>
+  write_html_page "$freebsd_dir/index.html" 'unifi-stubd FreeBSD and OPNsense artifacts' <<EOF
     <h1>unifi-stubd FreeBSD and OPNsense artifacts</h1>
     <p>
       FreeBSD artifacts are produced separately by the manually dispatched
@@ -262,24 +199,12 @@ write_freebsd_unavailable_index() {
     </p>
     <p><a href="pkg/">Native FreeBSD pkg repository status</a></p>
     <p><a href="../">Back to package repositories</a></p>
-  </main>
-</body>
-</html>
 EOF
 
   for arch in amd64 arm64; do
     arch_dir="$freebsd_dir/$arch"
     mkdir -p "$arch_dir"
-    cat >"$arch_dir/index.html" <<EOF
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>unifi-stubd FreeBSD ${arch} artifacts</title>
-</head>
-<body>
-  <main>
+    write_html_page "$arch_dir/index.html" "unifi-stubd FreeBSD ${arch} artifacts" <<EOF
     <h1>unifi-stubd FreeBSD ${arch} artifacts</h1>
     <p>
       No FreeBSD ${arch} tarball was included in this Linux-first package-site
@@ -287,9 +212,6 @@ EOF
       Packaging workflow.
     </p>
     <p><a href="../">Back to FreeBSD and OPNsense artifacts</a></p>
-  </main>
-</body>
-</html>
 EOF
   done
 }
@@ -297,16 +219,7 @@ EOF
 write_freebsd_pkg_unavailable_index() {
   pkg_dir="$SITE_DIR/freebsd/pkg"
   mkdir -p "$pkg_dir"
-  cat >"$pkg_dir/index.html" <<EOF
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>unifi-stubd FreeBSD pkg repositories</title>
-</head>
-<body>
-  <main>
+  write_html_page "$pkg_dir/index.html" 'unifi-stubd FreeBSD pkg repositories' <<EOF
     <h1>unifi-stubd FreeBSD pkg repositories</h1>
     <p>
       Native FreeBSD <code>pkg</code> repositories were not generated in this
@@ -315,9 +228,6 @@ write_freebsd_pkg_unavailable_index() {
       releases are not backfilled by this split path.
     </p>
     <p><a href="../">Back to FreeBSD and OPNsense artifacts</a></p>
-  </main>
-</body>
-</html>
 EOF
 }
 
@@ -326,15 +236,6 @@ write_freebsd_pkg_index() {
   mkdir -p "$pkg_dir"
   {
     cat <<EOF
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>unifi-stubd FreeBSD pkg repositories</title>
-</head>
-<body>
-  <main>
     <h1>unifi-stubd FreeBSD pkg repositories</h1>
     <p>
       Unsigned alpha repositories for native FreeBSD <code>pkg</code>. Choose
@@ -350,27 +251,15 @@ EOF
     </ul>
     <p><a href="../../checksums.txt">checksums.txt</a></p>
     <p><a href="../">Back to FreeBSD and OPNsense artifacts</a></p>
-  </main>
-</body>
-</html>
 EOF
-  } >"$pkg_dir/index.html"
+  } | write_html_page "$pkg_dir/index.html" 'unifi-stubd FreeBSD pkg repositories'
 }
 
 write_freebsd_pkg_abi_index() {
   abi="$1"
   abi_dir="$SITE_DIR/freebsd/pkg/$abi"
   artifact="$(basename "$(find_artifact "$abi_dir"/unifi-stubd-*.pkg)")"
-  cat >"$abi_dir/index.html" <<EOF
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>unifi-stubd ${abi} pkg repository</title>
-</head>
-<body>
-  <main>
+  write_html_page "$abi_dir/index.html" "unifi-stubd ${abi} pkg repository" <<EOF
     <h1>unifi-stubd ${abi} pkg repository</h1>
     <p>
       Unsigned alpha repository for <code>${abi}</code>. Verify that
@@ -395,9 +284,6 @@ PKGCONF
 sudo pkg update -r unifi-stubd
 sudo pkg install unifi-stubd</pre>
     <p><a href="../">Back to FreeBSD pkg repositories</a></p>
-  </main>
-</body>
-</html>
 EOF
 }
 
@@ -405,16 +291,7 @@ write_freebsd_arch_index() {
   arch="$1"
   arch_dir="$SITE_DIR/freebsd/$arch"
   artifact="$(basename "$(find_artifact "$arch_dir"/unifi-stubd_*_freebsd_"$arch".tar.gz)")"
-  cat >"$arch_dir/index.html" <<EOF
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>unifi-stubd FreeBSD ${arch} tarball</title>
-</head>
-<body>
-  <main>
+  write_html_page "$arch_dir/index.html" "unifi-stubd FreeBSD ${arch} tarball" <<EOF
     <h1>unifi-stubd FreeBSD ${arch} tarball</h1>
     <p>
       This is a manual tarball artifact for FreeBSD and OPNsense. Native
@@ -437,9 +314,6 @@ sudo vi /usr/local/etc/unifi-stubd/config.yaml
 sudo sysrc unifi_stubd_enable=YES
 sudo service unifi-stubd start</pre>
     <p><a href="../">Back to FreeBSD and OPNsense tarballs</a></p>
-  </main>
-</body>
-</html>
 EOF
 }
 

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"github.com/konstruktor1/unifi-stubd/internal/adoption"
 	appconfig "github.com/konstruktor1/unifi-stubd/internal/config"
 	"github.com/konstruktor1/unifi-stubd/internal/device"
 	"github.com/konstruktor1/unifi-stubd/internal/observe"
@@ -214,72 +213,48 @@ type informExchangeStatus struct {
 
 // lastInformStatus summarizes the latest controller inform exchange.
 type lastInformStatus struct {
-	Time                  string                           `json:"time,omitempty"`
-	URL                   string                           `json:"url,omitempty"`
-	StatusCode            int                              `json:"status_code,omitempty"`
-	ResponseType          string                           `json:"response_type,omitempty"`
-	ControllerState       string                           `json:"controller_state,omitempty"`
-	WireState             *int                             `json:"wire_state,omitempty"`
-	WireStateName         string                           `json:"wire_state_name,omitempty"`
-	CFGVersion            string                           `json:"cfgversion,omitempty"`
-	Version               string                           `json:"version,omitempty"`
-	AttemptedAESGCM       bool                             `json:"attempted_aes_gcm,omitempty"`
-	UsedAESGCM            bool                             `json:"used_aes_gcm,omitempty"`
-	FallbackToCBC         bool                             `json:"fallback_to_cbc,omitempty"`
-	RequestFlags          uint16                           `json:"request_flags,omitempty"`
-	KeySource             string                           `json:"key_source,omitempty"`
-	ResponseBodyPresent   bool                             `json:"response_body_present,omitempty"`
-	ResponsePacketDecoded bool                             `json:"response_packet_decoded,omitempty"`
-	ResponseJSONParsed    bool                             `json:"response_json_parsed,omitempty"`
-	ResponseFlags         uint16                           `json:"response_flags,omitempty"`
-	RawBytes              int                              `json:"raw_bytes,omitempty"`
-	JSONBytes             int                              `json:"json_bytes,omitempty"`
-	Traffic               *lastInformTrafficStatus         `json:"traffic,omitempty"`
-	Topology              *lastInformTopologyStatus        `json:"topology,omitempty"`
-	IntervalSeconds       int                              `json:"interval_seconds,omitempty"`
-	Schedule              lastInformScheduleStatus         `json:"schedule"`
-	IncludeBlocks         []string                         `json:"include_blocks,omitempty"`
-	ExcludeBlocks         []string                         `json:"exclude_blocks,omitempty"`
-	UDAPIBlocks           []string                         `json:"udapi_blocks,omitempty"`
-	BlockSelectionLimited bool                             `json:"block_selection_limited,omitempty"`
-	Immediate             bool                             `json:"immediate,omitempty"`
-	ServerTimeUTC         int64                            `json:"server_time_in_utc,omitempty"`
-	ServerTimeSet         bool                             `json:"server_time_set,omitempty"`
-	ControllerTimeOffset  int64                            `json:"controller_time_offset_seconds,omitempty"`
-	ControllerTimeSet     bool                             `json:"controller_time_offset_set,omitempty"`
-	ResetRequested        bool                             `json:"reset_requested,omitempty"`
-	ResetApplied          bool                             `json:"reset_applied,omitempty"`
-	ResetReason           string                           `json:"reset_reason,omitempty"`
-	ResetDisposition      string                           `json:"reset_disposition,omitempty"`
-	CommandName           string                           `json:"command_name,omitempty"`
-	CommandRequestIDSet   bool                             `json:"command_request_id_set,omitempty"`
-	CommandHandled        bool                             `json:"command_handled,omitempty"`
-	CommandResultQueued   bool                             `json:"command_result_queued,omitempty"`
-	CommandDuplicate      bool                             `json:"command_duplicate,omitempty"`
-	ControllerCommands    adoption.CommandLifecycleSummary `json:"controller_commands,omitempty"`
-	HasMgmtCFG            bool                             `json:"has_mgmt_cfg,omitempty"`
-	HasSystemCFG          bool                             `json:"has_system_cfg,omitempty"`
-	SystemCFGBytes        int                              `json:"system_cfg_bytes,omitempty"`
-	SystemCFGKeys         []string                         `json:"system_cfg_keys,omitempty"`
-	Ignored               bool                             `json:"ignored,omitempty"`
-	IgnoredReason         string                           `json:"ignored_reason,omitempty"`
-	Error                 string                           `json:"error,omitempty"`
-}
-
-// lastInformTopologyStatus contains only direct infrastructure edges from the sent payload.
-type lastInformTopologyStatus struct {
-	Edges []lastInformTopologyEdge `json:"edges"`
-}
-
-// lastInformTopologyEdge is a sanitized direct neighbor relationship.
-type lastInformTopologyEdge struct {
-	LocalPort        int    `json:"local_port"`
-	Direction        string `json:"direction"`
-	Source           string `json:"source"`
-	NeighborMAC      string `json:"neighbor_mac"`
-	NeighborHostname string `json:"neighbor_hostname,omitempty"`
-	NeighborType     string `json:"neighbor_type,omitempty"`
-	RemotePort       int    `json:"remote_port,omitempty"`
+	Time                  string                   `json:"time,omitempty"`
+	URL                   string                   `json:"url,omitempty"`
+	StatusCode            int                      `json:"status_code,omitempty"`
+	ResponseType          string                   `json:"response_type,omitempty"`
+	ControllerState       string                   `json:"controller_state,omitempty"`
+	WireState             *int                     `json:"wire_state,omitempty"`
+	WireStateName         string                   `json:"wire_state_name,omitempty"`
+	CFGVersion            string                   `json:"cfgversion,omitempty"`
+	Version               string                   `json:"version,omitempty"`
+	AttemptedAESGCM       bool                     `json:"attempted_aes_gcm,omitempty"`
+	UsedAESGCM            bool                     `json:"used_aes_gcm,omitempty"`
+	FallbackToCBC         bool                     `json:"fallback_to_cbc,omitempty"`
+	RequestFlags          uint16                   `json:"request_flags,omitempty"`
+	KeySource             string                   `json:"key_source,omitempty"`
+	ResponseBodyPresent   bool                     `json:"response_body_present,omitempty"`
+	ResponsePacketDecoded bool                     `json:"response_packet_decoded,omitempty"`
+	ResponseJSONParsed    bool                     `json:"response_json_parsed,omitempty"`
+	ResponseFlags         uint16                   `json:"response_flags,omitempty"`
+	RawBytes              int                      `json:"raw_bytes,omitempty"`
+	JSONBytes             int                      `json:"json_bytes,omitempty"`
+	IntervalSeconds       int                      `json:"interval_seconds,omitempty"`
+	Schedule              lastInformScheduleStatus `json:"schedule"`
+	IncludeBlocks         []string                 `json:"include_blocks,omitempty"`
+	ExcludeBlocks         []string                 `json:"exclude_blocks,omitempty"`
+	UDAPIBlocks           []string                 `json:"udapi_blocks,omitempty"`
+	BlockSelectionLimited bool                     `json:"block_selection_limited,omitempty"`
+	Immediate             bool                     `json:"immediate,omitempty"`
+	ServerTimeUTC         int64                    `json:"server_time_in_utc,omitempty"`
+	ServerTimeSet         bool                     `json:"server_time_set,omitempty"`
+	ControllerTimeOffset  int64                    `json:"controller_time_offset_seconds,omitempty"`
+	ControllerTimeSet     bool                     `json:"controller_time_offset_set,omitempty"`
+	ResetRequested        bool                     `json:"reset_requested,omitempty"`
+	ResetApplied          bool                     `json:"reset_applied,omitempty"`
+	ResetReason           string                   `json:"reset_reason,omitempty"`
+	ResetDisposition      string                   `json:"reset_disposition,omitempty"`
+	HasMgmtCFG            bool                     `json:"has_mgmt_cfg,omitempty"`
+	HasSystemCFG          bool                     `json:"has_system_cfg,omitempty"`
+	SystemCFGBytes        int                      `json:"system_cfg_bytes,omitempty"`
+	SystemCFGKeys         []string                 `json:"system_cfg_keys,omitempty"`
+	Ignored               bool                     `json:"ignored,omitempty"`
+	IgnoredReason         string                   `json:"ignored_reason,omitempty"`
+	Error                 string                   `json:"error,omitempty"`
 }
 
 // lastInformScheduleStatus exposes only effective timing and retry counters.
@@ -293,35 +268,4 @@ type lastInformScheduleStatus struct {
 	ControllerHints       bool   `json:"controller_hints_supported"`
 	ImmediateApplied      bool   `json:"immediate_applied"`
 	ImmediateSuppressed   bool   `json:"immediate_suppressed"`
-}
-
-// lastInformTrafficStatus reports the payload traffic fields from the most
-// recent inform in explicit units so operators can compare them with UI graphs.
-type lastInformTrafficStatus struct {
-	Root lastInformTrafficRates `json:"root,omitempty"`
-	Rows []lastInformTrafficRow `json:"rows,omitempty"`
-}
-
-// lastInformTrafficRow is one table row that carried traffic counters or rates.
-type lastInformTrafficRow struct {
-	Table           string                 `json:"table"`
-	PortIdx         int                    `json:"port_idx,omitempty"`
-	IfName          string                 `json:"ifname,omitempty"`
-	SourceInterface string                 `json:"source_interface,omitempty"`
-	Role            string                 `json:"role,omitempty"`
-	NetworkGroup    string                 `json:"networkgroup,omitempty"`
-	Up              *bool                  `json:"up,omitempty"`
-	Rates           lastInformTrafficRates `json:"rates"`
-}
-
-// lastInformTrafficRates keeps payload counter values and their units explicit.
-type lastInformTrafficRates struct {
-	Bytes                     *int64 `json:"bytes,omitempty"`
-	RXBytes                   *int64 `json:"rx_bytes,omitempty"`
-	TXBytes                   *int64 `json:"tx_bytes,omitempty"`
-	BytesRateBytesPerSecond   *int64 `json:"bytes_rate_bytes_per_second,omitempty"`
-	RXBytesRateBytesPerSecond *int64 `json:"rx_bytes_rate_bytes_per_second,omitempty"`
-	TXBytesRateBytesPerSecond *int64 `json:"tx_bytes_rate_bytes_per_second,omitempty"`
-	RXRateBitsPerSecond       *int64 `json:"rx_rate_bits_per_second,omitempty"`
-	TXRateBitsPerSecond       *int64 `json:"tx_rate_bits_per_second,omitempty"`
 }
