@@ -11,10 +11,19 @@ Derzeit qualifiziert sich kein Lauf als dauerhafte Produktabnahme.
 
 Im Repository liegt kein aufbewahrter ausfuehrbarer Nachweis, der einen exakten
 Kandidaten an das erforderliche Stable-/RC-Produktergebnis und fokussierte
-Host-Safety-Pruefungen bindet. Der aktuelle Release Candidate akzeptiert und
-verbindet den Stub und empfaengt dessen echte Metriken, seine Geraeteseite ist
-jedoch nicht verfuegbar. Damit fehlt das vollstaendige betreibersichtbare
-Ergebnis; fehlerhaftes Stub-Verhalten ist dadurch nicht belegt.
+Host-Safety-Pruefungen bindet.
+
+## Diagnostischer Kanalbefund
+
+Am 2026-08-01 bestand derselbe Stub-Kandidat auf Stable 10.5.67 den
+vollstaendigen sichtbaren Produktpfad. RC 10.5.66 akzeptierte, adoptierte und
+verband ihn und empfing echte 10-GbE- sowie bidirektionale Trafficmetriken.
+Seine UI forderte `swai.b54a...js` an; ein direkter Controllerabruf dieses
+Pfads lieferte 404. Das RC-Ergebnis ist damit an der Controller-UI blockiert,
+waehrend kein fehlerhaftes Stub-Verhalten beobachtet wurde. Der
+Upstream-Kontext steht in der
+[10.5.66-Releasediskussion](https://community.ui.com/releases/UniFi-Network-Application-10-5-66/9fd6a940-8f43-4071-a36a-28edcc7e5032)
+und im [10.5.67-Release](https://community.ui.com/releases/UniFi-Network-Application-10-5-67/375288b9-a4b4-46f1-a19d-5c787d342c2b).
 
 ## Erforderlicher Laufnachweis
 

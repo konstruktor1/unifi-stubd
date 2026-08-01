@@ -79,8 +79,8 @@ if required material is unavailable.
 Delegates report only readiness or concrete blockers; only the primary agent
 confirms or acknowledges a release after the complete consumer review.
 
-The adopted Build Runner identity is `6.12.0` at commit
-`833ba4c6f8fe20c08bdeace002b22ff77743c334`; release adoption is automatic.
+The adopted Build Runner identity is `6.13.0` at commit
+`e2e5907da0d5bd4be6b56aca24698547decf8406`; release adoption is automatic.
 
 Build Runner and Code Checker are independent providers of equal standing for
 this consumer. Build Runner supplies execution environments; Code Checker
@@ -93,9 +93,11 @@ Passing the read-only Code Checker checkout into a Build Runner artifact with
 `BUILD_RUNNER_HOST_PATH_CODE_CHECKER_SOURCE="$CODE_CHECKER_DIR"` is transport
 only; it does not merge provider identity, authority, or ownership.
 
-The adopted Code Checker provider identity is `0.7.8` at commit
-`1745a79718c527b68d3a43c5cbd06e3a90593928`; its release selection is automatic.
-Its function IDs are `code-checker-check` and `code-checker-antibloat`.
+The adopted Code Checker provider identity is `0.8.0` at commit
+`a30d6a688fcfbb381e0081599902f904e2666507`; its release selection is automatic.
+Its function IDs are `code-checker-check`, `code-checker-antibloat`, and
+`code-checker-i18n`; this consumer does not subscribe to the optional i18n
+function.
 `code-checker.toml` subscribes this consumer to Anti-Bloat/Anti-Slop.
 `make code-checker` runs the Go-, JavaScript-, and Bash-aware gate through the
 Build Runner environment;
