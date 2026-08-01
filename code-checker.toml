@@ -1,14 +1,16 @@
 # Consumer-owned Code Checker configuration.
 schema_version = 1
 profile = "mandatory"
-languages = ["auto"]
+languages = ["go", "javascript", "bash"]
 paradigms = []
-architectures = ["auto"]
+architectures = ["modular-monolith"]
 missing_tools = "fail"
 tool_resolution = "project-first"
 
 exclude = [
+  "build-runner/activate.local.sh",
   "build-runner/runtime/**",
+  "code-checker/activate.local.sh",
 ]
 
 [maintenance.anti_bloat]

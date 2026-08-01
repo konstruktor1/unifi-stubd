@@ -88,6 +88,7 @@ code-checker-ready:
 
 code-checker: code-checker-ready
 	@: "$${BUILD_RUNNER_DIR:?set BUILD_RUNNER_DIR to the provider checkout}"
+	BUILD_RUNNER_CONTROLLER_IMAGE='local/build-runner-controller:unifi-stubd-code-checker' \
 	BUILD_RUNNER_HOST_PATH_CODE_CHECKER_SOURCE='$(CODE_CHECKER_DIR)' \
 		"$$BUILD_RUNNER_DIR/build-runner" --project-name '$(BUILD_RUNNER_PROJECT_NAME)' \
 		instance run --manifest '$(CODE_CHECKER_MANIFEST)' -- \
@@ -134,6 +135,7 @@ define run_product_gate
 	else \
 		: "$${BUILD_RUNNER_DIR:?set BUILD_RUNNER_DIR to the provider checkout}"; \
 		host_lab_dir="$$(pwd -P)/lab/stub"; \
+		BUILD_RUNNER_CONTROLLER_IMAGE='local/build-runner-controller:unifi-stubd-controller-gate' \
 		"$$BUILD_RUNNER_DIR/build-runner" \
 			--project-name '$(BUILD_RUNNER_PROJECT_NAME)' \
 			instance run \

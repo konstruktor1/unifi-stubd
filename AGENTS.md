@@ -43,8 +43,9 @@ or invoke them, including cached `golang.org/toolchain` binaries. Use the
 stable project name `unifi-stubd` and the configured provider checkout:
 
 ```sh
-BUILD_RUNNER_DIR=${BUILD_RUNNER_DIR:?set BUILD_RUNNER_DIR to the provider checkout}
+. ./build-runner/activate.local.sh
 PROJECT_NAME=unifi-stubd
+export BUILD_RUNNER_CONTROLLER_IMAGE=local/build-runner-controller:unifi-stubd-go
 "$BUILD_RUNNER_DIR/build-runner" --project-name "$PROJECT_NAME" run --tier 1 --service go -- make check
 "$BUILD_RUNNER_DIR/build-runner" --project-name "$PROJECT_NAME" run --tier 1 --service go -- make lint
 "$BUILD_RUNNER_DIR/build-runner" --project-name "$PROJECT_NAME" run --tier 1 --service go -- make test
@@ -67,20 +68,19 @@ consumer checkout. `/tmp` and `/private/tmp` must not be used as its consumer
 project, source tree, workspace, manifest store, artifact store, or evidence
 store.
 
-Before planning, delegating, or executing Build Runner work, every primary or
-delegated agent must read the current provider contract at
-`$BUILD_RUNNER_DIR/snippets/AGENTS.build-runner.md`. Provider documentation and
-release notes referenced there are part of that contract; remembered or copied
-instructions are not a substitute. Until the exact provider version and commit
-are acknowledged, reread the current contract immediately before every runner
-invocation and warn the user that the provider identity is pending. Treat the
-provider checkout as read-only from this consumer project.
+Before planning, delegation, or work that may use either provider, primary and
+delegated agents use the reviewed consumer-local activation, run each
+provider's project-bound release status, and read its exact current consumer
+contract, operational guide, and named release note from the reported provider
+commit. Apply current Consumer requirements and every matching Direct-Upgrade
+Ledger row. Reread after provider path, version, commit, backend, or adoption
+state changes, keep both providers read-only, and stop provider-dependent work
+if required material is unavailable.
+Delegates report only readiness or concrete blockers; only the primary agent
+confirms or acknowledges a release after the complete consumer review.
 
-The adopted provider identity for this checkout is Build Runner `6.10.0` at
-commit `824661dd347922d68681c5804efd42f99b72be67`. Release adoption is automatic;
-the old acknowledgement file is not provider identity. Read the regular checked-out
-provider contract; the former 6.1.3 Git-object reading exception is revoked.
-Do not modify the provider checkout.
+The adopted Build Runner identity is `6.12.0` at commit
+`833ba4c6f8fe20c08bdeace002b22ff77743c334`; release adoption is automatic.
 
 Build Runner and Code Checker are independent providers of equal standing for
 this consumer. Build Runner supplies execution environments; Code Checker
@@ -93,13 +93,12 @@ Passing the read-only Code Checker checkout into a Build Runner artifact with
 `BUILD_RUNNER_HOST_PATH_CODE_CHECKER_SOURCE="$CODE_CHECKER_DIR"` is transport
 only; it does not merge provider identity, authority, or ownership.
 
-The adopted Code Checker provider identity is `0.7.4` at commit
-`601024cdbd80f844270e28b375f920ca4fc71058`; its release selection is automatic.
+The adopted Code Checker provider identity is `0.7.8` at commit
+`1745a79718c527b68d3a43c5cbd06e3a90593928`; its release selection is automatic.
 Its function IDs are `code-checker-check` and `code-checker-antibloat`.
-Before use, run its project-bound release status and read the contract,
-operational guide, and named release note from the exact reported Git object.
-`code-checker.toml` subscribes this consumer to Anti-Bloat. `make code-checker`
-runs the Go- and Bash-aware gate through the Build Runner environment;
+`code-checker.toml` subscribes this consumer to Anti-Bloat/Anti-Slop.
+`make code-checker` runs the Go-, JavaScript-, and Bash-aware gate through the
+Build Runner environment;
 `make anti-bloat-changed` and `make anti-bloat-full` request the canonical
 scope instruction. A plan alone is not cleanup or quality evidence: the agent
 must resolve the consumer-owned scope, apply the policy, and run executable

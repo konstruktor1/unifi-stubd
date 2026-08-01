@@ -10,11 +10,17 @@ backend: overlay-image
 resources: {}
 image_setup:
   script: build-runner/toolsets/code-checker/image-setup.sh
-  inputs: []
-prepare: []
+  inputs:
+    - build-runner/toolsets/code-checker/javascript
+prepare:
+  - export PATH="/opt/node/bin:/opt/unifi-stubd-code-checker-javascript/bin:$PATH"
 validation:
   - go version
   - python3 --version
+  - "node --version | grep -Fx 'v24.18.1'"
+  - "npm --version | grep -Fx '11.16.0'"
+  - "eslint --version | grep -Fx 'v10.8.0'"
+  - "prettier --version | grep -Fx '3.9.6'"
   - shfmt --version
   - shellcheck --version
   - uname -srm
