@@ -86,7 +86,7 @@ cleanup() {
     compose_channel down --volumes --remove-orphans >/dev/null 2>&1 || cleanup_result=failed
     project_is_clean "$current_project" || cleanup_result=failed
   fi
-  for image_alias in "${stable_controller_image:-}" "${rc_controller_image:-}" "${product_image:-}" "${helper_image:-}"; do
+  for image_alias in "${stable_controller_image:-}" "${rc_controller_image:-}" "${product_image:-}" "${helper_image:-}" "${ui_image:-}"; do
     if [[ -n "$image_alias" ]] && ! remove_owned_image_alias "$image_alias"; then
       cleanup_result=failed
     fi
@@ -130,9 +130,10 @@ mkdir "$evidence_dir" || fail "evidence already exists: $evidence_dir"
 
 product_image="unifi-stubd:product-$run_id"
 helper_image="unifi-stubd-controller-adoption:gate-$run_id"
+ui_image="unifi-stubd-controller-ui:gate-$run_id"
 stable_controller_image="unifi-stubd-controller:$run_id-stable"
 rc_controller_image="unifi-stubd-controller:$run_id-rc"
-for image_alias in "$product_image" "$helper_image" "$stable_controller_image" "$rc_controller_image"; do
+for image_alias in "$product_image" "$helper_image" "$ui_image" "$stable_controller_image" "$rc_controller_image"; do
   image_alias_absent "$image_alias" || fail "owned image alias already exists: $image_alias"
 done
 
@@ -173,6 +174,7 @@ candidate_version="$(sed -n '1p' "$repo_root/VERSION")"
 [[ "$candidate_version" =~ ^[0-9][0-9A-Za-z.+~-]{0,63}$ ]] || fail 'invalid product version'
 export UNIFI_STUB_IMAGE="$product_image"
 export UNIFI_STUB_CONTROLLER_HELPER_IMAGE="$helper_image"
+export UNIFI_STUB_CONTROLLER_UI_IMAGE="$ui_image"
 export UNIFI_STUBD_VERSION="$candidate_version"
 export UNIFI_STUB_BRIDGE_MAC=02:15:6d:00:08:21
 export UNIFI_STUB_BRIDGE_IP=172.31.242.25
@@ -180,7 +182,10 @@ UNIFI_NETWORK_IMAGE="$runtime_base_digest" \
   COMPOSE_PROJECT_NAME="unifi-stubd-build-$run_id" docker compose \
   -f "$repo_root/lab/stub/compose.yaml" \
   -f "$repo_root/lab/stub/compose.tests.yaml" \
-  build stub-bridge-observe controller-adoption
+  build stub-bridge-observe controller-adoption controller-ui
+ui_image_id="$(docker image inspect --format '{{.Id}}' "$ui_image")"
+[[ "$ui_image_id" =~ ^sha256:[0-9a-f]{64}$ ]] || fail 'invalid controller UI image digest'
+export UNIFI_STUB_CONTROLLER_UI_IMAGE="$ui_image_id"
 product_image_id="$(docker image inspect --format '{{.Id}}' "$product_image")"
 [[ "$product_image_id" =~ ^sha256:[0-9a-f]{64}$ ]] || fail 'invalid product image digest'
 product_os="$(docker image inspect --format '{{.Os}}' "$product_image_id")"

@@ -1,6 +1,6 @@
 # Product Roadmap
 
-Last updated: 2026-07-31.
+Last updated: 2026-08-01.
 
 The roadmap owns product phases only. Current priority is maintained in the
 [backlog](backlog.md), and accepted runs belong in
@@ -11,10 +11,10 @@ The roadmap owns product phases only. Current priority is maintained in the
 Deliver one non-UniFi Linux bridge that an operator can add to UniFi Network as
 an `US8`.
 
-The phase exits when the same product bytes on current Stable and Release
-Candidate are discoverable, adoptable, connected, and show real link state,
-speed, counters, and rates from the named local source without permitting host
-provisioning.
+The phase exits when the same product candidate on current Stable and Release
+Candidate can be adopted, remain connected, and visibly present real link and
+bidirectional traffic metrics from the named local source without permitting
+host provisioning.
 
 ## Phase 2: Usable Linux release
 

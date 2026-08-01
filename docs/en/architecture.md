@@ -230,45 +230,12 @@ The controller-facing protocol has three separate paths:
 - the optional SSH shim accepts only the minimal commands needed for advanced
   adoption compatibility.
 
-The payload boundary owns the exact typed Inform states `0 Unknown`,
-`1 Default`, `2 Managed`, `3 Selfrun`, and `4 Upgrade`. The active adoption
-lifecycle is the observed UXG Pro path `1 -> 0 -> 2`: the accepted key/cipher
-change makes the immediately following Inform use state `0`, and the captured
-next `noop` leads to state `2`. Static firmware analysis
-shows that successful `noop` and `setparam` responses enter Managed before an
-authkey-bearing `setparam` or changed Inform URL returns the reporter to Unknown. It does
-not establish the former synthetic restart chains. States `3` and `4` are
-status vocabulary only in the Stub and do not authorize host actions.
-
-Accepted controller adoption configuration may update the allowlisted
-`AUTHKEY`, `CFGVERSION`, `USE_AES_GCM`, and `INFORM_URL`; the product derives
-`STATE` from those accepted transitions. Persisted `VERSION` is a legacy field
-whose provenance may be controller-learned in older releases. It is read for
-compatibility; when it is absent, the profile/flag-selected operator version
-applies. A controller `_type: upgrade` response is retained
-as ignored status only; it does not rewrite the advertised operator version,
-lifecycle state, firmware, services, or host.
-
-The Stub may clear its own local adoption state, but it never maps a controller
-reset request to a vendor factory reset, host restart, network change, service
-change, or clock change. This is a local safety boundary, not a reconstructed
-firmware lifecycle.
-
-Block selection and controller time are process-local reporting inputs. Every
-accepted `noop` replaces the previous block selection in full; each payload
-producer consults only the exact include/exclude identifiers it owns. A string
-`server_time_in_utc` on `noop` establishes a controller-minus-device offset for
-later reported payload time only. Neither block descriptors nor controller time
-can execute commands or mutate the host.
-
-Controller commands are summarized as ignored metadata and never executed.
-Sanitized adoption status may expose fixed lifecycle vocabulary, but never the
-individual adoption key or arbitrary controller text.
-
-Controller interval hints are accepted only for an exact reviewed built-in
-identity and remain bounded by local operator policy. External, overridden, or
-unknown identities keep the operator interval. Failures use bounded local
-backoff; controller timing data grants no host authority.
+Only bounded adoption identity, cipher choice, configuration version, and a
+validated Inform URL may be retained. Other controller input is metadata: it
+cannot execute commands, alter the advertised product, set the host clock, or
+change host networking and services. Detailed wire states, observed lifecycle,
+block selection, and timing behavior are owned by
+[Protocol Notes](protocol-notes.md).
 
 ## Persistence And Status
 

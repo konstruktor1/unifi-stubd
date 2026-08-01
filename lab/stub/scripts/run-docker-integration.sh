@@ -103,14 +103,19 @@ run_switch_traffic_gate() {
     ' sh 198.51.100.2 198.51.100.1 203.0.113.1 203.0.113.2 &
   traffic_pid=$!
 
-  if ! controller_api wait-switch-telemetry \
+  controller_api wait-switch-telemetry \
     --mac "$UNIFI_STUB_BRIDGE_MAC" \
     --expected-uplink-speed "$expected_speed" \
-    --timeout 65; then
-    wait "$traffic_pid" || true
-    return 1
-  fi
-  wait "$traffic_pid"
+    --timeout 65 &
+  telemetry_pid=$!
+  result=0
+  compose run -T --rm --no-deps \
+    -e UNIFI_STUB_UI_DEVICE_IP="$UNIFI_STUB_BRIDGE_IP" \
+    -e UNIFI_STUB_UI_SPEED_MBPS="$expected_speed" controller-ui || result=$?
+  wait "$telemetry_pid" || result=$?
+  kill "$traffic_pid" 2>/dev/null || true
+  wait "$traffic_pid" 2>/dev/null || true
+  return "$result"
 }
 
 run_adoption_gate() {

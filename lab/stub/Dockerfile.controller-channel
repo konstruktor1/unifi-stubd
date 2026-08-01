@@ -1,24 +1,19 @@
 # syntax=docker/dockerfile:1.7
 
 ARG CONTROLLER_RUNTIME_BASE_DIGEST
-FROM ${CONTROLLER_RUNTIME_BASE_DIGEST} AS controller-package
+FROM ${CONTROLLER_RUNTIME_BASE_DIGEST}
 
 ARG CONTROLLER_ZIP_URL
 ARG CONTROLLER_ZIP_SHA256
 
-WORKDIR /controller-build
-
-RUN test -n "$CONTROLLER_ZIP_URL" \
+RUN mkdir -p /controller-build \
+    && test -n "$CONTROLLER_ZIP_URL" \
     && test -n "$CONTROLLER_ZIP_SHA256" \
-    && curl --fail --location --proto '=https' --retry 3 --output UniFi.unix.zip "$CONTROLLER_ZIP_URL" \
-    && printf '%s  %s\n' "$CONTROLLER_ZIP_SHA256" UniFi.unix.zip | sha256sum -c - \
-    && mkdir package \
-    && unzip -q UniFi.unix.zip -d package \
-    && test -d package/UniFi \
-    && test -f package/UniFi/lib/ace.jar
-
-ARG CONTROLLER_RUNTIME_BASE_DIGEST
-FROM ${CONTROLLER_RUNTIME_BASE_DIGEST}
-
-RUN rm -rf /usr/lib/unifi
-COPY --from=controller-package /controller-build/package/UniFi/ /usr/lib/unifi/
+    && curl --fail --location --proto '=https' --retry 3 \
+      --output /controller-build/UniFi.unix.zip "$CONTROLLER_ZIP_URL" \
+    && printf '%s  %s\n' "$CONTROLLER_ZIP_SHA256" /controller-build/UniFi.unix.zip | sha256sum -c - \
+    && unzip -q /controller-build/UniFi.unix.zip -d /controller-build/package \
+    && test -f /controller-build/package/UniFi/lib/ace.jar \
+    && rm -rf /usr/lib/unifi \
+    && mv /controller-build/package/UniFi /usr/lib/unifi \
+    && rm -rf /controller-build

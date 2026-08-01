@@ -1,0 +1,7 @@
+{
+  "name": "unifi-stubd-controller-ui",
+  "private": true,
+  "dependencies": {
+    "playwright-core": "1.62.1"
+  }
+}

@@ -1,6 +1,6 @@
 # Produkt-Roadmap
 
-Stand: 2026-07-31.
+Stand: 2026-08-01.
 
 Die Roadmap besitzt nur die Produktphasen. Aktuelle Prioritaet steht im
 [Backlog](backlog.md), abgenommene Laeufe gehoeren in die
@@ -11,9 +11,9 @@ Die Roadmap besitzt nur die Produktphasen. Aktuelle Prioritaet steht im
 Eine Nicht-UniFi-Linux-Bridge ausliefern, die ein Betreiber in UniFi Network
 als `US8` hinzufuegen kann.
 
-Die Phase endet, wenn dieselben Produktbytes auf aktuellem Stable und Release
-Candidate gefunden und adoptiert werden, verbunden bleiben und echten
-Link-State, Speed, Counter und Raten der benannten lokalen Quelle zeigen, ohne
+Die Phase endet, wenn derselbe Produktkandidat auf aktuellem Stable und Release
+Candidate adoptiert werden, verbunden bleiben und sichtbare echte Link- und
+bidirektionale Trafficmetriken der benannten lokalen Quelle darstellen, ohne
 Host-Provisioning zu erlauben.
 
 ## Phase 2: Nutzbarer Linux-Release

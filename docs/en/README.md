@@ -1,10 +1,5 @@
 # Documentation
 
-- [Wiki Home](../wiki/en/home.md)
-- [Operator Guide](../wiki/en/operator-guide.md)
-- [Architecture Map](../wiki/en/architecture-map.md)
-- [Testing Guide](../wiki/en/testing-guide.md)
-- [Decisions](../wiki/en/decisions.md)
 - [Research](research.md)
 - [Development Workflow](development.md)
 - [CI/CD, Build, Packaging, and Deployment Catalog](ci-cd.md)

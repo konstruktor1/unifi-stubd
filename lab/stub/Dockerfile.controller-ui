@@ -1,0 +1,10 @@
+# syntax=docker/dockerfile:1.7
+
+FROM mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
+
+WORKDIR /ui
+COPY lab/stub/tools/controller-ui/package.json lab/stub/tools/controller-ui/package-lock.json ./
+RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund
+COPY lab/stub/tools/controller-ui/main.mjs ./main.mjs
+
+ENTRYPOINT ["node", "/ui/main.mjs"]

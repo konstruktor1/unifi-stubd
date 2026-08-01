@@ -237,50 +237,12 @@ Das controller-seitige Protokoll hat drei getrennte Pfade:
 - der optionale SSH-Shim akzeptiert nur die minimalen Kommandos fuer Advanced-
   Adoption-Kompatibilitaet.
 
-Die Payload-Grenze besitzt die exakten typisierten Inform-States `0 Unknown`,
-`1 Default`, `2 Managed`, `3 Selfrun` und `4 Upgrade`. Der aktive Adoption-
-Lifecycle ist der beobachtete UXG-Pro-Pfad `1 -> 0 -> 2`: Der akzeptierte Key-/
-Cipher-Wechsel laesst den unmittelbar folgenden Inform State `0` verwenden;
-das im Capture folgende `noop` fuehrt zu State `2`. Statische
-Firmwareanalyse zeigt, dass erfolgreiche `noop`- und `setparam`-Antworten
-Managed setzen, bevor ein `setparam` mit Authkey oder eine geaenderte Inform-URL
-den Reporter wieder auf Unknown fuehrt. Die frueheren synthetischen Restart-
-Ketten sind damit nicht belegt. States `3` und `4` sind im Stub nur
-Statusvokabular und erlauben keine Host-Aktion.
-
-Akzeptierte Controller-Adoption-Konfiguration darf die Allowlist-Felder
-`AUTHKEY`, `CFGVERSION`, `USE_AES_GCM` und `INFORM_URL` aktualisieren; das
-Produkt leitet `STATE` aus diesen akzeptierten Uebergaengen ab. Persistiertes
-`VERSION` ist ein Legacy-Feld, dessen Herkunft in aelteren Releases
-controllergelernt sein kann. Es wird aus Kompatibilitaetsgruenden gelesen;
-fehlt es, gilt die ueber Profil/Flag gewaehlte Betreiber-Version. Eine
-Controller-Antwort `_type: upgrade` wird nur als
-ignorierter Status festgehalten; sie schreibt weder die advertisierte
-Betreiber-Version noch Lifecycle-State, Firmware, Services oder Host um.
-
-Der Stub darf seinen eigenen lokalen Adoption-State loeschen, bildet eine
-Controller-Reset-Anfrage aber nie auf Vendor-Factory-Reset, Host-Restart,
-Netzwerk-, Dienst- oder Uhraenderung ab. Das ist eine lokale Sicherheitsgrenze
-und kein rekonstruierter Firmware-Lifecycle.
-
-Blockauswahl und Controller-Zeit sind prozesslokale Reporting-Eingaben. Jedes
-akzeptierte `noop` ersetzt die vorherige Blockauswahl vollstaendig; jeder
-Payload-Producer prueft nur seine eigenen exakten Include-/Exclude-Bezeichner.
-Ein String `server_time_in_utc` auf `noop` setzt einen Controller-minus-Device-
-Offset ausschliesslich fuer die spaeter gemeldete Payload-Zeit. Weder
-Blockdeskriptoren noch Controller-Zeit koennen Kommandos ausfuehren oder den
-Host veraendern.
-
-Controller-Kommandos werden als ignorierte Metadaten zusammengefasst und nie
-ausgefuehrt. Bereinigter Adoption-Status darf festes Lifecycle-Vokabular
-zeigen, aber niemals den individuellen Adoption-Key oder beliebigen
-Controllertext.
-
-Controller-Intervallhinweise werden nur fuer eine exakt gepruefte Built-in-
-Identitaet akzeptiert und bleiben durch lokale Betreiberpolicy begrenzt.
-Externe, ueberschriebene oder unbekannte Identitaeten behalten den
-Betreibertakt. Fehler nutzen begrenzten lokalen Backoff; Controller-Timing gibt
-keine Hostautoritaet.
+Nur begrenzte Adoption-Identitaet, Cipherwahl, Konfigurationsversion und eine
+validierte Inform-URL duerfen erhalten bleiben. Anderer Controllerinput ist
+Metadatum: Er kann weder Kommandos ausfuehren noch das advertierte Produkt, die
+Hostuhr, Hostnetzwerk oder Dienste veraendern. Detaillierte Wire-States,
+beobachteter Lifecycle, Blockauswahl und Timingverhalten gehoeren in die
+[Protocol Notes](protocol-notes.md).
 
 ## Persistenz und Status
 

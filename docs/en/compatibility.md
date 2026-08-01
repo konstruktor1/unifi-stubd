@@ -10,10 +10,11 @@ that run, never product pins.
 No run currently qualifies as durable product acceptance.
 
 The repository contains no retained executable record that binds one exact
-candidate to all required controller data-path, operator-visible UI, host-
-safety, package, and installed-service outcomes. Session IDs, generated
-`KEY=value` receipts, hashes repeated only in prose, and an API result without
-the UI observation do not establish those outcomes.
+candidate to the required Stable/RC product result and focused host-safety
+checks. The current Release Candidate accepts, connects, and receives real
+metrics from the Stub, but its device page is unavailable. This prevents a
+complete operator-visible result; it is not evidence of incorrect Stub
+behavior.
 
 ## Required run record
 
@@ -21,8 +22,9 @@ An accepted row must link durable evidence for:
 
 | Identity | Controller result | Product result |
 | --- | --- | --- |
-| Exact source commit and product-binary digest | Resolved Stable and RC versions, with the same bytes used in both | Visibility, adoption, connected state, real source metrics, direct UI observation, focused host-safety checks, and installed-package startup |
+| Exact source and product-binary identity | Resolved Stable and RC versions, with the same bytes used in both | Adoption, connected state, real visible source metrics, and focused host-safety checks |
 
 The complete acceptance conditions are owned by the
 [product requirements](requirements.md). Diagnostic and superseded runs remain
 lab history and do not appear as compatibility claims.
+Package installation is a separate Phase 2 release result.

@@ -10,10 +10,11 @@ Erfasste Controllerversionen sind Evidence dieses Laufs, keine Produkt-Pins.
 Derzeit qualifiziert sich kein Lauf als dauerhafte Produktabnahme.
 
 Im Repository liegt kein aufbewahrter ausfuehrbarer Nachweis, der einen exakten
-Kandidaten an alle erforderlichen Controller-Datenpfad-, betreibersichtbaren UI-,
-Host-Safety-, Paket- und Installed-Service-Ergebnisse bindet. Session-IDs,
-generierte `KEY=value`-Receipts, nur in Prosa wiederholte Hashes und ein API-
-Ergebnis ohne UI-Beobachtung belegen diese Ergebnisse nicht.
+Kandidaten an das erforderliche Stable-/RC-Produktergebnis und fokussierte
+Host-Safety-Pruefungen bindet. Der aktuelle Release Candidate akzeptiert und
+verbindet den Stub und empfaengt dessen echte Metriken, seine Geraeteseite ist
+jedoch nicht verfuegbar. Damit fehlt das vollstaendige betreibersichtbare
+Ergebnis; fehlerhaftes Stub-Verhalten ist dadurch nicht belegt.
 
 ## Erforderlicher Laufnachweis
 
@@ -21,8 +22,9 @@ Eine abgenommene Zeile muss dauerhafte Evidence fuer Folgendes verlinken:
 
 | Identitaet | Controllerergebnis | Produktergebnis |
 | --- | --- | --- |
-| Exakter Source-Commit und Digest des Produktbinaries | Aufgeloeste Stable- und RC-Versionen, in beiden mit denselben Bytes | Sichtbarkeit, Adoption, Connected-State, echte Sourcemetriken, direkte UI-Beobachtung, fokussierte Host-Safety-Pruefungen und Start des installierten Pakets |
+| Exakte Source- und Produktbinary-Identitaet | Aufgeloeste Stable- und RC-Versionen, in beiden mit denselben Bytes | Adoption, Connected-State, echte sichtbare Sourcemetriken und fokussierte Host-Safety-Pruefungen |
 
 Die vollstaendigen Abnahmebedingungen gehoeren den
 [Produktanforderungen](requirements.md). Diagnose- und abgeloeste Laeufe bleiben
 Lab-Historie und erscheinen nicht als Kompatibilitaetsclaims.
+Paketinstallation ist ein getrenntes Phase-2-Releaseergebnis.

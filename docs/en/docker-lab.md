@@ -5,9 +5,10 @@ The Docker lab under `lab/stub/` answers one product question: can the current
 adopted, stay connected, and expose live metrics in UniFi Network?
 
 The gate uses one product fixture, `stub-bridge-observe`. The remaining
-services are provisioning only: UniFi Network, MongoDB, and a controller API
-helper. Payload dumps, local status schemas, gateway commands, synthetic port maps, and
-management-LAN variants are not separate product gates.
+services are provisioning only: UniFi Network, MongoDB, a controller API
+helper, and a browser helper. Payload dumps, local status schemas, gateway
+commands, synthetic port maps, and management-LAN variants are not separate
+product gates.
 
 ## Acceptance command
 
@@ -29,8 +30,10 @@ The acceptance succeeds only when both lanes prove:
 - both metric reads report the US8 adopted and connected;
 - bounded bidirectional bridge traffic makes both controller-visible root
   counters advance between reads;
-- the controller shows an up `uplink0` whose speed matches the locally observed
-  source, with positive current uplink and port rates.
+- controller readback reports `uplink0` up with the observed speed and positive
+  current uplink and port rates;
+- the device view shows the US8 with the observed speed and positive `Down`
+  and `Up` traffic values.
 
 These are observations at the product boundary. The gate intentionally does
 not reproduce the product's own JSON structures in assertion helpers.

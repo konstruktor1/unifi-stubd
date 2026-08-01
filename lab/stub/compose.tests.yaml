@@ -9,6 +9,17 @@ services:
     networks:
       lab: {}
 
+  controller-ui:
+    build:
+      context: ../..
+      dockerfile: lab/stub/Dockerfile.controller-ui
+    image: ${UNIFI_STUB_CONTROLLER_UI_IMAGE:-unifi-stubd-controller-ui:lab}
+    networks:
+      lab: {}
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
   stub-bridge-observe:
     build:
       context: ../..

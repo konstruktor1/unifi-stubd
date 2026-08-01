@@ -6,9 +6,10 @@ darstellen, adoptiert werden, verbunden bleiben und Live-Metriken in UniFi
 Network anzeigen?
 
 Der Gate verwendet genau ein Produkt-Fixture: `stub-bridge-observe`. Die
-uebrigen Services sind nur Bereitstellung: UniFi Network, MongoDB und ein
-Controller-API-Helfer. Payload-Dumps, lokale Statusschemata, Gateway-Kommandos, synthetische
-Port-Maps und Management-LAN-Varianten sind keine eigenen Produktgates.
+uebrigen Services sind nur Bereitstellung: UniFi Network, MongoDB, ein
+Controller-API-Helfer und ein Browser-Helfer. Payload-Dumps, lokale
+Statusschemata, Gateway-Kommandos, synthetische Port-Maps und
+Management-LAN-Varianten sind keine eigenen Produktgates.
 
 ## Abnahmekommando
 
@@ -31,8 +32,10 @@ Die Abnahme ist nur erfolgreich, wenn beide Spuren Folgendes belegen:
 - beide Metrikabfragen melden den US8 adoptiert und verbunden;
 - begrenzter bidirektionaler Bridge-Traffic laesst beide im Controller
   sichtbaren Root-Zaehler zwischen Abfragen ansteigen;
-- der Controller zeigt `uplink0` aktiv mit derselben Geschwindigkeit wie die
-  lokal beobachtete Quelle sowie positive aktuelle Uplink- und Port-Raten.
+- der Controller-Readback meldet `uplink0` aktiv, den beobachteten Speed sowie
+  positive aktuelle Uplink- und Port-Raten;
+- die Geraeteansicht zeigt den US8 mit dem beobachteten Speed sowie positiven
+  `Down`- und `Up`-Trafficwerten.
 
 Das sind Beobachtungen an der Produktgrenze. Der Gate bildet die eigenen
 JSON-Strukturen des Produkts bewusst nicht in Assertion-Helfern nach.
