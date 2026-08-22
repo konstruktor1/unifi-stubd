@@ -1,6 +1,3 @@
-// Package discovery turns supplied identity data into UniFi UDP discovery TLV
-// announcements. It intentionally does not choose identities or send network
-// traffic.
 package discovery
 
 import (
@@ -87,16 +84,6 @@ func (a Announcement) MarshalBinary() ([]byte, error) {
 // DefaultTargets returns the standard UniFi discovery UDP targets.
 func DefaultTargets() []string {
 	return []string{BroadcastAddress, MulticastAddress}
-}
-
-// Send broadcasts packet to the UniFi discovery broadcast and multicast targets.
-func Send(packet []byte) error {
-	return SendTo(packet, nil)
-}
-
-// SendTo sends packet to explicit targets or to the default discovery targets.
-func SendTo(packet []byte, targets []string) error {
-	return SendToInterface(packet, targets, "")
 }
 
 // SendToInterface sends packet through ifaceName when set.

@@ -20,21 +20,13 @@ jobs:
       - name: Preflight Build Runner
         run: |
           set -eu
-          : "${BUILD_RUNNER_DIR:?configure BUILD_RUNNER_DIR on the self-hosted runner}"
-          test -x "$BUILD_RUNNER_DIR/build-runner"
+          test -f ./build-runner/runtime/entry && test -x ./build-runner/runtime/entry && test ! -L ./build-runner/runtime/entry || {
+            printf '%s\n' 'Build Runner provider owner must run no-argument runner prepare from this physical consumer root after actions/checkout' >&2
+            exit 2
+          }
+          provider_root="$(./build-runner/runtime/entry --provider-root)"
+          "$provider_root/bin/provider" status build-runner --json
+          "$provider_root/bin/provider" check build-runner --json
 
       - name: Run Stable and RC product acceptance
         run: make integration-nonunifi-metrics
-
-      - name: Record controller evidence
-        if: always()
-        env:
-          JOB_STATUS: ${{ job.status }}
-        run: |
-          {
-            printf '## Controller Integration\n\n'
-            printf -- '- Commit: %s\n' "$GITHUB_SHA"
-            printf -- '- Runner: %s\n' "$RUNNER_NAME"
-            printf -- '- Controller channels: latest published Stable and RC resolved at run start\n'
-            printf -- '- Job status: %s\n' "$JOB_STATUS"
-          } >> "$GITHUB_STEP_SUMMARY"

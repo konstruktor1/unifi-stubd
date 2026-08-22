@@ -1,23 +1,25 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
-	"net"
 	"strings"
+
+	"github.com/konstruktor1/unifi-stubd/internal/platform"
 )
 
 // validateSourceMappings validates bridge-observe and port-map inputs in two
 // phases: structural checks first, optional live interface existence checks when
 // requested by -validate or runtime startup.
-func validateSourceMappings(flags runtimeFlags, live bool) error {
+func validateSourceMappings(flags runtimeFlags, live bool, addresses platform.AddressReader) error {
 	var errs []error
 	mode := normalizeMode(flags.operationMode)
 	switch mode {
 	case operationModeBridgeObserve:
-		errs = append(errs, validateObserveSources(flags, live)...)
+		errs = append(errs, validateObserveSources(flags, live, addresses)...)
 	case operationModePortMap:
-		errs = append(errs, validatePortMapSources(flags, live)...)
+		errs = append(errs, validatePortMapSources(flags, live, addresses)...)
 	}
 	if err := errors.Join(errs...); err != nil {
 		return fmt.Errorf("validate source mappings: %w", err)
@@ -25,17 +27,17 @@ func validateSourceMappings(flags runtimeFlags, live bool) error {
 	return nil
 }
 
-func validateObserveSources(flags runtimeFlags, live bool) []error {
+func validateObserveSources(flags runtimeFlags, live bool, addresses platform.AddressReader) []error {
 	var errs []error
 	cfg := effectiveBridgeObserve(flags)
-	if err := validateInterfaceName("bridge_observe.bridge", cfg.Bridge, live); err != nil {
+	if err := validateInterfaceName("bridge_observe.bridge", cfg.Bridge, live, addresses); err != nil {
 		errs = append(errs, err)
 	}
-	if err := validateInterfaceName("bridge_observe.uplink_interface", cfg.UplinkInterface, live); err != nil {
+	if err := validateInterfaceName("bridge_observe.uplink_interface", cfg.UplinkInterface, live, addresses); err != nil {
 		errs = append(errs, err)
 	}
 	for _, member := range cfg.IgnoredMembers {
-		if err := validateInterfaceName("bridge_observe.ignored_members", member, live); err != nil {
+		if err := validateInterfaceName("bridge_observe.ignored_members", member, live, addresses); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -53,7 +55,7 @@ func validateObserveSources(flags runtimeFlags, live bool) []error {
 	return errs
 }
 
-func validatePortMapSources(flags runtimeFlags, live bool) []error {
+func validatePortMapSources(flags runtimeFlags, live bool, addresses platform.AddressReader) []error {
 	var errs []error
 	seenPorts := map[int]bool{}
 	for _, mapping := range flags.portMappings {
@@ -68,7 +70,7 @@ func validatePortMapSources(flags runtimeFlags, live bool) []error {
 		sources := 0
 		if strings.TrimSpace(mapping.Interface) != "" {
 			sources++
-			if err := validateInterfaceName("port_mappings.interface", mapping.Interface, live); err != nil {
+			if err := validateInterfaceName("port_mappings.interface", mapping.Interface, live, addresses); err != nil {
 				errs = append(errs, fmt.Errorf("port %d: %w", mapping.Port, err))
 			}
 		}
@@ -92,7 +94,7 @@ func validatePortMapSources(flags runtimeFlags, live bool) []error {
 
 // validateInterfaceName rejects path-like names and optionally checks
 // local existence for modes that will read host interface data.
-func validateInterfaceName(field, value string, live bool) error {
+func validateInterfaceName(field, value string, live bool, addresses platform.AddressReader) error {
 	value = strings.TrimSpace(value)
 	if value == "" {
 		return nil
@@ -101,7 +103,10 @@ func validateInterfaceName(field, value string, live bool) error {
 		return fmt.Errorf("invalid %s %q", field, value)
 	}
 	if live {
-		if _, err := net.InterfaceByName(value); err != nil {
+		if addresses == nil {
+			return fmt.Errorf("%s %q cannot be checked without platform", field, value)
+		}
+		if _, err := addresses.InterfaceIdentity(context.Background(), value); err != nil {
 			return fmt.Errorf("%s %q not found: %w", field, value, err)
 		}
 	}

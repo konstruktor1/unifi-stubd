@@ -1,14 +1,14 @@
-# US8 Controller Product Gate
+# US8 Controller Gate
 
-This fixture implements the acceptance described in
+This fixture implements the controller-facing Stable/RC part described in
 [Docker Controller Lab](../../docs/en/docker-lab.md). It tests one product
 service, `stub-bridge-observe`; UniFi Network, MongoDB, and its API and browser
-helpers are provisioning only.
+helpers are provisioning only. Host-safety and no-fabrication evidence remain
+separate product-acceptance conditions.
 
 Run it only through the project Build Runner entry point:
 
 ```sh
-. ./build-runner/activate.local.sh
 make integration-nonunifi-metrics
 ```
 

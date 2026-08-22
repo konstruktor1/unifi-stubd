@@ -1,9 +1,6 @@
 package wanhealth
 
-import (
-	"context"
-	"time"
-)
+import "time"
 
 // Config describes one active WAN health measurement batch.
 type Config struct {
@@ -42,11 +39,3 @@ type Result struct {
 	// LastError describes the failed sample without raw command output.
 	LastError string
 }
-
-// Runner executes one probe. Tests can inject a fake runner.
-type Runner interface {
-	Ping(ctx context.Context, host string, timeout time.Duration) ([]byte, time.Duration, error)
-}
-
-// CommandRunner executes the local OS ping command.
-type CommandRunner struct{}

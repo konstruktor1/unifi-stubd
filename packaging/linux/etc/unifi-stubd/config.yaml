@@ -1,181 +1,56 @@
-# unifi-stubd packaged Linux runtime config.
-# Installed as /etc/unifi-stubd/config.yaml.
-
-# Replace 192.0.2.10 and 192.0.2.50 with addresses from an isolated lab.
+# Packaged Linux starter config. Replace the documentation addresses with an
+# isolated lab. Field behavior and examples:
+# https://github.com/konstruktor1/unifi-stubd/blob/main/docs/en/operation-modes.md
 operation_mode: stub
 controller_url: http://192.0.2.10:8080/inform
 profile: us8
-# Every instance selects a concrete profile. This starter config chooses US8;
-# profile_file and profile_dir can add reviewed external lab profiles.
 profile_file: ""
 profile_dir: ""
 mac: auto
 ip: 192.0.2.50
 hostname: auto
 
-# 0 uses the selected profile, including mixed-speed profile port groups.
 link_speed: 0
 uplink_speed: auto
-# 0 uses the selected profile uplink. Set a port number to move the uplink
-# marker while preserving that port's profile speed/media.
 uplink_port: 0
-# Optional direct upstream neighbor added to the selected uplink port. Leave
-# mac empty or set uplink_neighbor: null to disable it.
 uplink_neighbor:
   mac: ""
   vlan: 1
   type: usw
-  # remote_port: 50
-# Optional neighbors on specific ports. Client entries populate MAC tables;
-# explicit infrastructure types model direct downstream devices.
-# Example:
-# port_neighbors:
-#   - port: 2
-#     mac: 02:aa:bb:cc:dd:02
-#     hostname: lab-vm-2
-#     ip: 192.0.2.52
-#     vlan: 1
-#     type: usw
-#     remote_port: 7
 port_neighbors: []
-# Optional per-port overrides applied after profile and observation data.
-# Profiles describe hardware. Use these overrides for lab assignments such as
-# WAN/LAN/backup_wan without changing the selected device profile.
-# For gateway profiles, controller `ifname` values stay derived from the
-# physical profile port (`gateway_interface_prefix` + port-1). A host interface
-# configured below is copied into `source_interface` only; it is not a
-# controller `ifname` and is not renamed by role changes.
-# Gateway management/transport addresses are not WAN/LAN assignments. Configure
-# WAN, LAN, WAN2, and LAN2 explicitly through port_overrides. Keep unused ports
-# unassigned and without ip so they do not inherit LAN gateway data.
-# Example:
-# port_overrides:
-#   - port: 2
-#     name: lab_lan
-#     role: lan
-#     network_group: LAN
-#     # Optional host interface source for MAC/IP/link state on that port.
-#     interface: eth1
-#     ip: 192.0.2.51
-#     netmask: 255.255.255.0
-#     speed: 1000
-#   - port: 3
-#     name: backup_wan
-#     role: wan2
-#     network_group: WAN2
-#     wan_uptime_percent: 100
-#     wan_latency_ms: 7
-#     wan_connected: true
-#   - port: 5
-#     up: false
 port_overrides: []
 
-# Optional read-only gateway WAN health. Default is off; static uses the
-# port_overrides wan_* fields above. ping runs the local OS ping command and
-# updates local status only; it does not claim firmware WAN or speed-test data.
-# source:
-#   off    - no active measurement
-#   static - rely on configured port_overrides wan_* values only
-#   ping   - probe targets with local ping; target ports must have an explicit
-#            port_overrides role wan/wan2
-# Ping diagnostics do not run UniFi speed tests, detect ISP/provider names,
-# change routes, touch VLANs, or populate firmware WAN-health Inform fields.
-# wan_health:
-#   source: ping
-#   interval_seconds: 10
-#   timeout_ms: 1000
-#   targets:
-#     - port: 3
-#       host: 1.1.1.1
 wan_health:
   source: off
   interval_seconds: 10
   timeout_ms: 1000
   targets: []
 
-# Passive Linux observation is read-only. operation_mode: bridge-observe
-# represents one host bridge as virtual switch ports. operation_mode: observe is
-# still accepted as an alias for bridge-observe.
 observe_interface: ""
 observe_bridge: ""
 bridge_observe:
   bridge: ""
   uplink_interface: ""
-  # The bridge device itself is metadata and is not mapped as a UniFi port.
-  # tap*/veth*/fwpr*/fwln*/fwbr* members are treated as downstream access ports.
-  # Mapped members contribute their own interface speed and counters.
-  # If uplink_interface is empty and exactly one physical-looking member exists,
-  # it is treated as the uplink candidate.
-  # Switch profiles with dedicated SFP/SFP+ uplink cages keep those profile
-  # ports. The active physical uplink_interface defaults to the last normal GE
-  # port unless uplink_port is set.
-  # MACs learned on uplink_interface are remote behind the real neighbor switch
-  # and are excluded from all local access-port MAC tables.
-  # Optional members ignored entirely. This is useful when a local Proxmox TAP
-  # side is already represented by an explicit physical/uplink port.
-  # ignored_members:
-  #   - tap10000i0
   ignored_members: []
-  # Optional deterministic bridge-member to UniFi-port pins.
-  # member_port_map:
-  #   - member: tap101i0
-  #     port: 2
   member_port_map: []
-# operation_mode: port-map maps every UniFi port to a host interface or explicit
-# state. interface sources must exist during -validate/runtime.
-# disabled reports link down with speed 0; unmapped keeps profile defaults.
-# port_mappings:
-#   - port: 1
-#     interface: eth0
-#   - port: 2
-#     disabled: true
-#   - port: 3
-#     unmapped: true
 port_mappings: []
-# Passive LLDP uses lldpd through `lldpcli -f json show neighbors`.
-# Missing lldpcli is reported as a warning and does not stop the daemon.
 lldp_source: off
-traffic_source: off
-# Optional UniFi UI traffic rates from read-only interface counters.
-# Keep disabled unless mapped interfaces should report live RX/TX rates.
 traffic_rates_enabled: false
-# Optional read-only platform metadata. Leave disabled for the package default.
-# log_source: journalctl reads recent systemd journal entries for status.
-# proc_source: procfs supplements interface counters from /proc/net/dev.
-# Linux bridge observation also reads /proc/net/arp when available to attach
-# learned client IPv4 addresses to port_table[].mac_table rows.
-# dbus_enabled only checks bus availability; D-Bus is not required.
-log_source: off
 proc_source: off
-dbus_enabled: false
-dbus_bus: system
-syslog_path: /var/log/messages
 
-# Host-global duplicate instance guard. The package default aborts a second
-# live daemon before SSH, discovery, or inform traffic starts. Use warn or off
-# only for intentional multi-stub labs on the same host.
+# Abort duplicate live instances before they open controller-facing services.
 instance_guard: fail
 instance_guard_path: /var/lib/unifi-stubd/instance.lock
 
 interval_seconds: 10
-# Positive controller interval hints are clamped to these local bounds.
 controller_interval_min_seconds: 5
 controller_interval_max_seconds: 60
-# Transport failures double the effective interval up to this delay. Jitter is
-# symmetric and bounded; a completed HTTP exchange resets the failure sequence.
 inform_backoff_max_seconds: 300
 inform_backoff_jitter_percent: 20
 no_discovery: false
-# Optional local interface used as the source for UDP discovery sends. Leave
-# empty to let the OS route the default broadcast and multicast targets.
 discovery_interface: ""
-# Optional explicit UDP discovery targets for routed labs where the default
-# broadcast or multicast target is not usable.
 discovery_targets: []
 
-# Structured switch management LAN handling. preexisting-interface binds payload
-# IP, discovery source, and inform source to an already-created VLAN interface
-# such as eth0.20 or vmbr0.20; unifi-stubd still does not create host VLANs.
 management_lan:
   enabled: false
   vlan: 0
@@ -186,12 +61,9 @@ management_lan:
   controller_reachable: off
   adoption_strategy: untagged-first
 
-# Optional advanced-adoption SSH shim. The normal path is inform-based
-# adoption through controller_url, so packaged defaults keep SSH closed.
-# Enable only in an isolated lab when the controller must use SSH/set-inform.
+# Keep the optional adoption SSH shim closed unless an isolated lab needs it.
 ssh_listen: ""
 ssh_user: ubnt
-# Factory credentials are only relevant when ssh_listen is explicitly enabled.
 ssh_password: ubnt
 ssh_host_key_path: /var/lib/unifi-stubd/ssh_host_rsa_key
 

@@ -21,11 +21,6 @@ func (r ProfileRegistry) Profiles() []Profile {
 	return out
 }
 
-// LookupProfile returns a built-in profile by profile name or model identifier.
-func LookupProfile(name string) (Profile, bool) {
-	return NewProfileRegistry().LookupProfile(name)
-}
-
 // LookupProfile returns a profile by profile name or model identifier.
 func (r ProfileRegistry) LookupProfile(name string) (Profile, bool) {
 	record, ok := r.lookupRecord(name)

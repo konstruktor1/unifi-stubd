@@ -54,7 +54,7 @@ func portsForRuntime(flags runtimeFlags, profile device.Profile, portBuildOption
 	snapshot, errs := observe.HostSnapshotFromSource(ctx, plt, observe.Config{
 		Interface:      strings.TrimSpace(bridgeObserve.UplinkInterface),
 		Bridge:         strings.TrimSpace(bridgeObserve.Bridge),
-		IgnoredMembers: cloneStrings(bridgeObserve.IgnoredMembers),
+		IgnoredMembers: cloneNonEmptySlice(bridgeObserve.IgnoredMembers),
 		MemberPortMap:  bridgeMemberPortMap(bridgeObserve.MemberPortMap),
 	}, uplinkPortIndex(ports))
 	for _, err := range errs {

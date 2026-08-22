@@ -1,6 +1,3 @@
-// Package payload fills low-risk gateway metadata backed by exact profile
-// evidence. Runtime measurements remain absent unless a typed local source
-// supplies them.
 package payload
 
 import (
@@ -94,7 +91,7 @@ func newGatewayTelemetry(profile device.Profile, id device.Identity, now time.Ti
 		WiFiCaps:          0,
 	}
 	reportingPolicy := device.ResolveControllerReportingPolicy(profile, id.Model, id.Version)
-	if reportingPolicy.BlockSelection && reportingPolicy.EvidenceID == gatewayIdleSpeedtestEvidenceID {
+	if reportingPolicy.IdleSpeedtest {
 		idle := gatewaySpeedtestStatus()
 		telemetry.SpeedtestStatus = &idle
 		telemetry.SpeedtestStatusUDAPI = &emptyList
@@ -138,17 +135,12 @@ func saturatedUnixMilli(value time.Time) int64 {
 	return seconds*1000 + milliseconds
 }
 
-func gatewayUDAPIVersion() udapiVersionPayload {
-	return udapiVersionPayload{
+func gatewayUDAPIVersionRef() *udapiVersionPayload {
+	return &udapiVersionPayload{
 		Path:    "/system/ubios/udm/configuration",
 		Version: 48,
 		VersionDetail: map[string]int{
 			"configuration": 48,
 		},
 	}
-}
-
-func gatewayUDAPIVersionRef() *udapiVersionPayload {
-	value := gatewayUDAPIVersion()
-	return &value
 }

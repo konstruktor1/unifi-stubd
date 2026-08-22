@@ -1,6 +1,7 @@
 package ifsource
 
 import (
+	"context"
 	"os/exec"
 	"strings"
 )
@@ -16,8 +17,8 @@ type hostInterfaceDetails struct {
 }
 
 // readHostInterfaceDetails reads platform link details through ifconfig.
-func readHostInterfaceDetails(ifaceName string) hostInterfaceDetails {
-	out, err := exec.Command("ifconfig", ifaceName).Output()
+func readHostInterfaceDetails(ctx context.Context, ifaceName string) hostInterfaceDetails {
+	out, err := exec.CommandContext(ctx, "ifconfig", ifaceName).Output()
 	if err != nil {
 		return hostInterfaceDetails{}
 	}

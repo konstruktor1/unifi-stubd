@@ -26,7 +26,7 @@ func buildObservationStatus(flags runtimeFlags, ports []device.Port, plt platfor
 	snapshot, errs := observe.HostSnapshotFromSource(ctx, plt, observe.Config{
 		Interface:      strings.TrimSpace(bridgeObserve.UplinkInterface),
 		Bridge:         strings.TrimSpace(bridgeObserve.Bridge),
-		IgnoredMembers: cloneStrings(bridgeObserve.IgnoredMembers),
+		IgnoredMembers: cloneNonEmptySlice(bridgeObserve.IgnoredMembers),
 		MemberPortMap:  bridgeMemberPortMap(bridgeObserve.MemberPortMap),
 	}, uplinkPortIndex(ports))
 

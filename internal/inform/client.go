@@ -1,5 +1,3 @@
-// Package inform wraps JSON payloads in TNBU packets, sends them over HTTP,
-// limits controller response size, and decodes inform responses when present.
 package inform
 
 import (

@@ -1,11 +1,8 @@
-// Package platform defines the small contracts used by cmd/unifi-stubd and the
-// observe package. Keeping these structs plain makes it clear which host facts
-// are read-only inputs and prevents adapter-specific details from leaking into
-// payload rendering.
 package platform
 
 import (
 	"context"
+	"net"
 	"time"
 
 	"github.com/konstruktor1/unifi-stubd/internal/observe"
@@ -17,16 +14,8 @@ const (
 	SourceOff = "off"
 	// LLDPSourceLLDPD reads passive LLDP neighbors from lldpd through lldpcli.
 	LLDPSourceLLDPD = "lldpd"
-	// LogSourceJournalctl reads Linux journal entries through journalctl.
-	LogSourceJournalctl = "journalctl"
-	// LogSourceSyslog reads syslog-style log files.
-	LogSourceSyslog = "syslog"
 	// ProcSourceProcFS reads Linux procfs counters.
 	ProcSourceProcFS = "procfs"
-	// DBusBusSystem selects the system D-Bus.
-	DBusBusSystem = "system"
-	// DBusBusSession selects the session D-Bus.
-	DBusBusSession = "session"
 )
 
 // Capability state strings are stable status values, not dependency management
@@ -36,11 +25,8 @@ const (
 	capabilityAvailable   = "available"
 	capabilityMissing     = "missing"
 	capabilityUnsupported = "unsupported"
-	capabilityDBus        = "dbus"
 	capabilityLLDP        = "lldp"
-	capabilityLogs        = "logs"
 	capabilityProc        = "proc"
-	capabilityTraffic     = "traffic"
 	goosFreeBSD           = "freebsd"
 	goosLinux             = "linux"
 )
@@ -48,13 +34,7 @@ const (
 // Config contains optional platform integration settings.
 type Config struct {
 	LLDPSource     string
-	TrafficSource  string
-	LogSource      string
 	ProcSource     string
-	DBusEnabled    bool
-	DBusBus        string
-	SyslogPath     string
-	JournalUnit    string
 	CommandTimeout time.Duration
 }
 
@@ -62,11 +42,11 @@ type Config struct {
 type Platform interface {
 	observe.ObservationSource
 	InterfaceReader
+	EgressLinkReader
+	AddressReader
 	LLDPReader
-	LogReader
 	ProcReader
-	ServiceBus
-	Capabilities(context.Context, Config) CapabilityReport
+	Capabilities(Config) CapabilityReport
 }
 
 // InterfaceReader reads a single host interface.
@@ -74,24 +54,32 @@ type InterfaceReader interface {
 	Interface(context.Context, string) (observe.PortObservation, []error)
 }
 
+// EgressLinkReader resolves the local link used to reach one target.
+type EgressLinkReader interface {
+	EgressLink(context.Context, string) (EgressLink, error)
+}
+
+// AddressReader reads host-interface identity and checks IPv4 assignment.
+type AddressReader interface {
+	InterfaceIdentity(context.Context, string) (InterfaceIdentity, error)
+	IPv4Assigned(context.Context, string, net.IP) (bool, error)
+}
+
+// InterfaceIdentity contains host-interface addresses without optional counter,
+// media, or command-backed enrichment.
+type InterfaceIdentity struct {
+	MAC  net.HardwareAddr
+	IPv4 []net.IP
+}
+
 // LLDPReader reads passive LLDP neighbors.
 type LLDPReader interface {
 	LLDP(context.Context, LLDPConfig) ([]LLDPNeighbor, []error)
 }
 
-// LogReader reads recent platform logs.
-type LogReader interface {
-	Logs(context.Context, LogConfig) ([]LogEntry, []error)
-}
-
 // ProcReader reads optional proc-style counters.
 type ProcReader interface {
 	Proc(context.Context, ProcConfig) (ProcSnapshot, []error)
-}
-
-// ServiceBus checks optional D-Bus connectivity.
-type ServiceBus interface {
-	ServiceBus(context.Context, DBusConfig) (ServiceBusStatus, error)
 }
 
 // CapabilityReport describes which platform sources are usable at runtime.
@@ -126,23 +114,6 @@ type LLDPNeighbor struct {
 	ManagementIP    string   `json:"management_ip,omitempty"`
 }
 
-// LogConfig selects the platform log reader.
-type LogConfig struct {
-	Source string
-	Path   string
-	Unit   string
-	Lines  int
-}
-
-// LogEntry is one normalized journal or syslog entry.
-type LogEntry struct {
-	Time     string `json:"time,omitempty"`
-	Unit     string `json:"unit,omitempty"`
-	Priority string `json:"priority,omitempty"`
-	Message  string `json:"message,omitempty"`
-	Raw      string `json:"raw,omitempty"`
-}
-
 // ProcConfig selects proc-style counters.
 type ProcConfig struct {
 	Source string
@@ -152,18 +123,4 @@ type ProcConfig struct {
 // ProcSnapshot contains optional host counters read from proc-style sources.
 type ProcSnapshot struct {
 	Interfaces map[string]observe.InterfaceStats `json:"interfaces,omitempty"`
-}
-
-// DBusConfig selects optional D-Bus connectivity.
-type DBusConfig struct {
-	Enabled bool
-	Bus     string
-}
-
-// ServiceBusStatus reports optional D-Bus availability.
-type ServiceBusStatus struct {
-	Enabled bool   `json:"enabled"`
-	Bus     string `json:"bus,omitempty"`
-	State   string `json:"state"`
-	Detail  string `json:"detail,omitempty"`
 }

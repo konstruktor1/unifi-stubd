@@ -1,33 +1,35 @@
 package main
 
 import (
+	"context"
 	"log"
 	"strconv"
 	"strings"
 
 	"github.com/konstruktor1/unifi-stubd/internal/device"
+	"github.com/konstruktor1/unifi-stubd/internal/platform"
 )
 
 // resolvePortBuildOptions applies runtime port-count, link-speed, and uplink
 // selections before any runtime observation is merged.
-func resolvePortBuildOptions(portCount int, linkSpeed int, uplinkPort int, uplinkSpeed, controller string) device.PortBuildOptions {
+func resolvePortBuildOptions(portCount int, linkSpeed int, uplinkPort int, uplinkSpeed, controller string, links platform.EgressLinkReader) device.PortBuildOptions {
 	options := device.PortBuildOptions{
 		Count:      portCount,
 		LinkSpeed:  linkSpeed,
 		UplinkPort: uplinkPort,
 	}
-	return resolveUplinkSpeed(options, uplinkSpeed, controller)
+	return resolveUplinkSpeed(options, uplinkSpeed, controller, links)
 }
 
 // resolveUplinkSpeed handles the operator's uplink-speed policy, including the
 // optional egress-link probe used only for local observation.
-func resolveUplinkSpeed(options device.PortBuildOptions, value, target string) device.PortBuildOptions {
+func resolveUplinkSpeed(options device.PortBuildOptions, value, target string, links platform.EgressLinkReader) device.PortBuildOptions {
 	value = strings.TrimSpace(strings.ToLower(value))
 	switch value {
 	case "", "profile":
 		return options
 	case automaticText:
-		info, err := device.DetectEgressLink(target)
+		info, err := links.EgressLink(context.Background(), target)
 		if err != nil {
 			log.Printf("uplink speed auto-detect failed: %v; using profile uplink speed", err)
 			return options

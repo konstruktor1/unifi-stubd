@@ -20,6 +20,6 @@ validation:
 runtime_requirements:
   - id: disposable-controller-docker-api
     type: docker-api
-    reason: The product gate must build and run the project-owned disposable UniFi controller and Stub fixtures against the exact mounted consumer source.
+    reason: The controller-facing gate must build and run the project-owned disposable UniFi controller and Stub fixtures against the exact mounted consumer source.
     host_ref: DOCKER_SOCKET
     target: /var/run/docker.sock

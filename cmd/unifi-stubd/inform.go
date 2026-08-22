@@ -12,31 +12,14 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/inform"
 )
 
-// informCipherStatus records the attempted and selected response cipher for
-// status output.
+// informCipherStatus records the selected request cipher and sanitized response
+// metadata for last_inform.
 type informCipherStatus struct {
-	AttemptedAESGCM       bool
-	UsedAESGCM            bool
-	FallbackToCBC         bool
 	RequestFlags          uint16
 	KeySource             string
 	ResponseBodyPresent   bool
 	ResponsePacketDecoded bool
 	ResponseFlags         uint16
-	Attempts              []informAttemptStatus
-}
-
-// informAttemptStatus describes one actual HTTP request made by sendInform.
-// It contains wire metadata only and never the key, payload, URL, or MAC.
-type informAttemptStatus struct {
-	RequestFlags          uint16
-	KeySource             string
-	StatusCode            int
-	ResponseBodyPresent   bool
-	ResponsePacketDecoded bool
-	ResponseFlags         uint16
-	UsedAESGCM            bool
-	Failed                bool
 }
 
 // sendInform chooses exactly one adoption key and cipher for one heartbeat.
@@ -53,16 +36,9 @@ func sendInform(mac net.HardwareAddr, url string, store adoption.Store, payload 
 	}
 
 	options := inform.Options{Zlib: true, GCM: store.AuthKey != "" && store.UseAESGCM}
-	attempt := informAttemptStatus{
+	status := informCipherStatus{
 		RequestFlags: requestFlags(options),
 		KeySource:    keySource,
-		UsedAESGCM:   options.GCM,
-	}
-	status := informCipherStatus{
-		AttemptedAESGCM: options.GCM,
-		UsedAESGCM:      options.GCM,
-		RequestFlags:    attempt.RequestFlags,
-		KeySource:       keySource,
 	}
 	resp, sendErr := inform.Client{
 		URL:       url,
@@ -72,24 +48,16 @@ func sendInform(mac net.HardwareAddr, url string, store adoption.Store, payload 
 		LocalAddr: sourceIP,
 	}.Send(payload)
 	if resp != nil {
-		attempt.StatusCode = resp.StatusCode
-		attempt.ResponseBodyPresent = len(resp.RawBody) > 0
-		status.ResponseBodyPresent = attempt.ResponseBodyPresent
+		status.ResponseBodyPresent = len(resp.RawBody) > 0
 		if resp.Packet != nil {
-			attempt.ResponseFlags = resp.Packet.Flags
 			status.ResponseFlags = resp.Packet.Flags
 			// A policy-rejected response may expose bounded TNBU header
 			// metadata without having produced authenticated plaintext.
 			if sendErr == nil {
-				attempt.ResponsePacketDecoded = true
 				status.ResponsePacketDecoded = true
 			}
 		}
 	}
-	if sendErr != nil {
-		attempt.Failed = true
-	}
-	status.Attempts = append(status.Attempts, attempt)
 	if sendErr != nil {
 		return resp, status, fmt.Errorf("send inform: %w", sendErr)
 	}

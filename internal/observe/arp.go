@@ -2,10 +2,8 @@ package observe
 
 import (
 	"bufio"
-	"fmt"
 	"io"
 	"net"
-	"os"
 	"strings"
 
 	"github.com/konstruktor1/unifi-stubd/internal/device"
@@ -16,23 +14,6 @@ type ARPEntry struct {
 	IP     string
 	MAC    string
 	Device string
-}
-
-// ReadARPTable reads Linux procfs ARP rows from path. ARP is only used to
-// enrich observed MAC-table metadata with client IPs.
-func ReadARPTable(path string) ([]ARPEntry, error) {
-	path = strings.TrimSpace(path)
-	if path == "" {
-		path = "/proc/net/arp"
-	}
-	file, err := os.Open(path)
-	if err != nil {
-		return nil, fmt.Errorf("read ARP table %s: %w", path, err)
-	}
-	defer func() {
-		_ = file.Close()
-	}()
-	return ParseARPTable(file), nil
 }
 
 // ParseARPTable converts Linux /proc/net/arp content into normalized unicast
@@ -98,19 +79,6 @@ func EnrichMACsFromARP(memberMACs map[string][]device.MacTableEntry, arpEntries 
 		}
 		memberMACs[member] = macs
 	}
-}
-
-// EnrichMACsFromLocalARP fills missing client IPs from the host ARP cache.
-func EnrichMACsFromLocalARP(memberMACs map[string][]device.MacTableEntry) error {
-	if len(memberMACs) == 0 {
-		return nil
-	}
-	entries, err := ReadARPTable("")
-	if err != nil {
-		return err
-	}
-	EnrichMACsFromARP(memberMACs, entries)
-	return nil
 }
 
 func arpEntryForMAC(member, mac string, byMAC map[string][]ARPEntry) (ARPEntry, bool) {

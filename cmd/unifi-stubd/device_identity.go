@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 	"strings"
 
 	"github.com/konstruktor1/unifi-stubd/internal/device"
+	"github.com/konstruktor1/unifi-stubd/internal/platform"
 )
 
 // resolveInformIP reports the numeric controller address when it can be derived
@@ -59,13 +61,13 @@ func resolveHostname(value string) string {
 // resolveMAC chooses the fake device MAC. The automatic path is stable for the
 // same host/profile/model, while host MAC use is allowed only in explicit
 // host-direct mode.
-func resolveMAC(value, hostname string, profile device.Profile, model, operationMode, ifaceName string) net.HardwareAddr {
+func resolveMAC(value, hostname string, profile device.Profile, model, operationMode, ifaceName string, addresses platform.AddressReader) net.HardwareAddr {
 	value = strings.TrimSpace(value)
 	if strings.EqualFold(value, "host") {
 		if operationMode != operationModeHostDirect {
 			log.Fatalf("mac: host is only allowed with -operation-mode host-direct")
 		}
-		mac, err := hostInterfaceMAC(ifaceName)
+		mac, err := hostInterfaceMAC(ifaceName, addresses)
 		if err != nil {
 			log.Fatalf("host MAC resolve failed: %v", err)
 		}
@@ -87,7 +89,7 @@ func resolveMAC(value, hostname string, profile device.Profile, model, operation
 
 // hostInterfaceMAC reads a local interface address only for explicit
 // host-direct mode; controller data never selects this interface.
-func hostInterfaceMAC(ifaceName string) (net.HardwareAddr, error) {
+func hostInterfaceMAC(ifaceName string, addresses platform.AddressReader) (net.HardwareAddr, error) {
 	ifaceName = strings.TrimSpace(ifaceName)
 	if ifaceName == "" {
 		return nil, errors.New("observe_interface is required when mac is host")
@@ -95,14 +97,17 @@ func hostInterfaceMAC(ifaceName string) (net.HardwareAddr, error) {
 	if strings.Contains(ifaceName, "/") {
 		return nil, fmt.Errorf("invalid interface name %q", ifaceName)
 	}
-	iface, err := net.InterfaceByName(ifaceName)
-	if err != nil {
-		return nil, fmt.Errorf("find interface %s: %w", ifaceName, err)
+	if addresses == nil {
+		return nil, errors.New("platform is required for host MAC resolution")
 	}
-	if len(iface.HardwareAddr) == 0 {
+	identity, err := addresses.InterfaceIdentity(context.Background(), ifaceName)
+	if err != nil {
+		return nil, fmt.Errorf("read interface %s identity: %w", ifaceName, err)
+	}
+	if len(identity.MAC) == 0 {
 		return nil, fmt.Errorf("interface %s has no hardware address", ifaceName)
 	}
-	return iface.HardwareAddr, nil
+	return identity.MAC, nil
 }
 
 // serialFromMAC mirrors UniFi-style serial formatting by uppercasing the device

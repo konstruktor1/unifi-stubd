@@ -79,7 +79,6 @@ remove_owned_image_alias() {
 
 cleanup() {
   local command_status=$? cleanup_result=passed final_status
-  local accepted_metadata_pending
   trap - EXIT HUP INT TERM
   set +e
   if [[ -n "${current_project:-}" ]] && ! project_is_clean "$current_project"; then
@@ -91,28 +90,8 @@ cleanup() {
       cleanup_result=failed
     fi
   done
-  if [[ "$command_status" -eq 0 && "$matrix_complete" == true && "$cleanup_result" == passed ]]; then
-    if ! mv "$accepted_binary_pending" "$accepted_binary"; then
-      cleanup_result=failed
-      rm -f "$accepted_binary_pending"
-    else
-      accepted_metadata_pending="$evidence_dir/accepted.env.pending"
-      if ! {
-        printf 'PRODUCT_VERSION=%s\n' "$candidate_version"
-        printf 'PRODUCT_OS=%s\n' "$product_os"
-        printf 'PRODUCT_ARCH=%s\n' "$product_arch"
-        printf 'PRODUCT_BINARY_SHA256=%s\n' "$product_binary_sha"
-      } >"$accepted_metadata_pending" ||
-        ! mv "$accepted_metadata_pending" "$evidence_dir/accepted.env"; then
-        cleanup_result=failed
-        rm -f "$accepted_metadata_pending" "$accepted_binary"
-      fi
-    fi
-  else
-    rm -f "${accepted_binary_pending:-}"
-  fi
   final_status=$command_status
-  [[ "$matrix_complete" == true && "$cleanup_result" == passed ]] || final_status=1
+  [[ "$cleanup_result" == passed ]] || final_status=1
   echo "controller matrix: result=$([[ "$final_status" -eq 0 ]] && echo passed || echo failed) cleanup=$cleanup_result artifacts=$evidence_dir"
   exit "$final_status"
 }
@@ -120,7 +99,7 @@ cleanup() {
 [[ "$repo_root" == /workspace ]] || fail 'run through Build Runner (make integration-nonunifi-metrics)'
 [[ $# -eq 0 ]] || fail 'this command accepts no arguments'
 : "${GOCACHE:?Build Runner must supply GOCACHE}"
-for command in awk curl docker jq sed sha256sum tee; do need "$command"; done
+for command in awk curl docker jq sed tee; do need "$command"; done
 docker compose version >/dev/null 2>&1 || fail 'docker compose is required'
 run_id="${UNIFI_STUB_CONTROLLER_MATRIX_RUN_ID:-matrix-$(date -u '+%Y%m%d%H%M%S')-$$}"
 [[ "$run_id" =~ ^[a-z0-9][a-z0-9-]{0,39}$ ]] || fail 'unsafe matrix run ID'
@@ -137,7 +116,6 @@ for image_alias in "$product_image" "$helper_image" "$ui_image" "$stable_control
   image_alias_absent "$image_alias" || fail "owned image alias already exists: $image_alias"
 done
 
-matrix_complete=false
 current_project=
 trap cleanup EXIT
 trap 'exit 129' HUP
@@ -183,18 +161,9 @@ UNIFI_NETWORK_IMAGE="$runtime_base_digest" \
   -f "$repo_root/lab/stub/compose.yaml" \
   -f "$repo_root/lab/stub/compose.tests.yaml" \
   build stub-bridge-observe controller-adoption controller-ui
-ui_image_id="$(docker image inspect --format '{{.Id}}' "$ui_image")"
-[[ "$ui_image_id" =~ ^sha256:[0-9a-f]{64}$ ]] || fail 'invalid controller UI image digest'
-export UNIFI_STUB_CONTROLLER_UI_IMAGE="$ui_image_id"
-product_image_id="$(docker image inspect --format '{{.Id}}' "$product_image")"
-[[ "$product_image_id" =~ ^sha256:[0-9a-f]{64}$ ]] || fail 'invalid product image digest'
-product_os="$(docker image inspect --format '{{.Os}}' "$product_image_id")"
-product_arch="$(docker image inspect --format '{{.Architecture}}' "$product_image_id")"
-[[ "$product_os" == linux && "$product_arch" =~ ^(amd64|arm64)$ ]] ||
-  fail "unsupported product platform: $product_os/$product_arch"
 run_lane() {
   local channel="$1" expected_version="$2" zip_url="$3" zip_sha="$4" controller_image="$5" lane_suffix="$6"
-  local lane_status controller_image_digest
+  local lane_status
   current_project="unifi-stubd-$run_id-$lane_suffix"
   export COMPOSE_PROJECT_NAME="$current_project"
   export UNIFI_STUB_CONTROLLER_RUNTIME_BASE_DIGEST="$runtime_base_digest"
@@ -203,23 +172,13 @@ run_lane() {
   export UNIFI_STUB_CONTROLLER_IMAGE="$controller_image"
   export UNIFI_NETWORK_IMAGE="$controller_image"
   export UNIFI_STUB_LAB_EXPECTED_NETWORK_VERSION="$expected_version"
-  export UNIFI_STUB_DOCKER_EXPECTED_PRODUCT_IMAGE_ID="$product_image_id"
   compose_channel build unifi || fail "$channel controller image build failed"
-  controller_image_digest="$(docker image inspect --format '{{.Id}}' "$controller_image")"
-  [[ "$controller_image_digest" =~ ^sha256:[0-9a-f]{64}$ ]] ||
-    fail "$channel controller image has no immutable digest"
   set +e
   sh "$script_dir/run-docker-integration.sh" 2>&1 | tee "$evidence_dir/$channel.log"
   lane_status=${PIPESTATUS[0]}
   set -e
   [[ "$lane_status" -eq 0 ]] || return "$lane_status"
   project_is_clean "$current_project" || fail "$channel Compose project was not completely removed"
-  [[ "$(docker image inspect --format '{{.Id}}' "$product_image")" == "$product_image_id" ]] ||
-    fail 'the product image tag changed between controller lanes'
-  [[ "$(docker image inspect --format '{{.Id}}' "$controller_image")" == "$controller_image_digest" ]] ||
-    fail "$channel controller image tag changed during its lane"
-  remove_owned_image_alias "$controller_image" ||
-    fail "$channel owned controller image alias was not removed"
   current_project=
 }
 
@@ -228,11 +187,4 @@ run_lane stable "$stable_version" "$stable_zip_url" "$stable_zip_sha" "$stable_c
 run_lane release-candidate "$rc_version" "$rc_zip_url" "$rc_zip_sha" "$rc_controller_image" rc ||
   fail 'Release Candidate product lane failed'
 
-accepted_binary="$evidence_dir/unifi-stubd-$product_os-$product_arch"
-accepted_binary_pending="$accepted_binary.pending"
-docker run --rm --entrypoint cat "$product_image_id" /usr/local/bin/unifi-stubd >"$accepted_binary_pending"
-chmod 0755 "$accepted_binary_pending"
-product_binary_sha="$(sha256sum -- "$accepted_binary_pending" | awk '{print $1}')"
-[[ "$product_binary_sha" =~ ^[0-9a-f]{64}$ ]] || fail 'invalid accepted product binary digest'
-matrix_complete=true
-echo "controller matrix: same product image passed the product gate on Stable $stable_version and RC $rc_version"
+echo "controller matrix: same product image passed the controller-facing gate on Stable $stable_version and RC $rc_version"

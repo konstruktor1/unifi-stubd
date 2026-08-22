@@ -28,9 +28,8 @@ func validateInformSchedule(flags runtimeFlags, policy device.InformSchedulePoli
 
 func controllerIntervalPolicyStatus(flags runtimeFlags, policy device.InformSchedulePolicy) statusControllerIntervalPolicy {
 	status := statusControllerIntervalPolicy{
-		Supported:  policy.Supported,
-		EvidenceID: policy.EvidenceID,
-		Reason:     policy.Reason,
+		Supported: policy.Supported,
+		Reason:    policy.Reason,
 	}
 	if policy.FirmwareMinimum > 0 {
 		status.FirmwareMinimum = policy.FirmwareMinimum.String()
@@ -43,10 +42,9 @@ func controllerIntervalPolicyStatus(flags runtimeFlags, policy device.InformSche
 
 func controllerReportingPolicyStatus(policy device.ControllerReportingPolicy) statusControllerReportingPolicy {
 	return statusControllerReportingPolicy{
-		EvidenceID:      policy.EvidenceID,
-		BehaviorID:      policy.BehaviorID,
 		BlockSelection:  policy.BlockSelection,
 		ControllerClock: policy.ControllerClock,
+		IdleSpeedtest:   policy.IdleSpeedtest,
 		Reason:          policy.Reason,
 	}
 }

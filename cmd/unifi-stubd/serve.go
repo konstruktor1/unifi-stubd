@@ -17,7 +17,7 @@ import (
 // mode, builds the initial controller-facing identity, and then either exits
 // for one-shot commands or enters the presence loop.
 func serveSwitchEmulation() error {
-	flags, changed := parseServeFlags()
+	flags, changed := parseRuntimeFlags()
 	if handled, err := handleServeEarlyExit(flags); handled || err != nil {
 		return err
 	}
@@ -49,21 +49,19 @@ func serveSwitchEmulation() error {
 		Sequence: 1,
 	}
 
-	packet, err := ann.MarshalBinary()
-	if err != nil {
-		return fmt.Errorf("marshal discovery announcement: %w", err)
-	}
-
-	ports := portsForRuntime(flags, prepared.profile, identity.portBuildOptions, prepared.platform)
-	if flags.trafficRatesEnabled {
-		ports = applyTrafficRates(ports, observe.NewTrafficRateTracker(), time.Now())
-	}
-	payload, err := payloadForIdentity(identity.mac, identity.ip, identity.hostname, flags.controller, adoption.Store{}, flags, prepared.profile, ports, 1, controllerPayloadState{})
-	if err != nil {
-		return err
-	}
-
 	if flags.dryRun {
+		packet, err := ann.MarshalBinary()
+		if err != nil {
+			return fmt.Errorf("marshal discovery announcement: %w", err)
+		}
+		ports := portsForRuntime(flags, prepared.profile, identity.portBuildOptions, prepared.platform)
+		if flags.trafficRatesEnabled {
+			ports = applyTrafficRates(ports, observe.NewTrafficRateTracker(), time.Now())
+		}
+		payload, err := payloadForIdentity(identity.mac, identity.ip, identity.hostname, flags.controller, adoption.Store{}, flags, prepared.profile, ports, 1, controllerPayloadState{})
+		if err != nil {
+			return err
+		}
 		printDryRun(packet, payload)
 		return nil
 	}
@@ -98,7 +96,6 @@ func serveSwitchEmulation() error {
 		hostname:             identity.hostname,
 		portBuildOptions:     identity.portBuildOptions,
 		announcement:         ann,
-		discoveryPacket:      packet,
 		discoverySkipped:     flags.noDiscovery,
 		discoveryInterface:   effectiveDiscoveryInterface(flags),
 		discoveryTargets:     flags.discoveryTargets,

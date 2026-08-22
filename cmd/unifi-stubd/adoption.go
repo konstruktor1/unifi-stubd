@@ -162,17 +162,13 @@ func logInformResponse(resp *inform.Response, response adoption.ControllerRespon
 	log.Printf("inform response status=%d decoded_json_bytes=%d type=unknown cipher=%s", resp.StatusCode, len(resp.JSONBody), cipherStatusText(cipher))
 }
 
-// cipherStatusText compresses inform cipher negotiation into stable audit and
-// status labels.
+// cipherStatusText returns the single cipher selected for the heartbeat.
 func cipherStatusText(cipher informCipherStatus) string {
-	switch {
-	case cipher.UsedAESGCM:
-		return "aes-gcm"
-	case cipher.FallbackToCBC:
-		return "aes-cbc-fallback"
-	case cipher.AttemptedAESGCM:
-		return "aes-cbc-after-gcm-attempt"
-	default:
-		return "aes-cbc"
+	if cipher.RequestFlags == 0 {
+		return ""
 	}
+	if cipher.RequestFlags&inform.FlagEncryptedGCM != 0 {
+		return "aes-gcm"
+	}
+	return "aes-cbc"
 }

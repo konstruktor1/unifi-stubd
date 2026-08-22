@@ -2,7 +2,6 @@ GO ?= go
 GOLANGCI_LINT ?= $(GO) tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint
 GOLANGCI_LINT_CACHE ?= $(GOCACHE)/golangci-lint
 RUNNER_WORKDIR ?= $(GOCACHE)/unifi-stubd-work
-NFPM ?= $(GO) tool github.com/goreleaser/nfpm/v2/cmd/nfpm
 GOVULNCHECK ?= $(GO) tool golang.org/x/vuln/cmd/govulncheck
 COVERAGE_PACKAGES ?= ./internal/...
 COVERAGE_TESTS ?= ./tests/...
@@ -14,13 +13,12 @@ PKG_GOOS ?= linux
 PKG_GOARCH ?=
 PKG_FREEBSD_GOARCH ?= amd64
 PKG_FORMATS ?= deb rpm archlinux tgz
-PKG_ACCEPTED_RUN_ID ?=
 PKG_LICENSE ?= AGPL-3.0-or-later
 PKG_MAINTAINER ?= unifi-stubd maintainers <info@spinas.org>
 BUILD_LDFLAGS := -s -w -X main.version=$(PKG_VERSION)
 BUILD_RUNNER_PROJECT_NAME := unifi-stubd
 BUILD_RUNNER_INTEGRATION_MANIFEST := build-runner/instances/controller-gate.yaml
-CODE_CHECKER_CONFIG := $(CURDIR)/code-checker.toml
+CODE_CHECKER_CONFIG := $(CODE_CHECKER_CONSUMER_PROJECT)/code-checker.toml
 CODE_CHECKER_MANIFEST := build-runner/instances/code-checker.yaml
 
 ifneq ($(strip $(GOCACHE)),)
@@ -29,33 +27,29 @@ TMPDIR ?= $(RUNNER_WORKDIR)
 export GOTMPDIR TMPDIR
 endif
 
-PKG_ENV_NONFPM := PKG_VERSION='$(PKG_VERSION)' \
+PKG_ENV := PKG_VERSION='$(PKG_VERSION)' \
   PKG_RELEASE='$(PKG_RELEASE)' \
   PKG_GOOS='$(PKG_GOOS)' \
   PKG_GOARCH='$(PKG_GOARCH)' \
-  PKG_ACCEPTED_RUN_ID='$(PKG_ACCEPTED_RUN_ID)' \
   PKG_LICENSE='$(PKG_LICENSE)' \
   PKG_MAINTAINER='$(PKG_MAINTAINER)' \
   BUILD_LDFLAGS='$(BUILD_LDFLAGS)'
-
-PKG_ENV := NFPM='$(NFPM)' \
-  $(PKG_ENV_NONFPM)
 
 .PHONY: anti-bloat-changed anti-bloat-full build build-freebsd check clean-dist code-checker code-checker-ready coverage fmt help integration-nonunifi-metrics lint package package-arch package-deb package-freebsd-pkg-repos package-freebsd-tgz package-repos package-rpm package-tgz policy race runner-workdir switch-emulation switch-payload test validate-config vulncheck
 
 build build-freebsd coverage fmt lint package package-arch package-deb package-freebsd-tgz package-rpm package-tgz race switch-emulation switch-payload test validate-config vulncheck: | runner-workdir
 
 runner-workdir:
-	@test -n '$(GOCACHE)' || { printf '%s\n' 'GOCACHE must be supplied by Build Runner' >&2; exit 1; }
+	@test "$$(pwd -P)" = /workspace && test -n '$(GOCACHE)' || { printf '%s\n' 'Go targets must run in the Build Runner workspace' >&2; exit 1; }
 	@mkdir -p '$(RUNNER_WORKDIR)'
 
 help:
 	@printf '%s\n' \
 		'Targets:' \
 		'  make check        Run lint, policy checks, and tests' \
-		'  make code-checker  Run the independent Code Checker gate through Build Runner' \
-		'  make anti-bloat-changed  Print the subscribed changed-scope instruction' \
-		'  make anti-bloat-full  Print the subscribed full-scope instruction' \
+		'  make code-checker  Run the complete pre-merge gate through Build Runner and Code Checker' \
+		'  make anti-bloat-changed  Issue a changed-scope Anti-Bloat work order' \
+		'  make anti-bloat-full  Issue a full-scope Anti-Bloat work order' \
 		'  make build-freebsd  Cross-build the FreeBSD/OPNsense binary' \
 		'  make coverage     Write a diagnostic coverage report' \
 		'  make lint         Run golangci-lint and repository policy checks' \
@@ -82,26 +76,26 @@ build-freebsd:
 check: lint validate-config test
 
 code-checker-ready:
-	@test -n '$(CODE_CHECKER_DIR)' || { printf '%s\n' 'CODE_CHECKER_DIR must name the Code Checker checkout' >&2; exit 2; }
-	@test -x '$(CODE_CHECKER_DIR)/bin/code-checker' || { printf '%s\n' 'Code Checker launcher is not executable' >&2; exit 2; }
+	@test -n '$(CODE_CHECKER_PROVIDER_CHECKOUT)' && test -n '$(CODE_CHECKER_PROVIDER_LAUNCHER)' && test -n '$(CODE_CHECKER_CONSUMER_PROJECT)' || { printf '%s\n' 'Code Checker status fields are required' >&2; exit 2; }
 	@test -f '$(CODE_CHECKER_CONFIG)' || { printf '%s\n' 'code-checker.toml is missing' >&2; exit 2; }
 
 code-checker: code-checker-ready
-	@: "$${BUILD_RUNNER_DIR:?set BUILD_RUNNER_DIR to the provider checkout}"
-	BUILD_RUNNER_CONTROLLER_IMAGE='local/build-runner-controller:unifi-stubd-code-checker' \
-	BUILD_RUNNER_HOST_PATH_CODE_CHECKER_SOURCE='$(CODE_CHECKER_DIR)' \
-		"$$BUILD_RUNNER_DIR/build-runner" --project-name '$(BUILD_RUNNER_PROJECT_NAME)' \
+	@BUILD_RUNNER_CONTROLLER_IMAGE='local/build-runner-controller:unifi-stubd-code-checker' \
+	BUILD_RUNNER_HOST_PATH_CODE_CHECKER_SOURCE='$(CODE_CHECKER_PROVIDER_CHECKOUT)' \
+		./build-runner/runtime/entry build-runner --project-name '$(BUILD_RUNNER_PROJECT_NAME)' \
 		instance run --manifest '$(CODE_CHECKER_MANIFEST)' -- \
-		/artifacts/code-checker-source/bin/code-checker \
-		--config /workspace/code-checker.toml check /workspace --require-tools
+		sh /workspace/build-runner/toolsets/code-checker/run-check.sh \
+			/artifacts/code-checker-source/bin/code-checker /workspace
 
 anti-bloat-changed: code-checker-ready
-	'$(CODE_CHECKER_DIR)/bin/code-checker' --config '$(CODE_CHECKER_CONFIG)' \
-		anti-bloat plan '$(CURDIR)' --scope changed --json
+	@test -n '$(CODE_CHECKER_ANTI_BLOAT_BASE)' || { printf '%s\n' 'CODE_CHECKER_ANTI_BLOAT_BASE must name the accepted task base commit' >&2; exit 2; }
+	'$(CODE_CHECKER_PROVIDER_LAUNCHER)' --config '$(CODE_CHECKER_CONFIG)' \
+		anti-bloat work-order '$(CODE_CHECKER_CONSUMER_PROJECT)' --scope changed \
+			--base '$(CODE_CHECKER_ANTI_BLOAT_BASE)' --json
 
 anti-bloat-full: code-checker-ready
-	'$(CODE_CHECKER_DIR)/bin/code-checker' --config '$(CODE_CHECKER_CONFIG)' \
-		anti-bloat plan '$(CURDIR)' --scope full --json
+	'$(CODE_CHECKER_PROVIDER_LAUNCHER)' --config '$(CODE_CHECKER_CONFIG)' \
+		anti-bloat work-order '$(CODE_CHECKER_CONSUMER_PROJECT)' --scope full --json
 
 lint:
 	GOLANGCI_LINT_CACHE='$(GOLANGCI_LINT_CACHE)' $(GOLANGCI_LINT) config verify
@@ -133,10 +127,9 @@ define run_product_gate
 	@if [ "$$(pwd -P)" = /workspace ]; then \
 		$(1); \
 	else \
-		: "$${BUILD_RUNNER_DIR:?set BUILD_RUNNER_DIR to the provider checkout}"; \
 		host_lab_dir="$$(pwd -P)/lab/stub"; \
 		BUILD_RUNNER_CONTROLLER_IMAGE='local/build-runner-controller:unifi-stubd-controller-gate' \
-		"$$BUILD_RUNNER_DIR/build-runner" \
+		./build-runner/runtime/entry build-runner \
 			--project-name '$(BUILD_RUNNER_PROJECT_NAME)' \
 			instance run \
 			--manifest '$(BUILD_RUNNER_INTEGRATION_MANIFEST)' \
@@ -171,13 +164,13 @@ package-arch:
 	$(PKG_ENV) sh scripts/package.sh archlinux
 
 package-tgz:
-	$(PKG_ENV_NONFPM) sh scripts/package.sh tgz
+	$(PKG_ENV) sh scripts/package.sh tgz
 
 package-freebsd-tgz:
-	$(PKG_ENV_NONFPM) PKG_GOOS='freebsd' PKG_GOARCH='$(PKG_FREEBSD_GOARCH)' PKG_FORMATS='tgz' sh scripts/package.sh tgz
+	$(PKG_ENV) PKG_GOOS='freebsd' PKG_GOARCH='$(PKG_FREEBSD_GOARCH)' PKG_FORMATS='tgz' sh scripts/package.sh tgz
 
 package-freebsd-pkg-repos:
-	$(PKG_ENV_NONFPM) sh scripts/package-freebsd-pkg-repos.sh
+	$(PKG_ENV) sh scripts/package-freebsd-pkg-repos.sh
 
 package-repos:
 	sh scripts/build-package-repos.sh

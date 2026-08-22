@@ -1,0 +1,20 @@
+    <p><strong>Unsigned alpha repository:</strong> verify that <code>pkg config ABI</code> prints <code>@ABI@</code>.</p>
+    <ul>
+      <li><a href="@ARTIFACT@">@ARTIFACT@</a></li>
+      <li><a href="packagesite.pkg">packagesite.pkg</a></li>
+      <li><a href="data.pkg">data.pkg</a></li>
+      <li><a href="meta.conf">meta.conf</a></li>
+      <li><a href="../../../checksums.txt">checksums.txt</a></li>
+    </ul>
+    <h2>Repository Config</h2>
+    <pre>sudo mkdir -p /usr/local/etc/pkg/repos
+sudo tee /usr/local/etc/pkg/repos/unifi-stubd.conf &gt;/dev/null &lt;&lt;'PKGCONF'
+unifi-stubd: {
+  url: "https://konstruktor1.github.io/unifi-stubd/freebsd/pkg/@ABI@",
+  enabled: yes,
+  signature_type: none
+}
+PKGCONF
+sudo pkg update -r unifi-stubd
+sudo pkg install unifi-stubd</pre>
+    <p><a href="../">FreeBSD pkg repositories</a></p>

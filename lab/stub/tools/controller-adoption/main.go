@@ -22,9 +22,7 @@ import (
 const (
 	maxControllerResponseBytes = 4 * 1024 * 1024
 	commandField               = "cmd"
-	actionWaitSwitchTelemetry  = "wait-switch-telemetry"
 	expectedSwitchModel        = "US8"
-	expectedSourceInterface    = "uplink0"
 	controllerBaseURL          = "https://unifi-controller:8443"
 	controllerSite             = "default"
 	controllerAdminUser        = "admin"
@@ -38,7 +36,6 @@ type options struct {
 	action          string
 	mac             string
 	expectedVersion string
-	expectedSpeed   int
 	timeout         time.Duration
 }
 
@@ -60,37 +57,9 @@ type apiEnvelope struct {
 }
 
 type controllerDevice struct {
-	MAC               string `json:"mac"`
-	Model             string `json:"model"`
-	Adopted           bool   `json:"adopted"`
-	State             int    `json:"state"`
-	AdoptionCompleted *bool  `json:"adoption_completed"`
-	controllerTraffic
-	Uplink    *controllerUplink `json:"uplink"`
-	PortTable []controllerPort  `json:"port_table"`
-}
-
-type controllerUplink struct {
-	Speed   int  `json:"speed"`
-	Up      bool `json:"up"`
-	PortIdx int  `json:"port_idx"`
-	controllerTraffic
-}
-
-type controllerPort struct {
-	PortIdx         int    `json:"port_idx"`
-	IsUplink        bool   `json:"is_uplink"`
-	Up              bool   `json:"up"`
-	Speed           int    `json:"speed"`
-	SourceInterface string `json:"source_interface"`
-	controllerTraffic
-}
-
-type controllerTraffic struct {
-	RXBytes     *float64 `json:"rx_bytes"`
-	TXBytes     *float64 `json:"tx_bytes"`
-	RXBytesRate *float64 `json:"rx_bytes-r"`
-	TXBytesRate *float64 `json:"tx_bytes-r"`
+	MAC     string `json:"mac"`
+	Model   string `json:"model"`
+	Adopted bool   `json:"adopted"`
 }
 
 func main() {
@@ -126,9 +95,7 @@ func run(args []string) error {
 	mac := strings.ToLower(opts.mac)
 	switch opts.action {
 	case "wait-visible":
-		device, err := waitForDevice(client, opts, mac, "visible before adoption", func(device *controllerDevice) bool {
-			return device != nil && device.Model == expectedSwitchModel && !device.Adopted
-		})
+		device, err := waitForVisibleUS8(client, opts, mac)
 		if err != nil {
 			return err
 		}
@@ -140,17 +107,6 @@ func run(args []string) error {
 			return fmt.Errorf("controller adoption command failed: %w", err)
 		}
 		fmt.Printf("controller adopt requested: mac=%s\n", mac)
-	case actionWaitSwitchTelemetry:
-		device, err := waitForSwitchTelemetry(client, opts, mac)
-		if err != nil {
-			return err
-		}
-		port := selectedControllerPort(device)
-		fmt.Printf("controller switch telemetry: model=%s traffic=active counters=advanced state=%d adopted=%t uplink_up=%t uplink_speed_mbps=%d source_interface=%s root_rx_bytes=%.0f root_tx_bytes=%.0f uplink_rx_bytes_per_second=%.0f uplink_tx_bytes_per_second=%.0f port_rx_bytes_per_second=%.0f port_tx_bytes_per_second=%.0f\n",
-			device.Model, device.State, device.Adopted, device.Uplink.Up, device.Uplink.Speed,
-			port.SourceInterface, *device.RXBytes, *device.TXBytes,
-			*device.Uplink.RXBytesRate, *device.Uplink.TXBytesRate,
-			*port.RXBytesRate, *port.TXBytesRate)
 	default:
 		return fmt.Errorf("unknown action %q", opts.action)
 	}
@@ -166,7 +122,6 @@ func parseOptions(args []string) (options, error) {
 	flags.SetOutput(io.Discard)
 	flags.StringVar(&opts.mac, "mac", "", "device MAC")
 	flags.StringVar(&opts.expectedVersion, "expected-version", "", "expected controller version")
-	flags.IntVar(&opts.expectedSpeed, "expected-uplink-speed", 0, "expected switch uplink speed in Mbps")
 	timeoutSeconds := flags.Int("timeout", 90, "timeout in seconds")
 	if err := flags.Parse(args[1:]); err != nil {
 		return options{}, fmt.Errorf("parse controller options: %w", err)
@@ -176,11 +131,6 @@ func parseOptions(args []string) (options, error) {
 	}
 	if opts.action == "version" && opts.expectedVersion == "" {
 		return options{}, errors.New("--expected-version is required for version")
-	}
-	if opts.action == actionWaitSwitchTelemetry {
-		if opts.expectedSpeed <= 0 {
-			return options{}, errors.New("--expected-uplink-speed must be positive for switch telemetry")
-		}
 	}
 	opts.timeout = time.Duration(*timeoutSeconds) * time.Second
 	return opts, nil
@@ -373,7 +323,7 @@ func (c *controllerClient) resolve(requestPath string) string {
 	return c.baseURL.ResolveReference(reference).String()
 }
 
-func waitForDevice(client *controllerClient, opts options, mac, description string, predicate func(*controllerDevice) bool) (*controllerDevice, error) {
+func waitForVisibleUS8(client *controllerClient, opts options, mac string) (*controllerDevice, error) {
 	deadline := time.Now().Add(opts.timeout)
 	for {
 		devices, err := client.devices()
@@ -381,11 +331,11 @@ func waitForDevice(client *controllerClient, opts options, mac, description stri
 			return nil, err
 		}
 		device := findDevice(devices, mac)
-		if predicate(device) {
+		if device != nil && device.Model == expectedSwitchModel && !device.Adopted {
 			return device, nil
 		}
 		if time.Now().After(deadline) {
-			return nil, fmt.Errorf("timed out waiting for controller device %s (%s)", mac, description)
+			return nil, fmt.Errorf("timed out waiting for controller device %s to be visible before adoption", mac)
 		}
 		time.Sleep(2 * time.Second)
 	}
@@ -395,54 +345,6 @@ func findDevice(devices []controllerDevice, mac string) *controllerDevice {
 	for index := range devices {
 		if strings.EqualFold(devices[index].MAC, mac) {
 			return &devices[index]
-		}
-	}
-	return nil
-}
-
-func waitForSwitchTelemetry(client *controllerClient, opts options, mac string) (*controllerDevice, error) {
-	var baselineRX, baselineTX float64
-	baselineSet := false
-	return waitForDevice(client, opts, mac, "advancing bidirectional US8 telemetry", func(device *controllerDevice) bool {
-		if !switchTelemetryReady(device, opts.expectedSpeed) {
-			return false
-		}
-		rx, tx := *device.RXBytes, *device.TXBytes
-		if !baselineSet {
-			baselineRX, baselineTX, baselineSet = rx, tx, true
-			return false
-		}
-		return rx > baselineRX && tx > baselineTX
-	})
-}
-
-func switchTelemetryReady(device *controllerDevice, expectedSpeed int) bool {
-	if device == nil || device.Model != expectedSwitchModel || !device.Adopted || device.State != 1 ||
-		(device.AdoptionCompleted != nil && !*device.AdoptionCompleted) ||
-		device.Uplink == nil || !device.Uplink.Up || device.Uplink.Speed != expectedSpeed {
-		return false
-	}
-	port := selectedControllerPort(device)
-	if port == nil || !port.Up || port.Speed != expectedSpeed || port.SourceInterface != expectedSourceInterface {
-		return false
-	}
-	return positiveNumber(device.RXBytes) && positiveNumber(device.TXBytes) &&
-		positiveNumber(device.Uplink.RXBytesRate) && positiveNumber(device.Uplink.TXBytesRate) &&
-		positiveNumber(port.RXBytesRate) && positiveNumber(port.TXBytesRate)
-}
-
-func positiveNumber(value *float64) bool {
-	return value != nil && *value > 0
-}
-
-func selectedControllerPort(device *controllerDevice) *controllerPort {
-	if device == nil || device.Uplink == nil {
-		return nil
-	}
-	for index := range device.PortTable {
-		port := &device.PortTable[index]
-		if port.IsUplink && port.PortIdx == device.Uplink.PortIdx {
-			return port
 		}
 	}
 	return nil

@@ -9,15 +9,15 @@ Der Gate verwendet genau ein Produkt-Fixture: `stub-bridge-observe`. Die
 uebrigen Services sind nur Bereitstellung: UniFi Network, MongoDB, ein
 Controller-API-Helfer und ein Browser-Helfer. Payload-Dumps, lokale
 Statusschemata, Gateway-Kommandos, synthetische Port-Maps und
-Management-LAN-Varianten sind keine eigenen Produktgates.
+Management-LAN-Varianten sind keine eigenen Controller-Gates.
 
-## Abnahmekommando
+## Controller-Gate
 
-Die Produktabnahme laeuft immer gegen das neueste veroeffentlichte Stable und
+Der controller-sichtbare Gate laeuft immer gegen das neueste veroeffentlichte Stable und
 den neuesten veroeffentlichten Release Candidate:
 
 ```sh
-BUILD_RUNNER_DIR=/path/to/build-runner make integration-nonunifi-metrics
+make integration-nonunifi-metrics
 ```
 
 Die Matrix fragt beide Versionen zu Beginn jedes Laufs beim
@@ -25,20 +25,18 @@ Ubiquiti-Release-Dienst ab; keiner der beiden Kanaele wird im Repository
 festgeschrieben. Das Produkt wird einmal gebaut und in beiden wegwerfbaren
 Controller-Spuren bytegleich geprueft.
 
-Die Abnahme ist nur erfolgreich, wenn beide Spuren Folgendes belegen:
+Der Gate ist nur erfolgreich, wenn beide Spuren Folgendes belegen:
 
 - der tatsaechliche Controller meldet die aufgeloeste Version;
 - der US8 ist vor der Adoption sichtbar und akzeptiert die Controller-Adoption;
-- beide Metrikabfragen melden den US8 adoptiert und verbunden;
-- begrenzter bidirektionaler Bridge-Traffic laesst beide im Controller
-  sichtbaren Root-Zaehler zwischen Abfragen ansteigen;
-- der Controller-Readback meldet `uplink0` aktiv, den beobachteten Speed sowie
-  positive aktuelle Uplink- und Port-Raten;
-- die Geraeteansicht zeigt den US8 mit dem beobachteten Speed sowie positiven
-  `Down`- und `Up`-Trafficwerten.
+- waehrend begrenzter bidirektionaler Bridge-Traffic laeuft, zeigt die
+  Geraeteansicht den beobachteten Speed sowie positive `Down`- und
+  `Up`-Trafficwerte.
 
 Das sind Beobachtungen an der Produktgrenze. Der Gate bildet die eigenen
 JSON-Strukturen des Produkts bewusst nicht in Assertion-Helfern nach.
+Die vollstaendige Produktabnahme verlangt zusaetzlich die getrennten
+Host-Safety- und No-Fabrication-Belege aus den [Requirements](requirements.md).
 
 ## Evidence und Cleanup
 
@@ -46,13 +44,7 @@ Die Stable-/RC-Matrix behaelt nicht committete Laufartefakte unter
 `dist/controller-channel-matrix/`:
 
 - aufgeloeste Stable-/RC-Versionen und Releasemetadaten;
-- Controller-Readback-Logs fuer beide Spuren; und
-- erst nach erfolgreichen Spuren und Cleanup das akzeptierte Binary sowie
-  `accepted.env` mit Produktversion, OS, Architektur und Binary-SHA-256.
-
-Ein fehlgeschlagener Lauf besitzt keinen Acceptance-Marker. Ein Claim gilt nur
-fuer das akzeptierte Binary in genau diesem Laufverzeichnis. Eine spaetere
-Produkt- oder Gate-Aenderung verlangt einen neuen Lauf.
+- Product-Gate-Logs fuer beide Spuren.
 
 Jede Spur startet mit leeren Controller- und Datenbank-Volumes. Bei Erfolg und
 Fehler entfernt der Gate seine Container, Netzwerke, benannten Volumes,

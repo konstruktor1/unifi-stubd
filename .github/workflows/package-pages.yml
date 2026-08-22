@@ -160,10 +160,6 @@ jobs:
         run: |
           set -eu
           cd dist/release
-          for artifact in *~*; do
-            [ -e "$artifact" ] || continue
-            mv -- "$artifact" "${artifact//\~/.}"
-          done
           sha256sum ./* > SHA256SUMS
 
       - name: Publish persistent release assets

@@ -1,12 +1,6 @@
-// Package platform hides optional host integrations behind read-only adapter
-// interfaces. It may inspect interfaces, bridges, logs, procfs, D-Bus, and
-// LLDP, but it must not mutate host networking or execute controller-provided
-// commands.
 package platform
 
-import (
-	"runtime"
-)
+import "runtime"
 
 // hostPlatform is the concrete read-only adapter selected for the current OS or
 // tests.

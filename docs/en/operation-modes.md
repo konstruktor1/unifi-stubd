@@ -119,7 +119,7 @@ into `port_table[].mac_table`, while their own interface speed and counters are
 used for the mapped access ports. Ports without a mapped bridge member are
 reported as disconnected instead of inheriting synthetic profile link state.
 The daemon re-reads sysfs and FDB data on each heartbeat; it does not subscribe
-to netlink events in this wave.
+to netlink events.
 
 The profile chooses the uplink port by default. Set `uplink_port` to a positive
 port number to move the uplink marker to a specific physical port while keeping
@@ -232,25 +232,8 @@ Gateway interface names are profile data, not host interface names. The selected
 profile's `gateway_interface_prefix` and one-based physical port index produce
 the controller-facing names (`eth0`, `eth1`, ...). `port_overrides[].interface`
 is only the local source used to read MAC, IPv4/IPv6, link, speed, and counters;
-that host name is rendered as `source_interface`. For example, a UXG-Pro lab where
-OPNsense `ixl0` is cabled to physical port 3 should report:
-
-```yaml
-profile: uxgpro
-uplink_port: 3
-port_overrides:
-  - port: 3
-    role: wan
-    network_group: WAN
-    interface: ixl0
-    speed: 10000
-    media: SFP+
-```
-
-The resulting gateway rows use `ifname: eth2` because physical profile port 3
-is `eth2`; `source_interface: ixl0` records where the local facts came from.
-The role and network group describe the port's function. They do not rename the
-physical profile interface.
+that host name is rendered as `source_interface`. The local source, role, and
+network group never rename the physical profile interface.
 
 Gateway management and gateway data-plane state are intentionally separate. The
 stub can use a management or transport network to reach the controller through
@@ -337,9 +320,9 @@ a complete observed counter sample also preserves a valid reset to zero.
 no physical link partner. It adds a configured MAC-table entry to the current
 uplink port.
 
-If any source is missing or unreadable, the daemon logs a warning and falls back
-to profile defaults. This mode must not create interfaces, assign addresses, or
-change routes.
+If a source is missing or unreadable, the daemon logs a warning. Static profile
+identity and shape remain, but unavailable observed metrics stay absent. This
+mode must not create interfaces, assign addresses, or change routes.
 
 ### `port-map`
 
@@ -390,10 +373,7 @@ payloads or status, but never mutate host networking.
 ```yaml
 lldp_source: lldpd
 traffic_rates_enabled: false
-log_source: journalctl
 proc_source: procfs
-dbus_enabled: false
-dbus_bus: system
 ```
 
 `lldp_source: lldpd` runs `lldpcli -f json show neighbors` with a timeout and
@@ -406,11 +386,6 @@ When it is available, it reduces manual `uplink_neighbor` mistakes by learning
 the upstream chassis and port from the host interface. When it is missing,
 explicit configuration decides the direct neighbor. FDB visibility is never
 used to infer direction.
-
-`log_source: journalctl` reads recent Linux unit logs through
-`journalctl --output=json`. `log_source: syslog` reads a configured syslog file,
-defaulting to `/var/log/messages` for FreeBSD-style systems. These sources are
-exposed through status/capabilities and remain read-only.
 
 `proc_source: procfs` is Linux-only and supplements interface counters from
 `/proc/net/dev`; it does not replace `/sys/class/net` for link speed or media.
@@ -426,8 +401,9 @@ Gateway and measured selected-switch-uplink `rx_rate` and `tx_rate` fields are
 rendered as bit/s throughput; `rx_bytes-r`, `tx_bytes-r`, and `bytes-r` remain
 byte/s rates.
 The local status file does not decode the Stub's own Inform JSON as evidence.
-Compare the typed host observation with independent controller readback and the
-visible controller graph instead.
+Controller-facing acceptance compares the passive host observation with the
+operator-visible controller metrics under generated traffic; it does not rely
+on a second private controller API assertion.
 
 For a switch, these controller columns describe different data and must not be
 compared as if they were the same measurement:
@@ -454,17 +430,6 @@ management interface selected by top-level `uplink`. Measured byte/s and bit/s
 rates are projected onto both that interface and the selected physical port.
 This is required for Network 10.5's official latest-statistics path; no rate
 fields are added when measurement is disabled.
-
-Controller-facing release acceptance dynamically resolves the latest published
-Stable and latest published Release Candidate and runs the same product image
-through both disposable Docker controller lanes. The fixed `10.4.57` path is a
-historical focused regression, not a product pin. Neither path changes Main CI.
-
-`dbus_enabled: true` only checks optional system or session D-Bus connectivity.
-D-Bus is not required for normal stub operation.
-
-Traffic metadata is currently `traffic_source: off` only; packet capture and
-DPI are intentionally out of scope for the first observation wave.
 
 `management_lan` is the switch management VLAN configuration. Values `1..4094`
 are reported in the inform payload and status output, while `0` leaves it

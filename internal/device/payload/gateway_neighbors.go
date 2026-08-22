@@ -14,7 +14,7 @@ func gatewayConnectionFields(view PortView) connectionFields {
 	entry := *view.TopologyNeighbor
 	connection := gatewayLastConnection{
 		MAC:    strings.ToLower(strings.TrimSpace(entry.MAC)),
-		Source: jsonKeyMACTable,
+		Source: connectionSourceMACTable,
 	}
 	if ip := strings.TrimSpace(entry.IP); ip != "" {
 		connection.IP = ip
@@ -38,7 +38,7 @@ func physicalConnectionFields(view PortView) connectionFields {
 		entry := *view.TopologyNeighbor
 		connection := gatewayLastConnection{
 			MAC:    strings.ToLower(strings.TrimSpace(entry.MAC)),
-			Source: jsonKeyMACTable,
+			Source: connectionSourceMACTable,
 		}
 		if ip := strings.TrimSpace(entry.IP); ip != "" {
 			connection.IP = ip
@@ -58,7 +58,7 @@ func physicalConnectionFields(view PortView) connectionFields {
 	}
 	connection := gatewayLastConnection{
 		MAC:    strings.ToLower(strings.TrimSpace(entry.MAC)),
-		Source: jsonKeyMACTable,
+		Source: connectionSourceMACTable,
 	}
 	if ip := strings.TrimSpace(entry.IP); ip != "" {
 		connection.IP = ip

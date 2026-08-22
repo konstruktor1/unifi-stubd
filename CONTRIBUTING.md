@@ -4,28 +4,13 @@ Thanks for helping make `unifi-stubd` easier to run and reason about.
 
 ## Development Loop
 
-The repository commits both `go.mod` and `go.work`:
-
-- `go.mod` sets the minimum supported Go minor version.
-- `go.work` selects the repository workspace and uses the same Go minor version.
-- Build tools are declared in `go.mod` and executed with `go tool`.
-
-```sh
-make check
-make package
-```
+Use the Build Runner contract and commands in [`AGENTS.md`](AGENTS.md); host Go
+and direct Go-based Make targets are not fallbacks. The branch, gate, and
+promotion workflow is owned by
+[`docs/en/development.md`](docs/en/development.md).
 
 Keep Go tests under `tests/`. Production packages under `internal/` should not
 contain `_test.go` files.
-
-Use the staged GitHub Flow described in
-[`docs/en/development.md`](docs/en/development.md):
-
-- short-lived topic branches target `dev`;
-- `dev` is the integration branch and must stay green;
-- `main` is the tested release base;
-- package repositories are published only from `v*` tags, GitHub releases, or
-  an explicit `Package Repositories` workflow run from `main`.
 
 ## Pull Requests
 

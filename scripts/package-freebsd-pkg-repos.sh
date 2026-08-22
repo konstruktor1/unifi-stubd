@@ -13,11 +13,11 @@ FREEBSD_PKG_REMOTE_DIR="${FREEBSD_PKG_REMOTE_DIR:-/tmp/unifi-stubd-freebsd-pkg}"
 FREEBSD_PKG_BUILD_JAILS="${FREEBSD_PKG_BUILD_JAILS:-}"
 FREEBSD_PKG_REQUIRE_JAILS="${FREEBSD_PKG_REQUIRE_JAILS:-0}"
 FREEBSD_TGZ_ARCHES="${FREEBSD_TGZ_ARCHES:-amd64 arm64}"
-DIST_DIR="${DIST_DIR:-dist}"
-WORK_DIR="${WORK_DIR:-$DIST_DIR/freebsd-pkg-work}"
-OUT_DIR="${OUT_DIR:-$DIST_DIR/freebsd-pkg-repos}"
+DIST_DIR=dist
+WORK_DIR="$DIST_DIR/freebsd-pkg-work"
+OUT_DIR="$DIST_DIR/freebsd-pkg-repos"
 PACKAGE_DIR="${DIST_DIR}/packages"
-ABIS="${FREEBSD_PKG_ABIS:-FreeBSD:14:amd64 FreeBSD:14:aarch64 FreeBSD:14:armv7 FreeBSD:15:amd64 FreeBSD:15:aarch64 FreeBSD:15:armv7}"
+ABIS="FreeBSD:14:amd64 FreeBSD:14:aarch64 FreeBSD:14:armv7 FreeBSD:15:amd64 FreeBSD:15:aarch64 FreeBSD:15:armv7"
 
 fail() {
   printf '%s\n' "$1" >&2
@@ -135,25 +135,35 @@ tarball_enabled() {
 }
 
 write_source_archive() {
-  if command -v git >/dev/null 2>&1 && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
-    git ls-files -z >"$WORK_DIR/upload/source-files"
-    COPYFILE_DISABLE=1 tar --null -T "$WORK_DIR/upload/source-files" -czf "$WORK_DIR/upload/source.tar.gz"
-    return 0
-  fi
-
-  COPYFILE_DISABLE=1 tar \
-    --exclude './.git' \
-    --exclude './dist' \
-    -czf "$WORK_DIR/upload/source.tar.gz" .
+  git rev-parse --is-inside-work-tree >/dev/null 2>&1 ||
+    fail "FreeBSD package source must be an exact Git consumer"
+  # shellcheck disable=SC2016 # source_file expands in the child shell.
+  git ls-files --cached --others --exclude-standard -z |
+    xargs -0 sh -c '
+      for source_file do
+        if [ -f "$source_file" ] || [ -L "$source_file" ]; then
+          printf "%s\0" "$source_file"
+        elif [ -e "$source_file" ]; then
+          printf "source path is not a regular file or symlink: %s\n" "$source_file" >&2
+          exit 1
+        fi
+      done
+    ' sh >"$WORK_DIR/upload/source-files" ||
+    fail "cannot build exact source file list"
+  COPYFILE_DISABLE=1 tar --null -T "$WORK_DIR/upload/source-files" \
+    -czf "$WORK_DIR/upload/source.tar.gz"
 }
 
 write_build_env() {
-  {
-    printf 'BUILD_LDFLAGS=%s\n' "$(shell_quote "$BUILD_LDFLAGS")"
-    printf 'FREEBSD_PKG_ABIS=%s\n' "$(shell_quote "$ABIS")"
-    printf 'FREEBSD_PKG_BUILD_JAILS=%s\n' "$(shell_quote "$FREEBSD_PKG_BUILD_JAILS")"
-    printf 'FREEBSD_PKG_REQUIRE_JAILS=%s\n' "$(shell_quote "$FREEBSD_PKG_REQUIRE_JAILS")"
-  } >"$WORK_DIR/upload/build.env"
+  for build_value in "$BUILD_LDFLAGS" "$ABIS" "$FREEBSD_PKG_BUILD_JAILS" "$FREEBSD_PKG_REQUIRE_JAILS"; do
+    case "$build_value" in
+    *'
+'*) fail "FreeBSD build settings must be single-line values" ;;
+    esac
+  done
+  printf '%s\n%s\n%s\n%s\n' \
+    "$BUILD_LDFLAGS" "$ABIS" "$FREEBSD_PKG_BUILD_JAILS" "$FREEBSD_PKG_REQUIRE_JAILS" \
+    >"$WORK_DIR/upload/build.env"
 }
 
 write_stage() {
@@ -274,12 +284,21 @@ remote_build_script() {
 set -eu
 cd "$1"
 mode="$2"
-. ./build.env
 
 fail() {
   printf '%s\n' "$1" >&2
   exit 1
 }
+
+{
+  IFS= read -r BUILD_LDFLAGS || fail "missing build linker flags"
+  IFS= read -r FREEBSD_PKG_ABIS || fail "missing FreeBSD ABI list"
+  IFS= read -r FREEBSD_PKG_BUILD_JAILS || fail "missing FreeBSD jail list"
+  IFS= read -r FREEBSD_PKG_REQUIRE_JAILS || fail "missing FreeBSD jail policy"
+  if IFS= read -r unexpected_build_setting; then
+    fail "unexpected extra FreeBSD build setting"
+  fi
+} <./build.env
 
 binary_name_for_abi() {
   printf 'unifi-stubd_%s' "$(printf '%s' "$1" | tr ':[:upper:]' '_[:lower:]')"
@@ -446,6 +465,8 @@ EOF
 need_cmd ssh
 need_cmd scp
 need_cmd tar
+need_cmd git
+need_cmd xargs
 
 case "$PKG_VERSION" in
 '' | *[!A-Za-z0-9._+-]*)
@@ -474,6 +495,15 @@ case "$FREEBSD_PKG_REMOTE_DIR" in
   ;;
 esac
 
+printf '%s\n' \
+  "warning: $FREEBSD_PKG_REMOTE (build-execution) has no Build Runner Provider consumer attribution." \
+  'warning: reevaluate conversion to VM Runner before using this compatibility path.' \
+  'warning: see Build Runner docs/troubleshooting.md#external-machine-compatibility-path.' >&2
+
+if [ -L "$DIST_DIR" ] || { [ -e "$DIST_DIR" ] && [ ! -d "$DIST_DIR" ]; }; then
+  fail "package output root must be a real directory: $DIST_DIR"
+fi
+mkdir -p "$DIST_DIR"
 rm -rf "$WORK_DIR" "$OUT_DIR"
 mkdir -p "$WORK_DIR/bin" "$WORK_DIR/upload" "$OUT_DIR" "$PACKAGE_DIR"
 

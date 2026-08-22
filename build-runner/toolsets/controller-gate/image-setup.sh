@@ -12,11 +12,16 @@ curl -fsSL https://download.docker.com/linux/debian/gpg \
   -o /etc/apt/keyrings/docker.asc
 chmod a+r /etc/apt/keyrings/docker.asc
 
-# shellcheck disable=SC1091
-. /etc/os-release
+debian_codename="$(sed -n 's/^VERSION_CODENAME=//p' /etc/os-release)"
+case "$debian_codename" in
+'' | *[!a-z0-9]*)
+  printf 'invalid Debian version codename: %s\n' "$debian_codename" >&2
+  exit 2
+  ;;
+esac
 architecture="$(dpkg --print-architecture)"
 printf '%s\n' \
-  "deb [arch=$architecture signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $VERSION_CODENAME stable" \
+  "deb [arch=$architecture signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian $debian_codename stable" \
   >/etc/apt/sources.list.d/docker.list
 
 apt-get update

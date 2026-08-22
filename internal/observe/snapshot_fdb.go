@@ -1,29 +1,12 @@
 package observe
 
 import (
-	"context"
-	"fmt"
 	"net"
-	"os/exec"
 	"strings"
 
 	"github.com/konstruktor1/unifi-stubd/internal/adapters/linuxbridge"
 	"github.com/konstruktor1/unifi-stubd/internal/device"
 )
-
-// BridgeFDB reads bridge forwarding database rows for bridge.
-func BridgeFDB(ctx context.Context, bridge string) ([]linuxbridge.FDBEntry, error) {
-	bridge = strings.TrimSpace(bridge)
-	if bridge == "" || strings.Contains(bridge, "/") {
-		return nil, fmt.Errorf("invalid bridge name %q", bridge)
-	}
-	cmd := exec.CommandContext(ctx, "bridge", "fdb", "show", "br", bridge)
-	out, err := cmd.Output()
-	if err != nil {
-		return nil, fmt.Errorf("run bridge FDB command for %s: %w", bridge, err)
-	}
-	return linuxbridge.ParseFDB(strings.NewReader(string(out))), nil
-}
 
 // MACEntriesByDevice converts Linux bridge FDB rows into MAC entries grouped by bridge member.
 func MACEntriesByDevice(entries []linuxbridge.FDBEntry) map[string][]device.MacTableEntry {

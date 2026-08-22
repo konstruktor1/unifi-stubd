@@ -92,6 +92,6 @@ func decodeProfileYAML(document *yaml.Node) (Profile, error) {
 	if err := decoder.Decode(&profile); err != nil {
 		return Profile{}, fmt.Errorf("decode profile YAML: %w", err)
 	}
-	normalizeProfile(&profile)
+	NormalizeProfile(&profile)
 	return profile, nil
 }

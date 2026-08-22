@@ -8,16 +8,29 @@ fail() {
   exit 1
 }
 
+consumer_files() {
+  git ls-files --cached --others --exclude-standard | while IFS= read -r consumer_file; do
+    [ -f "$consumer_file" ] && printf '%s\n' "$consumer_file"
+  done
+}
+
 printf '== policy: test files live below tests/ ==\n'
-if find . -name '*_test.go' -not -path './.git/*' -not -path './tests/*' | grep -q .; then
-  find . -name '*_test.go' -not -path './.git/*' -not -path './tests/*' >&2
+invalid_tests="$(consumer_files | awk '/_test[.]go$/ && $0 !~ /^tests\//')"
+if [ -n "$invalid_tests" ]; then
+  printf '%s\n' "$invalid_tests" >&2
   fail "Go test files must live below tests/"
 fi
 
-printf '== policy: lab secrets are not committed ==\n'
-if git grep -nE 'JoemcROV|X-API-KEY|10\.0\.0\.194|/Users/corspi' -- \
-  ':!scripts/check-policy.sh' ':!*.md'; then
-  fail "possible lab secret or API endpoint leaked"
+printf '== policy: runtime identity and passive observation use the platform facade ==\n'
+if git grep -nE 'InterfaceByName\(|net\.Interfaces\(|DialContext\(|exec\.Command(Context)?\(' -- \
+  ':(glob)cmd/unifi-stubd/*.go' ':(glob)internal/device/*.go' ':(glob)internal/observe/*.go'; then
+  fail "runtime identity and portable bridge observation must use the platform facade for host I/O"
+fi
+
+printf '== policy: machine-local user paths are not committed ==\n'
+machine_path_pattern='/(Users|home)/[^/[:space:]]+'
+if git grep --untracked -nE "$machine_path_pattern" -- .; then
+  fail "machine-local user path leaked"
 fi
 
 printf '== policy: remote FreeBSD packaging stays manually dispatched ==\n'
@@ -40,8 +53,15 @@ fi
 controller_workflow=.github/workflows/tier2-docker.yml
 grep -Fq 'runs-on: [self-hosted, Linux, X64, docker-dmz, docker-engine, unifi-stubd]' "$controller_workflow" ||
   fail "Controller Integration must require the explicit docker-engine capability"
-grep -Fq 'BUILD_RUNNER_DIR' "$controller_workflow" ||
-  fail "Controller Integration must require the configured Build Runner provider"
+grep -Fq 'provider_root="$(./build-runner/runtime/entry --provider-root)"' "$controller_workflow" ||
+  fail "Controller Integration must resolve the provider through the prepared Build Runner entry"
+grep -Fq '"$provider_root/bin/provider" status build-runner --json' "$controller_workflow" ||
+  fail "Controller Integration must use the direct Build Runner management status"
+grep -Fq '"$provider_root/bin/provider" check build-runner --json' "$controller_workflow" ||
+  fail "Controller Integration must run the read-only Build Runner provider gate"
+if grep -Eq 'activate\.local|BUILD_RUNNER_DIR' "$controller_workflow"; then
+  fail "Controller Integration must not use a legacy Build Runner route"
+fi
 grep -Fq 'run: make integration-nonunifi-metrics' "$controller_workflow" ||
   fail "Controller Integration must enter through the runner-aware Make target"
 if grep -Eq 'actions/setup-go|(^|[[:space:]])go version|docker (compose|info|version)' "$controller_workflow"; then

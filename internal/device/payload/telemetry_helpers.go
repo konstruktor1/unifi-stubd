@@ -5,8 +5,6 @@ import (
 	"net"
 )
 
-const gatewayIdleSpeedtestEvidenceID = "DT-001"
-
 // formatUptime mirrors compact firmware-style uptime text for gateway status
 // blocks.
 func formatUptime(seconds int) string {

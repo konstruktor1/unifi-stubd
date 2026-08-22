@@ -1,9 +1,7 @@
 # Dokumentation
 
-- [Research](research.md)
 - [Entwicklungsworkflow](development.md)
-- [CI/CD-, Build-, Packaging- und Deployment-Katalog](ci-cd.md)
-- [Projektstand](project-status.md)
+- [Build, Pruefungen und Auslieferung](ci-cd.md)
 - [Produktanforderungen](requirements.md)
 - [Priorisierter Backlog](backlog.md)
 - [Protocol Notes](protocol-notes.md)
@@ -15,12 +13,11 @@
 - [OPNsense-API-Generator Referenz](opnsense-generator-reference.md)
 - [Roadmap](roadmap.md)
 - [Docker-Controller-Lab](docker-lab.md)
-- [Lab Plan](lab-plan.md)
 - [Release-Checkliste](release.md)
 - [Security Notes](security.md)
 - [Konfigurationsschema](../schema/config.schema.json)
 - [Profilschema](../schema/profile.schema.json)
-- [Quellen, Credits und Lizenzierung](sources.md)
+- [Credits und Recherchequellen](../../CREDITS.md)
 - [AI-Agent-Instruktionen](../../AGENTS.md)
 - [LLM-Index](../../llms.txt)
 

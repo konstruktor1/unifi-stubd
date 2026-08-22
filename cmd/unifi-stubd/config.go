@@ -12,6 +12,7 @@ import (
 	"time"
 
 	appconfig "github.com/konstruktor1/unifi-stubd/internal/config"
+	"github.com/konstruktor1/unifi-stubd/internal/device"
 )
 
 // loadConfig treats the default config path as optional, but reports missing
@@ -40,19 +41,19 @@ func applyConfig(cfg appconfig.Config, changed map[string]bool, flags *runtimeFl
 		}
 	}
 	if !changed["bridge-member-port"] {
-		flags.bridgeObserve.MemberPortMap = cloneBridgeMemberPortMaps(cfg.BridgeObserve.MemberPortMap)
+		flags.bridgeObserve.MemberPortMap = cloneNonEmptySlice(cfg.BridgeObserve.MemberPortMap)
 	}
 	if !changed["bridge-ignore-member"] {
-		flags.bridgeObserve.IgnoredMembers = cloneStrings(cfg.BridgeObserve.IgnoredMembers)
+		flags.bridgeObserve.IgnoredMembers = cloneNonEmptySlice(cfg.BridgeObserve.IgnoredMembers)
 	}
 	if !changed["port-map"] {
-		flags.portMappings = clonePortMappings(cfg.PortMappings)
+		flags.portMappings = cloneNonEmptySlice(cfg.PortMappings)
 	}
 	flags.uplinkNeighbor = configUplinkNeighbor(cfg.UplinkNeighbor)
 	flags.portNeighbors = configPortNeighbors(cfg.PortNeighbors)
-	flags.portOverrides = configPortOverrides(cfg.PortOverrides)
+	flags.portOverrides = device.ClonePortOverrides(cfg.PortOverrides)
 	flags.wanHealth = cloneWANHealth(cfg.WANHealth)
-	flags.discoveryTargets = cloneStrings(cfg.DiscoveryTargets)
+	flags.discoveryTargets = cloneNonEmptySlice(cfg.DiscoveryTargets)
 }
 
 // applyConfigInterval adapts YAML seconds into the runtime duration used by the

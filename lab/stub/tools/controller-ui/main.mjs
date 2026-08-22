@@ -54,16 +54,14 @@ try {
     waitUntil: "domcontentloaded",
     timeout: 30_000,
   });
-  const deviceRow = page
-    .getByRole("row")
-    .filter({ has: page.getByText(deviceIP, { exact: true }) });
-  await deviceRow.waitFor({ state: "visible", timeout: 90_000 });
+  const deviceIdentity = page.getByText(deviceIP, { exact: true }).first();
+  await deviceIdentity.waitFor({ state: "visible", timeout: 90_000 });
 
   const reminder = page
     .getByRole("button", { name: "Remind Me Later", exact: true })
     .filter({ visible: true });
   if (await reminder.count()) await reminder.first().click();
-  await deviceRow.locator("p").first().click({ timeout: 90_000 });
+  await deviceIdentity.click({ timeout: 90_000 });
 
   const deadline = Date.now() + 60_000;
   let metrics;

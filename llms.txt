@@ -16,12 +16,11 @@ models. It is not the coding-agent instruction source. Coding agents should read
 ## Project Documentation
 
 - [README](README.md): Product overview and supported US8/Linux-bridge quick start.
-- [Project status](docs/en/project-status.md): Routes changing product facts to their canonical owners.
 - [English docs index](docs/en/README.md): Main English documentation entry point.
 - [German docs index](docs/de/README.md): Main German documentation entry point.
 - [Packaged Linux config](packaging/linux/etc/unifi-stubd/config.yaml): Default config installed as `/etc/unifi-stubd/config.yaml`.
 - [Packaged FreeBSD config](packaging/freebsd/usr/local/etc/unifi-stubd/config.yaml): Stub-only config installed as `/usr/local/etc/unifi-stubd/config.yaml`.
-- [Tier 2 Docker integration lab](lab/README.md): Pinned controller adoption fixture and sanitized test configs.
+- [Tier 2 Docker integration lab](lab/README.md): Dynamically resolved Stable/RC controller gate and sanitized test configs.
 - [Installed package files](packaging/installed-files.md): Mapping from repository sources to installed Linux and FreeBSD paths.
 
 ## Architecture And Protocol
@@ -29,7 +28,6 @@ models. It is not the coding-agent instruction source. Coding agents should read
 - [Product requirements](docs/en/requirements.md): Evidence-derived product contract and explicit non-requirements.
 - [Architecture](docs/en/architecture.md): Component boundaries and runtime model.
 - [Protocol notes](docs/en/protocol-notes.md): Discovery, inform, encryption, and adoption notes.
-- [Research notes](docs/en/research.md): Research history and attribution boundary.
 - [Roadmap](docs/en/roadmap.md): Planned work and non-goals.
 
 ## Source Layout
@@ -52,7 +50,6 @@ models. It is not the coding-agent instruction source. Coding agents should read
 
 ## Optional
 
-- [Lab plan](docs/en/lab-plan.md): Local lab setup ideas and validation workflow.
 - [Package config](packaging/nfpm.yaml): nFPM packaging metadata for Debian, RPM, Arch Linux, and tarball builds.
 
 Firmware research, QEMU/VM runtimes, and other Tier 3 assets are maintained in

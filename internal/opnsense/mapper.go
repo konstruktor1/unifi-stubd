@@ -68,7 +68,7 @@ func DecodeGatewayStatuses(raw any) map[string]GatewayStatus {
 		status := GatewayStatus{
 			Interface: firstString(m, "interface", "if", "ifname", "device", "name"),
 			Name:      firstString(m, "name", "descr", "description", "gateway"),
-			Online:    parseOnline(firstString(m, "status", "monitor", "online", "up", "gateway_status")),
+			Online:    parseUp(firstString(m, "status", "monitor", "online", "up", "gateway_status")),
 			LatencyMS: firstInt(m, "latency", "latency_ms", "delay", "rtt", "avgdelay"),
 		}
 		if status.Interface == "" {
@@ -508,10 +508,6 @@ func parseUp(value string) *bool {
 		}
 		return nil
 	}
-}
-
-func parseOnline(value string) *bool {
-	return parseUp(value)
 }
 
 func normalizeMAC(value string) string {

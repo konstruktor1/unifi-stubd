@@ -4,10 +4,11 @@ set -eu
 cd "$(dirname "$0")/.."
 
 PACKAGE_DIR="${PACKAGE_DIR:-dist/packages}"
-SITE_DIR="${SITE_DIR:-dist/package-site}"
+SITE_DIR=dist/package-site
 CHANNEL="${CHANNEL:-alpha}"
 FREEBSD_PKG_REPO_DIR="${FREEBSD_PKG_REPO_DIR:-dist/freebsd-pkg-repos/repo}"
 REQUIRE_FREEBSD_ARTIFACTS="${REQUIRE_FREEBSD_ARTIFACTS:-1}"
+TEMPLATE_DIR=scripts/package-site
 
 fail() {
   printf '%s\n' "$1" >&2
@@ -108,6 +109,26 @@ write_checksums() {
   ) >"$SITE_DIR/checksums.txt"
 }
 
+validate_html_token() {
+  case "$1" in
+  '' | *[!A-Za-z0-9._:+~-]*) fail "unsafe package-site value: $1" ;;
+  esac
+}
+
+validate_templates() {
+  for template in \
+    index.html \
+    freebsd.html freebsd-unavailable.html \
+    freebsd-arch.html freebsd-arch-unavailable.html \
+    freebsd-pkg-abi.html freebsd-pkg-unavailable.html \
+    freebsd-pkg-index-head.html freebsd-pkg-index-tail.html; do
+    path="$TEMPLATE_DIR/$template"
+    if [ ! -f "$path" ] || [ -L "$path" ]; then
+      fail "missing package-site template: $path"
+    fi
+  done
+}
+
 write_html_page() {
   output="$1"
   title="$2"
@@ -115,143 +136,56 @@ write_html_page() {
     printf '%s\n' '<!doctype html>' '<html lang="en">' '<head>' \
       '  <meta charset="utf-8">' \
       '  <meta name="viewport" content="width=device-width, initial-scale=1">'
-    printf '  <title>%s</title>\n</head>\n<body>\n  <main>\n' "$title"
+    printf '  <title>%s</title>\n</head>\n<body>\n  <main>\n    <h1>%s</h1>\n' "$title" "$title"
     cat
     printf '%s\n' '  </main>' '</body>' '</html>'
   } >"$output"
 }
 
 write_index() {
-  write_html_page "$SITE_DIR/index.html" 'unifi-stubd alpha package repositories' <<EOF
-    <h1>unifi-stubd alpha package repositories</h1>
-    <p>
-      This site hosts unsigned alpha package repositories for
-      <a href="https://github.com/konstruktor1/unifi-stubd">unifi-stubd</a>,
-      a lab-only UniFi Network device stub for Proxmox, Linux bridges, and
-      FreeBSD/OPNsense. Use only in isolated lab or management networks.
-    </p>
-    <h2>Project Links</h2>
-    <ul>
-      <li><a href="https://github.com/konstruktor1/unifi-stubd">Source repository</a></li>
-      <li><a href="https://github.com/konstruktor1/unifi-stubd/releases">GitHub releases</a></li>
-      <li><a href="https://github.com/konstruktor1/unifi-stubd/wiki">GitHub wiki</a></li>
-      <li><a href="https://github.com/konstruktor1/unifi-stubd/blob/main/CREDITS.md">Credits and research sources</a></li>
-      <li><a href="https://github.com/konstruktor1/unifi-stubd/blob/main/NOTICE.md">Notice and trademark notes</a></li>
-    </ul>
-    <h2>APT</h2>
-    <pre>deb [trusted=yes arch=amd64] https://konstruktor1.github.io/unifi-stubd/apt ${CHANNEL} main</pre>
-    <h2>RPM</h2>
-    <pre>baseurl=https://konstruktor1.github.io/unifi-stubd/rpm/\$basearch</pre>
-    <h2>Arch Linux</h2>
-    <pre>Server = https://konstruktor1.github.io/unifi-stubd/arch/\$arch</pre>
-    <h2>FreeBSD and OPNsense</h2>
-    <p>
-      FreeBSD and OPNsense artifacts are published as manual tarballs and,
-      when the FreeBSD builder is available, unsigned native FreeBSD
-      <code>pkg</code> repositories.
-    </p>
-    <ul>
-      <li><a href="freebsd/amd64/">FreeBSD amd64 tarballs</a></li>
-      <li><a href="freebsd/arm64/">FreeBSD arm64 tarballs</a></li>
-      <li><a href="freebsd/pkg/">Native FreeBSD pkg repositories</a></li>
-    </ul>
-    <h2>Checksums</h2>
-    <p><a href="checksums.txt">checksums.txt</a></p>
-    <h2>Research and Attribution</h2>
-    <p>
-      Protocol references, research sources, licensing decisions, and
-      attribution are maintained once in
-      <a href="https://github.com/konstruktor1/unifi-stubd/blob/main/CREDITS.md">CREDITS.md</a>.
-    </p>
-EOF
+  sed "s|@CHANNEL@|$CHANNEL|g" "$TEMPLATE_DIR/index.html" |
+    write_html_page "$SITE_DIR/index.html" 'unifi-stubd alpha package repositories'
 }
 
 write_freebsd_index() {
   freebsd_dir="$SITE_DIR/freebsd"
   mkdir -p "$freebsd_dir"
-  write_html_page "$freebsd_dir/index.html" 'unifi-stubd FreeBSD and OPNsense tarballs' <<EOF
-    <h1>unifi-stubd FreeBSD and OPNsense tarballs</h1>
-    <p>
-      FreeBSD and OPNsense builds are published as manual tarballs and,
-      when the FreeBSD builder is available, unsigned native FreeBSD
-      <code>pkg</code> repositories. Use these artifacts only for isolated lab
-      or management networks.
-    </p>
-    <ul>
-      <li><a href="amd64/">FreeBSD amd64 tarballs</a></li>
-      <li><a href="arm64/">FreeBSD arm64 tarballs</a></li>
-      <li><a href="pkg/">Native FreeBSD pkg repositories</a></li>
-    </ul>
-    <p><a href="../checksums.txt">checksums.txt</a></p>
-    <p><a href="../">Back to package repositories</a></p>
-EOF
+  write_html_page "$freebsd_dir/index.html" 'unifi-stubd FreeBSD and OPNsense tarballs' \
+    <"$TEMPLATE_DIR/freebsd.html"
 }
 
 write_freebsd_unavailable_index() {
   freebsd_dir="$SITE_DIR/freebsd"
   mkdir -p "$freebsd_dir"
-  write_html_page "$freebsd_dir/index.html" 'unifi-stubd FreeBSD and OPNsense artifacts' <<EOF
-    <h1>unifi-stubd FreeBSD and OPNsense artifacts</h1>
-    <p>
-      FreeBSD artifacts are produced separately by the manually dispatched
-      FreeBSD Packaging workflow. No FreeBSD artifacts were included in this
-      Linux-first package-site build.
-    </p>
-    <p><a href="pkg/">Native FreeBSD pkg repository status</a></p>
-    <p><a href="../">Back to package repositories</a></p>
-EOF
+  write_html_page "$freebsd_dir/index.html" 'unifi-stubd FreeBSD and OPNsense artifacts' \
+    <"$TEMPLATE_DIR/freebsd-unavailable.html"
 
   for arch in amd64 arm64; do
     arch_dir="$freebsd_dir/$arch"
     mkdir -p "$arch_dir"
-    write_html_page "$arch_dir/index.html" "unifi-stubd FreeBSD ${arch} artifacts" <<EOF
-    <h1>unifi-stubd FreeBSD ${arch} artifacts</h1>
-    <p>
-      No FreeBSD ${arch} tarball was included in this Linux-first package-site
-      build. FreeBSD artifacts are published separately by the manual FreeBSD
-      Packaging workflow.
-    </p>
-    <p><a href="../">Back to FreeBSD and OPNsense artifacts</a></p>
-EOF
+    sed "s|@ARCH@|$arch|g" "$TEMPLATE_DIR/freebsd-arch-unavailable.html" |
+      write_html_page "$arch_dir/index.html" "unifi-stubd FreeBSD ${arch} artifacts"
   done
 }
 
 write_freebsd_pkg_unavailable_index() {
   pkg_dir="$SITE_DIR/freebsd/pkg"
   mkdir -p "$pkg_dir"
-  write_html_page "$pkg_dir/index.html" 'unifi-stubd FreeBSD pkg repositories' <<EOF
-    <h1>unifi-stubd FreeBSD pkg repositories</h1>
-    <p>
-      Native FreeBSD <code>pkg</code> repositories were not generated in this
-      package-site build. Run the manual FreeBSD Packaging workflow for a new
-      release tag that contains that workflow to publish them. Legacy
-      releases are not backfilled by this split path.
-    </p>
-    <p><a href="../">Back to FreeBSD and OPNsense artifacts</a></p>
-EOF
+  write_html_page "$pkg_dir/index.html" 'unifi-stubd FreeBSD pkg repositories' \
+    <"$TEMPLATE_DIR/freebsd-pkg-unavailable.html"
 }
 
 write_freebsd_pkg_index() {
   pkg_dir="$SITE_DIR/freebsd/pkg"
   mkdir -p "$pkg_dir"
   {
-    cat <<EOF
-    <h1>unifi-stubd FreeBSD pkg repositories</h1>
-    <p>
-      Unsigned alpha repositories for native FreeBSD <code>pkg</code>. Choose
-      the ABI that matches <code>pkg config ABI</code> on the target host.
-    </p>
-    <ul>
-EOF
+    cat "$TEMPLATE_DIR/freebsd-pkg-index-head.html"
     find "$pkg_dir" -mindepth 1 -maxdepth 1 -type d | sort | while IFS= read -r abi_dir; do
       abi="$(basename "$abi_dir")"
+      validate_html_token "$abi"
       printf '      <li><a href="%s/">%s</a></li>\n' "$abi" "$abi"
     done
-    cat <<EOF
-    </ul>
-    <p><a href="../../checksums.txt">checksums.txt</a></p>
-    <p><a href="../">Back to FreeBSD and OPNsense artifacts</a></p>
-EOF
+    cat "$TEMPLATE_DIR/freebsd-pkg-index-tail.html"
   } | write_html_page "$pkg_dir/index.html" 'unifi-stubd FreeBSD pkg repositories'
 }
 
@@ -259,62 +193,22 @@ write_freebsd_pkg_abi_index() {
   abi="$1"
   abi_dir="$SITE_DIR/freebsd/pkg/$abi"
   artifact="$(basename "$(find_artifact "$abi_dir"/unifi-stubd-*.pkg)")"
-  write_html_page "$abi_dir/index.html" "unifi-stubd ${abi} pkg repository" <<EOF
-    <h1>unifi-stubd ${abi} pkg repository</h1>
-    <p>
-      Unsigned alpha repository for <code>${abi}</code>. Verify that
-      <code>pkg config ABI</code> on the target host prints this ABI.
-    </p>
-    <ul>
-      <li><a href="${artifact}">${artifact}</a></li>
-      <li><a href="packagesite.pkg">packagesite.pkg</a></li>
-      <li><a href="data.pkg">data.pkg</a></li>
-      <li><a href="meta.conf">meta.conf</a></li>
-      <li><a href="../../../checksums.txt">checksums.txt</a></li>
-    </ul>
-    <h2>Repository Config</h2>
-    <pre>sudo mkdir -p /usr/local/etc/pkg/repos
-sudo tee /usr/local/etc/pkg/repos/unifi-stubd.conf &gt;/dev/null &lt;&lt;'PKGCONF'
-unifi-stubd: {
-  url: "https://konstruktor1.github.io/unifi-stubd/freebsd/pkg/${abi}",
-  enabled: yes,
-  signature_type: none
-}
-PKGCONF
-sudo pkg update -r unifi-stubd
-sudo pkg install unifi-stubd</pre>
-    <p><a href="../">Back to FreeBSD pkg repositories</a></p>
-EOF
+  validate_html_token "$abi"
+  validate_html_token "$artifact"
+  sed -e "s|@ABI@|$abi|g" -e "s|@ARTIFACT@|$artifact|g" \
+    "$TEMPLATE_DIR/freebsd-pkg-abi.html" |
+    write_html_page "$abi_dir/index.html" "unifi-stubd ${abi} pkg repository"
 }
 
 write_freebsd_arch_index() {
   arch="$1"
   arch_dir="$SITE_DIR/freebsd/$arch"
   artifact="$(basename "$(find_artifact "$arch_dir"/unifi-stubd_*_freebsd_"$arch".tar.gz)")"
-  write_html_page "$arch_dir/index.html" "unifi-stubd FreeBSD ${arch} tarball" <<EOF
-    <h1>unifi-stubd FreeBSD ${arch} tarball</h1>
-    <p>
-      This is a manual tarball artifact for FreeBSD and OPNsense. Native
-      FreeBSD <code>pkg</code> repositories, when available, are linked from
-      the FreeBSD index page.
-    </p>
-    <ul>
-      <li><a href="${artifact}">${artifact}</a></li>
-      <li><a href="../../checksums.txt">checksums.txt</a></li>
-    </ul>
-    <h2>Fetch and Inspect</h2>
-    <pre>fetch https://konstruktor1.github.io/unifi-stubd/freebsd/${arch}/${artifact}
-fetch https://konstruktor1.github.io/unifi-stubd/checksums.txt
-grep 'freebsd/${arch}/${artifact}' checksums.txt
-sha256 ${artifact}
-tar -tzf ${artifact}</pre>
-    <h2>Extract</h2>
-    <pre>sudo tar -xzf ${artifact} -C /
-sudo vi /usr/local/etc/unifi-stubd/config.yaml
-sudo sysrc unifi_stubd_enable=YES
-sudo service unifi-stubd start</pre>
-    <p><a href="../">Back to FreeBSD and OPNsense tarballs</a></p>
-EOF
+  validate_html_token "$arch"
+  validate_html_token "$artifact"
+  sed -e "s|@ARCH@|$arch|g" -e "s|@ARTIFACT@|$artifact|g" \
+    "$TEMPLATE_DIR/freebsd-arch.html" |
+    write_html_page "$arch_dir/index.html" "unifi-stubd FreeBSD ${arch} tarball"
 }
 
 build_apt_repo() {
@@ -439,7 +333,13 @@ case "$REQUIRE_FREEBSD_ARTIFACTS" in
   fail "REQUIRE_FREEBSD_ARTIFACTS must be 0 or 1"
   ;;
 esac
+validate_html_token "$CHANNEL"
+validate_templates
 
+if [ -L dist ] || { [ -e dist ] && [ ! -d dist ]; }; then
+  fail "package output root must be a real directory: dist"
+fi
+mkdir -p dist
 rm -rf "$SITE_DIR"
 mkdir -p "$SITE_DIR"
 touch "$SITE_DIR/.nojekyll"

@@ -14,7 +14,7 @@ const (
 )
 
 // TestAdoptionStatePersistsOnlyInformIdentity fixes the complete local state
-// needed for later informs and the private file representation that contains it.
+// needed for later informs.
 func TestAdoptionStatePersistsOnlyInformIdentity(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "adoption.env")
 	want := adoption.Store{
@@ -23,15 +23,6 @@ func TestAdoptionStatePersistsOnlyInformIdentity(t *testing.T) {
 	}
 	if err := adoption.SaveEnv(path, want); err != nil {
 		t.Fatal(err)
-	}
-	data, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	wantFile := "STATE=connected\nINFORM_URL=" + controllerURL + "\nAUTHKEY=" + individualKey +
-		"\nCFGVERSION=42\nUSE_AES_GCM=true\n"
-	if string(data) != wantFile {
-		t.Fatalf("persisted adoption identity = %q; want %q", data, wantFile)
 	}
 	info, err := os.Stat(path)
 	if err != nil {

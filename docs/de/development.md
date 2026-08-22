@@ -5,22 +5,11 @@ reviewbar, `dev` ist der Integrationszweig, `main` ist die getestete
 Release-Basis, und Pakete werden nur ueber Tags, GitHub-Releases oder einen
 expliziten Package-Workflow-Lauf veroeffentlicht.
 
-Das Modell passt zur vorhandenen Repository-Infrastruktur:
-
-- GitHub Actions `CI` fuehrt `make check`, den diagnostischen Report
-  `make coverage`, `make vulncheck` und die SBOM-Erzeugung vollstaendig auf
-  GitHub-gehosteten Linux-Runnern aus.
-- Bei Pushes auf `main` baut `CI` zusaetzlich Pakete und installiert das
-  erzeugte Debian-Paket einmal im Ubuntu-Runner als neutralen Smoke-Test.
-- `Package Repositories` baut Linux-Pakete und die Release-SBOM auf Ubuntu,
-  deployed die Linux-only-GitHub-Pages-Seite und erstellt oder aktualisiert
-  fuer einen `v*`-Tag den GitHub-Pre-Release.
-- `FreeBSD Packaging` ist ein separater manueller Workflow. Er nutzt den
-  self-hosted FreeBSD-Builder-Pfad nur nach explizitem Dispatch und ist nie
-  Bestandteil von `CI` oder des automatischen Package-Workflows. Packaging ist
-  keine Testklassifizierung als Tier 1, Tier 2 oder Tier 3.
-- Das `github-pages`-Environment erlaubt Deployments bereits nur von `main` und
-  `v*`-Tags.
+Die Workflow-Topologie trennt CI, Linux-Paketveroeffentlichung und die manuelle
+FreeBSD-Erweiterung. Die eingecheckten CI- und Package-Workflows enthalten noch
+Go-abhaengige GitHub-hosted-Schritte. Sie sind als Validierungs- und
+Release-Evidenz blockiert, bis eine genehmigte CI-sichtbare Build-Runner-Route
+diese Schritte ersetzt.
 
 ## Go-Toolchain
 
@@ -28,19 +17,19 @@ Das Modell passt zur vorhandenen Repository-Infrastruktur:
 Patchversionen und eine separate `toolchain`-Direktive werden bewusst nicht
 festgeschrieben.
 
-Alle GitHub-Actions-Jobs lesen `go.mod` ueber `actions/setup-go` mit
-`check-latest: true`. GitHub waehlt damit den neuesten verfuegbaren Go-`1.25`-
-Patch. Der Docker-Build folgt mit `golang:1.25-bookworm` derselben Minor-Linie.
+Von Agenten ausgefuehrte Go-Kommandos und Go-basierte Make-Targets verwenden
+den konfigurierten Build Runner. [`AGENTS.md`](../../AGENTS.md) besitzt den
+aktuellen Aufruf; Host-Go ist auch in eingecheckten Workflows kein Fallback.
 
 ## Branch-Stufen
 
-| Stufe | Branch | Zweck | Automatische Checks | Ergebnis |
+| Stufe | Branch | Zweck | Vorgesehene automatische Checks | Ergebnis |
 | --- | --- | --- | --- | --- |
 | Aenderung | kurzlebiger `codex/*`-, `feat/*`- oder `fix/*`-Branch | Eine fokussierte Aenderung | `CI / check` im Pull Request | Keine Paketveroeffentlichung |
 | Integration | `dev` | Reviewte Arbeit vor Release-Promotion sammeln | `CI / check` im Pull Request und bei Push | Keine Paketveroeffentlichung |
 | Release-Basis | `main` | Stabile, getestete Quelle fuer Tags und oeffentliche Pakete | `CI / check` plus Package-Build und Debian-Install-Smoke bei Push | Paketartefakte im Workflow-Lauf |
 | Paketquelle | `v*`-Tag, GitHub-Pre-Release oder manueller Workflow von `main` | Standard-Paketset veroeffentlichen | Linux-Package-Matrix und Release-SBOM | Linux-only-GitHub-Pages und bei einem Tag ein GitHub-Pre-Release |
-| FreeBSD-Erweiterung | Manueller `FreeBSD Packaging`-Dispatch | FreeBSD-/OPNsense-Paketevidenz bauen oder veroeffentlichen | Containerisierter self-hosted Runner und FreeBSD-Builder-Pfad | Nur Lauf-Evidenz oder FreeBSD-Release-Artefakte und kombinierte Pages |
+| FreeBSD-Erweiterung | Manueller `FreeBSD Packaging`-Dispatch | Kompatibilitaetsartefakte bis zu einer genehmigten Buildroute | Containerisierter self-hosted Runner und direkter FreeBSD-Builder | Nicht beweiskraeftige Laufartefakte; Veroeffentlichung bleibt blockiert |
 
 Kurzlebige Branches sollten normalerweise nur wenige Tage leben. Wenn eine
 Aenderung zu gross wird, wird sie in kleinere Pull Requests geteilt, die jeweils
@@ -56,14 +45,15 @@ eigenstaendig durch die Gates kommen.
    git switch -c codex/<thema>
    ```
 
-2. Die Aenderung lokal umsetzen und den passenden Gate ausfuehren.
+2. Die Aenderung umsetzen und den Patch selbst auf dem Host pruefen.
 
    ```sh
-   make check
    git diff --check
    ```
 
-3. Den Topic-Branch pushen und einen Pull Request nach `dev` oeffnen.
+3. Den einzelnen vollstaendigen Gate `make code-checker` aus `AGENTS.md`
+   ausfuehren, dann den Topic-Branch pushen und einen Pull Request nach `dev`
+   oeffnen.
 4. Nach `dev` nur mergen, wenn die erforderlichen Checks und das Review passen.
 5. `dev` gruen halten. Ein kaputter `dev` wird vor fremder Folgearbeit
    repariert.
@@ -71,16 +61,17 @@ eigenstaendig durch die Gates kommen.
 ## Promotion Nach Main
 
 1. Pull Request von `dev` nach `main` oeffnen.
-2. Der Pull Request muss `CI / check` bestehen.
+2. Der Pull Request muss ein Build-Runner-gestuetztes `CI / check` bestehen;
+   der aktuelle Workflow kann diesen Gate bis zur genehmigten Route nicht liefern.
 3. Fuer controller-sichtbare Aenderungen den standardisierten Docker-Gate aus
    [Docker-Controller-Lab](docker-lab.md) auf dem exakt promoteten `dev`-Commit
    ausfuehren und die Evidenz festhalten.
 4. Den Diff als Release-Candidate-Aenderungsset reviewen, nicht als einzelne
    Feature-Aenderung.
 5. Nach `main` mergen.
-6. Der `main`-Push startet `CI / check`; danach baut der Package-Job
-   Linux-Paketformate und installiert das erzeugte Debian-Paket einmal in
-   GitHub Actions.
+6. Nach Einrichtung der genehmigten Route startet der `main`-Push `CI / check`;
+   danach baut der Package-Job die Linux-Formate und fuehrt den Debian-Install-
+   Smoke aus.
 7. Paketquellen nicht von `dev` deployen.
 
 Direkte Pushes auf `main` bleiben expliziten Notfaellen oder Automation
@@ -88,74 +79,28 @@ vorbehalten. Der normale Weg ist Pull-Request-Review nach `main`.
 
 ## Release Und Paketveroeffentlichung
 
-Versionsnummern kommen aus `v*`-Tags oder einem expliziten Package-Workflow-
-Input. `VERSION`, Changelog-Abschnitt und Release-Tag muessen uebereinstimmen.
-
-Der normale Alpha-Release-Pfad ist:
-
-```sh
-git switch main
-git pull --ff-only origin main
-git tag -a v0.2.5-alpha -m "unifi-stubd v0.2.5-alpha"
-git push origin v0.2.5-alpha
-```
-
-Ein `v*`-Tag startet `Package Repositories`. Linux-Pakete, SPDX-SBOM,
-Linux-only-Pages und der GitHub-Pre-Release werden zuerst veroeffentlicht.
-Manuelle Linux-Package- und Pages-Builds koennen von `main` laufen:
-
-```sh
-gh workflow run package-pages.yml --ref main \
-  -f version=0.2.5-alpha \
-  -f package_release=1
-```
-
-Wenn `version` bei einem manuellen Lauf fehlt, liest der Workflow `VERSION`.
-Dieses manuelle Event erstellt oder aktualisiert keinen GitHub-Release. Wenn
-der Pre-Release selbst repariert werden muss, wird der fehlgeschlagene Tag-
-Workflow-Lauf erneut ausgefuehrt.
-
-FreeBSD-Packaging ist ein unabhaengiger GitHub-Actions-Vorgang. Der Input `publish`
-steht standardmaessig auf `false`; dieser Modus baut den ausgewaehlten Ref und
-behaelt nur sieben Tage gueltige Actions-Artefakte sowie die
-Job-Zusammenfassung als Evidenz:
-
-```sh
-gh workflow run freebsd-packaging.yml --ref main -f publish=false
-```
-
-Um einen bestehenden passenden `v*`-Pre-Release zu erweitern und kombinierte
-Linux-/FreeBSD-Pages zu deployen, wird derselbe Tag mit explizit aktivierter
-Veroeffentlichung gestartet:
-
-```sh
-gh workflow run freebsd-packaging.yml --ref <v-tag-mit-freebsd-workflow> -f publish=true
-```
-
-Der Publish-Modus fuegt FreeBSD-Tarballs, das native `pkg`-Repository-Archiv
-und `SHA256SUMS.freebsd` hinzu. Die automatische Linux-`SHA256SUMS` wird nicht
-ersetzt. FreeBSD-Packaging ist nie Trigger, `needs`-Abhaengigkeit oder
-erforderliches Ergebnis von `CI` oder `Package Repositories`.
-Legacy-Tags ohne den FreeBSD-Packaging-Workflow oder mit FreeBSD-Eintraegen in
-`SHA256SUMS` sind fuer diese getrennte Erweiterung nicht zulaessig.
+Die [Release-Checkliste](release.md) besitzt Tags, manuelle Workflow-Inputs,
+die FreeBSD-Erweiterung, Pruefsummen, Signierung und Pages-Veroeffentlichung.
+Diese Seite besitzt nur Branch-Promotion und Gate-Auswahl.
 
 ## Hotfixes
 
 1. Branch von `main` erstellen.
 2. Pull Request nach `main` oeffnen.
 3. Dieselben `main`-Gates ausfuehren.
-4. Erst taggen oder veroeffentlichen, wenn der `main`-CI-Lauf gruen ist.
+4. Erst taggen oder veroeffentlichen, wenn der exakte Tree den vollstaendigen
+   Gate bestanden hat; der aktuelle `main`-CI-Lauf ist kein Ersatz.
 5. Den Hotfix nach `dev` zurueckfuehren, bevor normale Entwicklung weitergeht.
 
 ## Gate-Auswahl
 
-| Aenderungstyp | Erforderlicher lokaler Gate | Zusaetzlicher Gate |
+| Aenderungstyp | Erforderlicher Repository-Gate | Zusaetzliche Produkt- oder Delivery-Evidenz |
 | --- | --- | --- |
-| Go-Code, Config-Schema, Profildaten | `make check`, `git diff --check` | Diagnostisches `make coverage`; gezieltes `go test ./tests/...`, wenn sinnvoll |
-| US8-Inform, -Adoption oder controller-sichtbare Metriken | `make check` | Aktueller Stable-/RC-Produktgate mit `make integration-nonunifi-metrics` vor `dev` nach `main` |
-| Paketierte Config, Service-Dateien, Paket-Metadaten | `make check`, `make package` | GitHub-`main`-Package-Install-Smoke |
-| FreeBSD- oder OPNsense-Runtime-Verhalten | `make check` | Manueller `FreeBSD Packaging`-Build plus Tier-3-FreeBSD-/OPNsense-Runtime-Smoke mit temporaerem State, wenn Verhalten geaendert wurde |
-| Release Notes, Paketveroeffentlichung | `make check` | Linux-first `Package Repositories`; optionale manuelle `FreeBSD Packaging`-Veroeffentlichung erst nach vorhandenem passenden Pre-Release |
+| Go-Code, Config-Schema, Profildaten | `make code-checker`, nach hostseitigem `git diff --check` | Keine |
+| US8-Inform, -Adoption oder controller-sichtbare Metriken | `make code-checker` | Aktueller controller-sichtbarer Stable-/RC-Gate mit `make integration-nonunifi-metrics` vor `dev` nach `main` |
+| Paketierte Config, Service-Dateien, Paket-Metadaten | `make code-checker`, `make package` | `main`-Package-Install-Smoke nach Einrichtung der genehmigten Runner-Route |
+| FreeBSD- oder OPNsense-Runtime-Verhalten | `make code-checker` | Autorisierte FreeBSD-Buildroute plus Tier-3-Runtime-Smoke; der direkte Host-Go-Builder ist nur Kompatibilitaetspfad und als Evidenz blockiert |
+| Release Notes, Paketveroeffentlichung | `make code-checker` | Linux-first `Package Repositories`; optionale FreeBSD-Veroeffentlichung erst nach vorhandener genehmigter Runner-Route |
 
 Zielhost-Paketinstallation ist kein Standard-Gate der Entwicklung. Sie wird nur
 fuer explizite Rollout-Tests genutzt; host-spezifische Configs bleiben ausserhalb
@@ -175,26 +120,13 @@ gelten:
 - `github-pages`-Environment: Deployment nur von `main` und `v*`.
 - `freebsd-packaging`-Environment: Freigabe verlangen, nur `main` und `v*`
   erlauben und dem self-hosted Build-Job keine Publish-Rechte geben.
-- Runner-Rollen: `docker-dmz` kennzeichnet Runner-Container auf
-  `docker.dmz.lan`. Der FreeBSD-Packaging-Container wird mit `[self-hosted,
-  Linux, X64, docker-dmz, unifi-stubd, freebsd-pkg-builder]` ausgewaehlt und
-  nutzt striktes SSH/SCP zu einem Non-root-Konto auf dem FreeBSD-Buildhost. Der
-  Tier-2-Container wird mit `[self-hosted, Linux, X64, docker-dmz,
-  docker-engine, unifi-stubd]` ausgewaehlt; nur `docker-engine` bezeichnet die
-  Docker-Daemon-Faehigkeit. Beide Container duerfen `docker.dmz.lan` gemeinsam
-  nutzen. Auf einem Bare Host ist passwortloses sudo verboten. Ein wegwerfbarer,
-  containerisierter Proxy darf containerlokales passwortloses sudo nur
-  behalten, wenn das geschuetzte Environment `freebsd-packaging`
-  `ALLOW_CONTAINER_LOCAL_SUDO=true` explizit setzt und der Workflow seinen
-  Container-Marker, einen aktiven Seccomp-Filter, einen privaten Container-
-  Root-Mount sowie die PID-1-Root-Grenze bestaetigt. Bei Einsehbarkeit muss sie
-  dem Container-Root entsprechen; andernfalls muss sie durch die Sandbox selbst
-  fuer Container-Root unzugaenglich sein. Der Workflow bestaetigt zudem das
-  Fehlen gefaehrlicher Root-Capabilities, exponierter Blockgeraete, von Host-
-  Root-Mounts und Host-Runtime-Sockets.
+- Runner-Rollen und FreeBSD-Proxy-Safety werden von den Workflows und der
+  [Release-Checkliste](release.md) durchgesetzt; sie werden hier nicht
+  dupliziert.
 
-Der Package-Job laeuft absichtlich nach dem Merge auf `main`, weil er die exakt
-committete Release-Basis prueft und Paketartefakte fuer diesen Lauf hochlaedt.
+Der Package-Job soll die exakt committete Release-Basis nach dem Merge pruefen.
+Solange seine Go-abhaengige Build-Runner-Route fehlt, kann er weder diese
+Evidenz liefern noch seine Artefakte veroeffentlichen.
 
 ## Quellen
 

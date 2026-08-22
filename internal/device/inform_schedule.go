@@ -2,17 +2,9 @@ package device
 
 import "time"
 
-const (
-	informScheduleNoProfileBinding = profileProtocolNoBinding
-	informScheduleNoMinimumBinding = "firmware minimum is not cataloged for the exact profile and evidence binding"
-)
-
-// InformSchedulePolicy is the exact firmware-evidence decision for controller
-// interval hints. A missing minimum disables hints without preventing the
-// operator-selected base schedule from running.
+// InformSchedulePolicy is the product decision for controller interval hints.
+// An unsupported identity still uses the operator-selected base schedule.
 type InformSchedulePolicy struct {
-	EvidenceID      string
-	BehaviorID      string
 	FirmwareMinimum time.Duration
 	Supported       bool
 	Reason          string
@@ -34,26 +26,12 @@ func (policy InformSchedulePolicy) EffectiveMinimum(operatorMinimum time.Duratio
 // never falls back by family, model similarity, version prefix, or a nearby
 // protocol build.
 func ResolveInformSchedulePolicy(profile Profile, effectiveModel, effectiveVersion string) InformSchedulePolicy {
-	binding, ok := resolveUserProfileProtocol(profile, effectiveModel, effectiveVersion)
-	if !ok {
-		return InformSchedulePolicy{
-			BehaviorID: protocolBehaviorUnsupported,
-			Reason:     informScheduleNoProfileBinding,
-		}
+	productPolicy, ok := resolveUserProfileProtocol(profile, effectiveModel, effectiveVersion)
+	if !ok || productPolicy.firmwareMinimumSeconds <= 0 {
+		return InformSchedulePolicy{Reason: profileProtocolNoBinding}
 	}
-	policy := InformSchedulePolicy{
-		EvidenceID: binding.evidenceID,
-		BehaviorID: binding.behavior.id(),
+	return InformSchedulePolicy{
+		FirmwareMinimum: time.Duration(productPolicy.firmwareMinimumSeconds) * time.Second,
+		Supported:       true,
 	}
-	if binding.firmwareMinimumSeconds <= 0 {
-		policy.Reason = informScheduleNoMinimumBinding
-		return policy
-	}
-	if !binding.behavior.supported() {
-		policy.Reason = informScheduleNoProfileBinding
-		return policy
-	}
-	policy.FirmwareMinimum = time.Duration(binding.firmwareMinimumSeconds) * time.Second
-	policy.Supported = true
-	return policy
 }

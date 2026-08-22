@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	appconfig "github.com/konstruktor1/unifi-stubd/internal/config"
 	"github.com/konstruktor1/unifi-stubd/internal/device"
 	"github.com/konstruktor1/unifi-stubd/internal/platform"
 )
@@ -14,10 +13,6 @@ type serveRuntime struct {
 	platform             platform.Platform
 	informSchedulePolicy device.InformSchedulePolicy
 	reportingPolicy      device.ControllerReportingPolicy
-}
-
-func parseServeFlags() (runtimeFlags, map[string]bool) {
-	return parseRuntimeFlags(appconfig.Default())
 }
 
 // handleServeEarlyExit handles commands that must not read host state or start
@@ -85,9 +80,9 @@ func prepareServeRuntime(flags *runtimeFlags, changed map[string]bool) (serveRun
 		return serveRuntime{}, false, err
 	}
 	if flags.validate {
-		return serveRuntime{profile: profile, platform: plt, informSchedulePolicy: informSchedulePolicy, reportingPolicy: reportingPolicy}, true, validateRuntime(*flags, profile)
+		return serveRuntime{profile: profile, platform: plt, informSchedulePolicy: informSchedulePolicy, reportingPolicy: reportingPolicy}, true, validateRuntime(*flags, profile, plt)
 	}
-	if err := validateLiveServeSources(*flags, profile); err != nil {
+	if err := validateLiveServeSources(*flags, profile, plt); err != nil {
 		return serveRuntime{}, false, err
 	}
 
@@ -116,13 +111,13 @@ func validateServeRuntime(flags runtimeFlags, profile device.Profile, informSche
 	// Non-live validation catches schema and policy mistakes without touching
 	// host interfaces. Live checks are intentionally delayed until -validate or
 	// actual runtime, where missing local interfaces should be reported.
-	if err := validateManagementLAN(flags, profile, false); err != nil {
+	if err := validateManagementLAN(flags, profile, false, nil); err != nil {
 		if flags.validate {
 			return withExitCode(1, err)
 		}
 		return err
 	}
-	if err := validateSourceMappings(flags, false); err != nil {
+	if err := validateSourceMappings(flags, false, nil); err != nil {
 		if flags.validate {
 			return withExitCode(1, err)
 		}
@@ -131,15 +126,15 @@ func validateServeRuntime(flags runtimeFlags, profile device.Profile, informSche
 	return nil
 }
 
-func validateLiveServeSources(flags runtimeFlags, profile device.Profile) error {
+func validateLiveServeSources(flags runtimeFlags, profile device.Profile, addresses platform.AddressReader) error {
 	if flags.dryRunPlan {
 		return nil
 	}
 	// Dry-run plans may describe unsupported host-network actions. All other
 	// paths require live source checks before any controller-visible payload is
 	// built.
-	if err := validateSourceMappings(flags, true); err != nil {
+	if err := validateSourceMappings(flags, true, addresses); err != nil {
 		return err
 	}
-	return validateManagementLAN(flags, profile, true)
+	return validateManagementLAN(flags, profile, true, addresses)
 }

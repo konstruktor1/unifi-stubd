@@ -2,7 +2,6 @@
 package wanhealth
 
 import (
-	"context"
 	"strings"
 	"time"
 )
@@ -27,9 +26,4 @@ func NormalizeSource(value string) string {
 		return SourceOff
 	}
 	return value
-}
-
-// Measure executes active WAN health probes using the local OS ping command.
-func Measure(ctx context.Context, cfg Config) []Result {
-	return MeasureWithRunner(ctx, cfg, CommandRunner{})
 }

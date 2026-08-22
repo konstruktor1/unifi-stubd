@@ -1,0 +1,14 @@
+    <p>Manual FreeBSD/OPNsense tarball; native <code>pkg</code> repositories are linked from the FreeBSD index.</p>
+    <p><a href="@ARTIFACT@">@ARTIFACT@</a> · <a href="../../checksums.txt">checksums.txt</a></p>
+    <h2>Fetch and Inspect</h2>
+    <pre>fetch https://konstruktor1.github.io/unifi-stubd/freebsd/@ARCH@/@ARTIFACT@
+fetch https://konstruktor1.github.io/unifi-stubd/checksums.txt
+grep 'freebsd/@ARCH@/@ARTIFACT@' checksums.txt
+sha256 @ARTIFACT@
+tar -tzf @ARTIFACT@</pre>
+    <h2>Extract</h2>
+    <pre>sudo tar -xzf @ARTIFACT@ -C /
+sudo vi /usr/local/etc/unifi-stubd/config.yaml
+sudo sysrc unifi_stubd_enable=YES
+sudo service unifi-stubd start</pre>
+    <p><a href="../">FreeBSD and OPNsense tarballs</a></p>

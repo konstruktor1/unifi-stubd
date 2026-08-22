@@ -21,7 +21,7 @@ blockiert. Siehe [Kompatibilitaet](compatibility.md).
 
 ## Naechster Schritt
 
-Den unveraenderten Stable-/RC-Produktgate erneut ausfuehren, sobald Ubiquiti
+Den unveraenderten controller-sichtbaren Stable-/RC-Gate erneut ausfuehren, sobald Ubiquiti
 einen neuen RC veroeffentlicht. Bis dahin den fokussierten Host-Safety-Nachweis
 fuer Ergebnis 2 abschliessen. Das Controller-Artefakt nicht patchen, die
 sichtbare Metrikanforderung nicht abschwaechen und den Stub ohne Nachweis eines

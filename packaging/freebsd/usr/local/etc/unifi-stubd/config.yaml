@@ -1,19 +1,16 @@
-# unifi-stubd packaged FreeBSD/OPNsense runtime config.
-# Installed as /usr/local/etc/unifi-stubd/config.yaml.
-
-# Replace 192.0.2.10 and 192.0.2.50 with addresses from an isolated lab.
+# Packaged FreeBSD/OPNsense starter config. Replace the documentation addresses
+# with an isolated lab. FreeBSD support is stub-only; field behavior and
+# examples:
+# https://github.com/konstruktor1/unifi-stubd/blob/main/docs/en/operation-modes.md
 operation_mode: stub
 controller_url: http://192.0.2.10:8080/inform
 profile: us8
-# Every instance selects a concrete profile. This starter config chooses US8;
-# profile_file and profile_dir can add reviewed external lab profiles.
 profile_file: ""
 profile_dir: ""
 mac: auto
 ip: 192.0.2.50
 hostname: auto
 
-# FreeBSD support is stub-only for now. Keep passive Linux observation disabled.
 link_speed: 0
 uplink_speed: profile
 uplink_port: 0
@@ -21,59 +18,9 @@ uplink_neighbor:
   mac: ""
   vlan: 1
   type: usw
-  # remote_port: 50
 port_neighbors: []
-# Optional per-port overrides applied after profile data. Profiles describe
-# hardware. Use these overrides for OPNsense/FreeBSD lab assignments such as
-# WAN/LAN/backup_wan without changing the selected device profile.
-# For gateway profiles, controller `ifname` values stay derived from the
-# physical profile port (`gateway_interface_prefix` + port-1). A FreeBSD or
-# OPNsense host interface configured below is copied into `source_interface`
-# only; it is not a controller `ifname` and is not renamed by role changes.
-#
-# UXG-Pro profile mapping:
-#   port 1 -> eth0, profile role wan,  1G RJ45
-#   port 2 -> eth1, profile role lan,  1G RJ45
-#   port 3 -> eth2, profile role wan2, 10G SFP+
-#   port 4 -> eth3, profile role lan2, 10G SFP+
-#
-# OPNsense SFP WAN example:
-# uplink_port: 3
-# port_overrides:
-#   - port: 3
-#     name: WAN
-#     role: wan
-#     network_group: WAN
-#     interface: ixl0
-#     speed: 10000
-#     media: SFP+
-# Result: controller ifname eth2, source_interface ixl0.
-# Add LAN as its own explicit port override, for example port 4 with role lan,
-# interface vtnet0, and its routed LAN IP. Do not use management_lan as a
-# gateway LAN shortcut. Controller transport/management addresses belong to
-# top-level runtime fields and must not be copied into WAN/LAN rows unless they
-# are intentionally the address of that gateway port.
-# Keep unused ports role: unassigned and without ip; disconnected inventory
-# ports must not inherit the LAN IP.
 port_overrides: []
 
-# Optional read-only gateway WAN health. Default is off; static uses the
-# port_overrides wan_* fields above. ping runs the local OS ping command and
-# updates local status only; it does not claim firmware WAN or speed-test data.
-# source:
-#   off    - no active measurement
-#   static - rely on configured port_overrides wan_* values only
-#   ping   - probe targets with local ping; target ports must have an explicit
-#            port_overrides role wan/wan2
-# Ping diagnostics do not run UniFi speed tests, detect ISP/provider names,
-# change routes, touch VLANs, or populate firmware WAN-health Inform fields.
-# wan_health:
-#   source: ping
-#   interval_seconds: 10
-#   timeout_ms: 1000
-#   targets:
-#     - port: 3
-#       host: 1.1.1.1
 wan_health:
   source: off
   interval_seconds: 10
@@ -85,61 +32,24 @@ observe_bridge: ""
 bridge_observe:
   bridge: ""
   uplink_interface: ""
-  # The bridge device itself is metadata and is not mapped as a UniFi port.
-  # epair*/vnet*/tap* members are treated as downstream access ports. If
-  # available, mapped members contribute their own interface speed and counters.
-  # If uplink_interface is empty and exactly one physical-looking member exists,
-  # it is treated as the uplink candidate.
-  # Switch profiles with dedicated SFP/SFP+ uplink cages keep those profile
-  # ports. The active physical uplink_interface defaults to the last normal GE
-  # port unless uplink_port is set.
-  # MACs learned on uplink_interface are remote behind the real neighbor switch
-  # and are excluded from all local access-port MAC tables.
-  # Optional members ignored entirely. This is useful when a local bridge member
-  # is already represented by an explicit physical/uplink port.
   ignored_members: []
   member_port_map: []
-# port-map syntax is available in the config and requires one entry per profile
-# port. Native FreeBSD bridge observation is staged separately. Use
-# disabled/unmapped entries or read-only interface fields in lab configs only.
 port_mappings: []
-# Passive LLDP uses lldpd through `lldpcli -f json show neighbors` when
-# installed. Missing lldpcli is reported as a warning and does not stop the daemon.
 lldp_source: off
-traffic_source: off
-# Optional UniFi UI traffic rates from read-only interface counters.
-# Keep disabled unless mapped interfaces should report live RX/TX rates.
 traffic_rates_enabled: false
-# Optional read-only platform metadata. FreeBSD commonly uses syslog files
-# rather than journald; /proc is Linux-only and should stay off here.
-# OPNsense commonly stores system logs under /var/log/system/latest.log, which
-# is root-only by default. Keep log_source: off unless the service user can read
-# the configured path.
-log_source: off
 proc_source: off
-dbus_enabled: false
-dbus_bus: system
-syslog_path: /var/log/messages
 
-# Host-global duplicate instance guard. The package default aborts a second
-# live daemon before SSH, discovery, or inform traffic starts. Use warn or off
-# only for intentional multi-stub labs on the same host.
+# Abort duplicate live instances before they open controller-facing services.
 instance_guard: fail
 instance_guard_path: /var/db/unifi-stubd/instance.lock
 
 interval_seconds: 10
-# Positive controller interval hints are clamped to these local bounds.
 controller_interval_min_seconds: 5
 controller_interval_max_seconds: 60
-# Transport failures double the effective interval up to this delay. Jitter is
-# symmetric and bounded; a completed HTTP exchange resets the failure sequence.
 inform_backoff_max_seconds: 300
 inform_backoff_jitter_percent: 20
 no_discovery: false
 discovery_interface: ""
-# Optional explicit UDP discovery targets for routed or FreeBSD labs where
-# 255.255.255.255 is not usable. Leave empty for the default broadcast and
-# multicast targets.
 discovery_targets: []
 
 management_lan:
@@ -152,12 +62,9 @@ management_lan:
   controller_reachable: off
   adoption_strategy: untagged-first
 
-# Optional advanced-adoption SSH shim. The normal path is inform-based
-# adoption through controller_url, so packaged defaults keep SSH closed.
-# Enable only in an isolated lab when the controller must use SSH/set-inform.
+# Keep the optional adoption SSH shim closed unless an isolated lab needs it.
 ssh_listen: ""
 ssh_user: ubnt
-# Factory credentials are only relevant when ssh_listen is explicitly enabled.
 ssh_password: ubnt
 ssh_host_key_path: /usr/local/etc/unifi-stubd/ssh_host_rsa_key
 

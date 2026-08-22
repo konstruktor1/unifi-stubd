@@ -1,6 +1,3 @@
-// Package device turns profile layout data into deterministic UniFi ports
-// before observations and overrides are merged. The generator preserves profile
-// media, speed groups, names, roles, and uplink selection.
 package device
 
 const (

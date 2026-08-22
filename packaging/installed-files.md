@@ -1,8 +1,7 @@
 # Installed Package Files
 
-The package builder stages files below `dist/stage/pkgroot/`. Source files that
-represent installed Linux config live under `packaging/linux/`. Source files
-that represent installed FreeBSD/OPNsense config live under `packaging/freebsd/`.
+Installed configuration sources live under `packaging/linux/` and
+`packaging/freebsd/`.
 These packaged configs explicitly select the small `US8` starter profile but
 remain non-observing until a local source is configured. Keep real host-specific
 configs in a private location outside this repository, then copy the selected
@@ -32,12 +31,14 @@ UniFi-compatible low port without running the daemon as root.
 ## FreeBSD/OPNsense Packaged Files
 
 The FreeBSD package path is currently stub-only. `make package-freebsd-tgz`
-builds a local diagnostic tarball for one `PKG_FREEBSD_GOARCH`. Release builds
-use `make package-freebsd-pkg-repos`, which builds FreeBSD binaries through the
-configured FreeBSD builder path, writes native FreeBSD `pkg` repositories, and
-publishes both `freebsd_amd64` and `freebsd_arm64` tarballs under the GitHub
-Pages paths `/freebsd/amd64/` and `/freebsd/arm64/`. GitHub Release assets are
-still a manual release-checklist step.
+builds a runner-produced diagnostic tarball for one `PKG_FREEBSD_GOARCH`.
+Release builds are intended to use `make package-freebsd-pkg-repos`, which
+writes native FreeBSD `pkg` repositories and both `freebsd_amd64` and
+`freebsd_arm64` tarballs. Its current direct FreeBSD host-Go compilation is an
+external-machine compatibility path, not Build Runner release evidence;
+publication remains
+blocked until an authorized build route replaces that step. GitHub Release
+assets remain a manual release-checklist step.
 
 | FreeBSD path | Repository source | Notes |
 | --- | --- | --- |

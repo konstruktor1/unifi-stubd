@@ -1,24 +1,20 @@
 package platform
 
 import (
-	"context"
 	"os"
 	"os/exec"
 )
 
 // Capabilities reports which optional platform sources are disabled, available,
 // missing, or unsupported for status output.
-func (p hostPlatform) Capabilities(ctx context.Context, cfg Config) CapabilityReport {
+func (p hostPlatform) Capabilities(cfg Config) CapabilityReport {
 	cfg = normalizeConfig(cfg)
 	report := CapabilityReport{GOOS: p.goos}
 	// Capability reporting is diagnostic only. Missing optional tools become
 	// status output, not install attempts or host changes.
 	report.Capabilities = append(report.Capabilities,
 		p.commandCapability(capabilityLLDP, cfg.LLDPSource, "lldpcli"),
-		p.logCapability(cfg),
 		p.procCapability(cfg),
-		p.dbusCapability(ctx, cfg),
-		Capability{Name: capabilityTraffic, Source: cfg.TrafficSource, State: trafficState(cfg.TrafficSource), Detail: trafficDetail(cfg.TrafficSource)},
 	)
 	return report
 }
@@ -34,25 +30,6 @@ func (p hostPlatform) commandCapability(name, source, command string) Capability
 		return Capability{Name: name, Source: source, State: capabilityMissing, Detail: err.Error()}
 	}
 	return Capability{Name: name, Source: source, State: capabilityAvailable}
-}
-
-// logCapability reports the configured log reader state for status output.
-func (p hostPlatform) logCapability(cfg Config) Capability {
-	source := normalizedSource(cfg.LogSource)
-	if source == SourceOff {
-		return Capability{Name: capabilityLogs, Source: source, State: capabilityDisabled}
-	}
-	switch source {
-	case LogSourceJournalctl:
-		return p.commandCapability(capabilityLogs, source, "journalctl")
-	case LogSourceSyslog:
-		if _, err := os.Stat(cfg.SyslogPath); err != nil {
-			return Capability{Name: capabilityLogs, Source: source, State: capabilityMissing, Detail: err.Error()}
-		}
-		return Capability{Name: capabilityLogs, Source: source, State: capabilityAvailable, Detail: cfg.SyslogPath}
-	default:
-		return Capability{Name: capabilityLogs, Source: source, State: capabilityUnsupported}
-	}
 }
 
 // procCapability reports whether Linux procfs counters can be used as optional
@@ -72,21 +49,4 @@ func (p hostPlatform) procCapability(cfg Config) Capability {
 		return Capability{Name: capabilityProc, Source: source, State: capabilityMissing, Detail: err.Error()}
 	}
 	return Capability{Name: capabilityProc, Source: source, State: capabilityAvailable}
-}
-
-// trafficState currently marks traffic metadata sources as disabled or
-// unsupported; rate calculations use interface counters instead.
-func trafficState(source string) string {
-	if normalizedSource(source) == SourceOff {
-		return capabilityDisabled
-	}
-	return capabilityUnsupported
-}
-
-// trafficDetail explains unsupported traffic metadata sources in status output.
-func trafficDetail(source string) string {
-	if normalizedSource(source) == SourceOff {
-		return ""
-	}
-	return "traffic metadata sources are not implemented"
 }

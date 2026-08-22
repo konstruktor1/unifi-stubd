@@ -1,5 +1,3 @@
-// Package device applies operator-specified port state, speed, media, counters,
-// identity, and role metadata after profile generation.
 package device
 
 import "fmt"
@@ -30,7 +28,7 @@ func ClonePortOverrides(overrides []PortOverride) []PortOverride {
 	out := make([]PortOverride, len(overrides))
 	for index, override := range overrides {
 		out[index] = override
-		out[index].IPv6 = cloneStrings(override.IPv6)
+		out[index].IPv6 = cloneNonEmptySlice(override.IPv6)
 		out[index].Up = cloneBoolRef(override.Up)
 		out[index].WANUptimePercent = cloneFloat64Ref(override.WANUptimePercent)
 		out[index].WANConnected = cloneBoolRef(override.WANConnected)
@@ -124,7 +122,7 @@ func NormalizePortOverride(override PortOverride) PortOverride {
 		field.setOverride(&override, field.normalize(field.get(override)))
 	}
 	override.Up = cloneBoolRef(override.Up)
-	override.IPv6 = cloneStrings(override.IPv6)
+	override.IPv6 = cloneNonEmptySlice(override.IPv6)
 	override.WANUptimePercent = cloneFloat64Ref(override.WANUptimePercent)
 	override.WANConnected = cloneBoolRef(override.WANConnected)
 	return override

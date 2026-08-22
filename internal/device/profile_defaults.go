@@ -2,12 +2,6 @@ package device
 
 import "strings"
 
-// normalizeProfile delegates model-level normalization shared by built-in and
-// external profiles.
-func normalizeProfile(profile *Profile) {
-	NormalizeProfile(profile)
-}
-
 // applyProfileDefaults fills renderer metadata that older or minimal profiles
 // may omit, without changing fields explicitly set in YAML.
 func applyProfileDefaults(profile *Profile) {

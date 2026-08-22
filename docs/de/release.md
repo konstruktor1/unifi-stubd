@@ -11,38 +11,39 @@ kopiert.
 
 ## Vor dem Tag
 
-1. `make check` ausfuehren.
-2. `make package` ausfuehren.
-3. Cross-Architektur-Ziele fuer Releases bauen, z.B. `PKG_GOARCH=arm64 make
-   package`.
-4. `dist/packages/` auf die Linux-Ausgaben fuer Debian, RPM, Arch Linux und
+1. Den vollstaendigen Gate `make code-checker` und die erforderlichen
+   Package-Targets ueber den konfigurierten Build Runner ausfuehren;
+   [`AGENTS.md`](../../AGENTS.md) besitzt den Aufruf.
+2. Die erforderlichen `amd64`- und `arm64`-Releaseartefakte bauen.
+3. `dist/packages/` auf die Linux-Ausgaben fuer Debian, RPM, Arch Linux und
    `.tar.gz` pruefen.
-5. Nach Dependency- oder Tool-Updates `go.mod`, `go.work` und `go.sum` pruefen.
-6. Private Lab-Daten suchen:
+4. Nach Dependency- oder Tool-Updates `go.mod`, `go.work` und `go.sum` pruefen.
+5. Private Lab-Daten suchen:
 
    ```sh
    sh scripts/check-policy.sh
    ```
 
-7. Pruefen, dass `VERSION`, der neueste datierte Abschnitt in `CHANGELOG.md`
+6. Pruefen, dass `VERSION`, der neueste datierte Abschnitt in `CHANGELOG.md`
    und der vorgesehene Tag `v<version>` uebereinstimmen.
-8. `CREDITS.md` und `NOTICE.md` aktualisieren, wenn neue Quellen, kopierter
+7. `CREDITS.md` und `NOTICE.md` aktualisieren, wenn neue Quellen, kopierter
    Code, Pakete oder Tools hinzukommen.
-9. Pruefen, dass `packaging/linux/etc/unifi-stubd/config.yaml` und `lab/` nur
+8. Pruefen, dass `packaging/linux/etc/unifi-stubd/config.yaml` und `lab/` nur
    Dokumentationsadressen oder neutrale Defaults enthalten.
-10. Repository-Metadaten mit `gh repo view --json
+9. Repository-Metadaten mit `gh repo view --json
     description,homepageUrl,licenseInfo,repositoryTopics` pruefen und
     Paketname, Lizenz, Maintainer und Projekt-URL mit `packaging/nfpm.yaml`
     vergleichen.
-11. Signaturstatus pruefen. Alpha-Releases duerfen nur als Pre-Release mit der
+10. Signaturstatus pruefen. Alpha-Releases duerfen nur als Pre-Release mit der
     erzeugten unsignierten `SHA256SUMS` veroeffentlicht werden. Stabile Releases
     verlangen einen signierten Tag und eine abgetrennte Signatur fuer
     `SHA256SUMS`.
 
-FreeBSD-Paketerzeugung ist kein Pre-Tag-Gate. Sie gehoert ausschliesslich zum
-manuellen Workflow `FreeBSD Packaging` und darf den Pre-Release erst erweitern,
-nachdem die automatische Linux-Veroeffentlichung abgeschlossen ist. Diese
-Packaging-Pipeline ist keine Testklassifizierung als Tier 1, Tier 2 oder Tier 3.
+FreeBSD-Paketerzeugung ist kein Pre-Tag-Gate. Der manuelle Workflow `FreeBSD
+Packaging` darf einen Pre-Release erst nach der Linux-Veroeffentlichung und nur
+mit vorhandener autorisierter Buildroute erweitern. Der direkte Builder ist
+derzeit als Evidenz blockiert. Diese Packaging-Pipeline ist keine
+Testklassifizierung als Tier 1, Tier 2 oder Tier 3.
 
 ## Tag setzen
 
@@ -53,7 +54,10 @@ git tag -a v0.2.5-alpha -m "unifi-stubd v0.2.5-alpha"
 git push origin v0.2.5-alpha
 ```
 
-Nur Commits taggen, die bereits den `main`-CI-Lauf bestanden haben. Der
+Nur Commits taggen, deren exakter Tree den vollstaendigen Gate bestanden hat.
+Der aktuelle `main`-CI-Lauf kann diese Evidenz bis zu seiner genehmigten
+CI-sichtbaren Build-Runner-Route nicht liefern; vor dieser Route darf kein neuer
+Tag veroeffentlicht werden. Der
 Package-Repositories-Workflow laeuft fuer `v*`-Tags, deshalb muss das
 `github-pages`-Environment Deployments von `main` und `v*`-Tags erlauben.
 
@@ -71,9 +75,12 @@ gh release view v0.2.5-alpha --json isPrerelease,assets,url
 
 `FreeBSD Packaging` ist ausschliesslich manuell und hat weder Trigger-
 noch `needs`-Beziehungen zu `CI` oder `Package Repositories`. Der Input
-`publish` steht standardmaessig auf `false`; dieser Modus baut FreeBSD-Tarballs
-und native `pkg`-Repositories fuer den ausgewaehlten Ref und behaelt die
-Actions-Artefakte sieben Tage als Build-Evidenz:
+`publish` steht standardmaessig auf `false`; dieser Modus behaelt FreeBSD-
+Tarballs und native `pkg`-Repositories sieben Tage. Sein direkter Host-Go-
+Builder ist ein External-Machine-Kompatibilitaetspfad; diese Artefakte sind
+kein konformer Build-Nachweis. Sie duerfen erst veroeffentlicht werden, wenn
+eine autorisierte VM-Runner- oder gepruefte Split-Build-Route den
+Kompilierungsschritt besitzt:
 
 ```sh
 gh workflow run freebsd-packaging.yml --ref main -f publish=false
@@ -135,16 +142,6 @@ Alpha-Paketquellen werden unsigniert ueber GitHub Pages veroeffentlicht:
 https://konstruktor1.github.io/unifi-stubd/
 ```
 
-Zuerst alle Paket-Artefakte bauen, danach die statische Repository-Seite
-erzeugen:
-
-```sh
-PKG_VERSION=0.2.5-alpha PKG_RELEASE=1 PKG_GOARCH=amd64 make package
-PKG_VERSION=0.2.5-alpha PKG_RELEASE=1 PKG_GOARCH=arm64 make package
-PKG_VERSION=0.2.5-alpha PKG_RELEASE=1 make package-freebsd-pkg-repos
-make package-repos
-```
-
 Der Package-Repositories-Workflow veroeffentlicht eine Linux-only-Paketquelle
 ueber GitHub Pages, wenn ein `v*`-Tag gepusht wird. Bis zur FreeBSD-Packaging-
 Veroeffentlichung meldet der FreeBSD-Bereich, dass die manuellen Artefakte nicht
@@ -174,47 +171,28 @@ Arch-Linux-, FreeBSD-/OPNsense-Tarball-Pfaden und nativen FreeBSD-`pkg`-Repos,
 wenn `dist/freebsd-pkg-repos/repo/` existiert. Der Default-Modus verlangt die
 FreeBSD-Artefakte; der automatische Workflow erlaubt fuer das Linux-first-
 Deployment explizit deren Fehlen. Nur der manuelle Workflow `FreeBSD Packaging`
-nutzt den containerisierten self-hosted GitHub-Actions-Runner auf
-`docker.dmz.lan`, ausgewaehlt durch `[self-hosted, Linux, X64, docker-dmz,
-unifi-stubd, freebsd-pkg-builder]`. Er nutzt striktes SSH/SCP zu einem
-Non-root-Konto auf dem FreeBSD-Buildhost. Der kanonische Builder nutzt
-Go-Cross-Compile auf dem FreeBSD-Host plus FreeBSD
-`pkg`; `FREEBSD_PKG_BUILD_JAILS` ist optional fuer eigene Builder mit laufenden
+nutzt die isolierte Packaging-Proxy-Rolle und striktes SSH/SCP zu einer
+Non-root-FreeBSD-Builder-Rolle. Seine direkte Host-Go-Kompilierung ist nur
+Kompatibilitaet und als Release-Evidenz blockiert; FreeBSD `pkg` besitzt
+weiterhin den Aufbau der Ziel-Repositories. `FREEBSD_PKG_BUILD_JAILS` ist
+optional fuer eigene Builder mit laufenden
 `jexec`-Jails. Nach dem FreeBSD-Build wird die kombinierte statische Seite auf
 Ubuntu zusammengestellt und deployed. Alpha-Anleitungen bleiben sichtbar
 unsigniert (`trusted=yes`, `gpgcheck=0`, `SigLevel = Never`), bis ein
 Projekt-Release-Key existiert.
 
 Die generierte Projektseite verlinkt ausserdem auf Source-Repository, Releases,
-Wiki, `CREDITS.md` und eine kurze Karte der genutzten Research-/Quellprojekte.
+`CREDITS.md` und eine kurze Karte der genutzten Research-/Quellprojekte.
 Diese Karte bleibt nur eine Zusammenfassung; die verbindliche Attribution steht
 weiterhin in `CREDITS.md`.
 
 ## Paket-Metadaten
 
 Der Default-Maintainer fuer Pakete ist `unifi-stubd maintainers <info@spinas.org>`.
-Maintainer-Metadaten fuer oeffentliche Paket-Builds ueberschreiben:
-
-```sh
-PKG_MAINTAINER='Name <email@example.com>' PKG_GOARCH=amd64 make package
-```
+Ein autorisierter Runner-Aufruf darf ihn mit `PKG_MAINTAINER` ueberschreiben.
 
 ## Host-Konfigurationen
 
-Echte Host-Konfigurationen nicht in diesem Repository ablegen. Nutze dafuer ein
-privates Verzeichnis oder ein privates Deployment-Repository. Eine sinnvolle
-lokale Struktur ist:
-
-```text
-unifi-stubd-host-configs/
-  hosts/<host>/current-tmp.yaml
-  hosts/<host>/installed-config.yaml
-  hosts/<host>/process.txt
-  hosts/<host>/status-before.json
-  hosts/<host>/status-after.json
-```
-
-`current-tmp.yaml` dokumentiert die temporaere Laufzeitkonfiguration.
-`installed-config.yaml` ist die paketfertige Konfiguration fuer den installierten
-Servicepfad. Das Paket selbst bleibt neutral und aendert keine VLANs,
-Firewall-Regeln, Routen oder Controller-Netzwerkdefinitionen.
+Echte Host-Konfigurationen nur ausserhalb dieses Repositories in privatem
+Deployment-Speicher ablegen. Das Paket aendert keine VLANs, Firewall-Regeln,
+Routen oder Controller-Netzwerkdefinitionen.

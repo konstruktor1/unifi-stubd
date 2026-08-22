@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
 	"net"
 	"strings"
 
@@ -24,12 +23,12 @@ func managementLANSourceIP(flags runtimeFlags, ip net.IP) net.IP {
 // informSourceIP chooses a safe local source for inform traffic, preferring the
 // management-LAN address and otherwise using the identity IP only when it is
 // already assigned on the host.
-func informSourceIP(flags runtimeFlags, ip net.IP) net.IP {
+func informSourceIP(flags runtimeFlags, ip net.IP, addresses platform.AddressReader) net.IP {
 	if source := managementLANSourceIP(flags, ip); source != nil {
 		return source
 	}
 	candidate := ip.To4()
-	if candidate == nil || !hostHasIPv4(candidate) {
+	if candidate == nil || !hostHasIPv4(candidate, addresses) {
 		return nil
 	}
 	return candidate
@@ -50,7 +49,7 @@ func effectiveDiscoveryInterface(flags runtimeFlags) string {
 
 // resolveManagementIP replaces the fake default when management-LAN mode binds
 // discovery and inform traffic to a preexisting interface.
-func resolveManagementIP(flags runtimeFlags, fallback net.IP, plt platform.Platform) (net.IP, error) {
+func resolveManagementIP(flags runtimeFlags, fallback net.IP, addresses platform.AddressReader) (net.IP, error) {
 	cfg := effectiveManagementLAN(flags)
 	if !cfg.Enabled || cfg.Mode != managementLANModePreexistingInterface {
 		return fallback, nil
@@ -62,79 +61,45 @@ func resolveManagementIP(flags runtimeFlags, fallback net.IP, plt platform.Platf
 		}
 		return ip, nil
 	}
-	if plt == nil {
-		plt = runtimePlatform(flags)
-	}
-	ctx, cancel := context.WithTimeout(context.Background(), observeTimeout)
-	defer cancel()
-	observation, errs := plt.Interface(ctx, cfg.Interface)
-	for _, err := range errs {
-		log.Printf("management LAN interface %s warning: %v", cfg.Interface, err)
-	}
-	ip := net.ParseIP(observation.IP).To4()
-	if ip == nil {
-		return nil, fmt.Errorf("management_lan.interface %s has no IPv4 address; set management_lan.ip or -ip", cfg.Interface)
+	ip, err := managementLANInterfaceIP(cfg, addresses)
+	if err != nil {
+		return nil, err
 	}
 	return ip, nil
 }
 
 // managementLANInterfaceIP returns the first IPv4 address on the selected
 // management interface for validation-time source binding checks.
-func managementLANInterfaceIP(cfg appconfig.ManagementLAN) (net.IP, error) {
-	iface, err := net.InterfaceByName(cfg.Interface)
+func managementLANInterfaceIP(cfg appconfig.ManagementLAN, addresses platform.AddressReader) (net.IP, error) {
+	if addresses == nil {
+		return nil, fmt.Errorf("management_lan.interface %s cannot be checked without platform", cfg.Interface)
+	}
+	identity, err := addresses.InterfaceIdentity(context.Background(), cfg.Interface)
 	if err != nil {
 		return nil, fmt.Errorf("management_lan.interface %s not found: %w", cfg.Interface, err)
 	}
-	addrs, err := iface.Addrs()
-	if err != nil {
-		return nil, fmt.Errorf("read management_lan.interface %s addresses: %w", cfg.Interface, err)
-	}
-	for _, addr := range addrs {
-		ipNet, ok := addr.(*net.IPNet)
-		if !ok {
-			continue
-		}
-		if ip := ipNet.IP.To4(); ip != nil {
-			return ip, nil
-		}
+	if len(identity.IPv4) > 0 {
+		return identity.IPv4[0], nil
 	}
 	return nil, fmt.Errorf("management_lan.interface %s has no IPv4 address", cfg.Interface)
 }
 
 // interfaceHasIPv4 checks whether a configured management IP is actually
 // assigned to the selected local interface.
-func interfaceHasIPv4(ifaceName string, ip net.IP) bool {
-	iface, err := net.InterfaceByName(ifaceName)
-	if err != nil {
+func interfaceHasIPv4(ifaceName string, ip net.IP, addresses platform.AddressReader) bool {
+	if addresses == nil {
 		return false
 	}
-	addrs, err := iface.Addrs()
-	if err != nil {
-		return false
-	}
-	for _, addr := range addrs {
-		ipNet, ok := addr.(*net.IPNet)
-		if !ok {
-			continue
-		}
-		if current := ipNet.IP.To4(); current != nil && current.Equal(ip) {
-			return true
-		}
-	}
-	return false
+	assigned, err := addresses.IPv4Assigned(context.Background(), ifaceName, ip)
+	return err == nil && assigned
 }
 
 // hostHasIPv4 prevents inform source binding to synthetic or unassigned
 // identity addresses.
-func hostHasIPv4(ip net.IP) bool {
-	ifaces, err := net.Interfaces()
-	if err != nil {
+func hostHasIPv4(ip net.IP, addresses platform.AddressReader) bool {
+	if addresses == nil {
 		return false
 	}
-	for _, iface := range ifaces {
-		if interfaceHasIPv4(iface.Name, ip) {
-			return true
-		}
-	}
-	return false
+	assigned, err := addresses.IPv4Assigned(context.Background(), "", ip)
+	return err == nil && assigned
 }

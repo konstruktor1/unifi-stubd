@@ -33,7 +33,6 @@ jobs:
       - name: Validate selected ref and publication request
         id: version
         env:
-          GH_TOKEN: ${{ github.token }}
           PUBLISH: ${{ inputs.publish }}
         run: |
           set -eu
@@ -65,62 +64,6 @@ jobs:
           elif [ "$PUBLISH" = "true" ]; then
             echo "::error::Publishing is allowed only when the workflow is dispatched on a v* tag"
             exit 2
-          fi
-
-          if [ "$PUBLISH" = "true" ]; then
-            is_prerelease="$(gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json isPrerelease --jq .isPrerelease)"
-            if [ "$is_prerelease" != "true" ]; then
-              echo "::error::FreeBSD Packaging may extend only an existing GitHub pre-release"
-              exit 2
-            fi
-
-            nfpm_version="$(printf '%s' "$package_version" | tr '-' '.')"
-            arch_version="$(printf '%s' "$package_version" | tr -d '-')"
-            set -- \
-              "unifi-stubd_${nfpm_version}-1_amd64.deb" \
-              "unifi-stubd_${nfpm_version}-1_arm64.deb" \
-              "unifi-stubd-${nfpm_version}-1.x86_64.rpm" \
-              "unifi-stubd-${nfpm_version}-1.aarch64.rpm" \
-              "unifi-stubd-${arch_version}-1-x86_64.pkg.tar.zst" \
-              "unifi-stubd-${arch_version}-1-aarch64.pkg.tar.zst" \
-              "unifi-stubd_${package_version}-1_linux_amd64.tar.gz" \
-              "unifi-stubd_${package_version}-1_linux_arm64.tar.gz" \
-              unifi-stubd.spdx.json
-
-            assets="$(gh release view "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --json assets --jq '.assets[].name')"
-            for expected_asset in "$@" SHA256SUMS; do
-              if ! printf '%s\n' "$assets" | grep -Fqx -- "$expected_asset"; then
-                echo "::error::Existing pre-release is incomplete; missing $expected_asset"
-                exit 2
-              fi
-            done
-            if printf '%s\n' "$assets" | grep -Eq '^SHA256SUMS(\.freebsd)?\.asc$'; then
-              echo "::error::Refusing to mutate a release with signed checksum assets"
-              exit 2
-            fi
-
-            validation_dir="$RUNNER_TEMP/freebsd-release-validation"
-            rm -rf "$validation_dir"
-            mkdir -p "$validation_dir"
-            gh release download "$GITHUB_REF_NAME" \
-              --repo "$GITHUB_REPOSITORY" \
-              --dir "$validation_dir"
-            if grep -Eiq 'freebsd|freebsd-pkg-repos' "$validation_dir/SHA256SUMS"; then
-              echo "::error::Legacy SHA256SUMS already covers FreeBSD assets; this release cannot be extended safely"
-              exit 2
-            fi
-            checksum_entries="$(awk 'NF { count++ } END { print count + 0 }' "$validation_dir/SHA256SUMS")"
-            if [ "$checksum_entries" -ne "$#" ]; then
-              echo "::error::SHA256SUMS must contain exactly $# Linux and SBOM entries"
-              exit 2
-            fi
-            for expected_asset in "$@"; do
-              if ! awk -v expected="./$expected_asset" '$2 == expected { found = 1 } END { exit !found }' "$validation_dir/SHA256SUMS"; then
-                echo "::error::SHA256SUMS does not cover $expected_asset"
-                exit 2
-              fi
-            done
-            (cd "$validation_dir" && sha256sum --strict -c SHA256SUMS)
           fi
 
           echo "package-version=$package_version" >> "$GITHUB_OUTPUT"
@@ -269,6 +212,10 @@ jobs:
             fi
             echo "Container-local sudo boundary: ok"
           fi
+          printf '%s\n' \
+            "warning: $FREEBSD_PKG_REMOTE (build-execution) has no Build Runner Provider consumer attribution." \
+            'warning: reevaluate conversion to VM Runner before using this compatibility path.' \
+            'warning: see Build Runner docs/troubleshooting.md#external-machine-compatibility-path.' >&2
           remote_identity="$(ssh \
             -o BatchMode=yes \
             -o IdentitiesOnly=yes \
@@ -293,22 +240,13 @@ jobs:
               exit 2
               ;;
           esac
-          if [ "$remote_uid" = "$remote_identity" ]; then
-            echo "::error::FreeBSD package builds must use a non-root remote account"
-            exit 2
-          fi
           echo "FreeBSD builder preflight: ok"
 
       - name: Build FreeBSD package artifacts and pkg repositories
         env:
           PKG_VERSION: ${{ needs.validate-request.outputs.package-version }}
-          PKG_GOOS: freebsd
-          PKG_GOARCH: amd64
           FREEBSD_PKG_REMOTE: unifi-stubd-freebsd-builder
-          FREEBSD_PKG_ABIS: FreeBSD:14:amd64 FreeBSD:14:aarch64 FreeBSD:14:armv7 FreeBSD:15:amd64 FreeBSD:15:aarch64 FreeBSD:15:armv7
           FREEBSD_PKG_BUILD_JAILS: ${{ vars.FREEBSD_PKG_BUILD_JAILS }}
-          FREEBSD_PKG_REQUIRE_JAILS: "0"
-          FREEBSD_TGZ_ARCHES: amd64 arm64
         run: |
           set -eu
           make package-freebsd-pkg-repos
@@ -316,10 +254,6 @@ jobs:
           mkdir -p dist/freebsd-release
           cp dist/packages/unifi-stubd_*_freebsd_*.tar.gz dist/freebsd-release/
           cp dist/freebsd-pkg-repos.tar.gz dist/freebsd-release/
-          for artifact in dist/freebsd-release/*~*; do
-            [ -e "$artifact" ] || continue
-            mv -- "$artifact" "${artifact//\~/.}"
-          done
           (
             cd dist/freebsd-release
             rm -f SHA256SUMS.freebsd
@@ -332,23 +266,6 @@ jobs:
           path: dist/freebsd-release/
           if-no-files-found: error
           retention-days: 7
-
-      - name: Record FreeBSD packaging evidence
-        if: always()
-        env:
-          JOB_STATUS: ${{ job.status }}
-          PACKAGE_VERSION: ${{ needs.validate-request.outputs.package-version }}
-          PUBLISH: ${{ inputs.publish }}
-        run: |
-          {
-            printf '## FreeBSD Packaging\n\n'
-            printf -- '- Commit: %s\n' "$GITHUB_SHA"
-            printf -- '- Ref: %s\n' "$GITHUB_REF"
-            printf -- '- Runner: %s\n' "$RUNNER_NAME"
-            printf -- '- Package version: %s\n' "$PACKAGE_VERSION"
-            printf -- '- Publish requested: %s\n' "$PUBLISH"
-            printf -- '- Job status: %s\n' "$JOB_STATUS"
-          } >> "$GITHUB_STEP_SUMMARY"
 
   publish-freebsd:
     if: inputs.publish

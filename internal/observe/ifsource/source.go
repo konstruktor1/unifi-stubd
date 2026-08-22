@@ -1,40 +1,27 @@
 // Package ifsource maps host interface metadata into payload port overrides.
 package ifsource
 
-// Interface sources convert host NIC state into controller-facing port
-// overrides for port-map and explicit port_overrides[].interface entries.
-
 import (
+	"context"
 	"errors"
-	"log"
 	"net"
 	"runtime"
 	"strings"
 
-	"github.com/konstruktor1/unifi-stubd/internal/device"
 	"github.com/konstruktor1/unifi-stubd/internal/observe"
 )
-
-// EnrichPortOverride applies one host interface snapshot to an override.
-func EnrichPortOverride(override *device.PortOverride, ifaceName string) {
-	observation, errs := ObserveInterface(ifaceName)
-	for _, err := range errs {
-		log.Printf("port %d interface source %s warning: %v", override.Port, ifaceName, err)
-	}
-	if len(errs) > 0 && strings.TrimSpace(observation.Interface) == "" {
-		return
-	}
-	ApplyObservation(override, observation)
-}
 
 // ObserveInterface reads one host interface and returns a portable observation
 // assembled from net.Interface, sysfs on Linux, ifconfig media details, and
 // netstat counters when available.
-func ObserveInterface(ifaceName string) (observe.PortObservation, []error) {
+func ObserveInterface(ctx context.Context, ifaceName string) (observe.PortObservation, []error) {
 	ifaceName = strings.TrimSpace(ifaceName)
 	out := observe.PortObservation{Interface: ifaceName}
 	if ifaceName == "" {
 		return out, []error{errors.New("interface name is required")}
+	}
+	if err := ctx.Err(); err != nil {
+		return out, []error{err}
 	}
 	iface, err := net.InterfaceByName(ifaceName)
 	if err != nil {
@@ -54,11 +41,15 @@ func ObserveInterface(ifaceName string) (observe.PortObservation, []error) {
 			errs = append(errs, err)
 		}
 		out.Stats = stats
+		out.Up = stats.Up
 		out.SpeedMbps = stats.SpeedMbps
 	}
-	details := readHostInterfaceDetails(ifaceName)
+	details := readHostInterfaceDetails(ctx, ifaceName)
+	if err := ctx.Err(); err != nil {
+		return out, append(errs, err)
+	}
 	if details.Up != nil {
-		out.Up = cloneBoolPointer(details.Up)
+		out.Up = details.Up
 	}
 	if out.SpeedMbps <= 0 && details.Speed > 0 {
 		out.SpeedMbps = details.Speed
@@ -66,9 +57,16 @@ func ObserveInterface(ifaceName string) (observe.PortObservation, []error) {
 	if strings.TrimSpace(out.Media) == "" {
 		out.Media = details.Media
 	}
-	counters, ok := readHostInterfaceCounters(ifaceName)
+	counters, ok := readHostInterfaceCounters(ctx, ifaceName)
+	if err := ctx.Err(); err != nil {
+		return out, append(errs, err)
+	}
 	if ok {
 		out.Stats = mergeInterfaceStats(out.Stats, counters)
+	}
+	if out.Up == nil || !*out.Up {
+		out.SpeedMbps = 0
+		out.Stats.SpeedMbps = 0
 	}
 	return out, errs
 }

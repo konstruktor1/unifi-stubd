@@ -7,8 +7,8 @@ import (
 	"strings"
 )
 
-// LoadPath loads one profile YAML file or all profile YAML files in a directory.
-func (r *ProfileRegistry) LoadPath(path string) error {
+// LoadProfilePath loads one profile YAML file or all profile YAML files in a directory.
+func (r *ProfileRegistry) LoadProfilePath(path string) error {
 	info, err := os.Stat(path)
 	if err != nil {
 		return &ProfilePathError{Path: path, Kind: ErrorKindIO, Err: err}

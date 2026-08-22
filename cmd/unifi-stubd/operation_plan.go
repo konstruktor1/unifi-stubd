@@ -22,9 +22,6 @@ func printRuntimePlan(flags runtimeFlags, profile device.Profile, informSchedule
 	fmt.Printf("controller_interval_max: %s\n", flags.controllerIntervalMax)
 	policyStatus := controllerIntervalPolicyStatus(flags, informSchedulePolicy)
 	fmt.Printf("controller_interval_hints_supported: %t\n", policyStatus.Supported)
-	if policyStatus.EvidenceID != "" {
-		fmt.Printf("controller_interval_evidence: %s\n", policyStatus.EvidenceID)
-	}
 	if policyStatus.FirmwareMinimum != "" {
 		fmt.Printf("controller_interval_firmware_minimum: %s\n", policyStatus.FirmwareMinimum)
 	}
@@ -35,14 +32,9 @@ func printRuntimePlan(flags runtimeFlags, profile device.Profile, informSchedule
 		fmt.Printf("controller_interval_policy_reason: %s\n", policyStatus.Reason)
 	}
 	reportingStatus := controllerReportingPolicyStatus(reportingPolicy)
-	if reportingStatus.EvidenceID != "" {
-		fmt.Printf("controller_reporting_evidence: %s\n", reportingStatus.EvidenceID)
-	}
-	if reportingStatus.BehaviorID != "" {
-		fmt.Printf("controller_reporting_behavior: %s\n", reportingStatus.BehaviorID)
-	}
 	fmt.Printf("controller_block_selection_supported: %t\n", reportingStatus.BlockSelection)
 	fmt.Printf("controller_clock_supported: %t\n", reportingStatus.ControllerClock)
+	fmt.Printf("controller_idle_speedtest: %t\n", reportingStatus.IdleSpeedtest)
 	if reportingStatus.Reason != "" {
 		fmt.Printf("controller_reporting_policy_reason: %s\n", reportingStatus.Reason)
 	}
@@ -107,7 +99,6 @@ func printRuntimePlan(flags runtimeFlags, profile device.Profile, informSchedule
 		)
 	}
 	fmt.Printf("lldp_source: %s\n", strings.TrimSpace(flags.lldpSource))
-	fmt.Printf("traffic_source: %s\n", strings.TrimSpace(flags.trafficSource))
 	fmt.Printf("traffic_rates_enabled: %t\n", flags.trafficRatesEnabled)
 	fmt.Printf("wan_health_source: %s\n", strings.TrimSpace(flags.wanHealth.Source))
 	if flags.wanHealth.IntervalSeconds > 0 {
@@ -119,11 +110,7 @@ func printRuntimePlan(flags runtimeFlags, profile device.Profile, informSchedule
 	for _, target := range flags.wanHealth.Targets {
 		fmt.Printf("wan_health_target: port=%d host=%s\n", target.Port, strings.TrimSpace(target.Host))
 	}
-	fmt.Printf("log_source: %s\n", strings.TrimSpace(flags.logSource))
 	fmt.Printf("proc_source: %s\n", strings.TrimSpace(flags.procSource))
-	fmt.Printf("dbus_enabled: %t\n", flags.dbusEnabled)
-	fmt.Printf("dbus_bus: %s\n", strings.TrimSpace(flags.dbusBus))
-	fmt.Printf("syslog_path: %s\n", strings.TrimSpace(flags.syslogPath))
 	fmt.Printf("instance_guard: %s\n", strings.TrimSpace(flags.instanceGuard))
 	fmt.Printf("instance_guard_path: %s\n", strings.TrimSpace(flags.instanceGuardPath))
 	printManagementLANPlan(flags)

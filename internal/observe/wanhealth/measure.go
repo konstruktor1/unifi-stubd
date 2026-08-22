@@ -6,8 +6,8 @@ import (
 	"time"
 )
 
-// MeasureWithRunner executes active WAN health probes with an injectable runner.
-func MeasureWithRunner(ctx context.Context, cfg Config, runner Runner) []Result {
+// Measure executes active WAN health probes using the local OS ping command.
+func Measure(ctx context.Context, cfg Config) []Result {
 	if NormalizeSource(cfg.Source) != SourcePing || len(cfg.Targets) == 0 {
 		return nil
 	}
@@ -30,7 +30,7 @@ func MeasureWithRunner(ctx context.Context, cfg Config, runner Runner) []Result 
 			continue
 		}
 		targetCtx, cancel := context.WithTimeout(ctx, timeout)
-		output, elapsed, err := runner.Ping(targetCtx, host, timeout)
+		output, elapsed, err := ping(targetCtx, host)
 		cancel()
 		if err != nil {
 			result.LastError = sanitizeError(err)
@@ -38,7 +38,7 @@ func MeasureWithRunner(ctx context.Context, cfg Config, runner Runner) []Result 
 			out = append(out, result)
 			continue
 		}
-		latency, ok := ParseLatencyMS(output)
+		latency, ok := parseLatencyMS(output)
 		if !ok {
 			latency = durationMS(elapsed)
 		}

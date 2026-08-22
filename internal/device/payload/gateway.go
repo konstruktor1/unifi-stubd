@@ -1,7 +1,3 @@
-// Package payload derives gateway interface and link-state tables from profile
-// hardware metadata plus passive observations. Explicitly configured WAN/LAN,
-// VLAN, and port-profile assignment metadata may be mirrored to the controller;
-// it is never inferred from controller provisioning or applied to the host.
 package payload
 
 import (

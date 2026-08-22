@@ -20,7 +20,6 @@ type controllerPresence struct {
 	hostname             string
 	portBuildOptions     device.PortBuildOptions
 	announcement         discovery.Announcement
-	discoveryPacket      []byte
 	discoverySkipped     bool
 	discoveryInterface   string
 	discoveryTargets     []string

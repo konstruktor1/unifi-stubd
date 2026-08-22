@@ -26,14 +26,12 @@ func printHumanStatus(status localStatus) {
 	fmt.Printf("controller_interval_min: %s\n", status.Config.ControllerIntervalMin)
 	fmt.Printf("controller_interval_max: %s\n", status.Config.ControllerIntervalMax)
 	fmt.Printf("controller_interval_hints_supported: %t\n", status.Config.ControllerIntervalPolicy.Supported)
-	fmt.Printf("controller_interval_evidence: %s\n", valueOrDash(status.Config.ControllerIntervalPolicy.EvidenceID))
 	fmt.Printf("controller_interval_firmware_minimum: %s\n", valueOrDash(status.Config.ControllerIntervalPolicy.FirmwareMinimum))
 	fmt.Printf("controller_interval_effective_minimum: %s\n", valueOrDash(status.Config.ControllerIntervalPolicy.EffectiveMinimum))
 	fmt.Printf("controller_interval_policy_reason: %s\n", valueOrDash(status.Config.ControllerIntervalPolicy.Reason))
-	fmt.Printf("controller_reporting_evidence: %s\n", valueOrDash(status.Config.ControllerReportingPolicy.EvidenceID))
-	fmt.Printf("controller_reporting_behavior: %s\n", valueOrDash(status.Config.ControllerReportingPolicy.BehaviorID))
 	fmt.Printf("controller_block_selection_supported: %t\n", status.Config.ControllerReportingPolicy.BlockSelection)
 	fmt.Printf("controller_clock_supported: %t\n", status.Config.ControllerReportingPolicy.ControllerClock)
+	fmt.Printf("controller_idle_speedtest: %t\n", status.Config.ControllerReportingPolicy.IdleSpeedtest)
 	fmt.Printf("controller_reporting_policy_reason: %s\n", valueOrDash(status.Config.ControllerReportingPolicy.Reason))
 	fmt.Printf("inform_backoff_max: %s\n", status.Config.InformBackoffMax)
 	fmt.Printf("inform_backoff_jitter_percent: %d\n", status.Config.InformBackoffJitterPercent)
@@ -59,7 +57,6 @@ func printHumanStatus(status localStatus) {
 	printObservationStatus(status.Observe)
 	printPlatformStatus(status.Platform)
 	printLastInform(status.Runtime.LastInform)
-	printInformSession(status.Runtime.InformSession)
 	for _, warning := range status.Warnings {
 		fmt.Printf("warning: %s\n", warning)
 	}
@@ -80,16 +77,9 @@ func printHumanManagementLANStatus(status localStatus) {
 
 func printHumanSourceStatus(status localStatus) {
 	fmt.Printf("lldp_source: %s\n", status.Config.LLDPSource)
-	fmt.Printf("traffic_source: %s\n", status.Config.TrafficSource)
 	fmt.Printf("traffic_rates_enabled: %t\n", status.Config.TrafficRatesEnabled)
 	printWANHealthStatus(status.Config.WANHealth)
-	fmt.Printf("log_source: %s\n", status.Config.LogSource)
 	fmt.Printf("proc_source: %s\n", status.Config.ProcSource)
-	fmt.Printf("dbus_enabled: %t\n", status.Config.DBusEnabled)
-	fmt.Printf("dbus_bus: %s\n", valueOrDash(status.Config.DBusBus))
-	if status.Config.SyslogPath != "" {
-		fmt.Printf("syslog_path: %s\n", status.Config.SyslogPath)
-	}
 }
 
 func printHumanDiscoveryStatus(status localStatus) {
@@ -199,9 +189,7 @@ func printLastInform(last lastInformStatus) {
 	}
 	fmt.Printf("last_inform_cfgversion: %s\n", valueOrDash(last.CFGVersion))
 	fmt.Printf("last_inform_version: %s\n", valueOrDash(last.Version))
-	fmt.Printf("last_inform_attempted_aes_gcm: %t\n", last.AttemptedAESGCM)
-	fmt.Printf("last_inform_used_aes_gcm: %t\n", last.UsedAESGCM)
-	fmt.Printf("last_inform_fallback_to_cbc: %t\n", last.FallbackToCBC)
+	fmt.Printf("last_inform_cipher: %s\n", valueOrDash(last.Cipher))
 	fmt.Printf("last_inform_request_flags: %d\n", last.RequestFlags)
 	fmt.Printf("last_inform_key_source: %s\n", valueOrDash(last.KeySource))
 	fmt.Printf("last_inform_response_body_present: %t\n", last.ResponseBodyPresent)
@@ -271,43 +259,6 @@ func printLastInform(last lastInformStatus) {
 	}
 	if last.Error != "" {
 		fmt.Printf("last_inform_error: %s\n", last.Error)
-	}
-}
-
-// printInformSession renders only bounded protocol metadata. It is suitable for
-// external controller gates because it contains no key, packet body, or raw
-// controller provisioning value.
-func printInformSession(session informSessionStatus) {
-	if session.StartedAt == "" {
-		return
-	}
-	fmt.Printf("inform_session_started_at: %s\n", session.StartedAt)
-	fmt.Printf("inform_session_attempts: %d\n", session.Attempts)
-	fmt.Printf("inform_session_http_200: %d\n", session.HTTP200)
-	fmt.Printf("inform_session_decoded_responses: %d\n", session.DecodedResponses)
-	fmt.Printf("inform_session_parsed_responses: %d\n", session.ParsedResponses)
-	fmt.Printf("inform_session_cbc_requests: %d\n", session.CBCRequests)
-	fmt.Printf("inform_session_gcm_requests: %d\n", session.GCMRequests)
-	fmt.Printf("inform_session_cbc_fallbacks: %d\n", session.CBCFallbacks)
-	fmt.Printf("inform_session_setparam_responses: %d\n", session.SetParamResponses)
-	fmt.Printf("inform_session_noop_responses: %d\n", session.NoopResponses)
-	for _, event := range session.Events {
-		fmt.Printf(
-			"inform_session_event: sequence=%d request_flags=%d key_source=%s status=%d response_body_present=%t response_decoded=%t response_json_parsed=%t response_flags=%d response_type=%s has_mgmt_cfg=%t used_aes_gcm=%t fallback_to_cbc=%t failed=%t\n",
-			event.Sequence,
-			event.RequestFlags,
-			valueOrDash(event.KeySource),
-			event.StatusCode,
-			event.ResponseBodyPresent,
-			event.ResponsePacketDecoded,
-			event.ResponseJSONParsed,
-			event.ResponseFlags,
-			valueOrDash(event.ResponseType),
-			event.HasMgmtCFG,
-			event.UsedAESGCM,
-			event.FallbackToCBC,
-			event.Failed,
-		)
 	}
 }
 

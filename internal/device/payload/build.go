@@ -1,9 +1,6 @@
 // Package payload builds UniFi inform payloads from typed device data.
 package payload
 
-// Build assembles common inform fields before switch or gateway renderers add
-// their controller-specific tables.
-
 import (
 	"encoding/json"
 	"fmt"
@@ -19,15 +16,8 @@ const defaultRequiredVersion = "5.0.0"
 
 // Build returns a JSON inform payload using profile-driven renderer metadata.
 func Build(profile device.Profile, id device.Identity, ports []device.Port) ([]byte, error) {
-	return BuildAt(profile, id, ports, time.Now())
-}
-
-// BuildAt builds an inform payload using an injected local wall clock. The
-// controller offset affects reported payload timestamps only; uptime remains
-// the separate monotonic value supplied on Identity.
-func BuildAt(profile device.Profile, id device.Identity, ports []device.Port, localNow time.Time) ([]byte, error) {
 	profile = normalizePayloadProfile(profile, id)
-	now := reportedWallClock(localNow, id.ControllerTimeOffsetSeconds)
+	now := reportedWallClock(time.Now(), id.ControllerTimeOffsetSeconds)
 	uptime := identityUptime(id.UptimeSeconds)
 	numPorts := len(ports)
 	informURL := id.InformURL

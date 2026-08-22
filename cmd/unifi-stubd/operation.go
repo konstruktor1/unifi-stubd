@@ -14,6 +14,5 @@ const (
 	operationModeHostDirect    = "host-direct"
 	operationModeMacvlan       = "macvlan"
 
-	trafficSourceOff = "off"
-	observeTimeout   = 2 * time.Second
+	observeTimeout = 2 * time.Second
 )

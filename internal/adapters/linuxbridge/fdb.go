@@ -1,6 +1,3 @@
-// Package linuxbridge parses `bridge fdb show` text into structured MAC rows
-// for bridge-observe mode. Runtime code consumes these rows without depending
-// on command-output token positions.
 package linuxbridge
 
 import (

@@ -26,8 +26,8 @@ flowchart LR
   Cmd --> Registry
   Cmd --> Platform["internal/platform"]
   Platform --> Observe["internal/observe Modell"]
-  Linux["Linux: bridge, sysfs, procfs, journalctl, D-Bus, lldpd"] --> Platform
-  BSD["FreeBSD: ifconfig, netstat, syslog, lldpd"] --> Platform
+  Linux["Linux: bridge, sysfs, procfs, lldpd"] --> Platform
+  BSD["FreeBSD: ifconfig, netstat, lldpd"] --> Platform
   PortMap["explizites port-map"] --> Observe
   Observe --> PortView
   PortView --> Payload["internal/device/payload"]
@@ -51,7 +51,8 @@ flowchart LR
 | `internal/device` | kanonische Profil-Structs, Built-in-/externe Profil-Registry, YAML-level `extends`, Validierung, Export/Templates, Portdefinitionen und Portaufloesung | Controller-HTTP, OS-Kommandos, JSON-Payload-Tabellenencoding |
 | `internal/device/payload` | Switch-/Gateway-JSON-Payloads aus typisiertem Device-Profil, Identity und aufgeloesten Ports | Profil-Laden, Port-Erzeugung, modellbasierte Runtime-Ratespiele, Host-Netzwerk |
 | `internal/observe` | normalisierte read-only Observations fuer Bridge- und Port-Map-Modi | direkte Linux-/FreeBSD-Kommandos ausserhalb der Adapter |
-| `internal/platform` | read-only OS-Fassade fuer Interfaces, Bridges, LLDP, Logs, procfs, D-Bus, Capabilities | Payload-Rendering, Controller-Adoption-Entscheide |
+| `internal/observe/ifsource` | Low-Level-Host-Interface-Adapter und reine Observation-to-Override-Abbildung; OS-Reads werden ueber `internal/platform` erreicht | Payload-Policy, Controller-Verhalten |
+| `internal/platform` | read-only OS-Fassade fuer Interfaces, Bridges, LLDP, procfs und Capabilities | Payload-Rendering, Controller-Adoption-Entscheide |
 | `internal/adapters/linuxbridge` | Linux-Bridge-FDB-Command-Parsing | Payload-Policy |
 | `internal/adapters/freebsdifconfig` | FreeBSD-Bridge-/Interface-Parser-Helper | Payload-Policy |
 | `internal/discovery` | UDP-Discovery-TLV-Bau | Adoption-State |
@@ -91,9 +92,10 @@ keine Pakete, startet keine Listener und schreibt keine normalisierten Configs.
 ## Konfiguration und Profile
 
 Konfiguration ist an der Service-Grenze absichtlich explizit. Die paketierte
-YAML zeigt jedes unterstuetzte Feld mit konservativen Defaults. Runtime-Defaults
-liegen in `internal/config.Default`, waehrend CLI-Registrierung und YAML-
-Anwendung dieselbe Setting-Registry in `cmd/unifi-stubd/settings.go` nutzen.
+YAML ist eine konservative Startkonfiguration. Schema und
+`internal/config.Default` definieren alle Felder und Runtime-Defaults, waehrend
+CLI-Registrierung und YAML-Anwendung dieselbe Setting-Registry in
+`cmd/unifi-stubd/settings.go` nutzen.
 
 Profile beschreiben die Geraeteform. Sie sind Daten, keine Code-Hooks. Ein
 Profil besitzt:
@@ -186,19 +188,24 @@ UniFi-Port auf eine bekannte Host-NIC mappt. Auch dieser Modus ist read-only.
 
 ## Plattform-Fassade
 
-`internal/platform` ist die einzige Runtime-Grenze, die optionale Host-
-Funktionen ansprechen darf. Sie stellt kleine Interfaces bereit:
+Fuer Runtime-Identity, Routen-/Link-Auswahl sowie Bridge-/Port-Beobachtung ist
+`internal/platform` die Grenze fuer optionale Host-Funktionen. Sie stellt
+kleine Interfaces bereit:
 
 - `InterfaceReader` fuer Link-State, Adressen, Speed/Media und Counter;
-- `BridgeReader` ueber `observe.ObservationSource`;
+- `EgressLinkReader` fuer begrenzte lokale Routen- und Uplink-Speed-Beobachtung;
+- `AddressReader` fuer Host-Interface-Identity und IPv4-Zuweisungspruefungen;
+- `observe.ObservationSource` fuer Bridge- und Port-Beobachtung;
 - `LLDPReader` fuer passives `lldpcli -f json show neighbors`;
-- `LogReader` fuer `journalctl` oder Syslog-Dateien;
-- `ProcReader` fuer Linux-`/proc/net/dev`-Counter;
-- `ServiceBus` fuer optionale D-Bus-Capability-Pruefungen.
+- `ProcReader` fuer Linux-`/proc/net/dev`-Counter.
 
 Die Plattform-Schicht meldet Capability-State als `disabled`, `available`,
 `missing` oder `unsupported`. Fehlende optionale Tools sind Status-Warnungen,
 kein Grund fuer Host-Mutation oder Dependency-Installation.
+
+Discovery-Paketaufbau und aktive WAN-Health-Probes behalten ihre eigenen,
+begrenzten Host-Adapter; sie liegen ausserhalb des passiven Observation-Scopes
+dieser Fassade.
 
 ## Payload-Grenze
 
@@ -306,18 +313,7 @@ Diese Regeln sind architektonisch, nicht nur Implementierungsstil:
 | --- | --- | --- |
 | `stub`-Profilpayload | unterstuetzt | unterstuetzt |
 | `bridge-observe` FDB | `bridge fdb show br <bridge>` plus Member-Rollenklassifikation | Parser fuer `ifconfig <bridge> addr` plus dasselbe Member-Rollenmodell; Runtime-Paritaet bleibt konservativ |
-| `bridge-observe` Counter/Speed | `/sys/class/net`, optionale `/proc/net/dev`-Counter | reichere Bridge-Counter geplant; `port-map` kann Interface-Metadaten lesen |
+| `bridge-observe` Counter/Speed | `/sys/class/net`, optionale `/proc/net/dev`-Counter | `ifconfig`-Media, `netstat`-Counter |
 | `port-map` Interface-Metadaten | `net.Interface`, sysfs, optionale Command-Fallbacks | `net.Interface`, optional `ifconfig`/`netstat` |
 | passives LLDP | `lldpcli -f json show neighbors` | `lldpcli -f json show neighbors`, wenn lldpd installiert ist |
-| Logs | optional `journalctl --output=json` | optionale Syslog-Datei, Default `/var/log/messages` |
-| D-Bus | optionale System-/Session-Bus-Pruefung | optionale Best-Effort-Pruefung |
-| Event-Subscription | geplant | geplant |
 | Native Helper/C++ | nicht genutzt | nicht genutzt |
-
-## Bekannte Erweiterungspunkte
-
-- `uplink_neighbor.remote_port` als explizite Topologie-Metadaten.
-- LLDP-abgeleitete Uplink-Nachbarwahl mit manuellem Override.
-- reichere FreeBSD-Media-/Counter-Reader, eventuell ueber `x/sys/unix`.
-- Event-Subscriptions fuer Bridge-/FDB-Aenderungen statt Polling.
-- aktiver macvlan-/ipvlan- oder VLAN-Lifecycle nur nach separatem Review-Design.

@@ -11,7 +11,7 @@ type portOverrideSetter func(*Port, PortOverride)
 func setPortOverrideAssignment(port *Port, override PortOverride) {
 	port.VLAN = override.VLAN
 	if len(override.IPv6) > 0 {
-		port.IPv6 = cloneStrings(override.IPv6)
+		port.IPv6 = cloneNonEmptySlice(override.IPv6)
 	}
 }
 

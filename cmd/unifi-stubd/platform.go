@@ -1,7 +1,6 @@
 // Platform wiring builds the read-only OS adapter used by operation modes and
 // status output. It deliberately keeps host observation behind one boundary so
-// controller-facing payload logic cannot start calling Linux, FreeBSD, D-Bus,
-// LLDP, or log readers directly.
+// controller-facing payload logic cannot call OS integrations directly.
 package main
 
 import (
@@ -24,13 +23,8 @@ func runtimePlatform(flags runtimeFlags) platform.Platform {
 // platform adapter.
 func runtimePlatformConfig(flags runtimeFlags) platform.Config {
 	return platform.Config{
-		LLDPSource:    strings.TrimSpace(flags.lldpSource),
-		TrafficSource: strings.TrimSpace(flags.trafficSource),
-		LogSource:     strings.TrimSpace(flags.logSource),
-		ProcSource:    strings.TrimSpace(flags.procSource),
-		DBusEnabled:   flags.dbusEnabled,
-		DBusBus:       strings.TrimSpace(flags.dbusBus),
-		SyslogPath:    strings.TrimSpace(flags.syslogPath),
+		LLDPSource: strings.TrimSpace(flags.lldpSource),
+		ProcSource: strings.TrimSpace(flags.procSource),
 	}
 }
 

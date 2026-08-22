@@ -14,8 +14,7 @@ coverage.out
 # VM, and other Tier 3 data belongs to the companion project unifi-stubd-labs.
 lab/stub/captures/
 
-# Machine-local provider activation, runtime, and acknowledgement state.
-/build-runner/activate.local.sh
+# Machine-local provider runtime and acknowledgement state.
 /build-runner/provider-ack.json
 /build-runner/runtime/
 /code-checker/activate.local.sh

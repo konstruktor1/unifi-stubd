@@ -2,17 +2,16 @@
 schema_version = 1
 profile = "mandatory"
 languages = ["go", "javascript", "bash"]
-paradigms = []
+paradigms = ["procedural"]
 architectures = ["modular-monolith"]
+patterns = ["facade"]
 missing_tools = "fail"
 tool_resolution = "project-first"
 
 exclude = [
-  "build-runner/activate.local.sh",
   "build-runner/runtime/**",
   "code-checker/activate.local.sh",
 ]
 
 [maintenance.anti_bloat]
 enabled = true
-cadence_days = 30

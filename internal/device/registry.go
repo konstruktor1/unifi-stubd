@@ -1,6 +1,3 @@
-// Package device combines built-in and external profile records and
-// enforces duplicate and override rules before profiles reach CLI validation or
-// payload rendering.
 package device
 
 import (
@@ -67,9 +64,4 @@ type ProfileRegistry struct {
 // NewProfileRegistry returns a registry initialized with built-in profiles.
 func NewProfileRegistry() ProfileRegistry {
 	return ProfileRegistry{records: cloneRecords(builtinProfileRecords())}
-}
-
-// LoadProfilePath loads one external profile file or profile directory.
-func (r *ProfileRegistry) LoadProfilePath(path string) error {
-	return r.LoadPath(path)
 }

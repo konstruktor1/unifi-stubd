@@ -19,7 +19,7 @@ func normalizeMemberPortMap(values map[string]int) map[string]int {
 }
 
 // normalizeMemberPorts trims source-provided member observations before merging
-// them into the legacy snapshot shape.
+// them into the snapshot.
 func normalizeMemberPorts(values map[string]PortObservation) map[string]PortObservation {
 	if len(values) == 0 {
 		return nil
@@ -49,15 +49,5 @@ func normalizeMemberRoles(values map[string]BridgeMemberRole) map[string]BridgeM
 		}
 		out[member] = role
 	}
-	return out
-}
-
-// cloneStrings detaches ignored-member lists passed to observation sources.
-func cloneStrings(values []string) []string {
-	if len(values) == 0 {
-		return nil
-	}
-	out := make([]string, len(values))
-	copy(out, values)
 	return out
 }

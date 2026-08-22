@@ -36,8 +36,8 @@ func (p hostPlatform) Ports(ctx context.Context, cfg observe.PortMapConfig) (obs
 // Interface reads one host interface and optionally enriches counters from
 // procfs when that source is enabled.
 func (p hostPlatform) Interface(ctx context.Context, iface string) (observe.PortObservation, []error) {
-	observation, errs := ifsource.ObserveInterface(iface)
-	if p.goos != goosLinux || p.cfg.ProcSource != ProcSourceProcFS {
+	observation, errs := ifsource.ObserveInterface(ctx, iface)
+	if ctx.Err() != nil || p.goos != goosLinux || p.cfg.ProcSource != ProcSourceProcFS {
 		return observation, errs
 	}
 	// procfs can provide counters when sysfs/interface probing found link

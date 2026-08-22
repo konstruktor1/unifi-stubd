@@ -1,11 +1,9 @@
 // Package portmap converts explicit port-map config into payload overrides.
 package portmap
 
-// Port-map conversion turns explicit config entries into ordinary payload port
-// overrides so renderer code uses one mapping path.
-
 import (
 	"context"
+	"errors"
 	"strings"
 
 	appconfig "github.com/konstruktor1/unifi-stubd/internal/config"
@@ -14,19 +12,13 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/observe/ifsource"
 )
 
-// Overrides returns payload overrides for explicit port mappings.
-func Overrides(mappings []appconfig.PortMapping) []device.PortOverride {
-	overrides, _ := OverridesFromSource(context.Background(), nil, mappings)
-	return overrides
-}
-
 // OverridesFromSource returns payload overrides from a portable observation source.
 func OverridesFromSource(ctx context.Context, source observe.ObservationSource, mappings []appconfig.PortMapping) ([]device.PortOverride, []error) {
 	if len(mappings) == 0 {
 		return nil, nil
 	}
 	if source == nil {
-		return legacyOverrides(mappings), nil
+		return nil, []error{errors.New("observation source is required")}
 	}
 	observation, errs := source.Ports(ctx, observe.PortMapConfig{Mappings: observePortMappings(mappings)})
 	return OverridesFromObservation(mappings, observation), errs
@@ -61,28 +53,6 @@ func OverrideFromObservation(port int, observation observe.PortObservation) devi
 	}
 	ifsource.ApplyObservation(&override, observation)
 	return override
-}
-
-// legacyOverrides preserves the direct ifsource path for callers that do not
-// provide a portable observation source.
-func legacyOverrides(mappings []appconfig.PortMapping) []device.PortOverride {
-	out := make([]device.PortOverride, 0, len(mappings))
-	for _, mapping := range mappings {
-		override := device.PortOverride{Port: mapping.Port}
-		switch {
-		case strings.TrimSpace(mapping.Interface) != "":
-			override.Interface = strings.TrimSpace(mapping.Interface)
-			ifsource.EnrichPortOverride(&override, override.Interface)
-		case mapping.Disabled:
-			override = disabledOverride(mapping.Port)
-		case mapping.Unmapped:
-			continue
-		default:
-			continue
-		}
-		out = append(out, override)
-	}
-	return out
 }
 
 // disabledOverride renders a mapped port as explicitly disabled and down.

@@ -60,13 +60,6 @@ func gatewayInterfaceName(profile device.Profile, portIndex int) string {
 	return prefix + strconv.Itoa(portIndex-1)
 }
 
-// gatewayInterfaceNameForPort keeps the controller-facing interface identity
-// tied to the physical profile port. Gateway remaps change Role/NetworkGroup;
-// they do not rename the profile ethN identity.
-func gatewayInterfaceNameForPort(profile device.Profile, port device.Port) string {
-	return gatewayInterfaceName(profile, port.Index)
-}
-
 func gatewayUplinkInterfaceName(profile device.Profile, ports []PortView) string {
 	for _, view := range ports {
 		if view.Uplink && strings.TrimSpace(view.GatewayInterface.IfName) != "" {

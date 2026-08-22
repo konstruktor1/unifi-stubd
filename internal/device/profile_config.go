@@ -1,4 +1,3 @@
-// Package device loads and stores embedded device profile data.
 package device
 
 // Embedded profile config decoding turns checked-in YAML documents into

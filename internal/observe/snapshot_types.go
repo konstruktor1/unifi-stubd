@@ -2,22 +2,23 @@ package observe
 
 import "github.com/konstruktor1/unifi-stubd/internal/device"
 
-// Config selects passive Linux observation sources.
+// Config selects passive interface and bridge observation sources.
 type Config struct {
 	// Interface is the host interface used for counters and link speed.
 	Interface string
-	// Bridge is the Linux bridge used for FDB MAC table data.
+	// Bridge is the host bridge used for FDB MAC table data.
 	Bridge string
 	// IgnoredMembers excludes bridge member interfaces from UniFi port mapping.
 	IgnoredMembers []string
 	// MemberPortMap pins bridge member interfaces to one-based UniFi ports.
 	MemberPortMap map[string]int
-	// SysfsRoot is the sysfs root, usually /sys.
-	SysfsRoot string
 }
 
 // InterfaceStats contains passive counters and link speed for one interface.
 type InterfaceStats struct {
+	// Up is the Linux carrier state when sysfs reported it. It is merge
+	// metadata; link state is rendered through the owning port.
+	Up *bool `json:"-"`
 	// CountersSet reports that all counter fields were read successfully. It is
 	// intentionally omitted from status JSON because it is merge metadata.
 	CountersSet bool `json:"-"`
@@ -45,6 +46,8 @@ type Snapshot struct {
 	Interface string
 	// Bridge is the observed Linux bridge name.
 	Bridge string
+	// Up is the observed uplink state. Nil means the source did not report it.
+	Up *bool
 	// Stats contains counters and link speed from the observed interface.
 	Stats InterfaceStats
 	// MACs contains learned MAC entries flattened for the uplink fallback.

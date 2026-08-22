@@ -1,6 +1,3 @@
-// Package adoption persists the minimal controller state needed for later inform
-// requests. The env mapping table intentionally whitelists accepted mgmt_cfg
-// keys instead of applying arbitrary controller provisioning data.
 package adoption
 
 import (

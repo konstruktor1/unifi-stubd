@@ -29,17 +29,12 @@ func validateOperationFlags(flags *runtimeFlags) error {
 		return fmt.Errorf("invalid -lldp-source %q; use off or lldpd", lldpSource)
 	}
 
-	trafficSource := strings.ToLower(strings.TrimSpace(flags.trafficSource))
-	if trafficSource == "" {
-		trafficSource = trafficSourceOff
+	flags.procSource = strings.ToLower(strings.TrimSpace(flags.procSource))
+	if flags.procSource == "" {
+		flags.procSource = platform.SourceOff
 	}
-	flags.trafficSource = trafficSource
-	if trafficSource != trafficSourceOff {
-		return fmt.Errorf("invalid -traffic-source %q; only off is implemented", trafficSource)
-	}
-
-	if err := validateMetadataSources(flags); err != nil {
-		return err
+	if flags.procSource != platform.SourceOff && flags.procSource != platform.ProcSourceProcFS {
+		return fmt.Errorf("invalid -proc-source %q; use off or procfs", flags.procSource)
 	}
 	if err := validateInstanceGuard(flags); err != nil {
 		return err
@@ -55,38 +50,6 @@ func validateOperationFlags(flags *runtimeFlags) error {
 	}
 	if iface := strings.TrimSpace(flags.discoveryInterface); strings.Contains(iface, "/") {
 		return fmt.Errorf("invalid -discovery-interface %q", iface)
-	}
-	return nil
-}
-
-func validateMetadataSources(flags *runtimeFlags) error {
-	flags.logSource = strings.ToLower(strings.TrimSpace(flags.logSource))
-	if flags.logSource == "" {
-		flags.logSource = platform.SourceOff
-	}
-	switch flags.logSource {
-	case platform.SourceOff, platform.LogSourceJournalctl, platform.LogSourceSyslog:
-	default:
-		return fmt.Errorf("invalid -log-source %q; use off, journalctl, or syslog", flags.logSource)
-	}
-
-	flags.procSource = strings.ToLower(strings.TrimSpace(flags.procSource))
-	if flags.procSource == "" {
-		flags.procSource = platform.SourceOff
-	}
-	switch flags.procSource {
-	case platform.SourceOff, platform.ProcSourceProcFS:
-	default:
-		return fmt.Errorf("invalid -proc-source %q; use off or procfs", flags.procSource)
-	}
-	flags.dbusBus = strings.ToLower(strings.TrimSpace(flags.dbusBus))
-	if flags.dbusBus == "" {
-		flags.dbusBus = platform.DBusBusSystem
-	}
-	switch flags.dbusBus {
-	case platform.DBusBusSystem, platform.DBusBusSession:
-	default:
-		return fmt.Errorf("invalid -dbus-bus %q; use system or session", flags.dbusBus)
 	}
 	return nil
 }

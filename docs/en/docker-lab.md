@@ -8,35 +8,32 @@ The gate uses one product fixture, `stub-bridge-observe`. The remaining
 services are provisioning only: UniFi Network, MongoDB, a controller API
 helper, and a browser helper. Payload dumps, local status schemas, gateway
 commands, synthetic port maps, and management-LAN variants are not separate
-product gates.
+controller gates.
 
-## Acceptance command
+## Controller gate
 
-Run the product acceptance on the latest published Stable and latest published
+Run the controller-facing gate on the latest published Stable and latest published
 Release Candidate:
 
 ```sh
-BUILD_RUNNER_DIR=/path/to/build-runner make integration-nonunifi-metrics
+make integration-nonunifi-metrics
 ```
 
 The matrix asks Ubiquiti's release service for both versions at the start of
 every run; neither channel is locked in the repository. It builds the product
 once and runs the same bytes in both disposable controller lanes.
 
-The acceptance succeeds only when both lanes prove:
+The gate succeeds only when both lanes prove:
 
 - the actual controller reports the resolved version;
 - the US8 is visible before adoption and accepts controller-triggered adoption;
-- both metric reads report the US8 adopted and connected;
-- bounded bidirectional bridge traffic makes both controller-visible root
-  counters advance between reads;
-- controller readback reports `uplink0` up with the observed speed and positive
-  current uplink and port rates;
-- the device view shows the US8 with the observed speed and positive `Down`
-  and `Up` traffic values.
+- while bounded bidirectional bridge traffic runs, the device view shows the
+  observed speed and positive `Down` and `Up` traffic values.
 
 These are observations at the product boundary. The gate intentionally does
 not reproduce the product's own JSON structures in assertion helpers.
+Full product acceptance also requires the separate host-safety and
+no-fabrication evidence defined in the [requirements](requirements.md).
 
 ## Evidence and cleanup
 
@@ -44,13 +41,7 @@ The Stable/RC matrix keeps uncommitted run artifacts below
 `dist/controller-channel-matrix/`:
 
 - resolved Stable and RC versions and release metadata;
-- controller readback logs for both lanes; and
-- only after both lanes and cleanup succeed, the accepted binary plus
-  `accepted.env` with product version, OS, architecture, and binary SHA-256.
-
-A failed run has no acceptance marker. A claim applies only to the accepted
-binary in that exact run directory; a later product or gate change requires
-another run.
+- product-gate logs for both lanes.
 
 Each lane starts with empty controller and database volumes. On success and
 failure, the gate removes its containers, networks, named volumes, orphans, and

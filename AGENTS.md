@@ -40,19 +40,18 @@ thin adapters for common tools and should not duplicate project rules:
 All Go-dependent work must run through the Build Runner. Treat local Go and
 locally installed Go tools as unavailable: do not probe for, install, restore,
 or invoke them, including cached `golang.org/toolchain` binaries. Use the
-stable project name `unifi-stubd` and the configured provider checkout:
+stable project name `unifi-stubd` and the prepared consumer runtime entry:
 
 ```sh
-. ./build-runner/activate.local.sh
 PROJECT_NAME=unifi-stubd
 export BUILD_RUNNER_CONTROLLER_IMAGE=local/build-runner-controller:unifi-stubd-go
-"$BUILD_RUNNER_DIR/build-runner" --project-name "$PROJECT_NAME" run --tier 1 --service go -- make check
-"$BUILD_RUNNER_DIR/build-runner" --project-name "$PROJECT_NAME" run --tier 1 --service go -- make lint
-"$BUILD_RUNNER_DIR/build-runner" --project-name "$PROJECT_NAME" run --tier 1 --service go -- make test
-"$BUILD_RUNNER_DIR/build-runner" --project-name "$PROJECT_NAME" run --tier 1 --service go -- make package
+./build-runner/runtime/entry build-runner --project-name "$PROJECT_NAME" run --tier 1 --service go -- make check
+./build-runner/runtime/entry build-runner --project-name "$PROJECT_NAME" run --tier 1 --service go -- make lint
+./build-runner/runtime/entry build-runner --project-name "$PROJECT_NAME" run --tier 1 --service go -- make test
+./build-runner/runtime/entry build-runner --project-name "$PROJECT_NAME" run --tier 1 --service go -- make package
 ```
 
-The product gate has one runner-aware consumer entry point. On the host,
+The controller-facing Stable/RC gate has one runner-aware consumer entry point. On the host,
 `make integration-nonunifi-metrics` delegates to the committed Build Runner
 instance manifest; inside the canonical runner workspace it executes the lab
 payload. Do not invoke
@@ -68,43 +67,61 @@ consumer checkout. `/tmp` and `/private/tmp` must not be used as its consumer
 project, source tree, workspace, manifest store, artifact store, or evidence
 store.
 
-Before planning, delegation, or work that may use either provider, primary and
-delegated agents use the reviewed consumer-local activation, run each
-provider's project-bound release status, and read its exact current consumer
-contract, operational guide, and named release note from the reported provider
-commit. Apply current Consumer requirements and every matching Direct-Upgrade
-Ledger row. Reread after provider path, version, commit, backend, or adoption
-state changes, keep both providers read-only, and stop provider-dependent work
-if required material is unavailable.
+Before planning, delegation, or work that may use Build Runner, primary and
+delegated agents resolve the provider root through the reviewed consumer-local
+runtime entry and invoke direct `bin/provider status build-runner --json` from
+the physical consumer root. Treat its lifecycle result as authoritative, read
+its ordered context, current contract, operational guide, and named release
+note from the reported provider commits, and use only the primary for
+`provider update build-runner` after that review.
+Before planning, delegation, or work that may use Code Checker, use the
+reviewed stable `code-checker` command with this exact consumer root and run
+project-bound release status first. Treat a successful response from that
+reviewed command as authoritative. Bind its reported provider checkout,
+launcher, exact consumer project, and separate consumer Git root; read the
+current contract, guide, and named release note from the reported commit.
+Do not implement, copy, or test another status or route validator, pin an
+expected Code Checker version or commit, or repeat provider-owned schema,
+canonicality, launcher, boundary, or adoption consistency checks.
+Never discover, construct, repair, or replace either provider route. Apply
+current Consumer requirements and every matching Direct-Upgrade Ledger row.
+Reread after provider path, version, commit, backend, or adoption state
+changes, keep both providers read-only, and stop provider-dependent work if
+required material is unavailable.
 Delegates report only readiness or concrete blockers; only the primary agent
 confirms or acknowledges a release after the complete consumer review.
 
-The adopted Build Runner identity is `6.13.0` at commit
-`e2e5907da0d5bd4be6b56aca24698547decf8406`; release adoption is automatic.
+Build Runner release adoption is automatic; project-bound release status is
+the current identity authority.
 
 Build Runner and Code Checker are independent providers of equal standing for
 this consumer. Build Runner supplies execution environments; Code Checker
 supplies code checking and Anti-Bloat. An unqualified request to check the
 provider means checking both provider relationships independently. Bind Code
-Checker explicitly with `CODE_CHECKER_DIR`, follow its own usage instructions,
-and keep its configuration and results consumer-owned. Neither provider adopts,
-discovers, or replaces the other.
+Checker only from its authoritative project-bound release status and keep its
+configuration and results consumer-owned. Neither provider adopts, discovers,
+or replaces the other.
 Passing the read-only Code Checker checkout into a Build Runner artifact with
-`BUILD_RUNNER_HOST_PATH_CODE_CHECKER_SOURCE="$CODE_CHECKER_DIR"` is transport
-only; it does not merge provider identity, authority, or ownership.
+`BUILD_RUNNER_HOST_PATH_CODE_CHECKER_SOURCE` is transport only; its value must
+be the provider checkout reported by Code Checker status. It does not merge
+provider identity, authority, or ownership.
+Consumer Make targets receive the four reported route fields as
+`CODE_CHECKER_PROVIDER_CHECKOUT`, `CODE_CHECKER_PROVIDER_LAUNCHER`,
+`CODE_CHECKER_CONSUMER_PROJECT`, and `CODE_CHECKER_CONSUMER_GIT_ROOT`; they do
+not infer replacements.
 
-The adopted Code Checker provider identity is `0.8.0` at commit
-`a30d6a688fcfbb381e0081599902f904e2666507`; its release selection is automatic.
-Its function IDs are `code-checker-check`, `code-checker-antibloat`, and
+Code Checker's function IDs are `code-checker-check`, `code-checker-antibloat`, and
 `code-checker-i18n`; this consumer does not subscribe to the optional i18n
 function.
 `code-checker.toml` subscribes this consumer to Anti-Bloat/Anti-Slop.
-`make code-checker` runs the Go-, JavaScript-, and Bash-aware gate through the
-Build Runner environment;
-`make anti-bloat-changed` and `make anti-bloat-full` request the canonical
-scope instruction. A plan alone is not cleanup or quality evidence: the agent
-must resolve the consumer-owned scope, apply the policy, and run executable
-product gates.
+`make code-checker` is the single complete pre-merge gate. It runs the
+consumer's product and security checks through Build Runner, then the Go-,
+JavaScript-, and Bash-aware Code Checker component;
+`make anti-bloat-changed` and `make anti-bloat-full` issue the canonical work
+orders; the changed scope requires the accepted task base through
+`CODE_CHECKER_ANTI_BLOAT_BASE`. A work order alone is not cleanup or quality
+evidence: the agent must resolve the consumer-owned scope, apply the policy,
+and run the one canonical consumer gate named by the work order.
 
 The direct QEMU manager in the `unifi-stubd-labs` companion repository remains
 an external-machine compatibility path for test/lab lifecycle. Its wrapper
@@ -114,9 +131,15 @@ leave execution and ownership unchanged. Reevaluate conversion on every use;
 never infer or apply adoption without a truthful observed source, a compatible
 blueprint/service, reviewed parity, and separate authority.
 
-`make check` is the normal pre-merge command. It verifies the golangci-lint
-configuration, runs lint, enforces repository policy, validates packaged
-configuration/profile YAML, and runs `go test ./...`.
+The direct FreeBSD packaging builder is also an external-machine compatibility
+path without Provider consumer attribution. It cannot supply Go build or
+release evidence until an authorized VM Runner or reviewed split-build route
+owns its compilation step.
+
+`make check` is the runner-local product subgate. It verifies the
+golangci-lint configuration, runs lint, enforces repository policy, validates
+packaged configuration/profile YAML, and runs `go test ./...`; it is not the
+complete pre-merge gate by itself.
 
 The repository uses:
 

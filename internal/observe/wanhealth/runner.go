@@ -7,10 +7,10 @@ import (
 	"time"
 )
 
-// Ping executes one OS ping. A context timeout bounds platforms whose ping
+// ping executes one OS ping. A context timeout bounds platforms whose ping
 // flags differ, so no raw ICMP privileges or platform-specific timeout flags
 // are required here.
-func (CommandRunner) Ping(ctx context.Context, host string, _ time.Duration) ([]byte, time.Duration, error) {
+func ping(ctx context.Context, host string) ([]byte, time.Duration, error) {
 	start := time.Now()
 	cmd := exec.CommandContext(ctx, "ping", "-c", "1", host)
 	output, err := cmd.CombinedOutput()

@@ -1,0 +1,34 @@
+{
+  "schema_version": 1,
+  "claimed_services": [
+    "code-checker"
+  ],
+  "active_services": {},
+  "provider_provider_path_classification": {
+    "pp_invocation_route": {
+      "json_fields": "The provider_root field from provider --json and the provider.provider_root field from catalog --json.",
+      "absolute_path_rule": "One canonical absolute host-local root is required. The paired provider_launcher remains the relative bin/provider-provider; a second absolute PP launcher is forbidden.",
+      "portability": "Version plus commit is the portable PP identity. The root is only its local invocation anchor and is rebound per host."
+    },
+    "domain_provider_route_and_endconsumer_boundary": {
+      "json_fields": "subject.route.provider_root, subject.route.provider_launcher, consumer.project, consumer.git_root.",
+      "absolute_path_rule": "Canonical absolute paths are required so PP can enforce the exact executable, project and Git-root boundary without discovery or repair.",
+      "portability": "These fields are a host-local invocation envelope, not portable contract or state data."
+    },
+    "consumer_local_binding": {
+      "json_fields": "The provider_root, provider_launcher, consumer_project and consumer_git_root values in <provider-id>/runtime/provider.env.",
+      "absolute_path_rule": "Canonical absolute paths are required and bound to the validated launcher identity.",
+      "portability": "provider.env and its entry are ignored local runtime artifacts, not portable identity and not transferable between hosts. Recreate them with prepare on the destination host."
+    },
+    "host_local_result_projections": {
+      "json_fields": "The route, boundary and state-file locations in status or acknowledge.status, any path in diagnostic error, and entry plus provider_env in prepare.",
+      "absolute_path_rule": "Absolute paths are allowed because they locate the objects used by that invocation.",
+      "portability": "Results are local observations. Do not persist or relay these locators as portable identity, contract or lifecycle state."
+    },
+    "portable_contract_and_state": {
+      "json_fields": "subject.documentation, release documentation, consumer.state selectors, registration/acknowledgement identity JSON and adoption mode.",
+      "absolute_path_rule": "Filesystem locations are safe relative values where the schema defines a path; canonical host-absolute filesystem paths are forbidden. Registration and acknowledgement contain only exact version and commit.",
+      "portability": "These values are independent of a host route. Opaque context references remain provider-owned; the domain provider must keep its typed portable references free of host-local absolute filesystem paths. PP does not reinterpret their Fach meaning."
+    }
+  }
+}

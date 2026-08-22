@@ -1,6 +1,3 @@
-// Package adoption stores only sanitized lifecycle and inform-key metadata.
-// Controller provisioning blocks are summarized before they can reach these
-// persisted structures.
 package adoption
 
 // State describes the local adoption lifecycle state.

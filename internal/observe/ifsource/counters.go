@@ -1,6 +1,7 @@
 package ifsource
 
 import (
+	"context"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -11,8 +12,8 @@ import (
 
 // readHostInterfaceCounters uses netstat as a portable fallback when sysfs did
 // not provide complete counters.
-func readHostInterfaceCounters(ifaceName string) (observe.InterfaceStats, bool) {
-	out, err := exec.Command("netstat", "-ibn", "-I", ifaceName).Output()
+func readHostInterfaceCounters(ctx context.Context, ifaceName string) (observe.InterfaceStats, bool) {
+	out, err := exec.CommandContext(ctx, "netstat", "-ibn", "-I", ifaceName).Output()
 	if err != nil {
 		return observe.InterfaceStats{}, false
 	}

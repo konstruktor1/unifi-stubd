@@ -1,6 +1,3 @@
-// Package platform imports passive LLDP neighbor data from lldpd. The stub
-// never sends LLDP frames itself; this file only normalizes lldpcli JSON into
-// portable neighbor facts that payload/status code can consume.
 package platform
 
 import (

@@ -20,7 +20,7 @@ and the strict RC result remains blocked upstream. See [Compatibility](compatibi
 
 ## Next step
 
-Rerun the unmodified Stable/RC product gate when Ubiquiti publishes a new RC.
+Rerun the unmodified controller-facing Stable/RC gate when Ubiquiti publishes a new RC.
 Until then, complete the focused host-safety proof for outcome 2. Do not patch
 the controller artifact, weaken the visible-metrics requirement, or change the
 Stub without evidence of incorrect product behavior. Installation work begins

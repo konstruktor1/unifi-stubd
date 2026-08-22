@@ -24,8 +24,8 @@ flowchart LR
   Cmd --> Registry
   Cmd --> Platform["internal/platform"]
   Platform --> Observe["internal/observe model"]
-  Linux["Linux: bridge, sysfs, procfs, journalctl, D-Bus, lldpd"] --> Platform
-  BSD["FreeBSD: ifconfig, netstat, syslog, lldpd"] --> Platform
+  Linux["Linux: bridge, sysfs, procfs, lldpd"] --> Platform
+  BSD["FreeBSD: ifconfig, netstat, lldpd"] --> Platform
   PortMap["explicit port-map"] --> Observe
   Observe --> PortView
   PortView --> Payload["internal/device/payload"]
@@ -49,7 +49,8 @@ flowchart LR
 | `internal/device` | canonical profile structs, built-in/external profile registry, YAML-level `extends`, validation, export/templates, port definitions, and port resolution | controller HTTP, OS commands, JSON payload table encoding |
 | `internal/device/payload` | switch/gateway JSON payload rendering from typed device profile, identity, and resolved ports | profile loading, port generation, model-specific runtime guesses, host networking |
 | `internal/observe` | normalized read-only observations for bridge and port-map modes | direct Linux/FreeBSD command execution outside adapters |
-| `internal/platform` | read-only OS facade for interfaces, bridges, LLDP, logs, procfs, D-Bus, capabilities | payload rendering, controller adoption decisions |
+| `internal/observe/ifsource` | low-level host-interface adapter and pure observation-to-override mapping; OS-backed reads are reached through `internal/platform` | payload policy, controller behavior |
+| `internal/platform` | read-only OS facade for interfaces, bridges, LLDP, procfs, and capabilities | payload rendering, controller adoption decisions |
 | `internal/adapters/linuxbridge` | Linux bridge FDB command parsing | payload policy |
 | `internal/adapters/freebsdifconfig` | FreeBSD bridge/interface parser helpers | payload policy |
 | `internal/discovery` | UDP discovery TLV construction | adoption state |
@@ -88,9 +89,10 @@ packets, starting listeners, or writing normalized config files.
 ## Configuration And Profiles
 
 Configuration is intentionally explicit at the service boundary. The packaged
-YAML shows every supported field with conservative defaults. Runtime defaults
-live in `internal/config.Default`, while CLI registration and YAML application
-share the setting registry in `cmd/unifi-stubd/settings.go`.
+YAML is a conservative starter configuration. The schema and
+`internal/config.Default` define the complete field set and runtime defaults,
+while CLI registration and YAML application share the setting registry in
+`cmd/unifi-stubd/settings.go`.
 
 Profiles describe device shape. They are data, not code hooks. A profile owns:
 
@@ -180,19 +182,24 @@ known host NIC. It is still read-only.
 
 ## Platform Facade
 
-`internal/platform` is the only runtime boundary allowed to talk to optional
-host facilities. It exposes small interfaces:
+For runtime identity, route/link selection, and bridge/port observation,
+`internal/platform` is the boundary allowed to talk to optional host
+facilities. It exposes small interfaces:
 
 - `InterfaceReader` for link state, addresses, speed/media, and counters;
-- `BridgeReader` through `observe.ObservationSource`;
+- `EgressLinkReader` for bounded local route and uplink-speed observation;
+- `AddressReader` for host-interface identity and IPv4 assignment checks;
+- `observe.ObservationSource` for bridge and port observation;
 - `LLDPReader` for passive `lldpcli -f json show neighbors`;
-- `LogReader` for `journalctl` or syslog files;
-- `ProcReader` for Linux `/proc/net/dev` counters;
-- `ServiceBus` for optional D-Bus capability checks.
+- `ProcReader` for Linux `/proc/net/dev` counters.
 
 The platform layer reports capability state as `disabled`, `available`,
 `missing`, or `unsupported`. Missing optional tools are status warnings, not a
 reason to mutate the host or install dependencies.
+
+Discovery packet assembly and active WAN-health probes retain their own
+bounded host adapters; they are outside this facade's passive-observation
+scope.
 
 ## Payload Boundary
 
@@ -296,18 +303,7 @@ These rules are architectural, not just implementation preferences:
 | --- | --- | --- |
 | `stub` profile payload | supported | supported |
 | `bridge-observe` FDB | `bridge fdb show br <bridge>` plus member role classification | `ifconfig <bridge> addr` parser plus the same member role model; runtime parity remains conservative |
-| `bridge-observe` counters/speed | `/sys/class/net`, optional `/proc/net/dev` counters | planned for richer bridge counters; `port-map` can read interface metadata |
+| `bridge-observe` counters/speed | `/sys/class/net`, optional `/proc/net/dev` counters | `ifconfig` media, `netstat` counters |
 | `port-map` interface metadata | `net.Interface`, sysfs, optional command fallbacks | `net.Interface`, optional `ifconfig`/`netstat` |
 | passive LLDP | `lldpcli -f json show neighbors` | `lldpcli -f json show neighbors` when lldpd is installed |
-| logs | optional `journalctl --output=json` | optional syslog file, default `/var/log/messages` |
-| D-Bus | optional system/session bus availability check | optional best-effort availability check |
-| event subscription | planned | planned |
 | native helpers/C++ | not used | not used |
-
-## Known Extension Points
-
-- `uplink_neighbor.remote_port` as explicit topology metadata.
-- LLDP-derived uplink neighbor selection with manual override.
-- richer FreeBSD media/counter readers, possibly through `x/sys/unix`.
-- event subscriptions for bridge/FDB changes instead of polling.
-- active macvlan/ipvlan or VLAN lifecycle only after a separate reviewed design.

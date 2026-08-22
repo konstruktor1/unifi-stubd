@@ -1,6 +1,3 @@
-// Package inform uses PKCS#7 padding only for AES-CBC inform bodies.
-// The padding helpers stay unexported so no other protocol path depends on this
-// representation.
 package inform
 
 import "fmt"

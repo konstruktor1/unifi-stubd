@@ -48,4 +48,6 @@ erreichbar.
 
 ## Personen- und Clientdaten
 
-MAC-Tabellen, DHCP-Informationen, DPI-Daten und NetFlow koennen personenbeziehbare Metadaten enthalten. Beispiel-PCAPs gehoeren deshalb in `.gitignore` und sollten vor Weitergabe anonymisiert werden.
+MAC-Tabellen, DHCP-Informationen, DPI-Daten und NetFlow koennen
+personenbeziehbare Metadaten enthalten. Captures gehoeren in eine private Ablage
+ausserhalb dieses Checkouts und muessen vor der Weitergabe anonymisiert werden.

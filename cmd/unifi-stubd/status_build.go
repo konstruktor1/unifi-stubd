@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"net"
@@ -46,7 +45,7 @@ func buildLocalStatus(flags runtimeFlags, profile device.Profile, informSchedule
 			InformBackoffJitterPercent: flags.informBackoffJitterPercent,
 			NoDiscovery:                flags.noDiscovery,
 			DiscoveryInterface:         effectiveDiscoveryInterface(flags),
-			DiscoveryTargets:           cloneStrings(flags.discoveryTargets),
+			DiscoveryTargets:           cloneNonEmptySlice(flags.discoveryTargets),
 			ManagementLAN:              statusManagementLAN(flags),
 			SSHListen:                  flags.sshListen,
 			StatePath:                  flags.sshState,
@@ -55,16 +54,11 @@ func buildLocalStatus(flags runtimeFlags, profile device.Profile, informSchedule
 			PortNeighbors:              statusPortNeighbors(flags.portNeighbors),
 			PortOverrides:              statusPortOverrides(flags.portOverrides),
 			BridgeObserve:              cloneBridgeObserve(flags.bridgeObserve),
-			PortMappings:               clonePortMappings(flags.portMappings),
+			PortMappings:               cloneNonEmptySlice(flags.portMappings),
 			LLDPSource:                 flags.lldpSource,
-			TrafficSource:              flags.trafficSource,
 			TrafficRatesEnabled:        flags.trafficRatesEnabled,
 			WANHealth:                  buildStatusWANHealth(flags, profile),
-			LogSource:                  flags.logSource,
 			ProcSource:                 flags.procSource,
-			DBusEnabled:                flags.dbusEnabled,
-			DBusBus:                    flags.dbusBus,
-			SyslogPath:                 flags.syslogPath,
 			InstanceGuard:              flags.instanceGuard,
 			InstanceGuardPath:          flags.instanceGuardPath,
 		},
@@ -83,7 +77,7 @@ func buildLocalStatus(flags runtimeFlags, profile device.Profile, informSchedule
 	if plt == nil {
 		plt = runtimePlatform(flags)
 	}
-	status.Platform = statusPlatform{Capabilities: plt.Capabilities(context.Background(), runtimePlatformConfig(flags))}
+	status.Platform = statusPlatform{Capabilities: plt.Capabilities(runtimePlatformConfig(flags))}
 
 	runStatus, err := loadPersistedRunStatus(flags.statusPath)
 	if err != nil {

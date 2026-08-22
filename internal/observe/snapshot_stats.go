@@ -41,6 +41,13 @@ func ReadInterfaceStats(sysfsRoot, iface string) (InterfaceStats, error) {
 	} else if speed > 0 {
 		out.SpeedMbps = int(speed)
 	}
+	if carrier, err := readInt64(filepath.Join(base, "carrier")); err == nil {
+		switch carrier {
+		case 0, 1:
+			up := carrier == 1
+			out.Up = &up
+		}
+	}
 	if err := errors.Join(errs...); err != nil {
 		return out, fmt.Errorf("read interface stats for %s: %w", iface, err)
 	}

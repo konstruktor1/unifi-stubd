@@ -20,11 +20,7 @@ Implemented in the experimental FreeBSD package:
   with the same bridge-member classification used on Linux: `bridge0` is
   backplane metadata, configured or single physical-looking members are uplink
   candidates, and `tap*`/`epair*`/`vnet*` members are access ports.
-- `log_source: syslog` for read-only status/log metadata from a configured file,
-  defaulting to `/var/log/messages`; OPNsense commonly uses
-  `/var/log/system/latest.log`, which is root-only by default
 - `lldp_source: lldpd` when `lldpcli` is installed and reachable
-- optional D-Bus availability checks only; D-Bus is not required
 - rc.d service artifact for FreeBSD and OPNsense-style systems
 
 Not supported on FreeBSD yet:
@@ -37,23 +33,15 @@ Not supported on FreeBSD yet:
 
 ## Build
 
-Cross-build the FreeBSD binary:
+Run `build-freebsd` and `package-freebsd-tgz` through the configured Build
+Runner. [`AGENTS.md`](../../AGENTS.md) owns the invocation; do not use host Go
+as a fallback.
 
-```sh
-make build-freebsd
-```
-
-Build the FreeBSD/OPNsense stub package tarball:
-
-```sh
-make package-freebsd-tgz
-```
-
-Build native FreeBSD `pkg` repositories through the configured FreeBSD builder:
-
-```sh
-make package-freebsd-pkg-repos
-```
+`package-freebsd-pkg-repos` currently delegates compilation to a direct
+FreeBSD host-Go builder without Provider consumer attribution. It remains an
+external-machine compatibility path, not Build Runner validation or release
+evidence. Agent-run package publication is blocked until an authorized VM
+Runner route or reviewed split-build route replaces that compilation step.
 
 The tarball target defaults to `amd64`, matching common OPNsense installs. Use
 `PKG_FREEBSD_GOARCH=arm64` when targeting an ARM FreeBSD host. Native `pkg`
@@ -61,52 +49,17 @@ repositories include `FreeBSD:14` and `FreeBSD:15` builds for `amd64`,
 `aarch64`, and `armv7`. The tarball is written to `dist/packages/` and stages
 this layout:
 
-`make package-freebsd-pkg-repos` sends the source tree to the configured
-FreeBSD builder, builds each configured FreeBSD ABI there, and writes the
+The compatibility target sends the source tree to the configured FreeBSD
+builder, builds each configured FreeBSD ABI there, and writes the
 native `pkg` repositories plus the published `amd64` and `arm64` tarballs. Set
 `FREEBSD_PKG_BUILD_JAILS` only for custom builders with running `jexec` jails.
-The canonical Poudriere buildhost builds FreeBSD binaries on the FreeBSD host
-with `go`, `go125`, or `go126`, then creates ABI-specific `pkg` repositories
-with the FreeBSD `pkg` tool.
+The current compatibility Poudriere buildhost builds FreeBSD binaries on the
+FreeBSD host with `go`, `go125`, or `go126`, then creates ABI-specific `pkg`
+repositories with the FreeBSD `pkg` tool.
 
-In GitHub Actions this packaging path is manual-only; it is not a Tier 1, Tier
-2, or Tier 3 test classification. A build-only run is allowed from `main` or
-the matching version tag and retains one `freebsd-release-<sha>` evidence
-artifact for seven days:
-
-```sh
-gh workflow run freebsd-packaging.yml --ref main -f publish=false
-```
-
-After the automatic Linux tag workflow has created the matching pre-release,
-`FreeBSD Packaging` can add the FreeBSD assets and rebuild Pages with both
-operating-system families:
-
-```sh
-gh workflow run freebsd-packaging.yml --ref <v-tag-with-freebsd-workflow> -f publish=true
-```
-
-The self-hosted job is selected by `[self-hosted, Linux, X64, docker-dmz,
-unifi-stubd, freebsd-pkg-builder]`. This is a containerized GitHub Actions
-runner on `docker.dmz.lan`; `docker-dmz` describes its location, not Docker
-daemon access. It uses strict SSH/SCP to a non-root account on the FreeBSD
-package host. Passwordless sudo is forbidden on a bare-host proxy. A
-disposable, containerized proxy may use container-local passwordless sudo only
-when the protected `freebsd-packaging` environment explicitly sets
-`ALLOW_CONTAINER_LOCAL_SUDO=true` and the workflow preflight recognizes its
-container marker, confirms an enforced seccomp filter and private container
-root mount, and verifies that PID 1's root either matches the container root
-when inspectable or is inaccessible even to container root because of the
-sandbox. It must also find no dangerous root capabilities, exposed block
-devices, host-root mounts, or host runtime sockets. Tier 2 uses a separate
-runner container selected by `[self-hosted, Linux, X64, docker-dmz,
-docker-engine, unifi-stubd]`; both runner containers may share
-`docker.dmz.lan`. Protect the `freebsd-packaging` environment with required
-reviewers and allow only `main` and `v*` refs.
-
-This split starts with tags that contain `freebsd-packaging.yml` and whose
-automatic `SHA256SUMS` covers Linux and SBOM assets only. Legacy releases whose
-checksum file already covers FreeBSD artifacts are deliberately not backfilled.
+GitHub Actions publication, runner-boundary, retention, and legacy-tag rules
+are owned by the [release checklist](release.md#manual-freebsd-packaging-extension).
+This page owns target build and installation facts only.
 
 ```text
 /usr/local/bin/unifi-stubd
@@ -213,65 +166,8 @@ The packaged config source is
 in isolated labs where every profile port is explicitly configured as
 `interface`, `disabled`, or `unmapped`.
 
-For OPNsense gateway labs, keep the UniFi-facing interface name separated from
-the FreeBSD interface name:
-
-UXG-Pro profile ports are fixed profile data:
-
-```text
-port 1 -> eth0, profile role wan,  1G RJ45
-port 2 -> eth1, profile role lan,  1G RJ45
-port 3 -> eth2, profile role wan2, 10G SFP+
-port 4 -> eth3, profile role lan2, 10G SFP+
-```
-
-```yaml
-profile: uxgpro
-uplink_port: 3
-port_overrides:
-  - port: 3
-    role: wan
-    network_group: WAN
-    interface: ixl0
-    speed: 10000
-    media: SFP+
-wan_health:
-  source: ping
-  interval_seconds: 10
-  timeout_ms: 1000
-  targets:
-    - port: 3
-      host: 1.1.1.1
-```
-
-With `uxgpro`, physical port 3 is controller `ifname: eth2`; `ixl0` is only
-reported as `source_interface`. The ping source updates local connectivity and
-latency diagnostics, but it does not run a UniFi speed test, detect the ISP, or
-change OPNsense interfaces, routes, firewall rules, or VLANs. The ping follows
-the OPNsense host routing table; `targets[].port` selects which local WAN
-diagnostic entry is updated, not which source interface the ICMP packet uses. The target port
-must be explicitly marked `role: wan` or `role: wan2` in `port_overrides`;
-profile defaults alone do not enable active probes.
-
-If the gateway also represents a LAN on another physical port, configure that
-LAN explicitly in `port_overrides`. Do not use `management_lan` as a gateway
-LAN shortcut. The management or transport address used to reach the controller
-can stay in top-level runtime fields, while routed LAN data belongs only to the
-LAN port:
-
-```yaml
-port_overrides:
-  - port: 4
-    role: lan
-    network_group: LAN
-    interface: vtnet0
-    ip: 192.0.2.1
-    netmask: 255.255.255.0
-```
-
-Unused or disabled profile ports should stay `role: unassigned` and should not
-carry an `ip`. The payload reports them as physical inventory only, so the
-controller does not receive extra LAN/Gateway hints on disconnected ports.
+Use the [OPNsense generator how-to](opnsense-generator.md) for source mapping,
+generation, and review.
 
 After every config edit, validate the single YAML document, restart the service,
 and inspect local status:
@@ -281,50 +177,3 @@ unifi-stubd -validate -config /usr/local/etc/unifi-stubd/config.yaml
 service unifi-stubd restart
 unifi-stubd -status-json
 ```
-
-For the SFP WAN example above, the controller payload should show WAN on port 3
-with `ifname: eth2`, `source_interface: ixl0`, and `uplink: eth2`. Successful
-ping diagnostics remain in local status and are not reported as firmware WAN
-latency/connectivity. Host names such as `ixl0`, `igb0`, or `vtnet0` must not
-appear in controller `ifname` fields. Provider and ISP fields remain unset.
-
-## OPNsense API Source Generator
-
-`unifi-stubd-opnsense` is a separate companion command, not a daemon runtime
-hook. It reads an existing `unifi-stubd` config, reads a separate OPNsense
-source file, calls only OPNsense GET endpoints, and emits a generated
-`unifi-stubd` YAML document for operator review:
-
-```sh
-go run ./cmd/unifi-stubd-opnsense \
-  -config /usr/local/etc/unifi-stubd/config.yaml \
-  -source lab/stub/configs/hosts/opnsense-api-source.example.yaml \
-  > generated.yaml
-```
-
-The source file maps OPNsense/FreeBSD interfaces such as `ixl0`, `igb0`, or
-`vtnet0` to represented UniFi profile ports. Those names remain
-`source_interface` data in generated `port_overrides`; UniFi `ifname` remains
-profile-derived, for example `eth2` on UXG-Pro port 3.
-
-Credentials are loaded from configured files or environment variables and are
-not written into the generated YAML. Use `-validate` to check source syntax and
-credential loading without contacting the API. Use `-out generated.yaml` only
-when the companion should write the file directly; stdout remains the default
-dry-run path.
-For a complete on-box OPNsense workflow with shell commands, see
-[OPNsense API Generator How-to](opnsense-generator.md). Field behavior and
-merge rules are documented in the
-[OPNsense API Generator Reference](opnsense-generator-reference.md).
-
-For OPNsense log metadata, keep `log_source: off` unless the service user can
-read the selected file. A read-only runtime test on OPNsense 26.1/FreeBSD 14.3
-validated `syslog_path: /var/log/system/latest.log` when the binary was run as
-root. The default `/var/log/messages` remains the generic FreeBSD path.
-
-## Native Helpers
-
-Go remains the implementation language. C++ or native helper binaries are not
-used. If FreeBSD later needs data that Go cannot read cleanly, add a small
-reviewed helper only after the concrete OS limitation is proven. The next likely
-FreeBSD improvement is an `x/sys/unix` path for `SIOCGIFMEDIA`.

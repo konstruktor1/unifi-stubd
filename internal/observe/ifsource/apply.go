@@ -17,7 +17,8 @@ func ApplyObservation(override *device.PortOverride, observation observe.PortObs
 		override.MAC = observation.MAC
 	}
 	if override.Up == nil {
-		override.Up = cloneBoolPointer(observation.Up)
+		up := observation.Up != nil && *observation.Up
+		override.Up = &up
 	}
 	if strings.TrimSpace(override.IP) == "" {
 		override.IP = observation.IP
@@ -28,7 +29,7 @@ func ApplyObservation(override *device.PortOverride, observation observe.PortObs
 	if len(override.IPv6) == 0 && len(observation.IPv6) > 0 {
 		override.IPv6 = append([]string(nil), observation.IPv6...)
 	}
-	if override.Speed <= 0 && observation.SpeedMbps > 0 {
+	if override.Speed <= 0 && *override.Up && observation.SpeedMbps > 0 {
 		override.Speed = observation.SpeedMbps
 	}
 	if strings.TrimSpace(override.Media) == "" {
@@ -47,14 +48,4 @@ func observationHasCounters(stats observe.InterfaceStats) bool {
 		}
 	}
 	return false
-}
-
-// cloneBoolPointer preserves the difference between unknown and explicit link
-// state.
-func cloneBoolPointer(value *bool) *bool {
-	if value == nil {
-		return nil
-	}
-	clone := *value
-	return &clone
 }

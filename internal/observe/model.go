@@ -1,6 +1,3 @@
-// Package observe normalizes Linux bridge data, FreeBSD bridge data, and
-// explicit port-map sources before payload merge. It describes read-only facts
-// about the host, not host-network changes to perform.
 package observe
 
 import (

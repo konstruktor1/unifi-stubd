@@ -1,5 +1,3 @@
-// Package device defines the canonical profile model. AutoMAC provides
-// deterministic local identity generation for lab defaults.
 package device
 
 import (

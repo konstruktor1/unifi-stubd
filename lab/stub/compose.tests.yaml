@@ -1,4 +1,4 @@
-# Docker integration overlay for the controller-backed US8 product gate.
+# Docker integration overlay for the controller-facing Stable/RC gate.
 
 services:
   controller-adoption:

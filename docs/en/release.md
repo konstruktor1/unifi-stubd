@@ -10,36 +10,37 @@ onto the installed system after the package is installed.
 
 ## Before Tagging
 
-1. Run `make check`.
-2. Run `make package`.
-3. Build any cross-architecture release targets, such as `PKG_GOARCH=arm64
-   make package`.
-4. Inspect `dist/packages/` for the Linux Debian, RPM, Arch Linux, and `.tar.gz`
+1. Run the complete `make code-checker` gate and the required package targets
+   through the configured Build Runner; [`AGENTS.md`](../../AGENTS.md) owns the
+   invocation.
+2. Build the required `amd64` and `arm64` release artifacts.
+3. Inspect `dist/packages/` for the Linux Debian, RPM, Arch Linux, and `.tar.gz`
    output.
-5. Confirm `go.mod`, `go.work`, and `go.sum` are tidy after dependency or tool updates.
-6. Search for private lab data:
+4. Confirm `go.mod`, `go.work`, and `go.sum` are tidy after dependency or tool updates.
+5. Search for private lab data:
 
    ```sh
    sh scripts/check-policy.sh
    ```
 
-7. Confirm `VERSION`, the newest dated `CHANGELOG.md` section, and the intended
+6. Confirm `VERSION`, the newest dated `CHANGELOG.md` section, and the intended
    `v<version>` tag all match.
-8. Update `CREDITS.md` and `NOTICE.md` if new sources, copied code, packages,
+7. Update `CREDITS.md` and `NOTICE.md` if new sources, copied code, packages,
    or tools were added.
-9. Confirm `packaging/linux/etc/unifi-stubd/config.yaml` and `lab/` contain
+8. Confirm `packaging/linux/etc/unifi-stubd/config.yaml` and `lab/` contain
    documentation addresses or neutral defaults only.
-10. Verify repository metadata with `gh repo view --json
+9. Verify repository metadata with `gh repo view --json
     description,homepageUrl,licenseInfo,repositoryTopics` and compare package
     name, license, maintainer, and project URL with `packaging/nfpm.yaml`.
-11. Verify signing status. Alpha releases may publish the generated unsigned
+10. Verify signing status. Alpha releases may publish the generated unsigned
     `SHA256SUMS` only while they remain marked as pre-releases. Stable releases
     require a signed tag and a detached signature for `SHA256SUMS`.
 
-FreeBSD package generation is not a pre-tag gate. It belongs exclusively to
-the manual `FreeBSD Packaging` workflow and may extend the pre-release only
-after the automatic Linux publication has completed. This packaging pipeline
-is not a Tier 1, Tier 2, or Tier 3 test classification.
+FreeBSD package generation is not a pre-tag gate. The manual `FreeBSD
+Packaging` workflow may extend a pre-release only after Linux publication and
+only after its authorized build route exists. The current direct builder is
+blocked as evidence. This packaging pipeline is not a Tier 1, Tier 2, or Tier
+3 test classification.
 
 ## Tagging
 
@@ -50,7 +51,10 @@ git tag -a v0.2.5-alpha -m "unifi-stubd v0.2.5-alpha"
 git push origin v0.2.5-alpha
 ```
 
-Tag only commits that already passed the `main` CI run. The Package
+Tag only commits that already passed the complete gate on the exact tree. The
+current `main` CI cannot provide that evidence until its approved CI-visible
+Build Runner route exists; do not publish a new tag before that route is in
+place. The Package
 Repositories workflow runs for `v*` tags, so the `github-pages` environment
 must allow deployments from `main` and `v*` tags.
 
@@ -68,9 +72,11 @@ gh release view v0.2.5-alpha --json isPrerelease,assets,url
 
 `FreeBSD Packaging` is manual-only and has no trigger or `needs`
 relationship with `CI` or `Package Repositories`. Its `publish` input defaults
-to `false`; that mode builds FreeBSD tarballs and native `pkg` repositories for
-the selected ref and retains the Actions artifacts for seven days as build
-evidence:
+to `false`; that mode retains its FreeBSD tarballs and native `pkg`
+repositories for seven days. Its direct host-Go builder is an external-machine
+compatibility path and those artifacts are not compliant build evidence.
+Do not publish them until an authorized VM Runner or reviewed split-build route
+owns the compilation step:
 
 ```sh
 gh workflow run freebsd-packaging.yml --ref main -f publish=false
@@ -129,15 +135,6 @@ Alpha package repositories are published unsigned through GitHub Pages:
 https://konstruktor1.github.io/unifi-stubd/
 ```
 
-Build all package artifacts first, then generate the static repository site:
-
-```sh
-PKG_VERSION=0.2.5-alpha PKG_RELEASE=1 PKG_GOARCH=amd64 make package
-PKG_VERSION=0.2.5-alpha PKG_RELEASE=1 PKG_GOARCH=arm64 make package
-PKG_VERSION=0.2.5-alpha PKG_RELEASE=1 make package-freebsd-pkg-repos
-make package-repos
-```
-
 The Package Repositories workflow publishes a Linux-only package repository
 through GitHub Pages when a `v*` tag is pushed. Until FreeBSD packaging is
 published, the FreeBSD section states that the manual artifacts are
@@ -168,45 +165,26 @@ FreeBSD/OPNsense tarball paths, and native FreeBSD `pkg` repository paths when
 `dist/freebsd-pkg-repos/repo/` exists. Its default mode requires the FreeBSD
 artifacts; the automatic workflow explicitly allows their absence for the
 Linux-first deployment. Only the manual `FreeBSD Packaging` workflow uses the
-containerized self-hosted GitHub Actions runner on `docker.dmz.lan`, selected
-by `[self-hosted, Linux, X64, docker-dmz, unifi-stubd,
-freebsd-pkg-builder]`. It uses strict SSH/SCP to a non-root FreeBSD build-host
-account. The canonical builder uses FreeBSD host-side Go cross-compilation plus
-FreeBSD `pkg`;
+isolated packaging-proxy role and strict SSH/SCP to a non-root FreeBSD-builder
+role. Its current direct host-Go compilation is compatibility-only and blocked
+as release evidence; FreeBSD `pkg` still owns target repository assembly.
 `FREEBSD_PKG_BUILD_JAILS` is optional for custom builders with running `jexec`
 jails. The combined static site is assembled and deployed from Ubuntu after
 the FreeBSD build. Keep alpha repository instructions visibly unsigned
 (`trusted=yes`, `gpgcheck=0`, `SigLevel = Never`) until a project release key
 exists.
 
-The generated project page also links to the source repository, releases, wiki,
+The generated project page also links to the source repository, releases,
 `CREDITS.md`, and a short research/source-project map. Keep that map as a
 summary only; the authoritative attribution matrix stays in `CREDITS.md`.
 
 ## Package Metadata
 
 The default package maintainer is `unifi-stubd maintainers <info@spinas.org>`.
-Override maintainer metadata for public package builds:
-
-```sh
-PKG_MAINTAINER='Name <email@example.com>' PKG_GOARCH=amd64 make package
-```
+An authorized runner invocation may override it with `PKG_MAINTAINER`.
 
 ## Host Configurations
 
-Do not place real host configs in this repository. Store them in a private
-directory or private deployment repository. A useful local layout is:
-
-```text
-unifi-stubd-host-configs/
-  hosts/<host>/current-tmp.yaml
-  hosts/<host>/installed-config.yaml
-  hosts/<host>/process.txt
-  hosts/<host>/status-before.json
-  hosts/<host>/status-after.json
-```
-
-`current-tmp.yaml` records the temporary runtime config. `installed-config.yaml`
-is the package-ready config copied to the installed service path. The package
-itself remains neutral and does not change VLANs, firewall rules, routes, or
+Keep real host configurations outside this repository in private deployment
+storage. The package does not change VLANs, firewall rules, routes, or
 controller network definitions.

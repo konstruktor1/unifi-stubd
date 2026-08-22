@@ -48,20 +48,10 @@ type Config struct {
 	ObserveBridge string `yaml:"observe_bridge"`
 	// LLDPSource selects the passive LLDP source.
 	LLDPSource string `yaml:"lldp_source"`
-	// TrafficSource selects the passive traffic metadata source.
-	TrafficSource string `yaml:"traffic_source"`
 	// TrafficRatesEnabled reports interface byte rates to the controller.
 	TrafficRatesEnabled bool `yaml:"traffic_rates_enabled"`
-	// LogSource selects optional read-only runtime log metadata.
-	LogSource string `yaml:"log_source"`
 	// ProcSource selects optional Linux procfs metadata.
 	ProcSource string `yaml:"proc_source"`
-	// DBusEnabled enables optional D-Bus connectivity checks.
-	DBusEnabled bool `yaml:"dbus_enabled"`
-	// DBusBus selects the system or session bus for optional D-Bus checks.
-	DBusBus string `yaml:"dbus_bus"`
-	// SyslogPath is the syslog file read by log_source: syslog.
-	SyslogPath string `yaml:"syslog_path"`
 	// InstanceGuard controls host-global duplicate instance detection.
 	InstanceGuard string `yaml:"instance_guard"`
 	// InstanceGuardPath stores the advisory lock used by instance_guard.

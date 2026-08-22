@@ -18,8 +18,12 @@ func Apply(ports []device.Port, snapshot Snapshot) []device.Port {
 		index = uplinkPortIndex(out)
 	}
 	port := &out[index-1]
-	if snapshot.Stats.SpeedMbps > 0 {
-		port.Speed = snapshot.Stats.SpeedMbps
+	// A bridge-observed uplink is connected only when the host source reported
+	// it as up. Missing state must not retain the synthetic profile default.
+	port.Up = snapshot.Up != nil && *snapshot.Up
+	port.Speed = snapshot.Stats.SpeedMbps
+	if !port.Up {
+		port.Speed = 0
 	}
 	if hasCounters(snapshot.Stats) {
 		applyInterfaceStatsToPort(port, snapshot.Stats)
@@ -116,14 +120,14 @@ func applyDeviceMACs(ports []device.Port, snapshot Snapshot, uplinkIndex int) {
 		if !usedPorts[ports[index].Index] {
 			// A profile port without a mapped bridge member is rendered as
 			// disconnected instead of inventing a synthetic link.
-			markBridgePortDisconnected(&ports[index])
+			clearObservedPortState(&ports[index])
 		}
 	}
 }
 
-// markBridgePortDisconnected clears link, counters, and MACs for generated
-// ports with no observed bridge member.
-func markBridgePortDisconnected(port *device.Port) {
+// clearObservedPortState removes profile defaults before real bridge state is
+// applied, so an absent observation cannot become synthetic telemetry.
+func clearObservedPortState(port *device.Port) {
 	port.Up = false
 	port.Speed = 0
 	port.MACs = nil
@@ -136,6 +140,7 @@ func markBridgePortDisconnected(port *device.Port) {
 // applyMemberPortObservation overlays per-member interface state onto the port
 // selected for that bridge member.
 func applyMemberPortObservation(port *device.Port, observations map[string]PortObservation, member string) {
+	clearObservedPortState(port)
 	observation, ok := memberPortObservation(observations, member)
 	if !ok {
 		return
@@ -143,10 +148,8 @@ func applyMemberPortObservation(port *device.Port, observations map[string]PortO
 	if iface := strings.TrimSpace(observation.Interface); iface != "" {
 		port.Interface = iface
 	}
-	if observation.Up != nil {
-		port.Up = *observation.Up
-	}
-	if observation.SpeedMbps > 0 {
+	port.Up = observation.Up != nil && *observation.Up
+	if port.Up && observation.SpeedMbps > 0 {
 		port.Speed = observation.SpeedMbps
 	}
 	if media := strings.TrimSpace(observation.Media); media != "" {
@@ -154,9 +157,6 @@ func applyMemberPortObservation(port *device.Port, observations map[string]PortO
 	}
 	if hasCounters(observation.Stats) {
 		applyInterfaceStatsToPort(port, observation.Stats)
-	}
-	if !port.Up && observation.SpeedMbps <= 0 {
-		port.Speed = 0
 	}
 }
 

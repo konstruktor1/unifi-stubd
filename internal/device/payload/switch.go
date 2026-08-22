@@ -1,6 +1,3 @@
-// Package payload converts generated ports into UniFi switch tables such as
-// port_table and if_table. Profile selection is complete before switch rendering
-// runs, so this code only handles switch payload shape.
 package payload
 
 import (

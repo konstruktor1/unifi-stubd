@@ -1,8 +1,3 @@
-// Package observe classifies bridge-member forwarding-database rows into
-// payload roles before any MAC table is rendered. The split matters for
-// bridge-observe: access ports are local VM/container participants, the uplink
-// is remote infrastructure, and the bridge device itself is only backplane
-// metadata.
 package observe
 
 import (

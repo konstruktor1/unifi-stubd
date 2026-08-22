@@ -15,12 +15,8 @@ MAINTAINER="${PKG_MAINTAINER:-unifi-stubd maintainers <info@spinas.org>}"
 GOOS_VALUE="${PKG_GOOS:-}"
 GOARCH_VALUE="${PKG_GOARCH:-}"
 FORMATS="${*:-${PKG_FORMATS:-deb rpm archlinux tgz}}"
-NFPM_CMD="${NFPM:-go run github.com/goreleaser/nfpm/v2/cmd/nfpm@v2.46.3}"
-DIST_DIR="${DIST_DIR:-dist}"
+DIST_DIR=dist
 LDFLAGS="${BUILD_LDFLAGS:--s -w}"
-ACCEPTED_RUN_ID="${PKG_ACCEPTED_RUN_ID:-}"
-ACCEPTED_BINARY=
-ACCEPTED_BINARY_SHA256=
 FINAL_PACKAGE_DIR="$DIST_DIR/packages"
 WORK_DIR=
 WORK_ROOT=
@@ -28,6 +24,10 @@ PACKAGE_DIR=
 PUBLISH_LOCK=
 PUBLISH_LOCK_OWNED=false
 PUBLISH_COMMITTED=false
+
+if [ "$(pwd -P)" != /workspace ] || [ -z "${GOCACHE:-}" ]; then
+  fail "package builds must run in the Build Runner workspace"
+fi
 
 cleanup_package_work() {
   cleanup_status=$?
@@ -54,49 +54,9 @@ cleanup_package_work() {
   exit "$cleanup_status"
 }
 
-evidence_value() {
-  evidence_key="$1"
-  evidence_result="$(awk -F= -v key="$evidence_key" '
-    $1 == key { count++; value = substr($0, length(key) + 2) }
-    END { if (count != 1) exit 1; print value }
-  ' "$ACCEPTED_EVIDENCE")" || fail "accepted run has no unique $evidence_key"
-  printf '%s' "$evidence_result"
-}
-
-if [ -n "$ACCEPTED_RUN_ID" ]; then
-  printf '%s\n' "$ACCEPTED_RUN_ID" | grep -Eq '^[a-z0-9][a-z0-9-]{0,39}$' ||
-    fail 'PKG_ACCEPTED_RUN_ID is invalid'
-  ACCEPTED_DIR="$DIST_DIR/controller-channel-matrix/$ACCEPTED_RUN_ID"
-  ACCEPTED_EVIDENCE="$ACCEPTED_DIR/accepted.env"
-  if [ ! -d "$ACCEPTED_DIR" ] || [ -L "$ACCEPTED_DIR" ] ||
-    [ ! -f "$ACCEPTED_EVIDENCE" ] || [ -L "$ACCEPTED_EVIDENCE" ]; then
-    fail "accepted run evidence is unavailable: $ACCEPTED_RUN_ID"
-  fi
-  accepted_version="$(evidence_value PRODUCT_VERSION)"
-  accepted_os="$(evidence_value PRODUCT_OS)"
-  accepted_arch="$(evidence_value PRODUCT_ARCH)"
-  ACCEPTED_BINARY_SHA256="$(evidence_value PRODUCT_BINARY_SHA256)"
-  printf '%s\n' "$accepted_version" | grep -Eq '^[0-9][0-9A-Za-z.+~-]{0,63}$' ||
-    fail 'accepted product version is invalid'
-  case "$accepted_os/$accepted_arch" in
-  linux/amd64 | linux/arm64) ;;
-  *) fail "accepted product platform is unsupported: $accepted_os/$accepted_arch" ;;
-  esac
-  printf '%s\n' "$ACCEPTED_BINARY_SHA256" | grep -Eq '^[0-9a-f]{64}$' ||
-    fail 'accepted product binary digest is invalid'
-  [ -z "$VERSION" ] || [ "$VERSION" = "$accepted_version" ] || fail 'PKG_VERSION differs from accepted product version'
-  [ -z "$GOOS_VALUE" ] || [ "$GOOS_VALUE" = "$accepted_os" ] || fail 'PKG_GOOS differs from accepted product OS'
-  [ -z "$GOARCH_VALUE" ] || [ "$GOARCH_VALUE" = "$accepted_arch" ] || fail 'PKG_GOARCH differs from accepted product architecture'
-  VERSION="$accepted_version"
-  GOOS_VALUE="$accepted_os"
-  GOARCH_VALUE="$accepted_arch"
-  ACCEPTED_BINARY="$ACCEPTED_DIR/unifi-stubd-$GOOS_VALUE-$GOARCH_VALUE"
-  FINAL_PACKAGE_DIR="$ACCEPTED_DIR/packages"
-else
-  VERSION="${VERSION:-$(sed -n '1p' VERSION)}"
-  GOOS_VALUE="${GOOS_VALUE:-linux}"
-  GOARCH_VALUE="${GOARCH_VALUE:-$(go env GOARCH)}"
-fi
+VERSION="${VERSION:-$(sed -n '1p' VERSION)}"
+GOOS_VALUE="${GOOS_VALUE:-linux}"
+GOARCH_VALUE="${GOARCH_VALUE:-$(go env GOARCH)}"
 
 case "$GOOS_VALUE" in
 linux | freebsd) ;;
@@ -106,16 +66,13 @@ linux | freebsd) ;;
   ;;
 esac
 
-if [ -n "$ACCEPTED_RUN_ID" ]; then
-  [ "$FORMATS" = 'deb rpm archlinux tgz' ] ||
-    fail 'accepted packaging requires exactly deb, rpm, archlinux, and tgz'
-  WORK_ROOT="$ACCEPTED_DIR/package-work"
-  PUBLISH_LOCK="$ACCEPTED_DIR/.packages.publish.lock"
-else
-  WORK_ROOT="$DIST_DIR/package-work"
-  PUBLISH_LOCK="$DIST_DIR/.packages.publish.lock"
-fi
+WORK_ROOT="$DIST_DIR/package-work"
+PUBLISH_LOCK="$DIST_DIR/.packages.publish.lock"
 
+if [ -L "$DIST_DIR" ] || { [ -e "$DIST_DIR" ] && [ ! -d "$DIST_DIR" ]; }; then
+  fail "package output root must be a real directory: $DIST_DIR"
+fi
+mkdir -p "$DIST_DIR"
 if [ -e "$WORK_ROOT" ] && { [ ! -d "$WORK_ROOT" ] || [ -L "$WORK_ROOT" ]; }; then
   fail "unsafe package work root: $WORK_ROOT"
 fi
@@ -168,21 +125,9 @@ freebsd)
   ;;
 esac
 
-if [ -n "$ACCEPTED_RUN_ID" ]; then
-  if [ ! -f "$ACCEPTED_BINARY" ] || [ -L "$ACCEPTED_BINARY" ]; then
-    fail "accepted product binary is unavailable: $ACCEPTED_BINARY"
-  fi
-  install -m 0755 -- "$ACCEPTED_BINARY" "$STAGE_DIR/usr/local/bin/unifi-stubd"
-  actual_binary_sha256="$(sha256sum -- "$STAGE_DIR/usr/local/bin/unifi-stubd" | awk '{print $1}')"
-  [ "$actual_binary_sha256" = "$ACCEPTED_BINARY_SHA256" ] ||
-    fail "staged binary digest mismatch: expected $ACCEPTED_BINARY_SHA256, got $actual_binary_sha256"
-  printf '== package accepted run %s %s/%s binary %s ==\n' \
-    "$ACCEPTED_RUN_ID" "$GOOS_VALUE" "$GOARCH_VALUE" "$actual_binary_sha256"
-else
-  printf '== build %s/%s ==\n' "$GOOS_VALUE" "$GOARCH_VALUE"
-  CGO_ENABLED=0 GOOS="$GOOS_VALUE" GOARCH="$GOARCH_VALUE" \
-    go build -trimpath -ldflags="$LDFLAGS" -o "$STAGE_DIR/usr/local/bin/unifi-stubd" ./cmd/unifi-stubd
-fi
+printf '== build %s/%s ==\n' "$GOOS_VALUE" "$GOARCH_VALUE"
+CGO_ENABLED=0 GOOS="$GOOS_VALUE" GOARCH="$GOARCH_VALUE" \
+  go build -trimpath -ldflags="$LDFLAGS" -o "$STAGE_DIR/usr/local/bin/unifi-stubd" ./cmd/unifi-stubd
 
 sed_escape() {
   printf '%s' "$1" | sed 's/[\/&|\\]/\\&/g'
@@ -215,7 +160,8 @@ build_nfpm() {
   fi
   write_nfpm_config "$format"
   printf '== package %s ==\n' "$format"
-  $NFPM_CMD package -f "$NFPM_CONFIG" -p "$format" -t "$PACKAGE_DIR"
+  go tool github.com/goreleaser/nfpm/v2/cmd/nfpm package \
+    -f "$NFPM_CONFIG" -p "$format" -t "$PACKAGE_DIR"
 }
 
 build_tgz() {
@@ -252,49 +198,23 @@ done
 rm -rf -- "$STAGE_DIR"
 rm -f -- "$NFPM_CONFIG"
 
-if [ -n "$ACCEPTED_RUN_ID" ]; then
-  set -- "$PACKAGE_DIR"/*
-  [ "$#" -eq 4 ] || fail 'accepted package output is incomplete or ambiguous'
-  require_one_output() {
-    if [ "$#" -ne 1 ] || [ ! -f "$1" ] || [ -L "$1" ]; then
-      fail 'accepted package output is incomplete, ambiguous, or unsafe'
-    fi
-  }
-  require_one_output "$PACKAGE_DIR"/*.deb
-  require_one_output "$PACKAGE_DIR"/*.rpm
-  require_one_output "$PACKAGE_DIR"/*.pkg.tar.zst
-  require_one_output "$PACKAGE_DIR"/*.tar.gz
-  (
-    cd "$PACKAGE_DIR"
-    sha256sum -- ./*.deb ./*.rpm ./*.pkg.tar.zst ./*.tar.gz >SHA256SUMS
-  )
-  mkdir "$PUBLISH_LOCK" || fail 'another accepted package publication is active'
-  PUBLISH_LOCK_OWNED=true
-  if [ -e "$FINAL_PACKAGE_DIR" ] || [ -L "$FINAL_PACKAGE_DIR" ]; then
-    fail "accepted run already has package output: $ACCEPTED_RUN_ID"
+mkdir "$PUBLISH_LOCK" || fail 'another package publication is active'
+PUBLISH_LOCK_OWNED=true
+if [ -e "$FINAL_PACKAGE_DIR" ]; then
+  if [ ! -d "$FINAL_PACKAGE_DIR" ] || [ -L "$FINAL_PACKAGE_DIR" ]; then
+    fail "unsafe package output directory: $FINAL_PACKAGE_DIR"
   fi
-  printf 'publishing accepted packages: %s\n' "$FINAL_PACKAGE_DIR"
-  mv -T -- "$PACKAGE_DIR" "$FINAL_PACKAGE_DIR"
-  PUBLISH_COMMITTED=true
 else
-  mkdir "$PUBLISH_LOCK" || fail 'another package publication is active'
-  PUBLISH_LOCK_OWNED=true
-  if [ -e "$FINAL_PACKAGE_DIR" ]; then
-    if [ ! -d "$FINAL_PACKAGE_DIR" ] || [ -L "$FINAL_PACKAGE_DIR" ]; then
-      fail "unsafe package output directory: $FINAL_PACKAGE_DIR"
-    fi
-  else
-    mkdir "$FINAL_PACKAGE_DIR"
-  fi
-  for artifact in "$PACKAGE_DIR"/*; do
-    if [ ! -f "$artifact" ] || [ -L "$artifact" ]; then
-      fail 'package output is not a regular file'
-    fi
-    publish_target="$FINAL_PACKAGE_DIR/${artifact##*/}"
-    if [ -e "$publish_target" ] || [ -L "$publish_target" ]; then
-      fail "package output already exists: $publish_target"
-    fi
-    ln -- "$artifact" "$publish_target" || fail "failed to publish package output: $publish_target"
-  done
-  PUBLISH_COMMITTED=true
+  mkdir "$FINAL_PACKAGE_DIR"
 fi
+for artifact in "$PACKAGE_DIR"/*; do
+  if [ ! -f "$artifact" ] || [ -L "$artifact" ]; then
+    fail 'package output is not a regular file'
+  fi
+  publish_target="$FINAL_PACKAGE_DIR/${artifact##*/}"
+  if [ -e "$publish_target" ] || [ -L "$publish_target" ]; then
+    fail "package output already exists: $publish_target"
+  fi
+  ln -- "$artifact" "$publish_target" || fail "failed to publish package output: $publish_target"
+done
+PUBLISH_COMMITTED=true

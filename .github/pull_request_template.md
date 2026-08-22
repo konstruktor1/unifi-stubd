@@ -10,8 +10,8 @@
 
 ## Checks
 
-- [ ] `make check`
-- [ ] `make package` when packaging or install layout changed
+- [ ] Complete `make code-checker` gate
+- [ ] `make package` through Build Runner when packaging or install layout changed
 - [ ] `make integration-nonunifi-metrics` when adoption, metrics, or controller compatibility changed
 
 ## Safety

@@ -7,7 +7,7 @@ js_root=/opt/unifi-stubd-code-checker-javascript
 node_version=24.18.1
 
 apt-get update
-apt-get install -y --no-install-recommends ca-certificates curl python3 shellcheck
+apt-get install -y --no-install-recommends ca-certificates curl jq python3 shellcheck
 
 case "$(uname -m)" in
 aarch64 | arm64)

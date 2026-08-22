@@ -17,6 +17,7 @@ prepare:
 validation:
   - go version
   - python3 --version
+  - jq --version
   - "node --version | grep -Fx 'v24.18.1'"
   - "npm --version | grep -Fx '11.16.0'"
   - "eslint --version | grep -Fx 'v10.8.0'"

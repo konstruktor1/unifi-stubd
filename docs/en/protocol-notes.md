@@ -140,17 +140,9 @@ string. These limits are stub safety policy, not inferred firmware thresholds;
 an exceeded boundary fails the complete response without an adoption-state
 update.
 
-Each daemon run writes a bounded, sanitized `inform_session` to runtime status.
-Its ordered events contain the exact request flags, the non-secret key source
-(`default` or `adopted`), HTTP status, body presence, whether a TNBU response
-was decoded and its JSON parsed, response flags/type, and the selected cipher.
-The compatibility CBC-fallback fields remain false because one heartbeat sends
-exactly one locally selected cipher request. No key, packet body, MAC, secret,
-or arbitrary raw controller text is retained there. Fixed allowlisted response
-types and bounded structural metadata remain visible; they are not a claim
-that all controller-provided values are absent from every product surface. An
-HTTP `404` or malformed HTTP `200` is visible as a failed exchange, while an
-empty HTTP `200` is a successful heartbeat without decoded protocol evidence.
+Runtime status retains only the latest sanitized Inform exchange. It includes
+operational result, selected cipher metadata, response type and sizes, and the
+effective schedule, but no key, packet body, secret, or raw controller text.
 
 Transport, response-decode, JSON-syntax, dispatcher, and every non-200 result
 advance the same bounded backoff. Missing, non-string, and unknown `_type`
@@ -177,17 +169,14 @@ built-in identity; otherwise the operator-selected interval remains active.
 
 Minimal flow:
 
-1. Stub starts in factory/default wire state `1`.
-2. Stub sends discovery and/or inform with the default key.
-3. Controller shows `Pending Adoption`.
-4. After Adopt is clicked, the controller replies with `_type: "setparam"`.
-5. `mgmt_cfg` contains values such as `authkey`, `cfgversion`, `stun_url`, `mgmt_url`, `use_aes_gcm`.
-6. Stub stores `authkey`; the immediately following request uses that key,
-   GCM, and wire state `0`.
-7. In the captured path an accepted `noop` completes the transition to managed
-   wire state `2`.
-8. The stored capture later contains `setparam(system_cfg)` and `noop`.
-   Additional command types are known from static analysis, not from this flow.
+1. The factory/default identity uses wire state `1` and the public compatibility
+   key.
+2. Discovery or Inform makes that identity available for adoption.
+3. An accepted `setparam` may persist bounded management identity. When it
+   changes the authkey or active Inform URL, the new identity starts in wire
+   state `0` and the next request uses the validated individual key.
+4. A later successful `noop` or non-identity-changing `setparam` confirms the
+   active identity as managed wire state `2`.
 
 The Inform wire vocabulary is exact:
 
@@ -199,26 +188,17 @@ The Inform wire vocabulary is exact:
 | `3` | `Selfrun` | Status vocabulary only; it grants no automatic lifecycle or host action. |
 | `4` | `Upgrade` | Status vocabulary only; it grants no firmware, service, or host action. |
 
-The dynamically observed main path is therefore `1 -> 0 -> 2`, not a direct
-`1 -> 2` transition. Static firmware analysis adds only the general rule: a
-successful `noop` or `setparam` enters Managed first; an authkey-bearing
-`setparam` or an Inform-URL change then returns the reporter to Unknown. The capture does
-not establish restart, repeated-identity, or keyless-noop semantics.
+The implemented identity-changing path is `1 -> 0 -> 2`. A later accepted
+authkey or Inform-URL change returns the active identity to `0` until it is
+confirmed again.
 
-For the gateway path observed in UXG Pro 5.0.16 and corroborated in UDM Pro SE
-5.1.19, the public compatibility key is the 16-byte value whose hexadecimal
-encoding is `ba86f2bbe107c7c57eb5f2690775c712`. An independent known-answer
-calculation shows that this equals MD5 over the four ASCII bytes `ubnt`; it does
-not prove a generic firmware key-derivation function or establish the key for
-other firmware families.
-
-The daemon selects this value explicitly only while validated local state
-represents the pending/default wire identity. This includes URL-only advanced
-adoption as keyless `provisioning`, which still emits `default=true` and
-`state=1`. The low-level Inform client never supplies the public value for a
-missing key, and the same bytes are rejected as an individual adopted key.
-Corrupt state, adopted state without a valid individual key, and failed state
-without a key stop before any HTTP request.
+The pending/default identity explicitly uses the 16-byte public compatibility
+key `ba86f2bbe107c7c57eb5f2690775c712`; the daemon does not derive or generalize
+it at runtime. URL-only advanced adoption remains keyless `provisioning` with
+`default=true` and `state=1`. The low-level Inform client never substitutes the
+public value for a missing key, and the same bytes are rejected as an individual
+adopted key. Corrupt state, adopted state without a valid individual key, and
+failed state without a key stop before any HTTP request.
 
 Controller response handling stays deliberately small:
 
@@ -243,7 +223,8 @@ Alternative adoption over SSH:
 /usr/bin/syswrapper.sh set-adopt <inform_url> <authkey>
 ```
 
-For `unifi-stubd`, a small SSH shim is possible; L3 inform adoption is still the better MVP.
+`unifi-stubd` includes an optional SSH shim for this command; inform-based
+adoption remains the normal path.
 
 ## Minimal Switch Payload
 
@@ -275,7 +256,6 @@ Important fields:
 | `port_table[].mac_table` | observed clients/VMs, with optional `hostname` and `ip` metadata |
 | `port_table[].last_connection` | direct downstream infrastructure or last attached client for a port |
 | top-level `uplink` | management-interface selector such as `eth0`; UniFi Network combines it with `port_table[].is_uplink` to build the current uplink object |
-| `uplink.speed` | selected current uplink link speed in Mbps; used by the switch Experience column |
 | `last_uplink.uplink_mac` | explicit direct upstream MAC for switch payloads |
 | `last_uplink.uplink_remote_port` | optional configured or LLDP-derived upstream port number |
 | root `bytes`, `rx_bytes`, `tx_bytes` | cumulative selected-uplink traffic summary |
@@ -345,43 +325,3 @@ direction. Optional `remote_port` supplies `uplink_remote_port`. Real device
 and interface MACs remain valid identities throughout this projection.
 
 A profile change should be treated as a new device identity. In practice: use a new fake MAC or `-mac auto`, because UniFi caches model information per MAC and later model changes can stick.
-
-## Model Choice
-
-For the MVP:
-
-- `US8`: simple, no PoE expectations.
-- `US8P60`: also small, but PoE fields may be expected.
-- `US16P150`: 18-port profile for US-16-150W-like behavior, with 16 1G RJ45
-  ports and two 1G SFP uplinks.
-- `US16XG`: 16-port 10G profile for aggregation/SFP+ checks, with twelve
-  1/10G SFP+ ports and four 1/10G RJ45 ports.
-- `USAGGPRO`: largest controller-known 10G profile validated against older UniFi
-  model databases, with 28 10G SFP+ and four 25G SFP28 ports.
-- `USW-Pro-XG-48`: largest built-in 10G access switch profile, with mixed 2.5G,
-  10G, and 25G SFP28 port groups.
-- `UGW3`: experimental legacy UniFi Security Gateway identity profile. It
-  reports device type `ugw`, model `UGW3`, and three 1G ports named `WAN 1`,
-  `LAN 1`, and `WAN 2 / LAN 2`.
-- `UXG`: experimental UniFi Gateway Lite identity profile, exposed through the
-  `uxg-lite` profile. It reports device type `uxg`, model `UXG`, firmware
-  `5.0.16.30689`, and two 1G ports named `LAN` and `WAN`.
-- `UXGPRO`: experimental UniFi Next-Generation Gateway Pro identity profile. It
-  reports device type `uxg`, model `UXGPRO`, firmware `5.0.16.30689`, two 1G
-  RJ45 ports named `WAN` and `LAN`, and two 10G SFP+ ports named `WAN2` and
-  `LAN2`. The default active uplink remains `WAN`; remap SFP+ internet labs
-  with `uplink_port` and `port_overrides`.
-- `UCGF`: experimental UniFi Cloud Gateway Fiber identity profile, exposed
-  through the `ucg-fiber` profile. It reports device type `udm`, firmware
-  `5.0.16`, four 2.5G RJ45 LAN ports, one 10G RJ45 `WAN2` port, one 10G SFP+
-  `WAN` port, and one 10G SFP+ LAN port.
-
-`UGW3`, `UXG`, `UXGPRO`, and `UCGF` are only identity/profile stubs in this
-release. A full gateway payload still needs WAN/LAN state, routing, DHCP,
-firewall, DPI, and health fields. The current gateway payload sends gateway
-tables such as `network_table`, a read-only physical `port_table`, `uplink`,
-`uplink_table`, `config_port_table`, and `ethernet_overrides`. Explicit
-operator-provided WAN/LAN assignment metadata may be mirrored, but it is not
-learned from controller provisioning or applied to host networking. Gateway
-models such as `UGW4`, other Cloud Gateway devices, and EFG should be checked
-later.

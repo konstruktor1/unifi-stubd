@@ -124,9 +124,8 @@ oder Container-Teilnehmer wie `tap101i0` und `veth200i0` werden aus der Bridge
 FDB gelernt; ihre MAC-Adressen landen in `port_table[].mac_table`, waehrend
 ihre eigene Interface-Speed und ihre Zaehler fuer die gemappten Access-Ports
 genutzt werden. Ports ohne gemapptes Bridge-Member werden als getrennt gemeldet
-und behalten keinen synthetischen Profil-Link-State. Der Dienst
-liest sysfs und FDB pro Heartbeat neu. Netlink-Events werden in dieser Wave noch
-nicht abonniert.
+und behalten keinen synthetischen Profil-Link-State. Der Dienst liest sysfs und
+FDB pro Heartbeat neu und abonniert keine Netlink-Events.
 
 Das Profil waehlt den Uplink-Port per Default. `uplink_port` kann auf eine
 positive Portnummer gesetzt werden, um die Uplink-Markierung auf einen
@@ -241,26 +240,9 @@ Gateway-Interface-Namen sind Profildaten, keine Host-Interface-Namen. Das
 gewaehlte Profil erzeugt aus `gateway_interface_prefix` und physischem
 Profil-Portindex die controllerseitigen Namen (`eth0`, `eth1`, ...).
 `port_overrides[].interface` ist nur die lokale Quelle fuer MAC, IPv4/IPv6,
-Link, Speed und Counter; dieser Hostname erscheint als `source_interface`. Ein
-UXG-Pro-Lab, in dem OPNsense `ixl0` an physischem Port 3 haengt, sollte zum
-Beispiel so beschrieben werden:
-
-```yaml
-profile: uxgpro
-uplink_port: 3
-port_overrides:
-  - port: 3
-    role: wan
-    network_group: WAN
-    interface: ixl0
-    speed: 10000
-    media: SFP+
-```
-
-Die Gateway-Zeilen melden daraus `ifname: eth2`, weil Profil-Port 3 physisch
-`eth2` ist; `source_interface: ixl0` dokumentiert nur, woher die lokalen Fakten
-kommen. Rolle und Network Group beschreiben die Funktion des Ports. Sie
-benennen das physische Profil-Interface nicht um.
+Link, Speed und Counter; dieser Hostname erscheint als `source_interface`.
+Lokale Quelle, Rolle und Network Group benennen das physische Profil-Interface
+nicht um.
 
 Gateway-Management und Gateway-Datenebene bleiben absichtlich getrennt. Der
 Stub kann ein Management- oder Transportnetz nutzen, um den Controller ueber
@@ -352,8 +334,9 @@ Reset auf null bei.
 denen es keinen physischen Linkpartner gibt. Der Eintrag fuegt eine konfigurierte
 MAC-Table-Zeile auf dem aktuellen Uplink-Port ein.
 
-Wenn eine Quelle fehlt oder nicht lesbar ist, loggt der Dienst eine Warnung und
-faellt auf Profilwerte zurueck. Dieser Modus darf keine Interfaces anlegen,
+Wenn eine Quelle fehlt oder nicht lesbar ist, loggt der Dienst eine Warnung.
+Statische Profilidentitaet und -form bleiben erhalten; nicht beobachtbare
+Metriken bleiben jedoch abwesend. Dieser Modus darf keine Interfaces anlegen,
 keine Adressen setzen und keine Routen aendern.
 
 ### `port-map`
@@ -406,10 +389,7 @@ reichern Payloads oder Status an, veraendern aber kein Host-Netzwerk.
 ```yaml
 lldp_source: lldpd
 traffic_rates_enabled: false
-log_source: journalctl
 proc_source: procfs
-dbus_enabled: false
-dbus_bus: system
 ```
 
 `lldp_source: lldpd` ruft `lldpcli -f json show neighbors` mit Timeout auf und
@@ -423,11 +403,6 @@ nicht erforderlich. Wenn LLDP verfuegbar ist, reduziert es manuelle Fehler bei
 werden koennen. Wenn LLDP fehlt, entscheidet die explizite Konfiguration ueber
 den direkten Nachbarn. FDB-Sichtbarkeit wird niemals als Richtungsbeweis
 verwendet.
-
-`log_source: journalctl` liest aktuelle Linux-Unit-Logs ueber
-`journalctl --output=json`. `log_source: syslog` liest eine konfigurierte
-Syslog-Datei, fuer FreeBSD-artige Systeme standardmaessig `/var/log/messages`.
-Diese Quellen sind ueber Status/Capabilities sichtbar und bleiben read-only.
 
 `proc_source: procfs` ist Linux-only und ergaenzt Interface-Zaehler aus
 `/proc/net/dev`; Link-Speed oder Medium kommen weiterhin aus `/sys/class/net`
@@ -444,8 +419,9 @@ Gateway- und gemessene ausgewaehlte Switch-Uplink-Felder `rx_rate` und
 `tx_rate` werden als Bit/s-Durchsatz gerendert; `rx_bytes-r`, `tx_bytes-r` und
 `bytes-r` bleiben Byte/s-Raten.
 Die lokale Statusdatei dekodiert das eigene Inform-JSON nicht als Nachweis.
-Verglichen werden die typisierte Host-Beobachtung, ein unabhaengiges
-Controller-Readback und der sichtbare Controller-Graph.
+Die controller-seitige Abnahme vergleicht die passive Host-Beobachtung mit den
+fuer Betreiber sichtbaren Controller-Metriken unter erzeugtem Traffic; sie
+verlaesst sich nicht auf eine zweite private Controller-API-Assertion.
 
 Bei einem Switch beschreiben diese Controller-Spalten unterschiedliche Daten
 und duerfen nicht wie dieselbe Messung verglichen werden:
@@ -474,18 +450,6 @@ Top-Level-`uplink` ausgewaehlte Management-Interface gespiegelt. Gemessene
 Byte/s- und Bit/s-Raten stehen sowohl dort als auch am ausgewaehlten physischen
 Port. Dieser Pfad ist fuer die offizielle Latest-Statistics-Ausgabe von Network
 10.5 erforderlich; bei deaktivierter Messung werden keine Ratenfelder ergaenzt.
-
-Die controller-seitige Releaseabnahme loest das neueste veroeffentlichte Stable
-und den neuesten veroeffentlichten Release Candidate dynamisch auf und prueft
-dasselbe Produktimage in beiden wegwerfbaren Docker-Controller-Spuren. Der
-feste `10.4.57`-Pfad ist eine historische fokussierte Regression, kein
-Produkt-Pin. Keiner der Pfade veraendert die Main CI.
-
-`dbus_enabled: true` prueft nur optionale System- oder Session-D-Bus-
-Konnektivitaet. D-Bus ist fuer den normalen Stub-Betrieb nicht erforderlich.
-
-Traffic-Metadaten sind aktuell nur `traffic_source: off`; Packet Capture und
-DPI sind fuer die erste Observation-Wave absichtlich nicht Teil des Scopes.
 
 `management_lan` ist die Konfiguration fuer Switch-Management-VLANs. Werte
 `1..4094` werden im Inform-Payload und im Status ausgegeben, `0` laesst das

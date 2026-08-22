@@ -1,6 +1,3 @@
-// Package payload resolves profile ports into a renderer-neutral view before
-// switch or gateway tables are encoded. This keeps physical port data, host
-// observation data, and controller payload shape separated.
 package payload
 
 import (
@@ -11,20 +8,15 @@ import (
 
 // InterfaceView is the resolved controller-facing state of one interface.
 type InterfaceView struct {
-	Name            string
-	IfName          string
-	Comment         string
-	MAC             string
-	IP              string
-	Netmask         string
-	IPv6            []string
-	Address         string
-	NetworkGroup    string
-	SourceInterface string
-	PortIndex       int
-	Up              bool
-	Speed           int
-	Media           string
+	Name         string
+	IfName       string
+	Comment      string
+	MAC          string
+	IP           string
+	Netmask      string
+	IPv6         []string
+	Address      string
+	NetworkGroup string
 }
 
 // PortView is the canonical resolved port state shared by all payload
@@ -39,7 +31,6 @@ type PortView struct {
 	NetworkGroup        string
 	SourceInterface     string
 	Uplink              bool
-	ProfileUplink       bool
 	Enabled             bool
 	Up                  bool
 	Speed               int
@@ -72,7 +63,9 @@ func BuildPortViews(profile device.Profile, id device.Identity, ports []device.P
 		netmask := interfaceNetmask(port)
 		ipv6 := cloneIPv6(port.IPv6)
 		physicalIfName := gatewayInterfaceName(profile, port.Index)
-		gatewayName := gatewayInterfaceNameForPort(profile, port)
+		// Gateway remaps change role and network group, not the physical ethN
+		// identity derived from the profile port index.
+		gatewayName := gatewayInterfaceName(profile, port.Index)
 		// sourceInterface is the local observation source. It may be a Linux,
 		// FreeBSD, or OPNsense name and must stay separate from GatewayInterface.IfName.
 		sourceInterface := strings.TrimSpace(port.Interface)
@@ -89,7 +82,6 @@ func BuildPortViews(profile device.Profile, id device.Identity, ports []device.P
 			NetworkGroup:        networkGroup,
 			SourceInterface:     sourceInterface,
 			Uplink:              port.Uplink,
-			ProfileUplink:       port.ProfileUplink,
 			Enabled:             enabled,
 			Up:                  port.Up,
 			Speed:               speed,
@@ -97,20 +89,15 @@ func BuildPortViews(profile device.Profile, id device.Identity, ports []device.P
 			MACs:                macs,
 			Neighbors:           neighbors,
 			GatewayInterface: InterfaceView{
-				Name:            gatewayName,
-				IfName:          gatewayName,
-				Comment:         port.Name,
-				MAC:             portMAC(id.MAC, port),
-				IP:              ip,
-				Netmask:         netmask,
-				IPv6:            ipv6,
-				Address:         interfaceAddressCIDR(ip, netmask),
-				NetworkGroup:    networkGroup,
-				SourceInterface: sourceInterface,
-				PortIndex:       port.Index,
-				Up:              port.Up,
-				Speed:           speed,
-				Media:           media,
+				Name:         gatewayName,
+				IfName:       gatewayName,
+				Comment:      port.Name,
+				MAC:          portMAC(id.MAC, port),
+				IP:           ip,
+				Netmask:      netmask,
+				IPv6:         ipv6,
+				Address:      interfaceAddressCIDR(ip, netmask),
+				NetworkGroup: networkGroup,
 			},
 		}
 		if edge, ok := edges[port.Index]; ok {

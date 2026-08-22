@@ -8,54 +8,6 @@ import (
 	"github.com/konstruktor1/unifi-stubd/internal/device"
 )
 
-// linuxMemberPortObservations reads per-member sysfs counters and speed when
-// Linux bridge members correspond to visible host interfaces.
-func linuxMemberPortObservations(sysfsRoot string, memberMACs map[string][]device.MacTableEntry, roles map[string]BridgeMemberRole) map[string]PortObservation {
-	if len(memberMACs) == 0 {
-		return nil
-	}
-	out := map[string]PortObservation{}
-	for member := range memberMACs {
-		role := memberRole(roles, member)
-		if role == BridgeMemberRoleBridge || role == BridgeMemberRoleIgnored {
-			continue
-		}
-		stats, err := ReadInterfaceStats(sysfsRoot, member)
-		if err != nil && !hasCounters(stats) && stats.SpeedMbps <= 0 {
-			continue
-		}
-		out[member] = PortObservation{
-			Interface: strings.TrimSpace(member),
-			SpeedMbps: stats.SpeedMbps,
-			Stats:     stats,
-		}
-	}
-	if len(out) == 0 {
-		return nil
-	}
-	return out
-}
-
-// mapBridgeMemberInterfaces records member interface names on platforms where
-// counters are not available through the bridge observation path.
-func mapBridgeMemberInterfaces(memberMACs map[string][]device.MacTableEntry, roles map[string]BridgeMemberRole) map[string]PortObservation {
-	if len(memberMACs) == 0 {
-		return nil
-	}
-	out := map[string]PortObservation{}
-	for member := range memberMACs {
-		role := memberRole(roles, member)
-		if role == BridgeMemberRoleBridge || role == BridgeMemberRoleIgnored {
-			continue
-		}
-		out[member] = PortObservation{Interface: strings.TrimSpace(member)}
-	}
-	if len(out) == 0 {
-		return nil
-	}
-	return out
-}
-
 // sortedDeviceNames provides stable member-to-port assignment independent of
 // Go map iteration order.
 func sortedDeviceNames(deviceMACs map[string][]device.MacTableEntry, iface, bridge string) []string {

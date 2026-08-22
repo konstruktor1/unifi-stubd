@@ -1,6 +1,3 @@
-// Package device renders validated records as canonical YAML for template
-// and export CLI actions. The registry remains the source of truth for defaults
-// and built-in override markers.
 package device
 
 import (
@@ -22,8 +19,8 @@ func (r ProfileRegistry) ExportProfileYAML(name string) ([]byte, error) {
 	return profileYAML(profile)
 }
 
-// TemplateYAML returns a starter profile template for kind.
-func TemplateYAML(kind string) ([]byte, error) {
+// ProfileTemplateYAML returns a starter profile template for kind.
+func ProfileTemplateYAML(kind string) ([]byte, error) {
 	kind = strings.ToLower(strings.TrimSpace(kind))
 	switch kind {
 	case payloadKindSwitch:
@@ -81,11 +78,6 @@ func TemplateYAML(kind string) ([]byte, error) {
 	default:
 		return nil, fmt.Errorf("invalid profile template kind %q; use switch or gateway", kind)
 	}
-}
-
-// ProfileTemplateYAML returns a starter profile template for kind.
-func ProfileTemplateYAML(kind string) ([]byte, error) {
-	return TemplateYAML(kind)
 }
 
 // profileYAML renders a detached profile with runtime-only source metadata

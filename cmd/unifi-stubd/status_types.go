@@ -58,14 +58,9 @@ type statusConfig struct {
 	BridgeObserve              appconfig.BridgeObserve         `json:"bridge_observe,omitempty"`
 	PortMappings               []appconfig.PortMapping         `json:"port_mappings,omitempty"`
 	LLDPSource                 string                          `json:"lldp_source"`
-	TrafficSource              string                          `json:"traffic_source"`
 	TrafficRatesEnabled        bool                            `json:"traffic_rates_enabled"`
 	WANHealth                  statusWANHealthConfig           `json:"wan_health"`
-	LogSource                  string                          `json:"log_source"`
 	ProcSource                 string                          `json:"proc_source"`
-	DBusEnabled                bool                            `json:"dbus_enabled"`
-	DBusBus                    string                          `json:"dbus_bus"`
-	SyslogPath                 string                          `json:"syslog_path,omitempty"`
 	InstanceGuard              string                          `json:"instance_guard"`
 	InstanceGuardPath          string                          `json:"instance_guard_path,omitempty"`
 }
@@ -74,19 +69,16 @@ type statusConfig struct {
 // permits positive controller interval hints for the selected product profile.
 type statusControllerIntervalPolicy struct {
 	Supported        bool   `json:"supported"`
-	EvidenceID       string `json:"evidence_id,omitempty"`
 	FirmwareMinimum  string `json:"firmware_minimum,omitempty"`
 	EffectiveMinimum string `json:"effective_minimum,omitempty"`
 	Reason           string `json:"reason,omitempty"`
 }
 
-// statusControllerReportingPolicy exposes the exact evidence decision for
-// controller-selected payload producers and controller time.
+// statusControllerReportingPolicy exposes enabled controller-driven behavior.
 type statusControllerReportingPolicy struct {
-	EvidenceID      string `json:"evidence_id,omitempty"`
-	BehaviorID      string `json:"behavior_id,omitempty"`
 	BlockSelection  bool   `json:"block_selection"`
 	ControllerClock bool   `json:"controller_clock"`
+	IdleSpeedtest   bool   `json:"idle_speedtest"`
 	Reason          string `json:"reason"`
 }
 
@@ -172,43 +164,7 @@ type statusPlatform struct {
 
 // persistedRunStatus contains runtime data loaded from the status file.
 type persistedRunStatus struct {
-	LastInform    lastInformStatus    `json:"last_inform,omitempty"`
-	InformSession informSessionStatus `json:"inform_session"`
-}
-
-// informSessionStatus is a bounded, non-secret transcript of the current
-// daemon run. It preserves enough ordering to distinguish a real decoded
-// CBC setparam exchange from subsequent accepted GCM exchanges.
-type informSessionStatus struct {
-	StartedAt         string                 `json:"started_at"`
-	Attempts          int                    `json:"attempts"`
-	HTTP200           int                    `json:"http_200"`
-	DecodedResponses  int                    `json:"decoded_responses"`
-	ParsedResponses   int                    `json:"parsed_responses"`
-	CBCRequests       int                    `json:"cbc_requests"`
-	GCMRequests       int                    `json:"gcm_requests"`
-	CBCFallbacks      int                    `json:"cbc_fallbacks"`
-	SetParamResponses int                    `json:"setparam_responses"`
-	NoopResponses     int                    `json:"noop_responses"`
-	Events            []informExchangeStatus `json:"events,omitempty"`
-}
-
-// informExchangeStatus records protocol metadata only. It intentionally omits
-// URLs, MAC addresses, keys, payloads, and controller-provided values.
-type informExchangeStatus struct {
-	Sequence              int    `json:"sequence"`
-	RequestFlags          uint16 `json:"request_flags"`
-	KeySource             string `json:"key_source"`
-	StatusCode            int    `json:"status_code,omitempty"`
-	ResponseBodyPresent   bool   `json:"response_body_present"`
-	ResponsePacketDecoded bool   `json:"response_packet_decoded"`
-	ResponseJSONParsed    bool   `json:"response_json_parsed"`
-	ResponseFlags         uint16 `json:"response_flags,omitempty"`
-	ResponseType          string `json:"response_type,omitempty"`
-	HasMgmtCFG            bool   `json:"has_mgmt_cfg,omitempty"`
-	UsedAESGCM            bool   `json:"used_aes_gcm"`
-	FallbackToCBC         bool   `json:"fallback_to_cbc"`
-	Failed                bool   `json:"failed"`
+	LastInform lastInformStatus `json:"last_inform,omitempty"`
 }
 
 // lastInformStatus summarizes the latest controller inform exchange.
@@ -222,9 +178,7 @@ type lastInformStatus struct {
 	WireStateName         string                   `json:"wire_state_name,omitempty"`
 	CFGVersion            string                   `json:"cfgversion,omitempty"`
 	Version               string                   `json:"version,omitempty"`
-	AttemptedAESGCM       bool                     `json:"attempted_aes_gcm,omitempty"`
-	UsedAESGCM            bool                     `json:"used_aes_gcm,omitempty"`
-	FallbackToCBC         bool                     `json:"fallback_to_cbc,omitempty"`
+	Cipher                string                   `json:"cipher,omitempty"`
 	RequestFlags          uint16                   `json:"request_flags,omitempty"`
 	KeySource             string                   `json:"key_source,omitempty"`
 	ResponseBodyPresent   bool                     `json:"response_body_present,omitempty"`

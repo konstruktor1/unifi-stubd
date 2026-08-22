@@ -1,6 +1,3 @@
-// Package payload normalizes link, counter, and source-interface fragments for
-// both switch and gateway renderers. Centralizing them keeps renderer logic
-// data-driven rather than model-name driven.
 package payload
 
 import (

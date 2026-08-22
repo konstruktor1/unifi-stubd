@@ -18,8 +18,8 @@ type serveIdentity struct {
 func resolveServeIdentity(flags runtimeFlags, profile device.Profile, plt platform.Platform) (serveIdentity, error) {
 	hostname := resolveHostname(flags.hostname)
 	uplinkPort := effectiveUplinkPort(profile, flags)
-	portBuildOptions := resolvePortBuildOptions(flags.portCount, flags.linkSpeed, uplinkPort, effectiveUplinkSpeedMode(flags), flags.controller)
-	mac := resolveMAC(flags.macText, hostname, profile, flags.model, flags.operationMode, flags.observeInterface)
+	portBuildOptions := resolvePortBuildOptions(flags.portCount, flags.linkSpeed, uplinkPort, effectiveUplinkSpeedMode(flags), flags.controller, plt)
+	mac := resolveMAC(flags.macText, hostname, profile, flags.model, flags.operationMode, flags.observeInterface, plt)
 	ip := net.ParseIP(flags.ipText).To4()
 	if ip == nil {
 		return serveIdentity{}, fmt.Errorf("invalid IPv4 address: %q", flags.ipText)

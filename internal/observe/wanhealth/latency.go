@@ -12,8 +12,7 @@ var (
 	summaryPattern = regexp.MustCompile(`(?i)=\s*[0-9]+(?:\.[0-9]+)?/([0-9]+(?:\.[0-9]+)?)/[0-9]+(?:\.[0-9]+)?/[0-9]+(?:\.[0-9]+)?\s*ms\b`)
 )
 
-// ParseLatencyMS extracts a latency value from common Linux and BSD ping output.
-func ParseLatencyMS(output []byte) (int, bool) {
+func parseLatencyMS(output []byte) (int, bool) {
 	text := string(output)
 	if match := latencyPattern.FindStringSubmatch(text); len(match) == 2 {
 		return parseLatencyValue(match[1])

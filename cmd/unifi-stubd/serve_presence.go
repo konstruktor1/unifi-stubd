@@ -30,7 +30,6 @@ func maintainControllerPresence(cfg controllerPresence) error {
 	var rateTracker *observe.TrafficRateTracker
 	var blocks adoption.BlockSelection
 	var controllerClock inform.ControllerClock
-	informSession := newInformSessionStatus()
 	schedule, err := inform.NewSchedule(informScheduleConfig(cfg.flags, cfg.informSchedulePolicy))
 	if err != nil {
 		return fmt.Errorf("create inform schedule: %w", err)
@@ -89,11 +88,10 @@ func maintainControllerPresence(cfg controllerPresence) error {
 			cfg.flags.statusPath,
 			store,
 			payload,
-			informSourceIP(cfg.flags, cfg.ip),
+			informSourceIP(cfg.flags, cfg.ip, plt),
 			&blocks,
 			schedule,
 			&controllerClock,
-			&informSession,
 			cfg.reportingPolicy,
 		)
 		if heartbeatErr != nil {

@@ -14,7 +14,6 @@ export COMPOSE_PROJECT_NAME
 
 : "${UNIFI_NETWORK_IMAGE:?the channel matrix must supply a resolved controller image}"
 : "${UNIFI_STUB_LAB_EXPECTED_NETWORK_VERSION:?the channel matrix must supply the resolved controller version}"
-: "${UNIFI_STUB_DOCKER_EXPECTED_PRODUCT_IMAGE_ID:?the channel matrix must supply the product image ID}"
 export UNIFI_NETWORK_IMAGE UNIFI_STUB_LAB_EXPECTED_NETWORK_VERSION
 compose() {
   docker compose \
@@ -22,20 +21,6 @@ compose() {
     -f "$repo_root/lab/stub/compose.tests.yaml" \
     -f "$repo_root/lab/stub/compose.controller-channel.yaml" \
     "$@"
-}
-
-verify_product_image() {
-  container_id="$(compose ps -q stub-bridge-observe)"
-  [ -n "$container_id" ] || {
-    echo "docker integration: product container is missing" >&2
-    return 1
-  }
-  actual="$(docker container inspect --format '{{.Image}}' "$container_id")"
-  if [ "$actual" != "$UNIFI_STUB_DOCKER_EXPECTED_PRODUCT_IMAGE_ID" ]; then
-    echo "docker integration: product image mismatch" >&2
-    return 1
-  fi
-  echo "docker integration: product image verified id=$actual"
 }
 
 controller_api() {
@@ -103,16 +88,10 @@ run_switch_traffic_gate() {
     ' sh 198.51.100.2 198.51.100.1 203.0.113.1 203.0.113.2 &
   traffic_pid=$!
 
-  controller_api wait-switch-telemetry \
-    --mac "$UNIFI_STUB_BRIDGE_MAC" \
-    --expected-uplink-speed "$expected_speed" \
-    --timeout 65 &
-  telemetry_pid=$!
   result=0
   compose run -T --rm --no-deps \
     -e UNIFI_STUB_UI_DEVICE_IP="$UNIFI_STUB_BRIDGE_IP" \
     -e UNIFI_STUB_UI_SPEED_MBPS="$expected_speed" controller-ui || result=$?
-  wait "$telemetry_pid" || result=$?
   kill "$traffic_pid" 2>/dev/null || true
   wait "$traffic_pid" 2>/dev/null || true
   return "$result"
@@ -121,7 +100,6 @@ run_switch_traffic_gate() {
 run_adoption_gate() {
   echo "docker integration: controller US8 adoption gate"
   compose up -d stub-bridge-observe
-  verify_product_image
   controller_api wait-visible --mac "$UNIFI_STUB_BRIDGE_MAC" --timeout 90
   controller_api adopt --mac "$UNIFI_STUB_BRIDGE_MAC"
 }

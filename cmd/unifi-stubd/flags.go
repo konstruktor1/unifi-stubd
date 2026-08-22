@@ -47,13 +47,8 @@ type runtimeFlags struct {
 	observeInterface           string
 	observeBridge              string
 	lldpSource                 string
-	trafficSource              string
 	trafficRatesEnabled        bool
-	logSource                  string
 	procSource                 string
-	dbusEnabled                bool
-	dbusBus                    string
-	syslogPath                 string
 	instanceGuard              string
 	instanceGuardPath          string
 	controller                 string
@@ -81,16 +76,17 @@ type runtimeFlags struct {
 
 // parseRuntimeFlags registers all CLI flags against defaults and records which
 // flags were explicitly set so YAML config cannot override them later.
-func parseRuntimeFlags(defaults appconfig.Config) (runtimeFlags, map[string]bool) {
+func parseRuntimeFlags() (runtimeFlags, map[string]bool) {
+	defaults := appconfig.Default()
 	flags := runtimeFlags{
 		uplinkNeighbor:   configUplinkNeighbor(defaults.UplinkNeighbor),
 		portNeighbors:    configPortNeighbors(defaults.PortNeighbors),
-		portOverrides:    configPortOverrides(defaults.PortOverrides),
+		portOverrides:    device.ClonePortOverrides(defaults.PortOverrides),
 		wanHealth:        cloneWANHealth(defaults.WANHealth),
 		bridgeObserve:    cloneBridgeObserve(defaults.BridgeObserve),
-		portMappings:     clonePortMappings(defaults.PortMappings),
+		portMappings:     cloneNonEmptySlice(defaults.PortMappings),
 		managementLAN:    defaults.ManagementLAN,
-		discoveryTargets: cloneStrings(defaults.DiscoveryTargets),
+		discoveryTargets: cloneNonEmptySlice(defaults.DiscoveryTargets),
 	}
 	flag.StringVar(&flags.configPath, "config", appconfig.DefaultPath, "YAML config file path; default path is optional when absent")
 	flag.BoolVar(&flags.listProfiles, "list-profiles", false, "list known device profiles and exit")

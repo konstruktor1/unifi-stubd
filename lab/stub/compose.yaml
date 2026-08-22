@@ -1,4 +1,4 @@
-# Disposable controller and provisioning services for the US8 product gate.
+# Disposable controller and provisioning services for the Stable/RC gate.
 
 services:
   unifi:

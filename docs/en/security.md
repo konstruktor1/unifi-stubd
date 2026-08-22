@@ -46,4 +46,6 @@ credentials are then exposed on the configured listen address.
 
 ## Personal and Client Data
 
-MAC tables, DHCP information, DPI data, and NetFlow can contain personal metadata. Example PCAPs belong in `.gitignore` and should be anonymized before sharing.
+MAC tables, DHCP information, DPI data, and NetFlow can contain personal
+metadata. Keep captures in private storage outside this checkout and anonymize
+them before sharing.

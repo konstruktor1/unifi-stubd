@@ -8,12 +8,13 @@ import (
 
 	appconfig "github.com/konstruktor1/unifi-stubd/internal/config"
 	"github.com/konstruktor1/unifi-stubd/internal/device"
+	"github.com/konstruktor1/unifi-stubd/internal/platform"
 )
 
 // validateManagementLAN enforces that management VLAN handling remains payload
 // metadata or binding to a preexisting interface; planned host VLAN creation is
 // dry-run-only.
-func validateManagementLAN(flags runtimeFlags, profile device.Profile, live bool) error {
+func validateManagementLAN(flags runtimeFlags, profile device.Profile, live bool, addresses platform.AddressReader) error {
 	cfg := effectiveManagementLAN(flags)
 	if cfg.VLAN < 0 || cfg.VLAN > 4094 {
 		return fmt.Errorf("invalid management_lan.vlan %d; use 0..4094", cfg.VLAN)
@@ -52,15 +53,15 @@ func validateManagementLAN(flags runtimeFlags, profile device.Profile, live bool
 		return fmt.Errorf("invalid management_lan.interface %q", cfg.Interface)
 	}
 	if cfg.Mode == managementLANModePreexistingInterface && live {
-		return validatePreexistingManagement(flags, cfg)
+		return validatePreexistingManagement(flags, cfg, addresses)
 	}
 	return nil
 }
 
 // validatePreexistingManagement checks the local interface before source-bound
 // discovery or inform traffic can use it.
-func validatePreexistingManagement(flags runtimeFlags, cfg appconfig.ManagementLAN) error {
-	sourceIP, err := managementLANInterfaceIP(cfg)
+func validatePreexistingManagement(flags runtimeFlags, cfg appconfig.ManagementLAN, addresses platform.AddressReader) error {
+	sourceIP, err := managementLANInterfaceIP(cfg, addresses)
 	if err != nil {
 		return err
 	}
@@ -69,7 +70,7 @@ func validatePreexistingManagement(flags runtimeFlags, cfg appconfig.ManagementL
 		if configured == nil {
 			return fmt.Errorf("invalid management_lan.ip %q", cfg.IP)
 		}
-		if !configured.Equal(sourceIP) && !interfaceHasIPv4(cfg.Interface, configured) {
+		if !configured.Equal(sourceIP) && !interfaceHasIPv4(cfg.Interface, configured, addresses) {
 			return fmt.Errorf("management_lan.ip %s is not assigned to interface %s", configured, cfg.Interface)
 		}
 		sourceIP = configured
