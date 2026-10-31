@@ -48,6 +48,9 @@ jobs:
       - name: Collect coverage
         run: |
           "$BUILD_RUNNER_ENTRY" --project-name unifi-stubd run --tier 1 --service go -- make coverage
+      - name: Hand artifact output to native Actions
+        run: |
+          chown --no-dereference --reference="$GITHUB_ENV" -- dist
       - uses: anchore/sbom-action@v0
         with:
           path: .

@@ -76,6 +76,8 @@ use the same root UID as the BR controller. Setup first validates the native
 physical root, then transfers ownership of that job checkout before creating
 private provider state. The private `0700` checks remain in force. This setup
 rejects self-hosted workers and does not apply to the FreeBSD runner.
+After the BR workloads, CI transfers the `dist/` directory to the native Actions
+account for SBOM generation.
 
 Private Forgejo reads use `PROVIDER_SOURCE_TOKEN` from GitHub Actions secrets
 and `vars.PROVIDER_SOURCE_USERNAME`; `BUILD_RUNNER_SOURCE_URL` and `CT_SOURCE_URL`
