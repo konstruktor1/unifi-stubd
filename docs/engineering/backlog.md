@@ -1,5 +1,11 @@
 # Maintainer backlog
 
+## Active work — P0
+
+| ID | Work and intended use | Status | Responsible owner | Completion criterion / observed outcome | Remarks and dependencies | Use cases |
+| --- | --- | --- | --- | --- | --- | --- |
+| CI-004 | Restore the existing FreeBSD packaging runner-to-builder connection. | Blocked | Native runner/builder connection owner | Main run 41180962469 passed all three quality/Linux-package/install jobs on 57d5eb7. The separately authorized FreeBSD run 41180973553 passed request validation and runner containment checks, then failed before the build with an SSH TCP connection timeout (exit 255). | The current server inventory reports the Docker guest and named FreeBSD buildhost running; this proves neither SSH readiness nor that the runner's saved endpoint names that guest. The read-only administration interface supplies no guest commands; the known builder/server alias names do not resolve to configured workstation SSH bindings. Obtain the existing authorized guest connection, verify actual endpoint/routing/service and correct the concrete cause through its owner before retrying. Preserve strict host-key checks, runner isolation, other guests and host network policy. | Complete observed FreeBSD package artifacts without a false green or replacement lab host. |
+
 ## Completed work
 
 | ID | Work and intended use | Status | Responsible owner | Completion criterion / observed outcome | Remarks and dependencies | Use cases |
