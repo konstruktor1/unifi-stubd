@@ -6,27 +6,37 @@ on:
 permissions:
   contents: read
 
+env:
+  PROVIDER_CONSUMER_ROOT: ${{ github.workspace }}
+  PROVIDER_CONSUMER_CONTEXT: '{"consumer_id":"unifi-stubd-github","persistence":".consumer-data","resources":[]}'
+
 concurrency:
   group: unifi-stubd-tier2-docker
   cancel-in-progress: false
 
 jobs:
   controller-adoption:
-    runs-on: [self-hosted, Linux, X64, docker-dmz, docker-engine, unifi-stubd]
+    runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v6
+        with:
+          clean: false
+          persist-credentials: false
+
+      - name: Prepare current Build Runner source
+        id: providers
+        uses: ./.github/actions/provider-setup
+        with:
+          build-runner-source: ${{ vars.BUILD_RUNNER_SOURCE_URL }}
+          source-user: ${{ vars.PROVIDER_SOURCE_USERNAME }}
+          source-token: ${{ secrets.PROVIDER_SOURCE_TOKEN }}
 
       - name: Preflight Build Runner
-        run: |
-          set -eu
-          test -f ./build-runner/runtime/entry && test -x ./build-runner/runtime/entry && test ! -L ./build-runner/runtime/entry || {
-            printf '%s\n' 'Build Runner provider owner must run no-argument runner prepare from this physical consumer root after actions/checkout' >&2
-            exit 2
-          }
-          provider_root="$(./build-runner/runtime/entry --provider-root)"
-          "$provider_root/bin/provider" status build-runner --json
-          "$provider_root/bin/provider" check build-runner --json
+        uses: ./.github/actions/provider-preflight
+        with:
+          provider: build-runner
+          initial-management-launcher: ${{ steps.providers.outputs.build-runner-launcher }}
 
       - name: Run Stable and RC product acceptance
         run: make integration-nonunifi-metrics

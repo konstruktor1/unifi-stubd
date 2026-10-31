@@ -3,26 +3,48 @@ name: CI
 on:
   workflow_dispatch:
   push:
-    branches: [dev, main]
-  pull_request:
+    branches: ["**"]
 
 permissions:
   contents: read
+
+env:
+  PROVIDER_CONSUMER_ROOT: ${{ github.workspace }}
+  PROVIDER_CONSUMER_CONTEXT: '{"consumer_id":"unifi-stubd-github","persistence":".consumer-data","resources":[]}'
 
 jobs:
   check:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - name: Set up Go from module version
-        uses: actions/setup-go@v6
         with:
-          go-version-file: go.mod
-          check-latest: true
-      - run: make check
-      - run: make coverage
-      - run: make vulncheck
-      - run: mkdir -p dist
+          clean: false
+          persist-credentials: false
+      - name: Prepare current provider sources
+        id: providers
+        uses: ./.github/actions/provider-setup
+        with:
+          build-runner-source: ${{ vars.BUILD_RUNNER_SOURCE_URL }}
+          ct-source: ${{ vars.CT_SOURCE_URL }}
+          source-user: ${{ vars.PROVIDER_SOURCE_USERNAME }}
+          source-token: ${{ secrets.PROVIDER_SOURCE_TOKEN }}
+      - name: Preflight Codetool
+        uses: ./.github/actions/provider-preflight
+        with:
+          provider: ct
+          initial-management-launcher: ${{ steps.providers.outputs.ct-launcher }}
+      - name: Preflight Build Runner
+        uses: ./.github/actions/provider-preflight
+        with:
+          provider: build-runner
+          initial-management-launcher: ${{ steps.providers.outputs.build-runner-launcher }}
+      - name: Run complete repository gate
+        run: |
+          rm -rf -- dist
+          make verify
+      - name: Collect coverage
+        run: |
+          "$BUILD_RUNNER_ENTRY" --project-name unifi-stubd run --tier 1 --service go -- make coverage
       - uses: anchore/sbom-action@v0
         with:
           path: .
@@ -45,14 +67,26 @@ jobs:
     needs: check
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.package-version.outputs.version }}
     steps:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - uses: actions/setup-go@v6
+          clean: false
+          persist-credentials: false
+      - name: Prepare current Build Runner source
+        id: providers
+        uses: ./.github/actions/provider-setup
         with:
-          go-version-file: go.mod
-          check-latest: true
+          build-runner-source: ${{ vars.BUILD_RUNNER_SOURCE_URL }}
+          source-user: ${{ vars.PROVIDER_SOURCE_USERNAME }}
+          source-token: ${{ secrets.PROVIDER_SOURCE_TOKEN }}
+      - name: Preflight Build Runner
+        uses: ./.github/actions/provider-preflight
+        with:
+          provider: build-runner
+          initial-management-launcher: ${{ steps.providers.outputs.build-runner-launcher }}
       - name: Resolve package version
         id: package-version
         run: |
@@ -60,19 +94,36 @@ jobs:
           version="$(sed -n '1p' VERSION)"
           test -n "$version"
           echo "version=$version" >> "$GITHUB_OUTPUT"
-      - run: PKG_VERSION='${{ steps.package-version.outputs.version }}' make package
+      - name: Build Linux packages
+        env:
+          PKG_VERSION: ${{ steps.package-version.outputs.version }}
+        run: |
+          rm -rf -- dist
+          "$BUILD_RUNNER_ENTRY" --project-name unifi-stubd run --tier 1 --service go -- \
+            env PKG_VERSION="$PKG_VERSION" PKG_GOARCH=amd64 PKG_RELEASE=1 make package
+      - uses: actions/upload-artifact@v7
+        with:
+          name: packages
+          path: dist/packages/
+          retention-days: 7
+
+  package-install-smoke:
+    needs: package
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v7
+        with:
+          name: packages
+          path: dist/packages
       - name: Install deb package smoke test
+        env:
+          PKG_VERSION: ${{ needs.package.outputs.version }}
         run: |
           set -eu
           deb="$(find dist/packages -maxdepth 1 -name 'unifi-stubd_*_amd64.deb' -print -quit)"
           test -n "$deb"
           sudo dpkg -i "$deb"
           test -x /usr/local/bin/unifi-stubd
-          test "$(unifi-stubd -version)" = '${{ steps.package-version.outputs.version }}'
+          test "$(unifi-stubd -version)" = "$PKG_VERSION"
           sudo unifi-stubd -validate -config /etc/unifi-stubd/config.yaml
           dpkg -L unifi-stubd | grep -qx /lib/systemd/system/unifi-stubd.service
-      - uses: actions/upload-artifact@v7
-        with:
-          name: packages
-          path: dist/packages/
-          retention-days: 7

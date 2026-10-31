@@ -154,8 +154,9 @@ index](docs/de/README.md).
 
 ## Development
 
-Build, format, lint, test, and package commands use the project's configured
-Build Runner. Contributors should follow [AGENTS.md](AGENTS.md) and the
+The root `Makefile` is the canonical development interface. Go work uses Build
+Runner; the complete quality gate also invokes Codetool. Contributors
+should follow [AGENTS.md](AGENTS.md) and the
 [development workflow](docs/en/development.md); the README does not duplicate
 runner, CI, packaging, or release procedures.
 

@@ -1,5 +1,8 @@
 GO ?= go
-GOLANGCI_LINT ?= $(GO) tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint
+# Keep installed dependencies such as node_modules outside consumer Go analysis.
+GO_PACKAGES := ./cmd/... ./internal/... ./tests/... ./lab/stub/tools/controller-adoption
+# Keep the linter dependency graph outside the product module.
+GOLANGCI_LINT ?= env GOWORK=off $(GO) tool -modfile=golangci-lint.mod github.com/golangci/golangci-lint/v2/cmd/golangci-lint
 GOLANGCI_LINT_CACHE ?= $(GOCACHE)/golangci-lint
 RUNNER_WORKDIR ?= $(GOCACHE)/unifi-stubd-work
 GOVULNCHECK ?= $(GO) tool golang.org/x/vuln/cmd/govulncheck
@@ -17,14 +20,34 @@ PKG_LICENSE ?= AGPL-3.0-or-later
 PKG_MAINTAINER ?= unifi-stubd maintainers <info@spinas.org>
 BUILD_LDFLAGS := -s -w -X main.version=$(PKG_VERSION)
 BUILD_RUNNER_PROJECT_NAME := unifi-stubd
-BUILD_RUNNER_INTEGRATION_MANIFEST := build-runner/instances/controller-gate.yaml
-CODE_CHECKER_CONFIG := $(CODE_CHECKER_CONSUMER_PROJECT)/code-checker.toml
-CODE_CHECKER_MANIFEST := build-runner/instances/code-checker.yaml
+# Only host orchestration calls providers; payload targets execute in /workspace.
+HOST_PROVIDER_GOALS := verify quality-deps quality-js quality-ct quality-ct-image provider-check provider-context doctor \
+  integration-nonunifi-metrics
+BUILD_RUNNER_CLI_GOALS := verify quality-deps quality-js \
+  integration-nonunifi-metrics
+ifneq ($(filter $(HOST_PROVIDER_GOALS),$(MAKECMDGOALS)),)
+ifndef PROVIDER_CONSUMER_ROOT
+$(error Inherit PROVIDER_CONSUMER_ROOT from the existing native project/session owner)
+endif
+ifndef PROVIDER_CONSUMER_CONTEXT
+$(error Inherit PROVIDER_CONSUMER_CONTEXT from the existing native project/session owner)
+endif
+export PROVIDER_CONSUMER_ROOT PROVIDER_CONSUMER_CONTEXT
+ifneq ($(PROVIDER_CONSUMER_ROOT),$(shell pwd -P))
+$(error Inherit this project's canonical native PROVIDER_CONSUMER_ROOT unchanged)
+endif
+PROVIDER_CLIENT_PYTHON := $(PROVIDER_CONSUMER_ROOT)/.consumer-data/dependencies/unifi-stubd/mcp/bin/python
+endif
+ifneq ($(filter $(BUILD_RUNNER_CLI_GOALS),$(MAKECMDGOALS)),)
+BUILD_RUNNER_ENTRY := $(shell jq -er '.command | select(endswith("/bin/provider")) | sub("/provider$$"; "/build-runner")' .consumer-data/connections/build-runner/management.json)
+endif
 
 ifneq ($(strip $(GOCACHE)),)
 GOTMPDIR ?= $(RUNNER_WORKDIR)
 TMPDIR ?= $(RUNNER_WORKDIR)
-export GOTMPDIR TMPDIR
+# Go's checksum database also needs writable project metadata outside GOMODCACHE.
+GOPATH := $(RUNNER_WORKDIR)/gopath
+export GOPATH GOTMPDIR TMPDIR
 endif
 
 PKG_ENV := PKG_VERSION='$(PKG_VERSION)' \
@@ -35,9 +58,9 @@ PKG_ENV := PKG_VERSION='$(PKG_VERSION)' \
   PKG_MAINTAINER='$(PKG_MAINTAINER)' \
   BUILD_LDFLAGS='$(BUILD_LDFLAGS)'
 
-.PHONY: anti-bloat-changed anti-bloat-full build build-freebsd check clean-dist code-checker code-checker-ready coverage fmt help integration-nonunifi-metrics lint package package-arch package-deb package-freebsd-pkg-repos package-freebsd-tgz package-repos package-rpm package-tgz policy race runner-workdir switch-emulation switch-payload test validate-config vulncheck
+.PHONY: build build-freebsd check clean-dist coverage doctor fmt fmt-check help integration-nonunifi-metrics lint package package-arch package-deb package-freebsd-pkg-repos package-freebsd-tgz package-repos package-rpm package-tgz policy provider-check provider-context quality-deps quality-js race runner-workdir switch-emulation switch-payload test validate-config verify vet vulncheck workflow-lint
 
-build build-freebsd coverage fmt lint package package-arch package-deb package-freebsd-tgz package-rpm package-tgz race switch-emulation switch-payload test validate-config vulncheck: | runner-workdir
+build build-freebsd coverage fmt fmt-check lint package package-arch package-deb package-freebsd-tgz package-rpm package-tgz race switch-emulation switch-payload test validate-config vet vulncheck workflow-lint: | runner-workdir
 
 runner-workdir:
 	@test "$$(pwd -P)" = /workspace && test -n '$(GOCACHE)' || { printf '%s\n' 'Go targets must run in the Build Runner workspace' >&2; exit 1; }
@@ -46,10 +69,11 @@ runner-workdir:
 help:
 	@printf '%s\n' \
 		'Targets:' \
-		'  make check        Run lint, policy checks, and tests' \
-		'  make code-checker  Run the complete pre-merge gate through Build Runner and Code Checker' \
-		'  make anti-bloat-changed  Issue a changed-scope Anti-Bloat work order' \
-		'  make anti-bloat-full  Issue a full-scope Anti-Bloat work order' \
+		'  make verify       Run the complete quality gate through prepared providers' \
+		'  make provider-check  Read and verify current native Build Runner context' \
+		'  make quality-ct   Run CT in its confirmed check environment' \
+		'  make doctor       Inspect local setup and report required coverage gaps' \
+		'  make check        Run format checks, vet, lint, policy checks, and tests' \
 		'  make build-freebsd  Cross-build the FreeBSD/OPNsense binary' \
 		'  make coverage     Write a diagnostic coverage report' \
 		'  make lint         Run golangci-lint and repository policy checks' \
@@ -57,7 +81,8 @@ help:
 		'  make test         Run all Go tests' \
 		'  make validate-config  Validate packaged configs and example profiles' \
 		'  make vulncheck    Run Go vulnerability scanning' \
-		'  make integration-nonunifi-metrics  Prove one non-UniFi bridge on current Stable and RC' \
+		'  make workflow-lint  Validate GitHub workflows and local action metadata' \
+		'  make integration-nonunifi-metrics  Prove non-UniFi metrics with the Stable/RC matrix' \
 		'  make switch-payload  Print discovery and inform payloads' \
 		'  make switch-emulation  Start the lab switch emulator' \
 		'  make package      Build deb, rpm, archlinux, and tgz packages' \
@@ -66,56 +91,78 @@ help:
 		'  make package-freebsd-pkg-repos  Build FreeBSD tarballs and pkg repositories through the configured FreeBSD builder' \
 		'  make clean-dist   Remove package build output'
 
+provider-context:
+	@printf '%s\n' '$(PROVIDER_CONSUMER_CONTEXT)'
+
+provider-check:
+	"$(PROVIDER_CLIENT_PYTHON)" -B scripts/check-ct.py --check-build-runner
+
+doctor:
+	"$(PROVIDER_CLIENT_PYTHON)" -B scripts/check-ct.py --doctor --consumer-role terminal
+
+quality-deps: provider-check
+	"$(BUILD_RUNNER_ENTRY)" --project-name '$(BUILD_RUNNER_PROJECT_NAME)' \
+		run --tier 1 --service node24 -- npm ci --ignore-scripts --no-audit --no-fund
+
+quality-js: quality-deps
+	"$(BUILD_RUNNER_ENTRY)" --project-name '$(BUILD_RUNNER_PROJECT_NAME)' \
+		run --tier 1 --service node24 -- npm run check
+
+.PHONY: quality-ct quality-ct-image
+
+# BR has no consumer Dockerfile build operation; execution stays with its runner.
+quality-ct-image:
+	@set -eu; case "$$(uname -m)" in \
+		arm64|aarch64) platform=linux/arm64 ;; \
+		x86_64|amd64) platform=linux/amd64 ;; \
+		*) printf '%s\n' 'Unsupported native CT image architecture' >&2; exit 1 ;; \
+		esac; \
+		docker build --platform "$$platform" -t local/unifi-stubd-ct-quality:current \
+			-f build-runner/project-setup/ct-quality/Dockerfile build-runner/project-setup/ct-quality; \
+		test "$$(docker image inspect local/unifi-stubd-ct-quality:current --format '{{.Os}}/{{.Architecture}}')" = "$$platform"
+
+quality-ct:
+	"$(PROVIDER_CLIENT_PYTHON)" -B scripts/check-ct.py
+
+verify: quality-js
+	git diff --check HEAD
+	"$(BUILD_RUNNER_ENTRY)" --project-name '$(BUILD_RUNNER_PROJECT_NAME)' \
+		run --tier 1 --service go -- make check vulncheck workflow-lint
+	$(MAKE) quality-ct
+
+workflow-lint:
+	GOWORK=off $(GO) run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+
 build:
-	$(GO) build -ldflags='$(BUILD_LDFLAGS)' ./...
+	$(GO) build -ldflags='$(BUILD_LDFLAGS)' $(GO_PACKAGES)
 
 build-freebsd:
 	mkdir -p dist
 	CGO_ENABLED=0 GOOS=freebsd GOARCH='$(PKG_FREEBSD_GOARCH)' $(GO) build -trimpath -ldflags='$(BUILD_LDFLAGS)' -o dist/unifi-stubd_freebsd_$(PKG_FREEBSD_GOARCH) ./cmd/unifi-stubd
 
-check: lint validate-config test
-
-code-checker-ready:
-	@test -n '$(CODE_CHECKER_PROVIDER_CHECKOUT)' && test -n '$(CODE_CHECKER_PROVIDER_LAUNCHER)' && test -n '$(CODE_CHECKER_CONSUMER_PROJECT)' || { printf '%s\n' 'Code Checker status fields are required' >&2; exit 2; }
-	@test -f '$(CODE_CHECKER_CONFIG)' || { printf '%s\n' 'code-checker.toml is missing' >&2; exit 2; }
-
-code-checker: code-checker-ready
-	@BUILD_RUNNER_CONTROLLER_IMAGE='local/build-runner-controller:unifi-stubd-code-checker' \
-	BUILD_RUNNER_HOST_PATH_CODE_CHECKER_SOURCE='$(CODE_CHECKER_PROVIDER_CHECKOUT)' \
-		./build-runner/runtime/entry build-runner --project-name '$(BUILD_RUNNER_PROJECT_NAME)' \
-		instance run --manifest '$(CODE_CHECKER_MANIFEST)' -- \
-		sh /workspace/build-runner/toolsets/code-checker/run-check.sh \
-			/artifacts/code-checker-source/bin/code-checker /workspace
-
-anti-bloat-changed: code-checker-ready
-	@test -n '$(CODE_CHECKER_ANTI_BLOAT_BASE)' || { printf '%s\n' 'CODE_CHECKER_ANTI_BLOAT_BASE must name the accepted task base commit' >&2; exit 2; }
-	'$(CODE_CHECKER_PROVIDER_LAUNCHER)' --config '$(CODE_CHECKER_CONFIG)' \
-		anti-bloat work-order '$(CODE_CHECKER_CONSUMER_PROJECT)' --scope changed \
-			--base '$(CODE_CHECKER_ANTI_BLOAT_BASE)' --json
-
-anti-bloat-full: code-checker-ready
-	'$(CODE_CHECKER_PROVIDER_LAUNCHER)' --config '$(CODE_CHECKER_CONFIG)' \
-		anti-bloat work-order '$(CODE_CHECKER_CONSUMER_PROJECT)' --scope full --json
-
+check: fmt-check vet lint validate-config test
 lint:
 	GOLANGCI_LINT_CACHE='$(GOLANGCI_LINT_CACHE)' $(GOLANGCI_LINT) config verify
-	GOLANGCI_LINT_CACHE='$(GOLANGCI_LINT_CACHE)' $(GOLANGCI_LINT) run ./...
+	GOLANGCI_LINT_CACHE='$(GOLANGCI_LINT_CACHE)' $(GOLANGCI_LINT) run $(GO_PACKAGES)
 	sh scripts/check-policy.sh
 
 policy:
 	sh scripts/check-policy.sh
 
 test:
-	$(GO) test ./...
+	$(GO) test $(GO_PACKAGES)
+
+vet:
+	$(GO) vet $(GO_PACKAGES)
 
 race:
-	$(GO) test -race ./...
+	$(GO) test -race $(GO_PACKAGES)
 
 vulncheck:
-	$(GOVULNCHECK) ./...
+	$(GOVULNCHECK) $(GO_PACKAGES)
 
 validate-config:
-	@work="$$(mktemp -d '$(RUNNER_WORKDIR)/validate.XXXXXX')"; \
+	@set -eu; work="$$(mktemp -d '$(RUNNER_WORKDIR)/validate.XXXXXX')"; \
 		trap 'rm -rf "$$work"' EXIT; \
 		$(GO) build -o "$$work/unifi-stubd" ./cmd/unifi-stubd; \
 		"$$work/unifi-stubd" -validate -config packaging/linux/etc/unifi-stubd/config.yaml; \
@@ -123,24 +170,11 @@ validate-config:
 		"$$work/unifi-stubd" -dry-run-plan -config lab/stub/configs/hosts/stub-bridge-observe/config.yaml >/dev/null; \
 		"$$work/unifi-stubd" -profile-validate tests/fixtures/profiles
 
-define run_product_gate
-	@if [ "$$(pwd -P)" = /workspace ]; then \
-		$(1); \
-	else \
-		host_lab_dir="$$(pwd -P)/lab/stub"; \
-		BUILD_RUNNER_CONTROLLER_IMAGE='local/build-runner-controller:unifi-stubd-controller-gate' \
-		./build-runner/runtime/entry build-runner \
-			--project-name '$(BUILD_RUNNER_PROJECT_NAME)' \
-			instance run \
-			--manifest '$(BUILD_RUNNER_INTEGRATION_MANIFEST)' \
-			-- env \
-				UNIFI_STUB_DOCKER_HOST_LAB_DIR="$$host_lab_dir" \
-				$(1); \
-	fi
-endef
-
 integration-nonunifi-metrics:
-	$(call run_product_gate,bash lab/stub/scripts/run-controller-channel-matrix.sh)
+	"$(BUILD_RUNNER_ENTRY)" --project-name '$(BUILD_RUNNER_PROJECT_NAME)' \
+		instance run --manifest build-runner/instances/controller-gate.yaml -- \
+		env UNIFI_STUB_DOCKER_HOST_LAB_DIR='$(PROVIDER_CONSUMER_ROOT)/lab/stub' \
+		bash lab/stub/scripts/run-controller-channel-matrix.sh
 
 coverage:
 	mkdir -p dist
@@ -185,4 +219,8 @@ switch-payload:
 	$(GO) run ./cmd/unifi-stubd -profile us8 -dry-run
 
 fmt:
-	$(GOLANGCI_LINT) fmt ./...
+	$(GOLANGCI_LINT) fmt $(GO_PACKAGES)
+
+fmt-check:
+	@output="$$(gofmt -l $(patsubst %/...,%,$(GO_PACKAGES)))" || exit $$?; \
+		test -z "$$output" || { printf '%s\n' "$$output"; exit 1; }

@@ -98,7 +98,6 @@ cleanup() {
 
 [[ "$repo_root" == /workspace ]] || fail 'run through Build Runner (make integration-nonunifi-metrics)'
 [[ $# -eq 0 ]] || fail 'this command accepts no arguments'
-: "${GOCACHE:?Build Runner must supply GOCACHE}"
 for command in awk curl docker jq sed tee; do need "$command"; done
 docker compose version >/dev/null 2>&1 || fail 'docker compose is required'
 run_id="${UNIFI_STUB_CONTROLLER_MATRIX_RUN_ID:-matrix-$(date -u '+%Y%m%d%H%M%S')-$$}"

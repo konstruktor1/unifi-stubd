@@ -405,14 +405,14 @@ EOS
     fail "configured Go command not found on FreeBSD builder: $go_bin"
   fi
   if [ -z "$go_bin" ]; then
-    for candidate in go go125 go126; do
+    for candidate in go go127; do
       if command -v "$candidate" >/dev/null 2>&1; then
         go_bin="$candidate"
         break
       fi
     done
   fi
-  [ -n "$go_bin" ] || fail "missing Go command on FreeBSD builder: install go, go125, or go126"
+  [ -n "$go_bin" ] || fail "missing Go command on FreeBSD builder: install Go 1.27 or newer as go or go127"
   printf '== using Go command: %s ==\n' "$go_bin"
 
   for abi in $FREEBSD_PKG_ABIS; do

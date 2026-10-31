@@ -11,39 +11,38 @@ kopiert.
 
 ## Vor dem Tag
 
-1. Den vollstaendigen Gate `make code-checker` und die erforderlichen
-   Package-Targets ueber den konfigurierten Build Runner ausfuehren;
-   [`AGENTS.md`](../../AGENTS.md) besitzt den Aufruf.
+1. Den vollstaendigen hostseitigen Gate `make verify` erfolgreich ausfuehren,
+   danach die erforderlichen Package-Targets ueber ihre konfigurierten Routen.
+   `make check` ist der Go-Produktgate innerhalb des vorbereiteten Runners,
+   nicht der vollstaendige Release-Gate; [`AGENTS.md`](../../AGENTS.md)
+   dokumentiert die Validierungseinstiege. Der vollstaendige Gate enthaelt
+   die Policy-Pruefung auf private Lab-Daten.
 2. Die erforderlichen `amd64`- und `arm64`-Releaseartefakte bauen.
 3. `dist/packages/` auf die Linux-Ausgaben fuer Debian, RPM, Arch Linux und
    `.tar.gz` pruefen.
-4. Nach Dependency- oder Tool-Updates `go.mod`, `go.work` und `go.sum` pruefen.
-5. Private Lab-Daten suchen:
-
-   ```sh
-   sh scripts/check-policy.sh
-   ```
-
-6. Pruefen, dass `VERSION`, der neueste datierte Abschnitt in `CHANGELOG.md`
+4. Nach Dependency- oder Tool-Updates `go.mod`, `go.work` und `go.sum`, das
+   isolierte Linter-Modul `golangci-lint.mod` und `golangci-lint.sum` sowie das
+   npm-Manifest und Lockfile im Projektroot, `package.json` und
+   `package-lock.json`, pruefen.
+5. Pruefen, dass `VERSION`, der neueste datierte Abschnitt in `CHANGELOG.md`
    und der vorgesehene Tag `v<version>` uebereinstimmen.
-7. `CREDITS.md` und `NOTICE.md` aktualisieren, wenn neue Quellen, kopierter
+6. `CREDITS.md` und `NOTICE.md` aktualisieren, wenn neue Quellen, kopierter
    Code, Pakete oder Tools hinzukommen.
-8. Pruefen, dass `packaging/linux/etc/unifi-stubd/config.yaml` und `lab/` nur
+7. Pruefen, dass `packaging/linux/etc/unifi-stubd/config.yaml` und `lab/` nur
    Dokumentationsadressen oder neutrale Defaults enthalten.
-9. Repository-Metadaten mit `gh repo view --json
-    description,homepageUrl,licenseInfo,repositoryTopics` pruefen und
-    Paketname, Lizenz, Maintainer und Projekt-URL mit `packaging/nfpm.yaml`
-    vergleichen.
-10. Signaturstatus pruefen. Alpha-Releases duerfen nur als Pre-Release mit der
-    erzeugten unsignierten `SHA256SUMS` veroeffentlicht werden. Stabile Releases
-    verlangen einen signierten Tag und eine abgetrennte Signatur fuer
-    `SHA256SUMS`.
+8. Repository-Metadaten mit `gh repo view --json
+   description,homepageUrl,licenseInfo,repositoryTopics` pruefen und
+   Paketname, Lizenz, Maintainer und Projekt-URL mit `packaging/nfpm.yaml`
+   vergleichen.
+9. Signaturstatus pruefen. Alpha-Releases duerfen nur als Pre-Release mit der
+   erzeugten unsignierten `SHA256SUMS` veroeffentlicht werden. Stabile Releases
+   verlangen einen signierten Tag und eine abgetrennte Signatur fuer
+   `SHA256SUMS`.
 
 FreeBSD-Paketerzeugung ist kein Pre-Tag-Gate. Der manuelle Workflow `FreeBSD
-Packaging` darf einen Pre-Release erst nach der Linux-Veroeffentlichung und nur
-mit vorhandener autorisierter Buildroute erweitern. Der direkte Builder ist
-derzeit als Evidenz blockiert. Diese Packaging-Pipeline ist keine
-Testklassifizierung als Tier 1, Tier 2 oder Tier 3.
+Packaging` erzeugt nur Kompatibilitaetsartefakte; die Veroeffentlichung bleibt
+bis zu einer autorisierten Buildroute deaktiviert. Diese Packaging-Pipeline
+ist keine Testklassifizierung als Tier 1, Tier 2 oder Tier 3.
 
 ## Tag setzen
 
@@ -54,12 +53,16 @@ git tag -a v0.2.5-alpha -m "unifi-stubd v0.2.5-alpha"
 git push origin v0.2.5-alpha
 ```
 
-Nur Commits taggen, deren exakter Tree den vollstaendigen Gate bestanden hat.
-Der aktuelle `main`-CI-Lauf kann diese Evidenz bis zu seiner genehmigten
-CI-sichtbaren Build-Runner-Route nicht liefern; vor dieser Route darf kein neuer
-Tag veroeffentlicht werden. Der
-Package-Repositories-Workflow laeuft fuer `v*`-Tags, deshalb muss das
-`github-pages`-Environment Deployments von `main` und `v*`-Tags erlauben.
+Nur Commits taggen, deren exakter Tree `make verify` bestanden hat. Die allgemeine
+CI bereitet aktuelle BR-/CT-Quellen und native Bindungen auf GitHub-hosted
+Ubuntu-Workern vor und verwendet danach Build-Runner-Container. Privater
+Forgejo-Lesezugriff und die Bereitstellung aktueller Provideraenderungen muessen
+verfuegbar sein; vor einem neuen Tag muss ein erfolgreicher CI-Lauf beobachtet
+werden. Siehe die [offenen Provider-Handoffs](ci-cd.md#offene-provider-handoffs).
+Der Self-hosted Runner bleibt ausschliesslich beim manuellen FreeBSD-Packaging.
+Der Package-Repositories-Workflow laeuft fuer `v*`-Tags,
+deshalb muss das `github-pages`-Environment Deployments von `main` und
+`v*`-Tags erlauben.
 
 Der Tag-Push steuert die erste Alpha-Veroeffentlichung. Der Package-
 Repositories-Workflow erstellt den GitHub-Pre-Release, haengt Linux-Pakete,
@@ -71,51 +74,27 @@ Linux-Release-Artefakte nach Workflow-Ende pruefen:
 gh release view v0.2.5-alpha --json isPrerelease,assets,url
 ```
 
-## Manuelle FreeBSD-Packaging-Erweiterung
+## Manuelles FreeBSD-Kompatibilitaetspackaging
 
 `FreeBSD Packaging` ist ausschliesslich manuell und hat weder Trigger-
-noch `needs`-Beziehungen zu `CI` oder `Package Repositories`. Der Input
-`publish` steht standardmaessig auf `false`; dieser Modus behaelt FreeBSD-
-Tarballs und native `pkg`-Repositories sieben Tage. Sein direkter Host-Go-
-Builder ist ein External-Machine-Kompatibilitaetspfad; diese Artefakte sind
-kein konformer Build-Nachweis. Sie duerfen erst veroeffentlicht werden, wenn
-eine autorisierte VM-Runner- oder gepruefte Split-Build-Route den
-Kompilierungsschritt besitzt:
+noch `needs`-Beziehungen zu `CI` oder `Package Repositories`. FreeBSD-Tarballs,
+native `pkg`-Repositories und `SHA256SUMS.freebsd` bleiben sieben Tage als
+Laufartefakte erhalten. Sein direkter Host-Go-Builder ist ein
+External-Machine-Kompatibilitaetspfad; diese Artefakte sind kein konformer
+Build-Nachweis:
 
 ```sh
-gh workflow run freebsd-packaging.yml --ref main -f publish=false
+gh workflow run freebsd-packaging.yml --ref main
 ```
 
-Zur Veroeffentlichung wird der exakte Release-Tag mit expliziter Bestaetigung
-gestartet:
-
-```sh
-gh workflow run freebsd-packaging.yml --ref <v-tag-mit-freebsd-workflow> -f publish=true
-```
-
-Die Veroeffentlichung wird nur akzeptiert, wenn der ausgewaehlte Ref ein
-`v*`-Tag ist, der Tag ohne `v` mit `VERSION` uebereinstimmt und bereits ein
-passender GitHub-Pre-Release mit vollstaendigem Linux-Paketset, SPDX-SBOM und
-`SHA256SUMS` existiert. Der Workflow verweigert ausserdem Aenderungen an einem
-Release, der bereits eine signierte `SHA256SUMS` oder
-`SHA256SUMS.freebsd` enthaelt.
-Auch Legacy-Releases, deren `SHA256SUMS` FreeBSD-Artefakte bereits abdeckt,
-werden abgelehnt. Der gewaehlte Tag muss diesen Workflow enthalten; die
-Trennung beginnt deshalb mit dem ersten neuen Release-Tag nach dieser
-Implementierung.
-
-Ein erfolgreicher Publish-Lauf fuegt diese persistenten Artefakte hinzu und
-deployed danach eine kombinierte Linux-/FreeBSD-Pages-Seite:
-
-- `unifi-stubd_<version>-1_freebsd_amd64.tar.gz`
-- `unifi-stubd_<version>-1_freebsd_arm64.tar.gz`
-- `freebsd-pkg-repos.tar.gz`
-- `SHA256SUMS.freebsd`
-
-`SHA256SUMS.freebsd` deckt nur die drei FreeBSD-Artefakte ab. Die automatische
-Linux-/SBOM-Pruefsummendatei bleibt unveraendert. Ein erneuter Lauf von
-`FreeBSD Packaging` fuer denselben Pre-Release ist idempotent, weil die vier
-FreeBSD-Artefakte anhand ihres Namens ersetzt werden.
+Der ausgewaehlte Ref muss `main` oder ein zu `VERSION` passender `v*`-Tag sein.
+Der Workflow hat keinen Publish-Input, Release-Upload oder Pages-Deploy.
+Diese Artefakte auch nicht manuell veroeffentlichen. Der FreeBSD-Build-Owner
+muss zuerst eine autorisierte VM-Runner- oder gepruefte Split-Build-Route fuer
+die Kompilierung bereitstellen. Erst danach darf der Release-Owner die
+Veroeffentlichung nach Linux-Publikation wieder integrieren. Die neue Route
+muss die Pruefungen auf passenden Tag, vollstaendigen Linux-Pre-Release und
+unsignierte Pruefsummen erhalten.
 
 ## Signierung und Repository-Metadaten
 
@@ -125,9 +104,8 @@ erstellen, `SHA256SUMS` vom Release laden und eine abgetrennte Signatur wie
 sind, `SHA256SUMS.freebsd` ebenfalls separat signieren. Tag und jede
 veroeffentlichte Pruefsummensignatur vor der Promotion pruefen. Ohne
 konfigurierten Key bleibt der Release Alpha, Pre-Release und explizit
-unsigniert; keine Hochstufung auf Stable. FreeBSD-Artefakte vor dem Signieren
-hinzufuegen, weil der FreeBSD-Packaging-Workflow einen Release mit signierten
-Pruefsummenartefakten nicht mehr veraendert.
+unsigniert; keine Hochstufung auf Stable. Packaging-Automation darf signierte
+Pruefsummenartefakte niemals ersetzen oder erweitern.
 
 Repository-Beschreibung, Homepage, SPDX-Lizenz und Topics muessen gesetzt und
 mit `README.md`, `LICENSE` sowie den Paketmetadaten konsistent sein. Release-
@@ -143,9 +121,9 @@ https://konstruktor1.github.io/unifi-stubd/
 ```
 
 Der Package-Repositories-Workflow veroeffentlicht eine Linux-only-Paketquelle
-ueber GitHub Pages, wenn ein `v*`-Tag gepusht wird. Bis zur FreeBSD-Packaging-
-Veroeffentlichung meldet der FreeBSD-Bereich, dass die manuellen Artefakte nicht
-verfuegbar sind. Fuer einen manuellen Rebuild oder Retry dieser Linux-only-
+ueber GitHub Pages, wenn ein `v*`-Tag gepusht wird. Solange die FreeBSD-
+Veroeffentlichung blockiert bleibt, meldet der FreeBSD-Bereich, dass die
+manuellen Artefakte nicht verfuegbar sind. Fuer einen Rebuild oder Retry dieser Linux-only-
 Paketquelle ohne neuen Release den Workflow von `main` aus starten:
 
 ```sh
@@ -156,15 +134,14 @@ gh workflow run package-pages.yml --ref main \
 
 Wenn `version` bei einem manuellen Lauf fehlt, liest der Workflow `VERSION`.
 
-Ein spaeterer Linux-only-Lauf von Package Repositories ersetzt die kombinierte
-Pages-Seite wieder durch die Linux-only-Form. `freebsd-packaging.yml` auf dem
-passenden Tag erneut mit `publish=true` ausfuehren, um die kombinierte Seite aus
-den persistenten Release-Artefakten wiederherzustellen.
+Ein Lauf von Package Repositories ersetzt eine bestehende kombinierte
+Pages-Seite durch die Linux-only-Form. Ihre Wiederherstellung verlangt die
+oben beschriebene autorisierte FreeBSD-Build- und Veroeffentlichungsroute.
 
 Die SPDX-JSON-SBOM wird an den GitHub-Release angehaengt und verfaellt daher
 nicht mit der siebentaegigen Actions-Artefaktaufbewahrung. `SHA256SUMS` deckt
-die automatischen Linux- und SBOM-Artefakte ab; `SHA256SUMS.freebsd` deckt die
-separat veroeffentlichten FreeBSD-Artefakte ab.
+die automatischen Linux- und SBOM-Artefakte ab. `SHA256SUMS.freebsd` begleitet
+die temporaeren FreeBSD-Laufartefakte.
 
 `make package-repos` schreibt `dist/package-site/` mit APT-, RPM-,
 Arch-Linux-, FreeBSD-/OPNsense-Tarball-Pfaden und nativen FreeBSD-`pkg`-Repos,
@@ -175,9 +152,8 @@ nutzt die isolierte Packaging-Proxy-Rolle und striktes SSH/SCP zu einer
 Non-root-FreeBSD-Builder-Rolle. Seine direkte Host-Go-Kompilierung ist nur
 Kompatibilitaet und als Release-Evidenz blockiert; FreeBSD `pkg` besitzt
 weiterhin den Aufbau der Ziel-Repositories. `FREEBSD_PKG_BUILD_JAILS` ist
-optional fuer eigene Builder mit laufenden
-`jexec`-Jails. Nach dem FreeBSD-Build wird die kombinierte statische Seite auf
-Ubuntu zusammengestellt und deployed. Alpha-Anleitungen bleiben sichtbar
+optional fuer eigene Builder mit laufenden `jexec`-Jails. Der FreeBSD-Workflow
+baut oder deployed keine kombinierte Seite. Alpha-Anleitungen bleiben sichtbar
 unsigniert (`trusted=yes`, `gpgcheck=0`, `SigLevel = Never`), bis ein
 Projekt-Release-Key existiert.
 

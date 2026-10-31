@@ -1,0 +1,47 @@
+version: 1
+runner:
+  name: ct-quality
+  lifecycle: ephemeral
+base:
+  tier: 2
+  image: local/unifi-stubd-ct-quality:current
+  shell: /bin/bash
+  cache_profile: none
+resources: {}
+prepare:
+  - set -euo pipefail
+  - >-
+    test "${PROVIDER_CONSUMER_ROOT:?}" = "$(pwd -P)" &&
+    test "$(realpath -m .provider-provider/runtime/unifi-stubd/ct-quality)" =
+    "$PROVIDER_CONSUMER_ROOT/.provider-provider/runtime/unifi-stubd/ct-quality" &&
+    install -d -m 700
+    .provider-provider/runtime/unifi-stubd
+    .provider-provider/runtime/unifi-stubd/ct-quality
+    .provider-provider/runtime/unifi-stubd/ct-quality/home
+    .provider-provider/runtime/unifi-stubd/ct-quality/go
+    .provider-provider/runtime/unifi-stubd/ct-quality/go-build
+    .provider-provider/runtime/unifi-stubd/ct-quality/npm
+    .provider-provider/runtime/unifi-stubd/ct-quality/pip
+    .provider-provider/runtime/unifi-stubd/ct-quality/cache
+    .provider-provider/runtime/unifi-stubd/ct-quality/tmp
+validation:
+  - test "${PROVIDER_CONSUMER_ROOT:?}" = /workspace && test "$(pwd -P)" = /workspace
+  - >-
+    for name in HOME GOPATH GOMODCACHE GOCACHE NPM_CONFIG_CACHE PIP_CACHE_DIR XDG_CACHE_HOME TMPDIR TEMP TMP; do
+    case "${!name}" in "$PROVIDER_CONSUMER_ROOT"/*) ;; *) exit 1 ;; esac;
+    test "$(realpath -m "${!name}")" = "${!name}" || exit 1;
+    done
+  - test -x /opt/codetool/bin/ct && findmnt -n -o VFS-OPTIONS -T /opt/codetool | grep -Eq '(^|,)ro(,|$)'
+  - python3 --version | grep -Eq '^Python 3\.15\.'
+  - python3 -m pip show jsonschema >/dev/null && python3 -m pip check >/dev/null
+  - go version | grep -Eq '^go version go1\.27\.'
+  - node --version | grep -Eq '^v24\.'
+  - ruff --version >/dev/null && shellcheck --version >/dev/null && shfmt -version >/dev/null
+  - git --version >/dev/null && ps --version >/dev/null
+runtime_requirements:
+  - id: current-ct-source
+    type: bind-mount
+    reason: Execute the currently bound Codetool public launcher without changing its source.
+    source: {host_ref: CT_SOURCE}
+    target: /opt/codetool
+    access: read-only

@@ -10,9 +10,12 @@
 
 ## Checks
 
-- [ ] Complete `make code-checker` gate
+- [ ] Run the complete `make verify` gate from the prepared consumer
 - [ ] `make package` through Build Runner when packaging or install layout changed
 - [ ] `make integration-nonunifi-metrics` when adoption, metrics, or controller compatibility changed
+
+Leave blocked checks unchecked and record the owner, reason and next public
+command from the provider handoff. Running a blocked check does not satisfy it.
 
 ## Safety
 

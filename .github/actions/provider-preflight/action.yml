@@ -1,0 +1,79 @@
+name: Provider preflight
+description: Check the configured current provider source through its public management entry.
+inputs:
+  provider:
+    description: Provider to check.
+    required: true
+  initial-management-launcher:
+    description: Reviewed canonical absolute management executable on this runner.
+    required: true
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        PROVIDER_ID: ${{ inputs.provider }}
+        INITIAL_MANAGEMENT_LAUNCHER: ${{ inputs.initial-management-launcher }}
+      run: |
+        set -euo pipefail
+        : "${PROVIDER_CONSUMER_ROOT:?Runner owner must supply the once-defined native project root}"
+        : "${PROVIDER_CONSUMER_CONTEXT:?Runner owner must supply its native consumer context}"
+        export PROVIDER_CONSUMER_ROOT PROVIDER_CONSUMER_CONTEXT
+        test "$PROVIDER_CONSUMER_ROOT" = "$(pwd -P)"
+        : "${INITIAL_MANAGEMENT_LAUNCHER:?Runner owner must configure the provider management launcher repository variable}"
+        test "$GITHUB_WORKSPACE" = "$(pwd -P)" || {
+          printf '%s\n' 'Runner owner must provide the exact canonical consumer workspace' >&2
+          exit 2
+        }
+        # The shared verification owner requires private ancestors for tests/.work.
+        test -d tests && test ! -L tests
+        test "$(realpath tests)" = "$PROVIDER_CONSUMER_ROOT/tests"
+        chmod 700 tests
+        test -f "$INITIAL_MANAGEMENT_LAUNCHER" && test -x "$INITIAL_MANAGEMENT_LAUNCHER" &&
+          test "$INITIAL_MANAGEMENT_LAUNCHER" = "$(realpath "$INITIAL_MANAGEMENT_LAUNCHER")" || {
+          printf '%s\n' 'Provider management launcher must be a canonical absolute executable path' >&2
+          exit 2
+        }
+        case "$PROVIDER_ID" in build-runner | ct) ;; *) exit 2 ;; esac
+        if test "$PROVIDER_ID" = build-runner && test -e .consumer-data/connections/ct/management.json; then
+          test ! -L .consumer-data/connections/ct/management.json
+          ct_launcher="$(jq -er --arg root "$PROVIDER_CONSUMER_ROOT" \
+            --arg context "$PROVIDER_CONSUMER_CONTEXT" 'select(.args == ["mcp"] and
+            .cwd == $root and .env.PROVIDER_CONSUMER_ROOT == $root and
+            .env.PROVIDER_CONSUMER_CONTEXT == $context) | .command |
+            select(startswith("/") and endswith("/bin/provider"))' \
+            .consumer-data/connections/ct/management.json)"
+          test -x "$ct_launcher" && test "$ct_launcher" = "$(realpath "$ct_launcher")"
+          BUILD_RUNNER_HOST_PATH_CT_SOURCE="${ct_launcher%/bin/provider}"
+          export BUILD_RUNNER_HOST_PATH_CT_SOURCE
+          printf 'BUILD_RUNNER_HOST_PATH_CT_SOURCE=%s\n' "$BUILD_RUNNER_HOST_PATH_CT_SOURCE" >>"$GITHUB_ENV"
+        fi
+        connection="$("$INITIAL_MANAGEMENT_LAUNCHER" mcp --connection)"
+        jq -e --arg command "$INITIAL_MANAGEMENT_LAUNCHER" --arg root "$PROVIDER_CONSUMER_ROOT" \
+          --arg context "$PROVIDER_CONSUMER_CONTEXT" '.command == $command and .args == ["mcp"] and
+          .cwd == $root and .env.PROVIDER_CONSUMER_ROOT == $root and
+          .env.PROVIDER_CONSUMER_CONTEXT == $context' <<<"$connection" >/dev/null
+        umask 077
+        for directory in .consumer-data .consumer-data/connections ".consumer-data/connections/$PROVIDER_ID"; do
+          test ! -L "$directory"
+          if test -e "$directory"; then
+            test "$(realpath "$directory")" = "$PROVIDER_CONSUMER_ROOT/$directory"
+          else
+            mkdir -m 700 "$directory"
+          fi
+        done
+        saved=".consumer-data/connections/$PROVIDER_ID/management.json"
+        test ! -L "$saved"
+        previous='{}'
+        if test -f "$saved"; then previous="$(cat "$saved")"; fi
+        temporary="$(mktemp ".consumer-data/connections/$PROVIDER_ID/management.XXXXXX")"
+        trap 'rm -f -- "$temporary"' EXIT
+        jq --argjson previous "$previous" '.env = (($previous.env // {}) + .env)' \
+          <<<"$connection" >"$temporary"
+        mv -- "$temporary" "$saved"
+        trap - EXIT
+        if test "$PROVIDER_ID" = build-runner; then
+          printf 'BUILD_RUNNER_ENTRY=%s\n' "${INITIAL_MANAGEMENT_LAUNCHER%/provider}/build-runner" >>"$GITHUB_ENV"
+        fi
+        "$INITIAL_MANAGEMENT_LAUNCHER" help --json | jq -e --arg id "$PROVIDER_ID" '.provider == {id:$id}'
+        "$INITIAL_MANAGEMENT_LAUNCHER" check --json

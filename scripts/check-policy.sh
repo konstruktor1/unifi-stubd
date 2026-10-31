@@ -51,17 +51,13 @@ if grep -Eiq 'tier[ -]?3|tier3' "$freebsd_workflow"; then
   fail "FreeBSD Packaging must not couple the GitHub Actions runner to a test tier"
 fi
 controller_workflow=.github/workflows/tier2-docker.yml
-grep -Fq 'runs-on: [self-hosted, Linux, X64, docker-dmz, docker-engine, unifi-stubd]' "$controller_workflow" ||
-  fail "Controller Integration must require the explicit docker-engine capability"
-grep -Fq 'provider_root="$(./build-runner/runtime/entry --provider-root)"' "$controller_workflow" ||
-  fail "Controller Integration must resolve the provider through the prepared Build Runner entry"
-grep -Fq '"$provider_root/bin/provider" status build-runner --json' "$controller_workflow" ||
-  fail "Controller Integration must use the direct Build Runner management status"
-grep -Fq '"$provider_root/bin/provider" check build-runner --json' "$controller_workflow" ||
-  fail "Controller Integration must run the read-only Build Runner provider gate"
-if grep -Eq 'activate\.local|BUILD_RUNNER_DIR' "$controller_workflow"; then
-  fail "Controller Integration must not use a legacy Build Runner route"
-fi
+for hosted_workflow in .github/workflows/ci.yml .github/workflows/package-pages.yml "$controller_workflow"; do
+  if grep -Eq 'runs-on:.*self-hosted' "$hosted_workflow"; then
+    fail "Only FreeBSD Packaging may select the self-hosted runner"
+  fi
+  grep -Eq 'runs-on: ubuntu-(latest|[0-9]+\.[0-9]+)' "$hosted_workflow" ||
+    fail "General CI and container orchestration require a GitHub-hosted Ubuntu runner"
+done
 grep -Fq 'run: make integration-nonunifi-metrics' "$controller_workflow" ||
   fail "Controller Integration must enter through the runner-aware Make target"
 if grep -Eq 'actions/setup-go|(^|[[:space:]])go version|docker (compose|info|version)' "$controller_workflow"; then
@@ -96,8 +92,9 @@ work_go=$(sed -n 's/^go //p' go.work | head -n 1)
 
 major=${mod_go%%.*}
 minor=${mod_go#*.}
+minor=${minor%.0}
 if [ "$major" = "$mod_go" ] || [ -z "$major" ] || [ -z "$minor" ]; then
-  fail "go.mod/go.work must use a major.minor version without a patch component"
+  fail "go.mod/go.work must use a major.minor floor with an optional .0 patch"
 fi
 case "$major" in
 '' | *[!0-9]*)
@@ -106,14 +103,17 @@ case "$major" in
 esac
 case "$minor" in
 '' | *.* | *[!0-9]*)
-  fail "go.mod/go.work must not pin a Go patch version"
+  fail "go.mod/go.work must use a major.minor floor with an optional .0 patch"
   ;;
 esac
+if [ "$major" -lt 1 ] || { [ "$major" -eq 1 ] && [ "$minor" -lt 27 ]; }; then
+  fail "go.mod/go.work must require Go 1.27 or newer"
+fi
 if grep -Eq '^toolchain ' go.mod go.work; then
   fail "toolchain must not be pinned in committed module or workspace files"
 fi
 grep -qx 'use \.' go.work || fail "go.work must include the root module"
-grep -qx '	github.com/golangci/golangci-lint/v2/cmd/golangci-lint' go.mod || fail "golangci-lint must be tracked as a go tool"
+grep -qx 'tool github.com/golangci/golangci-lint/v2/cmd/golangci-lint' golangci-lint.mod || fail "golangci-lint must be tracked as a go tool in golangci-lint.mod"
 grep -qx '	github.com/goreleaser/nfpm/v2/cmd/nfpm' go.mod || fail "nfpm must be tracked as a go tool"
 
 printf 'policy ok\n'

@@ -1,0 +1,22 @@
+autoupdate = false
+# Consumer-owned Codetool configuration.
+schema_version = 1
+profile = "mandatory"
+languages = ["go", "javascript", "bash", "python"]
+paradigms = ["procedural"]
+architectures = ["modular-monolith"]
+patterns = ["facade"]
+missing_tools = "fail"
+tool_resolution = "project-first"
+
+style_guide = "Preserve existing project conventions and checked-in native formatter/linter settings: gofmt/goimports, ESLint/Prettier, shfmt and Ruff."
+check_environment = "build-runner"
+[maintenance.anti_bloat]
+enabled = true
+
+[i18n]
+enabled = false
+
+[maintenance.sources]
+enabled = true
+cadence_days = 7

@@ -5,25 +5,31 @@ is the integration branch, `main` is the tested release base, and packages are
 published only from tags, GitHub releases, or an explicit package workflow run.
 
 The workflow topology separates CI, Linux package publication, and the manual
-FreeBSD extension. The checked-in CI and package workflows still contain
-Go-dependent GitHub-hosted steps. They are blocked as validation and release
-evidence until an approved CI-visible Build Runner route replaces those steps.
+FreeBSD extension. General checks and Linux package builds use GitHub-hosted
+Ubuntu workers with Build Runner's ephemeral containers; package installation
+smoke also uses a disposable GitHub-hosted worker. The existing self-hosted
+runner serves only manual FreeBSD packaging. Provider-source preparation and
+unresolved handoffs are maintained in
+[CI/CD](ci-cd.md#open-provider-handoffs).
 
 ## Go Toolchain
 
-Both `go.mod` and `go.work` declare the supported Go `1.25` minor line. Patch
-versions and a separate `toolchain` directive are intentionally not pinned.
+Both `go.mod` and `go.work` declare `go 1.27.0`, the current stable minor series.
+The separate linter module uses the same floor. `golang.org/x/crypto v0.56.0`
+fixes the reported SSH vulnerabilities.
+Build Runner selects the executing compiler independently; the module and
+workspace have no `toolchain` directive.
 
 Agent-run Go commands and Go-based Make targets use the configured Build
-Runner. [`AGENTS.md`](../../AGENTS.md) owns the current invocation; host Go is
-not a fallback, including in checked-in workflows.
+Runner. The prepared consumer runtime owns the invocation; host Go is not a
+fallback, including in checked-in workflows.
 
 ## Branch Stages
 
 | Stage | Branch | Purpose | Intended automatic checks | Output |
 | --- | --- | --- | --- | --- |
-| Change | short-lived `codex/*`, `feat/*`, or `fix/*` branch | One focused change | `CI / check` on pull request | No package publication |
-| Integration | `dev` | Batch reviewed work before release promotion | `CI / check` on pull request and push | No package publication |
+| Change | short-lived `codex/*`, `feat/*`, or `fix/*` repository branch | One focused change | `CI / check` on branch push | No package publication |
+| Integration | `dev` | Batch reviewed work before release promotion | `CI / check` on branch push | No package publication |
 | Release base | `main` | Stable, tested source for tags and public packages | `CI / check` plus package build and Debian install smoke on push | Package artifacts uploaded to the run |
 | Package repository | `v*` tag, GitHub pre-release, or manual workflow from `main` | Publish the standard package set | Linux package matrix and release SBOM | Linux-only GitHub Pages and, for a tag, a GitHub pre-release |
 | FreeBSD extension | Manual `FreeBSD Packaging` dispatch | Compatibility artifacts pending an approved build route | Containerized self-hosted runner and direct FreeBSD builder | Non-evidentiary run artifacts; publication remains blocked |
@@ -48,16 +54,18 @@ own.
    git diff --check
    ```
 
-3. Run the single complete `make code-checker` gate described in `AGENTS.md`,
-   then push the topic branch and open a pull request to `dev`.
+3. Run the complete `make verify` gate from the prepared consumer and any
+   additional product acceptance required for the change. Record a blocked
+   check with its owner and next public command; it does not satisfy the merge
+   requirement. Push the topic branch and open a pull request to `dev`.
 4. Merge to `dev` only after the pull request has the required checks and review.
 5. Keep `dev` green. Fix broken `dev` immediately before adding unrelated work.
 
 ## Promotion To Main
 
 1. Open a pull request from `dev` to `main`.
-2. The pull request must pass a Build Runner-backed `CI / check`; the current
-   workflow cannot provide that gate until its approved route exists.
+2. The pull request must pass `CI / check` with both provider bindings prepared
+   on the CI worker. Missing runtime preparation is a failure, not evidence.
 3. For controller-facing changes, run the standardized Docker gate from
    [Docker Controller Lab](docker-lab.md) on the exact `dev` commit being
    promoted and record the evidence.
@@ -87,13 +95,13 @@ branch promotion and gate selection only.
 
 ## Gate Selection
 
-| Change type | Required repository gate | Additional product or delivery evidence |
+| Change type | Required product check | Additional product or delivery evidence |
 | --- | --- | --- |
-| Go code, config schema, profile data | `make code-checker`, after host-side `git diff --check` | None |
-| US8 inform, adoption, or controller-visible metrics | `make code-checker` | Current controller-facing Stable/RC gate with `make integration-nonunifi-metrics` before `dev` to `main` |
-| Packaged config, service files, package metadata | `make code-checker`, `make package` | `main` package install smoke after the approved runner route exists |
-| FreeBSD or OPNsense runtime behavior | `make code-checker` | Authorized FreeBSD build route plus a Tier 3 runtime smoke; the current direct host-Go builder is compatibility-only and blocked as evidence |
-| Release notes, package publication | `make code-checker` | Linux-first `Package Repositories`; optional FreeBSD publication only after its approved runner route exists |
+| Go code, config schema, profile data | `make verify`, after host-side `git diff --check` | Any additional product acceptance required by the change |
+| US8 inform, adoption, or controller-visible metrics | `make verify` | Stable/RC controller acceptance; resolve the [runtime handoff](ci-cd.md#open-provider-handoffs) first |
+| Packaged config, service files, package metadata | `make verify` on the host; `make package` inside Build Runner | `main` package install smoke on the disposable worker |
+| FreeBSD or OPNsense runtime behavior | `make verify` | Authorized FreeBSD build route plus a Tier 3 runtime smoke; the direct host-Go builder is compatibility-only and blocked as evidence |
+| Release notes, package publication | `make verify` | Linux-first `Package Repositories`; FreeBSD publication is unavailable |
 
 Target-host package installation is not a default development gate. Use it only
 when explicitly testing a rollout, and keep host-specific configs outside this
@@ -101,9 +109,8 @@ repository.
 
 ## Recommended GitHub Controls
 
-The repository currently uses a ruleset for the default branch that blocks
-deletion and non-fast-forward updates. Keep that, and use these controls as the
-target policy:
+Configure and verify these controls in GitHub; repository files alone do not
+establish their active settings:
 
 - `main`: require pull requests, require `CI / check`, block deletion, block
   non-fast-forward updates, and keep the Pages environment limited to `main` and
@@ -116,10 +123,6 @@ target policy:
 - Runner roles and FreeBSD proxy-safety controls are enforced by the
   workflows and the [release checklist](release.md); they are not duplicated
   here.
-
-The package job is intended to validate the exact committed release base after
-merge. It cannot provide that evidence or publish its artifacts while its
-Go-dependent Build Runner route is missing.
 
 ## References
 

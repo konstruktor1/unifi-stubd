@@ -17,6 +17,10 @@ on:
 permissions:
   contents: read
 
+env:
+  PROVIDER_CONSUMER_ROOT: ${{ github.workspace }}
+  PROVIDER_CONSUMER_CONTEXT: '{"consumer_id":"unifi-stubd-github","persistence":".consumer-data","resources":[]}'
+
 concurrency:
   group: github-pages
   cancel-in-progress: false
@@ -28,16 +32,22 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
+          clean: false
+          persist-credentials: false
 
-      - uses: actions/setup-go@v6
+      - name: Prepare current Build Runner source
+        id: providers
+        uses: ./.github/actions/provider-setup
         with:
-          go-version-file: go.mod
-          check-latest: true
+          build-runner-source: ${{ vars.BUILD_RUNNER_SOURCE_URL }}
+          source-user: ${{ vars.PROVIDER_SOURCE_USERNAME }}
+          source-token: ${{ secrets.PROVIDER_SOURCE_TOKEN }}
 
-      - name: Install repository tools
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y dpkg-dev createrepo-c libarchive-tools pacman-package-manager zstd
+      - name: Preflight Build Runner
+        uses: ./.github/actions/provider-preflight
+        with:
+          provider: build-runner
+          initial-management-launcher: ${{ steps.providers.outputs.build-runner-launcher }}
 
       - name: Resolve package version
         id: package-version
@@ -68,8 +78,11 @@ jobs:
           PACKAGE_RELEASE: ${{ inputs.package_release || '1' }}
         run: |
           set -eu
-          PKG_RELEASE="$PACKAGE_RELEASE" PKG_GOARCH=amd64 make package
-          PKG_RELEASE="$PACKAGE_RELEASE" PKG_GOARCH=arm64 make package
+          rm -rf -- dist
+          for arch in amd64 arm64; do
+            "$BUILD_RUNNER_ENTRY" --project-name unifi-stubd run --tier 1 --service go -- \
+              env PKG_VERSION="$PKG_VERSION" PKG_GOARCH="$arch" PKG_RELEASE="$PACKAGE_RELEASE" make package
+          done
           for artifact in dist/packages/*~*; do
             [ -e "$artifact" ] || continue
             mv -- "$artifact" "${artifact//\~/.}"

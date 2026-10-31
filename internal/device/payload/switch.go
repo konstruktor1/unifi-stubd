@@ -176,13 +176,13 @@ func switchInterfaceRatesFor(ports []PortView) (optionalRateFields, gatewayRateF
 		}
 		rxByteRate, txByteRate := portRateFields(port)
 		return optionalRateFields{
-				BytesRate:   int64Ref(rxByteRate + txByteRate),
-				RXBytesRate: int64Ref(rxByteRate),
-				TXBytesRate: int64Ref(txByteRate),
-			}, gatewayRateFields{
-				RXRate: int64Ref(bitsPerSecond(rxByteRate)),
-				TXRate: int64Ref(bitsPerSecond(txByteRate)),
-			}
+			BytesRate:   int64Ref(rxByteRate + txByteRate),
+			RXBytesRate: int64Ref(rxByteRate),
+			TXBytesRate: int64Ref(txByteRate),
+		}, gatewayRateFields{
+			RXRate: int64Ref(bitsPerSecond(rxByteRate)),
+			TXRate: int64Ref(bitsPerSecond(txByteRate)),
+		}
 	}
 	return optionalRateFields{}, gatewayRateFields{}
 }

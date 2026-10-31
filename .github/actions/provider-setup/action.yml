@@ -1,0 +1,38 @@
+name: Prepare current providers
+description: Prepare current provider sources and the project MCP client for one GitHub job.
+inputs:
+  build-runner-source:
+    description: Current Build Runner HTTPS Git source.
+    required: true
+  ct-source:
+    description: Current CT HTTPS Git source, only for jobs using CT.
+    required: false
+  source-user:
+    description: Forgejo account for the read-only source token.
+    required: false
+  source-token:
+    description: Read-only source token; never saved with the checkout.
+    required: false
+outputs:
+  build-runner-launcher:
+    description: Native current Build Runner management entry.
+    value: ${{ steps.sources.outputs.build-runner-launcher }}
+  ct-launcher:
+    description: Native current CT management entry, when requested.
+    value: ${{ steps.sources.outputs.ct-launcher }}
+runs:
+  using: composite
+  steps:
+    - id: python
+      uses: actions/setup-python@v7
+      with:
+        python-version: "3.15"
+    - id: sources
+      shell: bash
+      env:
+        PYTHON: ${{ steps.python.outputs.python-path }}
+        BUILD_RUNNER_SOURCE_URL: ${{ inputs.build-runner-source }}
+        CT_SOURCE_URL: ${{ inputs.ct-source }}
+        PROVIDER_SOURCE_USERNAME: ${{ inputs.source-user }}
+        PROVIDER_SOURCE_TOKEN: ${{ inputs.source-token }}
+      run: scripts/prepare-ci-providers.sh

@@ -1,25 +1,30 @@
 version: 1
 runner:
-  name: unifi-stubd-controller-gate
-  id: "${RUNNER_ID}"
+  name: controller-gate
   lifecycle: ephemeral
 base:
-  tier: 1
-  service: go
-backend: overlay-image
+  tier: 2
+  image: docker.io/cimg/base:2026.09@sha256:668174490adc470cd34eb3aa178939d65f817bc13ef657a94ff0278338f7d8da
+  shell: /bin/bash
+  cache_profile: none
 resources: {}
-image_setup:
-  script: build-runner/toolsets/controller-gate/image-setup.sh
-  inputs: []
 prepare: []
 validation:
-  - go version
-  - docker version --format 'docker_client={{.Client.Version}} docker_server={{.Server.Version}} server_osarch={{.Server.Os}}/{{.Server.Arch}}'
+  - bash --version
+  - curl --version
+  - jq --version
+  - make --version
+  - docker --version
   - docker compose version
   - docker buildx version
+  - docker info --format 'docker_server={{.OSType}}/{{.Architecture}}'
 runtime_requirements:
+  - id: controller-docker-socket-identity
+    type: identity
+    reason: The isolated lab Docker socket requires root in this orchestration container.
+    user: "0:0"
   - id: disposable-controller-docker-api
     type: docker-api
-    reason: The controller-facing gate must build and run the project-owned disposable UniFi controller and Stub fixtures against the exact mounted consumer source.
+    reason: Build and remove this run's disposable controller lab resources.
     host_ref: DOCKER_SOCKET
     target: /var/run/docker.sock
