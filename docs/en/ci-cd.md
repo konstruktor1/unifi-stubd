@@ -89,7 +89,7 @@ the host from the daemon or image.
 ## Open provider handoffs
 
 Earlier gate and compiler observations remain in the
-[verification record](backlog.md#current-verification). The ongoing current-file
+[verification record](../engineering/backlog.md). The ongoing current-file
 integration, observed checks and pending owners are tracked in the
 [engineering backlog](../engineering/backlog.md).
 Each language's required tools run in its declared environment.
@@ -170,13 +170,33 @@ access before running the matrix; no tools are installed per job. Go builds
 belong to the product and helper Dockerfiles, so this orchestration image does
 not need Go.
 
+For Core's assigned Tier 3 candidate run, the qualifier sets
+`UNIFI_STUB_TIER3_GATE_MANIFEST=dist/tier3-controller-input/<run-id>.env` on this
+same Make entry. Make forwards the binding and the matrix entry delegates to
+the [Tier 3 controller contract](../../lab/stub/TIER3-CONTROLLER.md) before
+resolving standalone ZIPs. Without that input, the existing Stable/RC matrix
+continues unchanged. `make qualify-candidate` and
+`make qualify-candidate-matrix` own product orchestration under the existing
+Core native Test Runner context. Labs supplies controller preparation and fresh
+provenance. `make integration-tier3-candidate-controller-cleanup` remains the
+explicit interrupted-gate recovery target. A bound Stable result makes no claim
+about RC.
+
+The browser's local-network permission is limited to its controller origin.
+Controller CSRF headers remain on that origin. The public device-image database
+at `https://static.ui.com/fingerprint/ui/public.json` is fetched separately
+without controller credentials; other external browser requests remain blocked.
+See the contract for the bounded response and failure-diagnostic rules.
+The UniFi OS check reads link speed and RX/TX packet and byte counters from one
+unique visible row in the native Port Manager's target-device filter.
+
 The manifest explicitly grants Docker API access and the root identity needed
 by the socket inside the orchestration container. Use it only with an isolated
 lab daemon. The Make entry passes the physical
 lab path for daemon-visible bind mounts; the default route requires that path
 to be visible to the selected Docker endpoint. It does not infer a remote path.
 
-The retained matrix payload resolves the
+Without a bound Tier 3 manifest, the retained matrix payload resolves the
 latest published Stable and Release Candidate at run start and
 runs the same candidate in both disposable lanes. Details and acceptance
 conditions live in the [Docker controller lab](docker-lab.md). Full product

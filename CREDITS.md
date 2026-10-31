@@ -25,6 +25,14 @@ AGPL-3.0-or-later is a good fit because:
 If future work copies source code from a project with a different license, the
 license decision must be revisited before merging that code.
 
+The maintained candidate qualifier, matrix, strict manifest reader and scenario
+data under `lab/stub/` were relocated from the companion `unifi-stubd-labs`
+project. They are original work by the unifi-stubd contributors, copyright
+2026, under AGPL-3.0-or-later. Core now maintains this product qualification
+code; the companion retains controller preparation and machine inventory.
+The same license applies after adaptation, with no external research code,
+firmware or vendor assets copied as part of the relocation.
+
 ## Research and Idea Sources
 
 | Source | Who | What helped | Used in this repo | License/status noted |

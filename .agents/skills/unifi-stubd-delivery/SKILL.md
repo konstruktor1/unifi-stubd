@@ -148,3 +148,13 @@ runner serves FreeBSD only. Each receiver supplies its own native source URLs,
 read credentials and context, checks actual retained CT bytes/modes and preserves
 explicit source/publication ownership. Do not forward populated credentials,
 workspace paths or prior-owner CI readiness as that receiver's proof.
+
+Pass the product qualification split: Core's `make qualify-candidate` and
+`make qualify-candidate-matrix` own the product guest and gate under their
+existing native Test Runner registrations. Use the maintained Tier 3 contract
+for required inputs and recovery; the selected companion data locator is a
+domain input, not another provider Root. Labs owns controller preparation,
+freshness/provenance and external cleanup under its independent native context.
+Preserve machine/data placement and strict native SSH trust. Each receiver
+implements its own applicable owners and checks; helper images, a Stable-only
+run or another owner's historical result prove no complete current matrix.

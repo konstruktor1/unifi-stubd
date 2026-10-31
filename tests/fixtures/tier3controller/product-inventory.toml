@@ -1,0 +1,18 @@
+[hosts."product-source"]
+status = "experimental"
+provider = "qemu"
+profile = "linux-arm64"
+platform = "linux/arm64"
+directory = @SOURCE@
+
+[hosts."product-source".ssh]
+host = "127.0.0.1"
+port = 2222
+user = "fixture"
+identity_file = @IDENTITY@
+known_hosts_file = @KNOWN_HOSTS@
+shell = "posix"
+host_key_checking = "yes"
+
+[hosts."product-source".qemu]
+extra_args = ["-drive", @DRIVE@]

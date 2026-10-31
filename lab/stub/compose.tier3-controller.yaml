@@ -1,0 +1,9 @@
+# The Core qualifier forwards this host-loopback endpoint into its test guest.
+# Controller management and MongoDB remain on the disposable Compose network.
+services:
+  unifi:
+    ports:
+      - target: 8080
+        published: "0"
+        host_ip: 127.0.0.1
+        protocol: tcp

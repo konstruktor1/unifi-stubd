@@ -1,0 +1,16 @@
+version: 1
+testhost:
+  name: unifi-controller-server
+  lifecycle: ephemeral
+base:
+  tier: 3
+  service: linux-arm64
+  platform: linux/arm64
+provision: []
+readiness:
+  - test "$(uname -s)" = Linux
+  - test "$(uname -m)" = aarch64
+  - test "$(ps -p 1 -o comm=)" = systemd
+  - command -v podman
+inputs: []
+results: []

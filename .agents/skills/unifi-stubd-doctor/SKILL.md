@@ -46,6 +46,13 @@ settings, repair files, start a controller, deploy firmware or change networking
 Contained runtime effects retain their provider/process owners. Current native
 configuration remains authoritative, and invalid data stays unchanged.
 
+This setup Doctor does not qualify a product guest or controller. Those explicit
+domain operations use Core's `qualify-candidate` / `qualify-candidate-matrix`
+Make targets and the maintained Tier 3 contract. Labs retains controller
+preparation and external cleanup; preserve its independent native context and
+the existing Core Test Runner registrations. Report unexecuted current Stable/RC
+acceptance separately from setup observations and helper checks.
+
 Preserve the common findings, coverage and outcome meanings. Required unexecuted
 checks are `not_checked`; unresolved applicability is `unknown` or requirement
 `undetermined`. A positive exclusion needs current evidence. Keep supported

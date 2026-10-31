@@ -5,7 +5,10 @@ export default [
   {
     languageOptions: {
       globals: {
+        AbortSignal: "readonly",
+        fetch: "readonly",
         process: "readonly",
+        Response: "readonly",
         URL: "readonly",
       },
     },

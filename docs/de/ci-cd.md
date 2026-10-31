@@ -96,7 +96,7 @@ aus Daemon oder Image ableiten.
 ## Offene Provider-Handoffs
 
 Fruehere Gate- und Compilerbeobachtungen stehen im
-[Verifikationsnachweis](backlog.md#aktuelle-verifikation). Die laufende Integration
+[Verifikationsnachweis](../engineering/backlog.md). Die laufende Integration
 aktueller Dateien, beobachtete Checks und offene Owneraktionen stehen im
 [Engineering-Backlog](../engineering/backlog.md).
 Die erforderlichen Sprachwerkzeuge laufen jeweils in ihrer
@@ -183,13 +183,37 @@ Werkzeuge und den Docker-API-Zugriff vor dem Matrixlauf; pro Job werden keine
 Tools installiert. Go-Builds gehoeren in die Produkt- und Helfer-Dockerfiles;
 dieses Orchestrierungsimage benoetigt kein Go.
 
+Fuer den zugewiesenen Tier-3-Kandidatenlauf von Core setzt der Qualifier am
+gleichen Make-Einstieg
+`UNIFI_STUB_TIER3_GATE_MANIFEST=dist/tier3-controller-input/<run-id>.env`.
+Make reicht die Bindung weiter; der Matrix-Einstieg delegiert vor jeder
+Standalone-ZIP-Aufloesung an den
+[Tier-3-Controller-Vertrag](../../lab/stub/TIER3-CONTROLLER.md). Ohne diese
+Eingabe bleibt die bisherige Stable-/RC-Matrix unveraendert.
+`make qualify-candidate` und `make qualify-candidate-matrix` fuehren den
+Produktablauf im bestehenden nativen Core-Test-Runner-Kontext aus. Labs liefert
+Controller-Vorbereitung und frische Herkunftsnachweise.
+`make integration-tier3-candidate-controller-cleanup` bleibt das explizite
+Recovery-Ziel nach einem abgebrochenen Gate. Ein gebundenes Stable-Ergebnis trifft keine
+Aussage ueber RC.
+
+Die lokale Netzwerkberechtigung des Browsers gilt nur fuer seine Controller-
+Origin. Controller-CSRF-Header bleiben auf dieser Origin. Die oeffentliche
+Geraetebild-Datenbank unter `https://static.ui.com/fingerprint/ui/public.json`
+wird separat ohne Controller-Zugangsdaten abgerufen; andere externe
+Browseranfragen bleiben blockiert. Antwortgrenzen und bereinigte Fehlerdiagnosen
+sind im Vertrag beschrieben.
+Die UniFi-OS-Abnahme liest Linkgeschwindigkeit sowie RX/TX-Pakete und -Bytes
+aus derselben eindeutigen sichtbaren Zeile des nativen Port Managers mit
+Zielgeraetefilter.
+
 Das Manifest gewaehrt ausdruecklich Docker-API-Zugriff und die fuer den Socket
 erforderliche Root-Identitaet im Orchestrierungscontainer. Nur mit einem
 isolierten Lab-Daemon verwenden. Der Make-Einstieg uebergibt den physischen
 Lab-Pfad fuer Bind-Mounts; dieser muss fuer den ausgewaehlten Docker-Endpunkt
 sichtbar sein. Ein Remote-Pfad wird nicht geraten.
 
-Der erhaltene Matrix-Payload loest das neueste
+Ohne gebundenes Tier-3-Manifest loest der erhaltene Matrix-Payload das neueste
 veroeffentlichte Stable und den neuesten Release Candidate
 zu Laufbeginn auf und verwendet in beiden wegwerfbaren Spuren denselben
 Kandidaten. Details und Bedingungen stehen im

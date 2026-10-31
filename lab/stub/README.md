@@ -14,5 +14,8 @@ make integration-nonunifi-metrics
 
 The matrix resolves current Stable and Release Candidate versions, runs the
 same product image in both, and removes every disposable resource. It proves
-container-local Linux behavior only; physical and machine-backed compatibility
-belongs to `unifi-stubd-labs`.
+container-local Linux behavior only. For the assigned ARM64 Test Runner machine,
+Core owns `make qualify-candidate` and `make qualify-candidate-matrix` through the
+[qualification contract](TIER3-CONTROLLER.md). The companion supplies controller
+preparation and authoritative machine data; VM resources retain their existing
+native Test Runner owner and location.

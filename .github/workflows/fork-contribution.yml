@@ -1,0 +1,17 @@
+name: Fork Contribution
+
+on:
+  pull_request_target:
+
+permissions:
+  contents: read
+
+jobs:
+  fork-contribution:
+    if: github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require a reviewed repository branch for fork contributions
+        run: |
+          echo '::error::A maintainer must review this fork contribution and run CI from a repository-owned branch with the private provider sources configured.'
+          exit 1

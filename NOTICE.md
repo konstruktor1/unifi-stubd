@@ -11,6 +11,12 @@ protocol documentation, public reverse-engineering notes, and lab testing. No
 source code from the research repositories listed in [CREDITS.md](CREDITS.md)
 has been copied into this repository.
 
+The candidate qualification scripts, strict manifest reader and static scenario
+data in `lab/stub/` originated in the companion `unifi-stubd-labs` project and
+are maintained here after relocation and adaptation. Copyright (c) 2026
+unifi-stubd contributors; AGPL-3.0-or-later. No vendor implementation or assets
+were included in that relocation.
+
 Runtime third-party notices:
 
 - `golang.org/x/crypto` is distributed under a BSD-3-Clause license by The Go

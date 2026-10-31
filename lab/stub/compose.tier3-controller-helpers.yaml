@@ -1,0 +1,24 @@
+# Schema 2: Labs owns the controller; Core owns only these disposable helpers.
+services:
+  controller-adoption:
+    build:
+      context: ../..
+      dockerfile: lab/stub/Dockerfile.controller-adoption
+    image: ${UNIFI_STUB_CONTROLLER_HELPER_IMAGE:?set helper image}
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+  controller-ui:
+    build:
+      context: ../..
+      dockerfile: lab/stub/Dockerfile.controller-ui
+    image: ${UNIFI_STUB_CONTROLLER_UI_IMAGE:?set UI image}
+    extra_hosts:
+      - host.docker.internal:host-gateway
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true

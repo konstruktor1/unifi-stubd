@@ -51,21 +51,22 @@ Das Tarball-Target verwendet per Default `amd64`, passend zu typischen
 OPNsense-Installationen. Fuer einen ARM-FreeBSD-Host
 `PKG_FREEBSD_GOARCH=arm64` setzen. Native `pkg`-Repositories enthalten
 `FreeBSD:14`- und `FreeBSD:15`-Builds fuer `amd64`, `aarch64` und `armv7`.
-Der Tarball landet unter `dist/packages/` und enthaelt dieses Layout:
+Der Tarball landet unter `dist/packages/`.
 
 Das Kompatibilitaets-Target uebertraegt den Source-Tree auf den konfigurierten
 FreeBSD-Builder, baut dort jede konfigurierte FreeBSD-ABI und
-schreibt die nativen `pkg`-Repositories plus die veroeffentlichten `amd64`- und
+schreibt die nativen `pkg`-Repositories plus die `amd64`- und
 `arm64`-Tarballs. `FREEBSD_PKG_BUILD_JAILS` nur fuer eigene Builder mit
 laufenden `jexec`-Jails setzen. Der aktuelle Kompatibilitaets-Poudriere-
-Buildhost baut die FreeBSD-Binaries auf dem FreeBSD-Host mit `go`, `go125`
-oder `go126` und erstellt danach ABI-spezifische `pkg`-Repositories mit dem
+Buildhost baut die FreeBSD-Binaries auf dem FreeBSD-Host mit Go 1.27 oder neuer
+(`go` oder `go127`) und erstellt danach ABI-spezifische `pkg`-Repositories mit dem
 FreeBSD-`pkg`-Tool.
 
-GitHub-Actions-Veroeffentlichung, Runner-Grenze, Aufbewahrung und Legacy-Tag-
-Regeln besitzt die
-[Release-Checkliste](release.md#manuelle-freebsd-packaging-erweiterung).
-Diese Seite besitzt nur Target-Build- und Installationsfakten.
+GitHub-Actions-Veroeffentlichung, Runner-Grenzen, Aufbewahrung und Tag-Regeln
+stehen in der
+[Release-Checkliste](release.md#manuelles-freebsd-kompatibilitaetspackaging).
+
+Der Tarball enthaelt dieses Layout:
 
 ```text
 /usr/local/bin/unifi-stubd
@@ -79,16 +80,10 @@ Diese Seite besitzt nur Target-Build- und Installationsfakten.
 
 ## Veroeffentlichte Tarballs installieren
 
-Veroeffentlichte Alpha-Tarballs liegen erst nach der optionalen manuellen
-`FreeBSD Packaging`-Veroeffentlichung in GitHub Releases und auf der GitHub-
-Pages-Paketeseite. Ein normaler Tag kann daher bereits Linux-Pakete und eine
-SBOM enthalten, waehrend FreeBSD-Output noch fehlt. Nach abgeschlossenem
-Workflow bietet Pages stabile URLs fuer direkte FreeBSD-/OPNsense-Downloads:
-
-```text
-https://konstruktor1.github.io/unifi-stubd/freebsd/amd64/
-https://konstruktor1.github.io/unifi-stubd/freebsd/arm64/
-```
+Der aktuelle manuelle Workflow erzeugt nur Kompatibilitaets-Laufartefakte und
+veroeffentlicht keine FreeBSD-Pakete. Diese Download-Schritte nur verwenden,
+wenn der gewaehlte Release bereits den passenden veroeffentlichten Tarball und
+die Pruefsummen enthaelt.
 
 Tarball fuer die Host-Architektur laden. `amd64` passt fuer typische
 OPNsense-/x86_64-Installationen, `arm64` fuer ARM-FreeBSD-Hosts:
@@ -109,8 +104,9 @@ auswaehlt. Nach dem Entpacken und vor dem Aktivieren des Diensts
 
 ## Veroeffentlichte pkg-Repositories installieren
 
-Native Alpha-`pkg`-Repositories sind nach FreeBSD-ABI gruppiert. Zuerst die ABI
-des Zielsystems pruefen:
+Diese Schritte nur fuer ein bestehendes veroeffentlichtes natives
+Alpha-`pkg`-Repository verwenden. Die Repositories sind nach FreeBSD-ABI
+gruppiert. Zuerst die ABI des Zielsystems pruefen:
 
 ```sh
 pkg config ABI

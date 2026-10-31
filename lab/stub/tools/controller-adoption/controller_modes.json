@@ -1,0 +1,4 @@
+{
+  "classic": {"login_path": "/api/login", "network_prefix": "", "ui_path": "/manage/default/devices"},
+  "unifi-os": {"login_path": "/api/auth/login", "network_prefix": "/proxy/network", "ui_path": "/network/default/devices", "ui_port_metrics": {"open_label": "Port Manager", "columns_label": "Customize Columns", "all_label": "All", "done_label": "Done", "column_labels": {"speed": "Speed", "rx_packets": "Rx Packets", "rx_sum": "Rx Sum", "tx_packets": "Tx Packets", "tx_sum": "Tx Sum"}}}
+}

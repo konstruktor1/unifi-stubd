@@ -4,6 +4,11 @@
 
 | ID | Work and intended use | Status | Responsible owner | Completion criterion / observed outcome | Remarks and dependencies | Use cases |
 | --- | --- | --- | --- | --- | --- | --- |
+| LAB-001 | Modernize and bound the Core controller helpers. | Complete | Core laboratory owner | Physical input/output containment precedes gate effects. Public fingerprint reads stop before retaining an over-limit chunk. Native JS lint/format and ten stream regressions, Go helper tests, all 13 CT checks, seven binding unit tests and full make verify passed. Both actual ARM64 helper images built and passed offline syntax/import/entrypoint guards; their exact verification tags and IDs were removed. | Historical local handshake namespaces remain unchanged, so the three namespace cases skip there. Fresh hosted CI uses an empty dist; verbose canonical tests expose actual pass/skip outcomes. Helper success proves no real current-controller acceptance. | Core controller integration and bounded browser/API helpers. |
+| LAB-002 | Put product qualification under its existing Core native owner. | Complete | Core product-test owner with Labs controller owner | Candidate/matrix qualification now uses current public BR/Test Runner interfaces and one Core native context. Strict SSH inputs bind the actual native inventory/source/seed, replacing the incorrect guest-address host-key alias. Fourteen shell-context/parser cases, seven native-binding tests, read-only actual binding validation and all five owned manifest validations passed. | Three existing Core-managed VM records and selected data placement remain unchanged. Labs owns controller preparation, inventory, provenance and external cleanup. Real fresh Stable/RC acceptance remains in the product backlog; no VM lifecycle or controller acceptance is claimed here. | Real candidate qualification on assigned test machines. |
+| LAB-003 | Establish the independent Labs update boundary and verified Core qualification handoff. | Complete | Core receiving owner and Labs native integration owner | User confirmed Labs' nine own CT selections and local-only Git delivery. Labs saved them through actual init, repaired native bindings, read current subscribed context and removed 709 obsolete provider snapshot files plus old entry/registration bindings after no-writer checks. Core qualification adoption and its checks were handed to the Labs owner. | Further Labs implementation/checks and local commit belong to that consumer's own engineering backlog. Five original controller recovery files and existing data placement are preserved; no Labs remote or cross-project Root override was created. | Current Labs maintenance with independent preferences and source ownership. |
+| LAB-004 | Retire obsolete active guidance and finish current role classification. | Complete | Core engineering owner | Product backlogs retain current work and actual acceptance gaps. Replaced obsolete launcher/runner instructions, removed the duplicate Tier 3 start alias and declared current qualification/helper/test/control and companion roles. Own five-skill discovery, exact notices/filters, invalidation and cancellation verification passed. | Prior backlog texts and the superseded 83-line integration narrative remain private task inputs. Current native instance controls are preserved as runtime data, distinct from retired executable copies. Git delivery and actual hosted runs retain their separate observations. | Concise current maintenance and honest onward guidance. |
+| CI-003 | Merge the complete checked branch to main and run the package jobs. | Complete | Repository delivery and GitHub CI owner | User confirmed the complete branch scope. Ordinary fast-forward pushes advanced GitHub main from c8f6d83 and Forgejo main from bfaa712 to e9a78be. Main run 41176627756 passed check, package and package-install-smoke with no skipped jobs. All 13 CT checks passed; all four Linux formats and the real Debian install/version/config/service-file smoke passed. | Existing local product/lab work and index were retained. This proves automatic Linux packaging; manual FreeBSD/controller jobs were not dispatched. Evidence: ci-main-merge-20261031. | Supported main CI and Linux package integration. |
 | CI-001 | Complete current-provider delivery and verify the GitHub-hosted CI run. | Complete | CT source owner and repository delivery owner | CT004/CT006 is published as 5c325ff on its actual default branch; the scoped consumer integration and CI corrections are published on codex/consolidate-unifi-stubd. GitHub run 41163533722 on d3fbe4d passed full make verify, all 13 required CT checks with no unresolved checks, coverage, SBOM, artifact uploads and both post-actions. | Replaced the fixed ten-second discovery helper with typed SDK discovery allowing cold setup; unified native/controller UID only on disposable GitHub-hosted Ubuntu; handed the product artifact directory to native Actions. Private 0700 checks, current-source integrity and the FreeBSD-only runner role remain enforced. Package/install jobs are branch-condition skips; no manual FreeBSD/controller or main merge was run. Source-review diagnostics remain visible; no private review record is published. Evidence: ci-delivery-20261031. | GitHub-hosted branch quality and native container/artifact integration. |
 | CI-002 | Implement the clarified GitHub/container CI route and preserve the FreeBSD-only runner. | Complete | unifi-stubd CI integration owner | General jobs select GitHub-hosted Ubuntu and BR containers. Maintained setup prepares current private sources and SDK; actual public preflight derives optional CT_SOURCE through the saved CT connection. Source read token and native variables are configured. Full make verify including workflow-lint and all 13 CT checks passed; real SDK/source-bootstrap and BR-only independence passed. | FreeBSD workflow and runner labels are unchanged; obsolete docker-engine scheduling/policy removed. Actual mismatched remote CT is rejected by bytes/modes, fixtures are removed and staging is preserved. Remote delivery/execution remains separately blocked by CI-001; no push or real controller/VM operation is implied. Evidence: ci-runner-docker-20261030. | Correct local CI definitions and verified native integration. |
 | CT-006 | Propagate the actual task use case to auxiliary source-review due checks. | Complete | CT source owner and unifi-stubd receiving owner | Current optional use_case is propagated across eight CLI/MCP auxiliaries, MCP annotations and requested CT Doctor. Five focused CLI cases and the real ten-function MCP regression passed; supplied cli stays current, while default/explicit library remains due. Local explicit-cli persistence inquiry has no false review diagnostic and the actual review bytes/time remain unchanged. | Fresh acknowledged current context, exact foreign adoption and own guidance/notices preserve the input duty onward. The returned Anti-Bloat verify command also retains the validated literal selector. Final receiving review uses that unchanged current procedure; original wrong-context outcomes stay in ct-precision-cleanup-20261030. No preference, ENV selector, diagnostic suppression or second store was added. | Accurate invocation-based review during selected CLI task completion. |
@@ -19,86 +24,3 @@
 | BR-001 | Reconcile current BR context and affected native declarations. | Complete | unifi-stubd integration owner | Read 21 unique required BR resources with exact SHA-256/modes and acknowledged active catalog/annotations/list subscriptions; saved native export matches; current CT selection passed after removing the obsolete snapshot exclusion. | Local tests directory mode 0700 satisfies the current verification owner; no foreign materialization or incoming Git index was changed. | Current-file BR integration; portable native setup. |
 | BR-002 | Implement own Doctor, current-context client and four own functional skills. | Complete | unifi-stubd integration owner | Real SDK discovery, four exact skills, notice filter, invalid inputs, Doctor inspect/verify, settings preservation and disposable byte/mode invalidation with sticky rejection/reconnect passed. | Native Bash/Python gate: seven required checks passed, unresolved_checks empty. Direct BR CLI retained; native special identity route is provider --json without project options. | Local diagnosis; native verification; requested onward guidance. |
 | INT-20261028 | Replace obsolete registration/history assumptions with native current-file CT and BR use. | Complete | unifi-stubd integration owner | The dated observation below records actual local implementation, native checks, bounded SDK probes and preserved data/index. | Historical result applies to its observed inputs; newer BR/CT source content requires current reconciliation. Remote CI was unverified. | Earlier receiving integration baseline. |
-
-## Historical observation — 2026-10-28
-
-The following record preserves the earlier task's observed inputs and outcomes.
-It does not certify the current upstream source or newer local implementation.
-
-Replaced obsolete provider registration and historical execution assumptions
-while preserving the actual incoming staged/unstaged work, policy choices,
-manifests, controller/lab boundaries, domain data and Git index. Native Make/CI
-dispatch inherits one receiving ENV. The existing check owner is now
-`scripts/check-ct.py`, uses official SDK/direct discovered schemas and selects
-only ID `ct`, `bin/provider`, `bin/ct` and `connections/ct/`. The configuration was
-renamed to `ct.toml` without replacing the existing choices. Go/JavaScript retain
-their existing Build Runner owners.
-
-Own function/annotations skills pass current-file, implementation, subscription
-and onward duties. The existing check owner also offers narrow read-only
-annotations, exact own skill resources and SDK subscriptions. Its dependency is
-`requirements/unifi-stubd/mcp.txt`; the terminal is not a full domain provider.
-
-Removed two obsolete provider.json files, 719 inactive installed source/entry/
-registration files and a further 2,920 obsolete source/contract/catalog captures
-after finite role/hash inventories and writer, handle, lock and mount checks.
-Removed obsolete native aliases without a source archive. Useful execution/
-closure evidence, current SDK/runtime locks and Go/Node/controller data remain.
-A final direct inventory found no `runtime/release-*` tree.
-
-The ready CT source was bound through its public `mcp --connection` owner.
-Acknowledged active catalog/annotations/list subscriptions, all 11 required
-terminal resources, ID-only annotations and the exact-root contract passed.
-Exactly four current CT skills and their companion retain original bytes/modes;
-no code/catalog/contract cache remains. The initial observation stopped on a
-task-local response-envelope mistake after reading; its corrected observation
-passed.
-
-The real native CT Bash/Python gate passed all seven required checks. Own SDK
-discovery/resource/filter/invalid-input checks, empty server version,
-byte/mode/missing-file invalidation, sticky restore rejection and reconnection
-passed. The concrete unreadable-file fault was reproduced before the narrow
-OSError correction; both affected SDK probes and three CT Python checks then
-passed. Local BR and CT preflight, existing policy checks, scoped Ruff, shell
-syntax/lint/format, YAML parsing and own skill validation passed. Actionlint is
-unavailable. No controller, hardware, remote CI or production workload was run.
-
-The existing root owner now confirms directory read/search access through a
-safe directory descriptor. Isolated SDK cases for root modes 000/0400 fail
-without hints and permit the same session after restore; an unreadable required
-skill remains sticky with hints and needs reconnect. The current four-file
-fixtures were retired after client exit and handle checks. The affected CT
-Python checks passed again; no domain tests were added or repeated.
-
-The ready current BR delivery was read after its source owner's receiving-root
-fix: all 88 declared resources, including 17 terminal required resources, verified
-with an acknowledged live stream and actual annotations. Its public native
-connection matches the saved binding; no domain workload ran.
-The final ready CT delivery was read with its acknowledged stream and all 11
-required resources. Four native CT skills, their companion and the declared
-AGENTS section retain exact supplied bytes/modes; the project prefix is preserved.
-Its new root-availability notice matches the verified own root implementation.
-The same bounded review and its CT binding/coverage result use the existing
-work order and selected own files; see the task's review/results records.
-
-The actual GitHub observation found zero repository variables, one online
-FreeBSD worker without `docker-engine`, and published CI still on
-`ubuntu-latest`. That worker explicitly forbids Docker daemon access. The
-then-proposed route required a Docker-capable self-hosted worker and runner-local
-`INITIAL_MANAGEMENT_LAUNCHER` / `CT_INITIAL_MANAGEMENT_LAUNCHER` settings.
-Existing administration documents
-name `docker` / VM 400 / Compose deployment `unifi-stubd-gh-runner`, but record
-unknown host/application access and no MCP target channel. The local CT source
-path supplies no Linux CI access. No remote setting or runner was changed;
-that observation did not establish complete self-hosted CI success.
-
-The user clarified the current role split on 2026-10-30: the existing
-self-hosted runner serves only FreeBSD packaging; general checks use
-GitHub-hosted workers and BR containers. The earlier requirement for a separate
-Docker-enabled self-hosted CI worker was overbroad. Current CI-001 tracks
-private-source access and current-file delivery instead; the historical
-observation above grants no runner conversion or remote change authority.
-
-Thin inventories, actual outcomes and preservation records are in
-`.consumer-data/evidence/unifi-stubd/current-file-integration-20261028/`.
-No commit, staging or push is authorized in this receiving task.

@@ -46,20 +46,20 @@ Runner route or reviewed split-build route replaces that compilation step.
 The tarball target defaults to `amd64`, matching common OPNsense installs. Use
 `PKG_FREEBSD_GOARCH=arm64` when targeting an ARM FreeBSD host. Native `pkg`
 repositories include `FreeBSD:14` and `FreeBSD:15` builds for `amd64`,
-`aarch64`, and `armv7`. The tarball is written to `dist/packages/` and stages
-this layout:
+`aarch64`, and `armv7`. The tarball is written to `dist/packages/`.
 
 The compatibility target sends the source tree to the configured FreeBSD
 builder, builds each configured FreeBSD ABI there, and writes the
-native `pkg` repositories plus the published `amd64` and `arm64` tarballs. Set
+native `pkg` repositories plus the `amd64` and `arm64` tarballs. Set
 `FREEBSD_PKG_BUILD_JAILS` only for custom builders with running `jexec` jails.
 The current compatibility Poudriere buildhost builds FreeBSD binaries on the
-FreeBSD host with `go`, `go125`, or `go126`, then creates ABI-specific `pkg`
+FreeBSD host with Go 1.27 or newer (`go` or `go127`), then creates ABI-specific `pkg`
 repositories with the FreeBSD `pkg` tool.
 
-GitHub Actions publication, runner-boundary, retention, and legacy-tag rules
-are owned by the [release checklist](release.md#manual-freebsd-packaging-extension).
-This page owns target build and installation facts only.
+See the [release checklist](release.md#manual-freebsd-compatibility-packaging)
+for GitHub Actions publication, runner boundaries, retention, and tag restrictions.
+
+The tarball stages this layout:
 
 ```text
 /usr/local/bin/unifi-stubd
@@ -73,16 +73,9 @@ This page owns target build and installation facts only.
 
 ## Install Published Tarballs
 
-Published alpha tarballs become available from GitHub Releases and the GitHub
-Pages package site only after the optional manual `FreeBSD Packaging`
-publication. A normal tag can therefore have Linux packages and an SBOM while
-FreeBSD output is still absent. The Pages site provides stable URLs once that
-workflow has completed:
-
-```text
-https://konstruktor1.github.io/unifi-stubd/freebsd/amd64/
-https://konstruktor1.github.io/unifi-stubd/freebsd/arm64/
-```
+The current manual workflow produces compatibility run artifacts only and does
+not publish FreeBSD packages. Use these download steps only when the selected
+release already has the matching published tarball and checksums.
 
 Fetch the tarball for the host architecture. Use `amd64` for typical
 OPNsense/x86_64 installations and `arm64` for ARM FreeBSD hosts:
@@ -103,8 +96,8 @@ the service.
 
 ## Install Published pkg Repositories
 
-Native alpha `pkg` repositories are grouped by FreeBSD ABI. Check the ABI on the
-target host first:
+Use these steps only for an existing published native alpha `pkg` repository.
+Repositories are grouped by FreeBSD ABI. Check the ABI on the target host first:
 
 ```sh
 pkg config ABI

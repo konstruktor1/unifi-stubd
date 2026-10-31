@@ -30,10 +30,11 @@ Never place credentials in source or generated YAML.
 
 ## 2. Install the companion command
 
-Build through this consumer's configured Build Runner:
+Load the once-defined [native provider context and current entry](ci-cd.md),
+then build through this consumer's configured Build Runner:
 
 ```sh
-./build-runner/runtime/entry build-runner --project-name unifi-stubd \
+"$BUILD_RUNNER_ENTRY" --project-name unifi-stubd \
   run --tier 1 --service go -- \
   env GOOS=freebsd GOARCH=amd64 go build \
     -o dist/unifi-stubd-opnsense ./cmd/unifi-stubd-opnsense

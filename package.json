@@ -5,9 +5,10 @@
     "node": ">=24 <25"
   },
   "scripts": {
-    "check": "npm run lint && npm run format:check",
-    "lint": "eslint eslint.config.mjs lab/stub/tools/controller-ui/main.mjs --max-warnings=0",
-    "format:check": "prettier --check eslint.config.mjs lab/stub/tools/controller-ui/main.mjs"
+    "check": "npm run lint && npm run format:check && npm test",
+    "lint": "eslint eslint.config.mjs lab/stub/tools/controller-ui/*.mjs tests/controllerui/*.test.mjs --max-warnings=0",
+    "format:check": "prettier --check eslint.config.mjs lab/stub/tools/controller-ui/*.mjs tests/controllerui/*.test.mjs",
+    "test": "node --test tests/controllerui/*.test.mjs"
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",

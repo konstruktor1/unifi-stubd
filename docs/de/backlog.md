@@ -1,29 +1,27 @@
-# Produkt-Backlog
+# Produktbacklog
 
-Stand: 2026-08-01.
+Aktualisiert: 2026-10-31. Diese Seite besitzt Produktziele und Abhaengigkeiten.
+Aktuelle Provider-Integration, CI und Laborpflege stehen im
+[Engineering-Backlog](../engineering/backlog.md).
 
-Der Backlog ist die einzige Quelle fuer aktuelle Prioritaet und naechste
-Arbeit. Er ist nach nutzbarem Produktergebnis geordnet; Runner, Fixtures,
-Receipts und Testkataloge sind Bereitstellung, keine Backlog-Ergebnisse.
+| ID | Ziel | Aktueller Status und Abschlusskriterium |
+| --- | --- | --- |
+| STUB-01 | Einen reproduzierbaren US8/Linux-Kandidaten festlegen. | Der vollstaendige Projektgate und Linux-Paketbau bestehen auf `main`. Das naechste Controller-Testbinary mit exakter Source und Eingaben binden; ein frueherer Kandidat qualifiziert kein neues Binary. |
+| STUB-02 | Den controllerbezogenen Labortestpfad pflegen. | Modernisierung laeuft. Core besitzt die Produkttest-Orchestrierung; Labs besitzt Controller-Vorbereitung und verbindliche Maschinendaten. Zugeordnete Maschinen und aktuelle native Schnittstellen verwenden. Siehe [Controller-Labor](docker-lab.md). |
+| STUB-03 | Sicherheitsgrenzen und Metrikfehlerfaelle nachweisen. | Offen. Begrenzte Adoption-Persistenz, lesende Beobachtung, fehlende Quellen, Link-Verlust, erste Samples und Zaehlerresets pruefen. Controllerbefehle fuer Neustart, Upgrade, Shell und Provisioning duerfen den Host nicht veraendern. |
+| STUB-04 | Denselben US8-Kandidaten auf aktuellem Stable und RC abnehmen. | Nach STUB-01–03. Beide Kanaele zu Laufbeginn aufloesen; Adoption, Verbindung und sichtbare reale Geschwindigkeit sowie bidirektionalen Traffic der benannten Quelle nachweisen. API-Werte allein belegen keine sichtbare Abnahme. |
+| STUB-05 | Die Installation auf einem unterstuetzten Linux-Host abnehmen. | Nach STUB-03–04. CI baut alle vier Linux-Formate und besteht einen echten Debian-Installations-, Versions-, Konfigurations- und Service-Datei-Test. Zur Produktabnahme gehoert noch der installierte Dienst mit benannter Bridge und realem Uplink. |
+| STUB-06 | Den englischen und deutschen Betreiberpfad abschliessen. | Nach STUB-05. Installation, Konfiguration, Adoption, sichtbare Metriken, Grenzen und Wiederherstellung gegen den abgenommenen Release pruefen. |
+| STUB-07 | Verifizierte Linux-Releases liefern. | Main-CI, Paketbau und Debian-Installationstest bestehen. Veroeffentlichung benoetigt das abgenommene Produkt mit passenden Source-/Binary-Nachweisen. |
+| STUB-08 | Eine weitere Repraesentation fuer einen konkreten Bedarf hinzufuegen. | Bis zur Linux-Abnahme zurueckgestellt. Betreiberziel, lesende Quelle, Sicherheitsgrenze und eigene Stable-/RC-Kriterien benennen. FreeBSD/OPNsense bleibt ein separates optionales Ziel. |
 
-| Reihenfolge | Produktergebnis | Status | Fertig wenn |
-| ---: | --- | --- | --- |
-| 1 | Den Nicht-UniFi-`US8` adoptieren und seine echten Metriken zeigen. | Extern blockiert | Derselbe Kandidat bleibt verbunden und zeigt auf dynamisch aufgeloestem Stable und RC sichtbar echten Link, Speed und bidirektionalen Traffic der benannten Quelle. |
-| 2 | Den Host ausserhalb der Controllerkontrolle halten. | Offen | Adoption behaelt nur Stub-Identitaet, und Controllerinput kann den Host nicht veraendern. |
-| 3 | Die unterstuetzte Linux-Installation liefern. | Offen | Der abgenommene Stub wird auf einem unterstuetzten Linux-Host im Modus `bridge-observe` mit benannter echter Quelle installiert und gestartet. |
-| 4 | Den Betreiberpfad veroeffentlichen. | Nach 1–3 | Der Quick Start deckt Installation, Konfiguration, Adoption, sichtbare Metriken, Grenzen und Recovery ohne Lab-Interna ab. |
-| 5 | Eine weitere Repraesentation nur fuer einen konkreten Bedarf ergaenzen. | Spaeter | Vor der Umsetzung bestehen benanntes Betreiberergebnis, lokale read-only Quelle, Sicherheitsgrenze und eigene Stable-/RC-Abnahme. |
+Als naechster Produktnachweis folgt STUB-03, danach die gemeinsame Stable-/RC-
+Abnahme. Historische Stable-11.0.97-Laborergebnisse gelten fuer ihren erfassten
+Kandidaten und ihre Controller-Instanz; RC bleibt ungeprueft. Sie belegen keine
+aktuelle gemeinsame Abnahme. Der verbindliche Vertrag und die Anforderungen an
+dauerhafte Ergebnisse stehen in [Anforderungen](requirements.md) und
+[Kompatibilitaet](compatibility.md).
 
-Aktueller Stand: Stable besitzt das vollstaendige betreibersichtbare Ergebnis.
-Die aktuelle RC-UI liefert fuer ein benoetigtes Asset 404; fehlerhaftes
-Stub-Verhalten wurde nicht beobachtet, und der strikte RC-Nachweis bleibt extern
-blockiert. Siehe [Kompatibilitaet](compatibility.md).
-
-## Naechster Schritt
-
-Den unveraenderten controller-sichtbaren Stable-/RC-Gate erneut ausfuehren, sobald Ubiquiti
-einen neuen RC veroeffentlicht. Bis dahin den fokussierten Host-Safety-Nachweis
-fuer Ergebnis 2 abschliessen. Das Controller-Artefakt nicht patchen, die
-sichtbare Metrikanforderung nicht abschwaechen und den Stub ohne Nachweis eines
-Produktfehlers nicht aendern. Die Installationsarbeit beginnt erst, wenn die
-Ergebnisse 1 und 2 abgeschlossen sind.
+Aktuelle native BR-/CT-Bindungen fuer die Ausfuehrung verwenden. Historische
+Provider-Revisionen, entfernte Snapshots und fruehere Runner-Bereitschaft sind
+keine Ausfuehrungsselektoren.

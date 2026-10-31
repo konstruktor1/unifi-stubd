@@ -5,6 +5,8 @@ FROM mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f281
 WORKDIR /ui
 COPY lab/stub/tools/controller-ui/package.json lab/stub/tools/controller-ui/package-lock.json ./
 RUN npm ci --omit=dev --ignore-scripts --no-audit --no-fund
-COPY lab/stub/tools/controller-ui/main.mjs ./main.mjs
+COPY lab/stub/tools/controller-ui/main.mjs lab/stub/tools/controller-ui/public-data.mjs ./controller-ui/
+COPY lab/stub/tools/controller-adoption/controller_modes.json ./controller-adoption/controller_modes.json
+COPY --chmod=0755 lab/stub/scripts/controller-auth-entrypoint.sh /usr/local/bin/controller-auth-entrypoint
 
-ENTRYPOINT ["node", "/ui/main.mjs"]
+ENTRYPOINT ["/usr/local/bin/controller-auth-entrypoint", "node", "/ui/controller-ui/main.mjs"]

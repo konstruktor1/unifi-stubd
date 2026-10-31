@@ -22,9 +22,10 @@ BUILD_LDFLAGS := -s -w -X main.version=$(PKG_VERSION)
 BUILD_RUNNER_PROJECT_NAME := unifi-stubd
 # Only host orchestration calls providers; payload targets execute in /workspace.
 HOST_PROVIDER_GOALS := verify quality-deps quality-js quality-ct quality-ct-image provider-check provider-context doctor \
-  integration-nonunifi-metrics
-BUILD_RUNNER_CLI_GOALS := verify quality-deps quality-js \
-  integration-nonunifi-metrics
+  integration-nonunifi-metrics integration-tier3-candidate-controller-cleanup \
+  qualify-candidate qualify-candidate-matrix
+BUILD_RUNNER_CLI_GOALS := verify quality-deps quality-js quality-ct \
+  integration-nonunifi-metrics integration-tier3-candidate-controller-cleanup
 ifneq ($(filter $(HOST_PROVIDER_GOALS),$(MAKECMDGOALS)),)
 ifndef PROVIDER_CONSUMER_ROOT
 $(error Inherit PROVIDER_CONSUMER_ROOT from the existing native project/session owner)
@@ -82,7 +83,9 @@ help:
 		'  make validate-config  Validate packaged configs and example profiles' \
 		'  make vulncheck    Run Go vulnerability scanning' \
 		'  make workflow-lint  Validate GitHub workflows and local action metadata' \
-		'  make integration-nonunifi-metrics  Prove non-UniFi metrics with the Stable/RC matrix' \
+		'  make integration-nonunifi-metrics  Prove non-UniFi metrics with a bound Tier 3 run or Stable/RC matrix' \
+		'  make qualify-candidate  Qualify the retained ARM64 candidate on one bound controller lane' \
+		'  make qualify-candidate-matrix  Qualify current Stable and RC with assigned Tier 3 test machines' \
 		'  make switch-payload  Print discovery and inform payloads' \
 		'  make switch-emulation  Start the lab switch emulator' \
 		'  make package      Build deb, rpm, archlinux, and tgz packages' \
@@ -123,6 +126,9 @@ quality-ct-image:
 
 quality-ct:
 	"$(PROVIDER_CLIENT_PYTHON)" -B scripts/check-ct.py
+	"$(BUILD_RUNNER_ENTRY)" --project-name '$(BUILD_RUNNER_PROJECT_NAME)' \
+		instance run --manifest build-runner/instances/ct-quality.yaml -- \
+		python3 -B -m unittest discover -s tests/tier3controller -p 'test_*.py'
 
 verify: quality-js
 	git diff --check HEAD
@@ -150,7 +156,7 @@ policy:
 	sh scripts/check-policy.sh
 
 test:
-	$(GO) test $(GO_PACKAGES)
+	$(GO) test -v $(GO_PACKAGES)
 
 vet:
 	$(GO) vet $(GO_PACKAGES)
@@ -174,7 +180,23 @@ integration-nonunifi-metrics:
 	"$(BUILD_RUNNER_ENTRY)" --project-name '$(BUILD_RUNNER_PROJECT_NAME)' \
 		instance run --manifest build-runner/instances/controller-gate.yaml -- \
 		env UNIFI_STUB_DOCKER_HOST_LAB_DIR='$(PROVIDER_CONSUMER_ROOT)/lab/stub' \
+		UNIFI_STUB_TIER3_GATE_MANIFEST='$(UNIFI_STUB_TIER3_GATE_MANIFEST)' \
 		bash lab/stub/scripts/run-controller-channel-matrix.sh
+
+.PHONY: integration-tier3-candidate-controller-cleanup
+integration-tier3-candidate-controller-cleanup:
+	"$(BUILD_RUNNER_ENTRY)" --project-name '$(BUILD_RUNNER_PROJECT_NAME)' \
+		instance run --manifest build-runner/instances/controller-gate.yaml -- \
+		env UNIFI_STUB_DOCKER_HOST_LAB_DIR='$(PROVIDER_CONSUMER_ROOT)/lab/stub' \
+		UNIFI_STUB_TIER3_GATE_MANIFEST='$(UNIFI_STUB_TIER3_GATE_MANIFEST)' \
+		bash lab/stub/scripts/run-tier3-controller-gate.sh --cleanup
+
+.PHONY: qualify-candidate qualify-candidate-matrix
+qualify-candidate:
+	bash lab/stub/scripts/qualify-candidate.sh
+
+qualify-candidate-matrix:
+	bash lab/stub/scripts/qualify-candidate-matrix.sh
 
 coverage:
 	mkdir -p dist

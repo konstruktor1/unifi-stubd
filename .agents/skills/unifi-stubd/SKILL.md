@@ -124,3 +124,17 @@ maintained provider setup. The context owner checks retained CT artifact bytes
 and modes against the subscribed source; mismatches require actual owner
 reconciliation, never a historical source, automatic rewrite or acceptance record.
 Pass this native configuration, integrity and role split onward.
+
+Product qualification belongs to this Core consumer: use `make qualify-candidate`
+for one controller lane and `make qualify-candidate-matrix` for current Stable
+and Release Candidate with the same retained binary. Read
+`lab/stub/TIER3-CONTROLLER.md` for the literal required inputs, native assigned
+Test Runner binding, strict SSH trust and recovery procedure. `LAB_DATA_ROOT`
+locates the already selected companion machine data; it is domain data, never a
+replacement provider Root or authority to move VM state. Keep the three existing
+Core-managed Test Runner registrations in their native context. Labs owns
+controller preparation, freshness/provenance and external-controller cleanup;
+its own provider context and saved quality choices remain independent. Do not
+execute a Labs launcher with a Core Root override. A `stable-only` run is partial
+coverage, and helper/CI success proves no fresh Stable/RC controller acceptance.
+Pass these ownership, required-input, cleanup and coverage boundaries onward.

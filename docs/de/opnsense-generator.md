@@ -30,10 +30,11 @@ Credentials niemals in Source- oder generiertes YAML schreiben.
 
 ## 2. Companion-Kommando installieren
 
-Den Build ueber den konfigurierten Build Runner dieses Consumers ausfuehren:
+Den einmal definierten [nativen Kontext und aktuellen Einstieg](ci-cd.md) laden,
+dann den Build ueber den konfigurierten Build Runner dieses Consumers ausfuehren:
 
 ```sh
-./build-runner/runtime/entry build-runner --project-name unifi-stubd \
+"$BUILD_RUNNER_ENTRY" --project-name unifi-stubd \
   run --tier 1 --service go -- \
   env GOOS=freebsd GOARCH=amd64 go build \
     -o dist/unifi-stubd-opnsense ./cmd/unifi-stubd-opnsense

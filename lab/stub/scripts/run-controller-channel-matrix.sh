@@ -3,6 +3,9 @@ set -euo pipefail
 umask 077
 
 script_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+if [[ -n "${UNIFI_STUB_TIER3_GATE_MANIFEST:-}" ]]; then
+  exec bash "$script_dir/run-tier3-controller-gate.sh"
+fi
 repo_root="$(cd -- "$script_dir/../../.." && pwd)"
 release_endpoint='https://community.svc.ui.com/graphql'
 release_group='e6712595-81bb-4829-8e42-9e2630fabcfe'
@@ -55,7 +58,8 @@ resolve_lane() {
   expected_slug="UniFi-Network-Application-$version_slug"
   [[ "$slug" == "$expected_slug" ]] ||
     fail "$channel release slug does not bind the expected version"
-  zip_url="$(jq -er --arg key "$key" '[.data[$key].items[0].links[]?.url | select(endswith("/UniFi.unix.zip"))] | if length == 1 then .[0] else error("expected one Unix ZIP") end' "$release_response")"
+  zip_url="$(jq -er --arg key "$key" '[.data[$key].items[0].links[]?.url | select(endswith("/UniFi.unix.zip"))] | if length == 1 then .[0] else error("expected one Unix ZIP") end' "$release_response")" ||
+    fail "$channel $version does not publish one official Unix ZIP; current-channel execution is blocked"
   [[ "$zip_url" =~ ^https://dl\.ui\.com/[A-Za-z0-9._/-]+/UniFi\.unix\.zip$ ]] ||
     fail "unsafe $channel ZIP URL"
   zip_release_token="${zip_url#https://dl.ui.com/unifi/}"
@@ -64,7 +68,8 @@ resolve_lane() {
   "$version" | "$version"-*) ;;
   *) fail "$channel ZIP URL does not bind the expected version" ;;
   esac
-  zip_sha="$(jq -er --arg key "$key" '[.data[$key].items[0].instructions[]? | select(.type == "TEXT") | .content | match("([0-9a-f]{64}) \\| UniFi\\.unix\\.zip"; "g") | .captures[0].string] | if length == 1 then .[0] else error("expected one Unix ZIP SHA-256") end' "$release_response")"
+  zip_sha="$(jq -er --arg key "$key" '[.data[$key].items[0].instructions[]? | select(.type == "TEXT") | .content | match("([0-9a-f]{64}) \\| UniFi\\.unix\\.zip"; "g") | .captures[0].string] | if length == 1 then .[0] else error("expected one Unix ZIP SHA-256") end' "$release_response")" ||
+    fail "$channel $version does not publish one official Unix ZIP SHA-256"
   [[ "$zip_sha" =~ ^[0-9a-f]{64}$ ]] || fail "invalid $channel ZIP SHA-256"
   printf -v "${prefix}_version" '%s' "$version"
   printf -v "${prefix}_zip_url" '%s' "$zip_url"
@@ -174,7 +179,7 @@ run_lane() {
   compose_channel build unifi || fail "$channel controller image build failed"
   set +e
   sh "$script_dir/run-docker-integration.sh" 2>&1 | tee "$evidence_dir/$channel.log"
-  lane_status=${PIPESTATUS[0]}
+  lane_status=$?
   set -e
   [[ "$lane_status" -eq 0 ]] || return "$lane_status"
   project_is_clean "$current_project" || fail "$channel Compose project was not completely removed"

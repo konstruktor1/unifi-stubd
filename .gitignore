@@ -11,8 +11,8 @@ coverage.out
 *.log
 /unifi-stubd
 
-# The core repository keeps only the disposable Tier 2 Docker lab. Firmware,
-# VM, and other Tier 3 data belongs to the companion project unifi-stubd-labs.
+# Core keeps disposable controller helpers and product qualification sources.
+# Firmware, VM disks and controller runtime data belong to unifi-stubd-labs.
 lab/stub/captures/
 
 # Machine-local provider runtime and native state.
