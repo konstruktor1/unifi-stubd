@@ -13,7 +13,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 from mcp import Client, ClientSession, StdioServerParameters
-from mcp.types import DiscoverResult
+from mcp.types import DiscoverRequest, DiscoverResult
 from mcp.types.version import MODERN_PROTOCOL_VERSIONS
 
 
@@ -187,7 +187,7 @@ def protocol_options(catalog):
             (Client, "read_resource"),
             (Client, "call_tool"),
             (Client, "listen"),
-            (ClientSession, "send_discover"),
+            (ClientSession, "send_request"),
             (ClientSession, "adopt"),
         )
         if not callable(getattr(owner, name, None))
@@ -204,8 +204,9 @@ def protocol_options(catalog):
 
 async def require_server_capabilities(client, required):
     """Confirm actual discovery supports the selected common MCP behavior."""
-    discovered = DiscoverResult.model_validate(
-        await client.session.send_discover(required)
+    # The public launcher may prepare its contained MCP environment on first use.
+    discovered = await client.session.send_request(
+        DiscoverRequest(), DiscoverResult, request_read_timeout_seconds=300
     )
     capabilities = discovered.capabilities
     if (

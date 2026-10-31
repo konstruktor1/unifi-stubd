@@ -93,6 +93,12 @@ actual current-source CI run. Local verification remains a separate result.
 
 ## Reading, subscriptions and recovery
 
+The native SDK client gives the initial typed `server/discover` request five
+minutes for a cold public-launcher bootstrap. The SDK stamps the already selected
+catalog protocol and client capabilities; the observed server capabilities and
+acknowledged subscriptions remain required. This changes no workload timeout,
+retry policy or protocol selection.
+
 Select the source's runtime skill for BR workloads and integration skill for
 authorized local integration changes. Through the current saved connection,
 discover resources and functions and retrieve `get_instructions` for the
