@@ -28,6 +28,9 @@ concurrency:
 jobs:
   build-packages:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: sudo --preserve-env bash --noprofile --norc -e -o pipefail {0}
     steps:
       - uses: actions/checkout@v6
         with:

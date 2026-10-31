@@ -9,8 +9,14 @@ set -euo pipefail
 : "${GITHUB_OUTPUT:?Use the native Actions output channel}"
 : "${GITHUB_ENV:?Use the native Actions environment channel}"
 test "${GITHUB_ACTIONS:-}" = true
+test "${RUNNER_ENVIRONMENT:-}" = github-hosted
+test "$(uname -s)" = Linux
+test "$(id -u)" = 0
 test "$PROVIDER_CONSUMER_ROOT" = "$(pwd -P)"
 test "$PROVIDER_CONSUMER_ROOT" = "$(realpath "$GITHUB_WORKSPACE")"
+test "$PROVIDER_CONSUMER_ROOT" = "$(git -c safe.directory="$PROVIDER_CONSUMER_ROOT" rev-parse --show-toplevel)"
+# Native control records and BR's controller share this disposable job identity.
+chown -R --no-dereference -- 0:0 "$PROVIDER_CONSUMER_ROOT"
 test "$PROVIDER_CONSUMER_ROOT" = "$(git rev-parse --show-toplevel)"
 test -x "$PYTHON"
 umask 077

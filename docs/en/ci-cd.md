@@ -233,6 +233,12 @@ source's public `bin/provider mcp --connection`, checks `help --json` and runs
 consumer's selected CT environment. Go, Node and the selected CT tools run in BR
 containers. BR and CT remain independent functions.
 
+On disposable GitHub-hosted Ubuntu workers, provider setup and host orchestration
+use the same root UID as the BR controller. Setup first validates the native
+physical root, then transfers ownership of that job checkout before creating
+private provider state. The private `0700` checks remain in force. This setup
+rejects self-hosted workers and does not apply to the FreeBSD runner.
+
 Both repositories reject anonymous reads. The selected GitHub secret and username
 variable are now configured. The read-only token is restricted to the two provider
 repositories; a fresh disposable consumer successfully cloned both, installed the

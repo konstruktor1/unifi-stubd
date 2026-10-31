@@ -17,6 +17,9 @@ concurrency:
 jobs:
   controller-adoption:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: sudo --preserve-env bash --noprofile --norc -e -o pipefail {0}
     timeout-minutes: 90
     steps:
       - uses: actions/checkout@v6

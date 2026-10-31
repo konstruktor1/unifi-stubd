@@ -10,7 +10,7 @@ inputs:
 runs:
   using: composite
   steps:
-    - shell: bash
+    - shell: sudo --preserve-env bash --noprofile --norc -e -o pipefail {0}
       env:
         PROVIDER_ID: ${{ inputs.provider }}
         INITIAL_MANAGEMENT_LAUNCHER: ${{ inputs.initial-management-launcher }}

@@ -71,6 +71,12 @@ source/default-branch acquisition is transport, never a release/commit execution
 selector or a reason to reuse a historical tree. Neither BR nor CT becomes the
 other's source-delivery prerequisite.
 
+On disposable GitHub-hosted Ubuntu workers, provider setup and host orchestration
+use the same root UID as the BR controller. Setup first validates the native
+physical root, then transfers ownership of that job checkout before creating
+private provider state. The private `0700` checks remain in force. This setup
+rejects self-hosted workers and does not apply to the FreeBSD runner.
+
 Private Forgejo reads use `PROVIDER_SOURCE_TOKEN` from GitHub Actions secrets
 and `vars.PROVIDER_SOURCE_USERNAME`; `BUILD_RUNNER_SOURCE_URL` and `CT_SOURCE_URL`
 are configured source URLs in native GitHub repository variables.

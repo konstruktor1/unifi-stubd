@@ -28,7 +28,7 @@ runs:
       with:
         python-version: "3.15"
     - id: sources
-      shell: bash
+      shell: sudo --preserve-env bash --noprofile --norc -e -o pipefail {0}
       env:
         PYTHON: ${{ steps.python.outputs.python-path }}
         BUILD_RUNNER_SOURCE_URL: ${{ inputs.build-runner-source }}

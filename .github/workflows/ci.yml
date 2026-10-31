@@ -15,6 +15,9 @@ env:
 jobs:
   check:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: sudo --preserve-env bash --noprofile --norc -e -o pipefail {0}
     steps:
       - uses: actions/checkout@v6
         with:
@@ -67,6 +70,9 @@ jobs:
     needs: check
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: sudo --preserve-env bash --noprofile --norc -e -o pipefail {0}
     outputs:
       version: ${{ steps.package-version.outputs.version }}
     steps:

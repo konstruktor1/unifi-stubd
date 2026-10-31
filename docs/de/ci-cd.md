@@ -252,6 +252,13 @@ CT-Quelleneingang fuer die ausgewaehlte CT-Umgebung dieses Consumers.
 Go, Node und die ausgewaehlten CT-Werkzeuge laufen in BR-Containern. BR und CT
 bleiben unabhaengige Funktionen.
 
+Auf wegwerfbaren GitHub-Ubuntu-Workern verwenden Provider-Setup und
+Host-Orchestrierung dieselbe Root-UID wie der BR-Controller. Das Setup validiert
+zuerst den nativen physischen Root und uebertraegt dann die Eigentuemerschaft
+dieses Job-Checkouts, bevor privater Provider-Zustand entsteht. Die privaten
+`0700`-Pruefungen bleiben erhalten. Dieses Setup lehnt selbst gehostete Worker ab
+und gilt nicht fuer den FreeBSD-Runner.
+
 Beide Repositories lehnen anonyme Zugriffe ab. Das ausgewaehlte GitHub-Secret und
 die Benutzer-Variable sind jetzt eingerichtet. Der Lesetoken ist auf genau die
 beiden Provider-Repositories beschraenkt. Ein frischer wegwerfbarer Consumer hat
